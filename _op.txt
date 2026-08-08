@@ -1,0 +1,14 @@
+﻿On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+	new file:   .gitignore
+	new file:   .metadata
+	new file:   "AUDIT_\346\230\237\347\222\203\351\237\263\344\271\220\347\251\272\351\227\264.md"
+	new file:   README.md
+	new file:   SETUP.md
+	new file:   _op.txt
+=== rev-parse HEAD ===
+HEAD

@@ -1,0 +1,42 @@
+allprojects {
+    repositories {
+        maven { url 'https://maven.aliyun.com/repository/google' }
+        maven { url 'https://maven.aliyun.com/repository/central' }
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+// ── AGP 8 命名空间兼容垫片 ──────────────────────────────────────
+// 少数已停止维护的第三方插件（如 on_audio_query_android 1.1.0）仍沿用
+// AndroidManifest 的 package 属性声明命名空间；AGP 8 起该写法失效且要求
+// 显式 namespace，缺失时会在配置期直接报
+// "Namespace not specified" 而中断整个构建。
+// 这里为所有缺失 namespace 的 Android 子模块回填其 group 作为命名空间
+// （与插件原 manifest package 一致），避免去改 pub 缓存里的插件源码
+// —— 那种改法会被 flutter pub get 还原，无法持久。
+//
+// 注意：本块必须位于下面的 evaluationDependsOn(":app") 之前。
+// evaluationDependsOn 会立即触发子项目求值，之后再注册 afterEvaluate
+// 会抛 "Cannot run Project.afterEvaluate(Closure) when the project is
+// already evaluated"。
+subprojects {
+    afterEvaluate { subproject ->
+        def androidExt = subproject.extensions.findByName("android")
+        if (androidExt != null && androidExt.namespace == null) {
+            androidExt.namespace = subproject.group.toString()
+        }
+    }
+}
+
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

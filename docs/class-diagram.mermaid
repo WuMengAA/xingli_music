@@ -1,0 +1,333 @@
+classDiagram
+    direction LR
+
+    %% ══════════ 主题 Token 层（新增，全 static const）══════════
+    class AppColors {
+        <<abstract final>>
+        +Color bgPage$
+        +Color bgSurface$
+        +Color bgSurfaceSunken$
+        +Color bgRail$
+        +Color bgTile$
+        +Color bgDock$
+        +Color bgInput$
+        +Color bgCard$
+        +Color bgControl$
+        +Color bgPlaceholder$
+        +Color accent$
+        +Color accentPressed$
+        +Color onAccent$
+        +Color textPrimary$
+        +Color textSecondary$
+        +Color textTertiary$
+        +Color textAccent$
+        +Color iconInactive$
+        +Color iconOnAccent$
+        +Color borderDefault$
+        +Color borderDock$
+        +Color divider$
+        +Color success$
+        +Color danger$
+    }
+
+    class AppRadius {
+        <<abstract final>>
+        +double sm$
+        +double md$
+        +double lg$
+        +double xl$
+        +double pill$
+    }
+
+    class AppSpace {
+        <<abstract final>>
+        +double xs$
+        +double sm$
+        +double md$
+        +double lg$
+        +double xl$
+    }
+
+    class AppSize {
+        <<abstract final>>
+        +double shellEdgeInset$
+        +double heightSearch$
+        +double heightMiniPill$
+        +double heightMiniGroup$
+        +double heightDock$
+        +double heightProgress$
+        +double icon$
+        +double tabIndicator$
+        +double cover$
+        +double railWidth$
+        +double tileW$
+        +double tileH$
+    }
+
+    class AppShadow {
+        <<abstract final>>
+        +BoxShadow card$
+        +BoxShadow cardSoft$
+    }
+
+    class AppTextStyles {
+        <<abstract final>>
+        +TextStyle title$
+        +TextStyle body$
+        +TextStyle trackName$
+        +TextStyle artist$
+        +TextStyle caption$
+        +TextStyle tabLabel$
+        +TextStyle tileLabel$
+    }
+
+    class LightTheme {
+        <<library>>
+        +ThemeData kLightTheme$
+        +ThemeData buildLightTheme()$
+    }
+
+    LightTheme ..> AppColors : ColorScheme.light
+    LightTheme ..> AppTextStyles : TextTheme
+
+    %% ══════════ Shell 状态层（新增）══════════
+    class ShellPage {
+        <<enumeration>>
+        scene
+        explore
+        library
+        settings
+        home
+    }
+
+    class ShellProviders {
+        <<library>>
+        +StateProvider shellPageProvider$
+        +Provider selectedTabIndexProvider$
+        +StateProvider librarySearchQueryProvider$
+        +StateProvider settingsSearchQueryProvider$
+    }
+
+    ShellProviders ..> ShellPage
+
+    class SettingsCategory {
+        <<enumeration>>
+        playback
+        source
+        scene
+        notification
+        about
+    }
+
+    class SettingsCategoryMeta {
+        +SettingsCategory id
+        +IconData icon
+        +String label
+        +Widget buildDetail(BuildContext ctx, WidgetRef ref)
+    }
+
+    class SettingsUiProviders {
+        <<library>>
+        +StateProvider settingsCategoryProvider$
+        +List kSettingsCategories$
+    }
+
+    SettingsUiProviders ..> SettingsCategoryMeta
+    SettingsCategoryMeta --> SettingsCategory
+
+    %% ══════════ Shell 组件层（新增）══════════
+    class AppShell {
+        <<ConsumerStatefulWidget>>
+        +Widget build(BuildContext ctx)
+        -void initState()
+        -Widget buildBody()
+        -bool onSystemBack()
+    }
+
+    class ContentContainer {
+        <<StatelessWidget>>
+        +Widget child
+        +Widget build(BuildContext ctx)
+    }
+
+    class AppDock {
+        <<StatelessWidget>>
+        +int selectedIndex
+        +ValueChanged onTabSelected
+        +Widget build(BuildContext ctx)
+    }
+
+    class DockItem {
+        <<StatelessWidget>>
+        +IconData icon
+        +String label
+        +bool selected
+        +VoidCallback onTap
+        +Widget build(BuildContext ctx)
+    }
+
+    class MiniPlayer {
+        <<ConsumerWidget>>
+        +Widget build(BuildContext ctx, WidgetRef ref)
+        -Widget progressBar(Duration pos, Duration dur)
+        -Widget infoPill(Track track)
+        -Widget controlPill(WidgetRef ref)
+        -Future onPrev(WidgetRef ref)
+        -Future onToggle(WidgetRef ref)
+        -Future onNext(WidgetRef ref)
+        -void onCyclePlayMode(WidgetRef ref)
+        -Future onSeek(WidgetRef ref, Duration to)
+        -void openNowPlaying(BuildContext ctx)
+    }
+
+    class AppSearchBar {
+        <<ConsumerWidget>>
+        +String hintText
+        +StateProvider queryProvider
+        +Widget build(BuildContext ctx, WidgetRef ref)
+    }
+
+    AppShell *-- ContentContainer
+    AppShell *-- AppDock
+    AppShell *-- MiniPlayer
+    AppDock *-- DockItem
+    AppShell ..> ShellProviders
+    AppDock ..> ShellProviders
+
+    %% ══════════ 页面层 ══════════
+    class ScenePage {
+        <<ConsumerWidget>>
+        -void openHome(WidgetRef ref)
+        -void openCanvas(BuildContext ctx)
+    }
+
+    class ExplorePage {
+        <<ConsumerWidget>>
+    }
+
+    class LibraryPage {
+        <<ConsumerWidget>>
+        -List filterTracks(List all, String query)
+        -Future onTapCard(WidgetRef ref, Track t)
+    }
+
+    class HomePage {
+        <<ConsumerWidget>>
+    }
+
+    class SettingsPage {
+        <<ConsumerWidget>>
+        -Widget buildRail(WidgetRef ref)
+        -Widget buildDetail(WidgetRef ref)
+    }
+
+    class AlbumCard {
+        <<StatelessWidget>>
+        +Track track
+        +VoidCallback onTap
+        +Widget build(BuildContext ctx)
+    }
+
+    class StateViews {
+        <<library>>
+        +Widget loadingView()$
+        +Widget errorView(String msg, VoidCallback onRetry)$
+        +Widget emptyView(String msg, String action, VoidCallback onTap)$
+    }
+
+    AppShell --> ScenePage : IndexedStack 0
+    AppShell --> ExplorePage : IndexedStack 1
+    AppShell --> LibraryPage : IndexedStack 2
+    AppShell --> SettingsPage : IndexedStack 3
+    AppShell --> HomePage : IndexedStack 4
+    ScenePage *-- AppSearchBar
+    ExplorePage *-- AppSearchBar
+    LibraryPage *-- AppSearchBar
+    SettingsPage *-- AppSearchBar
+    LibraryPage *-- AlbumCard
+    LibraryPage ..> StateViews
+    SettingsPage ..> SettingsUiProviders
+
+    %% ══════════ 设置详情分区（Q5 五槽位）══════════
+    class PlaybackSection {
+        <<ConsumerWidget>>
+    }
+    class SourceSection {
+        <<ConsumerWidget>>
+    }
+    class SceneSection {
+        <<ConsumerWidget>>
+    }
+    class NotificationSection {
+        <<ConsumerWidget>>
+    }
+    class AboutSection {
+        <<ConsumerWidget>>
+    }
+
+    SettingsPage *-- PlaybackSection
+    SettingsPage *-- SourceSection
+    SettingsPage *-- SceneSection
+    SettingsPage *-- NotificationSection
+    SettingsPage *-- AboutSection
+
+    %% ══════════ 既有能力（不改动，仅被消费）══════════
+    class PlaybackActions {
+        <<existing>>
+        +Future toggle()
+        +Future next(int direction)
+        +Future playTrack(Track t)
+        +void setMode(PlayMode m)
+    }
+
+    class AudioService {
+        <<existing>>
+        +Stream playingStream
+        +Stream positionStream
+        +Stream durationStream
+        +Future seek(Duration position)
+        +Future setMusicVolume(double v)
+        +Future setMusicMuted(bool m)
+        +Future setSoundscapeVolume(double v)
+        +Future setSoundscapeMuted(bool m)
+        +Future switchSoundscape(Scene s)
+    }
+
+    class Track {
+        <<existing>>
+        +String title
+        +String artist
+        +String uri
+        +String coverUrl
+        +String coverPath
+        +Duration duration
+    }
+
+    class ServerSettingsPage {
+        <<existing recolor only>>
+    }
+    class SceneEditorPage {
+        <<existing recolor only>>
+    }
+    class PalettePanel {
+        <<existing unchanged>>
+    }
+    class PaletteStudioPage {
+        <<new dark island>>
+    }
+    class CanvasPage {
+        <<existing dark island>>
+    }
+
+    MiniPlayer ..> PlaybackActions
+    MiniPlayer ..> AudioService
+    MiniPlayer ..> Track
+    LibraryPage ..> PlaybackActions
+    AlbumCard --> Track
+    PlaybackActions ..> AudioService
+    SourceSection ..> ServerSettingsPage : push route
+    SceneSection ..> SceneEditorPage : push route
+    SceneSection ..> PaletteStudioPage : push route
+    PaletteStudioPage *-- PalettePanel
+    PlaybackSection ..> AudioService
+    ScenePage ..> CanvasPage : push fullscreen

@@ -1,0 +1,58 @@
+name: xingli_music
+description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ── 状态管理 ────────────────────────────────────────────────
+  flutter_riverpod: ^2.6.1
+
+  # ── 音频引擎（音乐播放模块，随场景联动）────────────────────
+  audioplayers: ^6.1.0
+  just_audio: ^0.9.42
+  just_audio_windows: ^0.2.3
+
+  # 后台播放 + 锁屏/通知栏控件（音频模块一）
+  audio_service: ^0.18.19
+  # 音频焦点管理：被打断时 duck / 暂停（音频模块一）
+  # 与 just_audio 0.9.x 自带的 audio_session 0.1.x 对齐，避免版本冲突
+  audio_session: ^0.1.25
+  # 本地音乐真实元数据与封面读取（音频模块二）
+  on_audio_query: ^2.9.0
+
+  # ── 本地存储（音乐索引 / 使用行为 / 个人偏好）──────────────
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  shared_preferences: ^2.3.3
+
+  # ── 系统权限（读取本地音乐）──────────────────────────
+  permission_handler: ^11.3.1
+
+  # ── SVG 图标渲染（game-icon-pack, CC0）───────────────
+  flutter_svg: ^2.0.10
+
+  # ── 外部流媒体：HTTP 请求 ────────────────────────────
+  http: ^1.2.2
+
+  # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/icons/
+    - assets/figma/

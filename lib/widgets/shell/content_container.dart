@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/light_tokens.dart';
+
+/// 内容容器（架构 §1.6 / PRD P0-B1）
+///
+/// 由 `AppShell` **统一提供且仅提供一次**，包住 `IndexedStack`：
+/// `#F5F5F5` 底 / r36 / 水平外边距 14 / 内边距 18。
+///
+/// ⚠️ 5 个页面**自身不再画容器**，也不再写 `Padding(fromLTRB(*, 60, *, 140))`
+/// 之类的手工避让 —— 那是旧 Shell 的遗留，重构后一律由本组件负责。
+class ContentContainer extends StatelessWidget {
+  const ContentContainer({super.key, required this.child});
+
+  /// 被容器包裹的页面内容（通常是 `IndexedStack`）
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      // 【裁决 A1 · 满宽】外边距取自 [AppSize.shellEdgeInset]（当前 0），
+      // 与 Dock / MiniPlayer 共用同一个真源：要改回 14dp 只需改 Token 一处。
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSize.shellEdgeInset,
+      ),
+      padding: const EdgeInsets.all(AppSpace.lg),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+      ),
+      child: child,
+    );
+  }
+}

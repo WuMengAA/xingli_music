@@ -1,0 +1,22 @@
+Flutter assets will be downloaded from https://mirrors.cloud.tencent.com/flutter. Make sure you trust this source!
+Resolving dependencies...
+Downloading packages...
+  audio_session 0.1.25 (0.2.4 available)
+  flutter_lints 5.0.0 (6.0.0 available)
+  flutter_riverpod 2.6.1 (3.4.2 available)
+  hooks 2.0.2 (2.1.0 available)
+  just_audio 0.9.46 (0.10.6 available)
+  lints 5.1.1 (6.1.0 available)
+  matcher 0.12.19 (0.12.20 available)
+  meta 1.18.0 (1.19.0 available)
+  permission_handler 11.4.0 (13.0.0 available)
+  permission_handler_android 12.1.0 (14.0.0 available)
+  record_use 0.6.0 (1.0.0 available)
+  riverpod 2.6.1 (3.4.2 available)
+  test_api 0.7.11 (0.7.13 available)
+  vector_math 2.2.0 (2.4.2 available)
+Got dependencies!
+14 packages have newer versions incompatible with dependency constraints.
+Try `flutter pub outdated` for more information.
+Analyzing xingli_music...                                       
+No issues found! (ran in 8.7s)
