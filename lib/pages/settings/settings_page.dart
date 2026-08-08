@@ -127,11 +127,14 @@ class _CategoryRail extends StatelessWidget {
           final bool isSelected = s == selected;
           // P1-02：搜索未命中该分类时弱化（保留槽位，避免误以为页面损坏）
           final bool dimmed = !matches.contains(s);
-          return _CategoryTile(
-            section: s,
-            selected: isSelected,
-            dimmed: dimmed,
-            onTap: () => onSelect(s),
+          return Align(
+            alignment: Alignment.center,
+            child: _CategoryTile(
+              section: s,
+              selected: isSelected,
+              dimmed: dimmed,
+              onTap: () => onSelect(s),
+            ),
           );
         },
       ),

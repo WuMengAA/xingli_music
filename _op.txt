@@ -1,14 +1,16 @@
-﻿On branch master
+﻿EXIT_FILE: EXIT=0
 
-No commits yet
+=== log ===
+a94eb6c chore: baseline before UI refactor (mixed state, pre-cleanup)
 
-Changes to be committed:
-  (use "git rm --cached <file>..." to unstage)
-	new file:   .gitignore
-	new file:   .metadata
-	new file:   "AUDIT_\346\230\237\347\222\203\351\237\263\344\271\220\347\251\272\351\227\264.md"
-	new file:   README.md
-	new file:   SETUP.md
-	new file:   _op.txt
-=== rev-parse HEAD ===
-HEAD
+=== .env in history ===
+
+=== tracked ===
+212
+=== env tracked ===
+
+=== status ===
+ M _code.txt
+ M _out.txt
+ M lib/pages/settings/settings_page.dart
+
