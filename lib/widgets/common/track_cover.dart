@@ -80,7 +80,7 @@ class TrackCover extends StatelessWidget {
         child: Icon(
           Icons.music_note,
           size: size * 0.42,
-          color: AppNeutral.n0,
+          color: AppColors.neutral0,
         ),
       ),
     );

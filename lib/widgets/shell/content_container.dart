@@ -18,10 +18,14 @@ class ContentContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // 【裁决 A1 · 满宽】外边距取自 [AppSize.shellEdgeInset]（当前 0），
-      // 与 Dock / MiniPlayer 共用同一个真源：要改回 14dp 只需改 Token 一处。
+      // 外边距 14dp（[AppSpace.md]）—— 架构 §1.4 / §1.6 与 PRD §10 的明确分工：
+      //   · 迷你播放器 / Dock  = 满宽（AppSize.shellEdgeInset，当前 0）
+      //   · 内容容器           = 左右各留 14dp
+      // 二者**刻意不同源**：满宽的是贴边浮起的操作条，内容容器则要留出呼吸边。
+      // ⚠️ 不要图省事把这里也换成 shellEdgeInset —— 那会让内容区直接顶到屏幕
+      // 边缘，r36 圆角被裁掉，与设计稿不符。
       margin: const EdgeInsets.symmetric(
-        horizontal: AppSize.shellEdgeInset,
+        horizontal: AppSpace.md,
       ),
       padding: const EdgeInsets.all(AppSpace.lg),
       clipBehavior: Clip.antiAlias,

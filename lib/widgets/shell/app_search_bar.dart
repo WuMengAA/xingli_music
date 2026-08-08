@@ -88,7 +88,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
               focusNode: _focusNode,
               onChanged: widget.onChanged,
               textInputAction: TextInputAction.search,
-              style: AppText.body,
+              style: AppTextStyles.body,
               cursorColor: AppColors.accent,
               decoration: InputDecoration(
                 isDense: true,

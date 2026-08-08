@@ -177,14 +177,14 @@ class _InfoPill extends ConsumerWidget {
                 children: <Widget>[
                   Text(
                     track?.title ?? '未在播放',
-                    style: AppText.trackName,
+                    style: AppTextStyles.trackName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     track?.artist ?? '从曲库挑一首开始',
-                    style: AppText.artist,
+                    style: AppTextStyles.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

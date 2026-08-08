@@ -21,7 +21,11 @@ class DockItem {
   });
 }
 
-/// 4 个 Tab 的顺序 —— 必须与 `ShellPage` 枚举前 4 项严格一致（P0-B2）
+/// 4 个 Tab 的顺序 —— 必须与 `ShellPage` 的前 4 个页面常量
+/// （`scene=0 / explore=1 / library=2 / settings=3`）严格一致（P0-B2）。
+///
+/// 注意 `ShellPage` 是 `abstract final class` 的 int 常量集合，**不是 Dart enum**，
+/// 因此没有 `.values`，两边顺序只能靠本注释与 code review 约束。
 const List<DockItem> kDockItems = <DockItem>[
   DockItem(
     icon: Icons.auto_awesome_outlined,
@@ -67,7 +71,21 @@ class AppDock extends StatelessWidget {
     this.items = kDockItems,
   });
 
-  /// 当前高亮 Tab；`null` = 无 Tab 选中（Home 隐藏页，P0-B9 / V6）
+  /// 当前高亮 Tab 下标（0..3）。
+  ///
+  /// ### 隐藏页全灰约定（P0-B9 / V6）—— 唯一实现点
+  /// 传入 `null` 表示「当前不在任何 Tab 页」（即处于 Home 隐藏页，
+  /// 或已 push 到脱离 Shell 的沉浸画布）。此时下方 `selectedIndex == i`
+  /// 对 4 个 Tab **全部为 false**，于是 4 个 Tab 一致渲染为未选中态：
+  /// 无紫圆、`iconInactive` 灰图标、`textTertiary` 灰文字。
+  ///
+  /// 这个「全灰」是 `null` 自然推导出来的结果，**不需要也禁止**再写
+  /// `if (isHome)` 之类的特判分支——多一个分支就多一处不同步风险。
+  ///
+  /// 调用方必须传 `selectedTabIndexProvider` 的值（它已封装
+  /// `isTab(page) ? page : null` 的派生逻辑），**禁止**直接传
+  /// `shellPageIndexProvider`，否则 Home（index 4）会因为下标越界而
+  /// 静默不高亮，看起来"碰巧对了"，实则绕过了契约。
   final int? selectedIndex;
 
   /// Tab 点击回调
@@ -76,18 +94,16 @@ class AppDock extends StatelessWidget {
   /// Tab 定义（默认 [kDockItems]，注入点仅为可测试性保留）
   final List<DockItem> items;
 
-  /// 药丸圆角 = 高度一半，由 Token 派生而非字面量（C1）
-  static const double _dockRadius = AppSize.heightDock / 2;
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(_dockRadius),
+      // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius），不另立常量
+      borderRadius: BorderRadius.circular(AppSize.dockRadius),
       child: Container(
         height: AppSize.heightDock,
         decoration: BoxDecoration(
           color: AppColors.bgDock,
-          borderRadius: BorderRadius.circular(_dockRadius),
+          borderRadius: BorderRadius.circular(AppSize.dockRadius),
           border: Border.all(color: AppColors.borderDock),
         ),
         child: Material(
@@ -127,9 +143,6 @@ class _DockTab extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  static const Duration _duration = Duration(milliseconds: 200);
-  static const Curve _curve = Curves.easeOutCubic;
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
@@ -140,8 +153,8 @@ class _DockTab extends StatelessWidget {
           children: <Widget>[
             const SizedBox(height: 5),
             AnimatedContainer(
-              duration: _duration,
-              curve: _curve,
+              duration: AppMotion.tab,
+              curve: AppMotion.ease,
               width: AppSize.tabIndicator,
               height: AppSize.tabIndicator,
               decoration: BoxDecoration(
@@ -159,9 +172,9 @@ class _DockTab extends StatelessWidget {
             ),
             const SizedBox(height: 1),
             AnimatedDefaultTextStyle(
-              duration: _duration,
-              curve: _curve,
-              style: AppText.tabLabel.copyWith(
+              duration: AppMotion.tab,
+              curve: AppMotion.ease,
+              style: AppTextStyles.tabLabel.copyWith(
                 color: selected
                     ? AppColors.textAccent
                     : AppColors.textTertiary,

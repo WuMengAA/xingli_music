@@ -86,7 +86,9 @@ ThemeData buildLightTheme() {
       bodyLarge: AppTextStyles.body,
       bodyMedium: AppTextStyles.bodyMuted,
       bodySmall: AppTextStyles.artist,
-      labelLarge: AppTextStyles.trackName,
+      // labelLarge 是 Material 按钮文字的标准槽位，必须用按钮语义样式，
+      // 不能借用 trackName（那是迷你播放器曲名，语义错配）。
+      labelLarge: AppTextStyles.button,
       labelMedium: AppTextStyles.tabLabel,
       labelSmall: AppTextStyles.tileLabel,
     ),
@@ -182,7 +184,7 @@ ThemeData buildLightTheme() {
         foregroundColor: AppColors.textOnAccent,
         disabledBackgroundColor: AppColors.bgPlaceholder,
         disabledForegroundColor: AppColors.textTertiary,
-        textStyle: AppTextStyles.trackName,
+        textStyle: AppTextStyles.button,
         minimumSize: const Size(0, AppSize.touchMin),
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brPill),
@@ -191,7 +193,7 @@ ThemeData buildLightTheme() {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: AppColors.textAccent,
-        textStyle: AppTextStyles.body,
+        textStyle: AppTextStyles.button,
         minimumSize: const Size(0, AppSize.touchMin),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brSm),
       ),
@@ -199,7 +201,7 @@ ThemeData buildLightTheme() {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.textPrimary,
-        textStyle: AppTextStyles.body,
+        textStyle: AppTextStyles.button,
         side: const BorderSide(color: AppColors.borderDefault),
         minimumSize: const Size(0, AppSize.touchMin),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brPill),
@@ -210,7 +212,7 @@ ThemeData buildLightTheme() {
         backgroundColor: AppColors.bgCard,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        textStyle: AppTextStyles.body,
+        textStyle: AppTextStyles.button,
         minimumSize: const Size(0, AppSize.touchMin),
         shape: const RoundedRectangleBorder(borderRadius: AppRadius.brPill),
       ),

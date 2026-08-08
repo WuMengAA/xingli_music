@@ -403,6 +403,18 @@ abstract final class AppTextStyles {
     color: AppColors.textTertiary,
     height: 1.2,
   );
+
+  /// 14 / w600 · 按钮文字（FilledButton / TextButton / OutlinedButton）。
+  ///
+  /// ⚠️ 这里刻意**不带 `color`**：按钮文字色由各按钮主题的
+  /// `foregroundColor` 决定（实心按钮 = `onAccent` 白字，
+  /// 文字/描边按钮 = `accent` 紫字）。若在此写死颜色，
+  /// 会覆盖掉 `ButtonStyle.foregroundColor`，导致实心按钮出现白底白字。
+  static const TextStyle button = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -440,6 +452,7 @@ abstract final class AppText {
   static const TextStyle tabLabel = AppTextStyles.tabLabel;
   static const TextStyle tileLabel = AppTextStyles.tileLabel;
   static const TextStyle hint = AppTextStyles.hint;
+  static const TextStyle button = AppTextStyles.button;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

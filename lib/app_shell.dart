@@ -128,8 +128,16 @@ class _AppShellState extends ConsumerState<AppShell> {
             ),
 
             // ── 迷你播放器（全局唯一，P0-D1 / V5）─────────────
+            // 与下方 Dock 共用 shellEdgeInset：两者同为"贴边浮起的操作条"，
+            // 必须同进同退。若只给 Dock 加边距，Token 一旦改成非 0
+            // 就会出现"播放器满宽、Dock 内缩"的错位。
             const SizedBox(height: AppSpace.sm),
-            const MiniPlayer(),
+            const Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSize.shellEdgeInset,
+              ),
+              child: MiniPlayer(),
+            ),
             const SizedBox(height: AppSpace.sm),
 
             // ── 底部 Dock ────────────────────────────────────
