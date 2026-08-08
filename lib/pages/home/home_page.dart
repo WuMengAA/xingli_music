@@ -18,7 +18,7 @@ class HomePage extends ConsumerWidget {
     final double w = MediaQuery.of(context).size.width;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 140),
+      padding: const EdgeInsets.fromLTRB(16, 60, 16, 140),
       child: Center(
         child: Container(
           width: w * 0.78,

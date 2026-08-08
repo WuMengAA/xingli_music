@@ -19,7 +19,7 @@ class ScenePage extends ConsumerWidget {
     final int activeIndex = ref.watch(currentSceneIndexProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 60, 0, 140),
+      padding: const EdgeInsets.fromLTRB(16, 60, 16, 140),
       child: SceneCardStack(
         scenes: scenes,
         currentIndex: activeIndex,
