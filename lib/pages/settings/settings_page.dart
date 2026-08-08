@@ -158,7 +158,6 @@ class _CategoryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final SettingsSectionX sx = section.x;
     final Color iconColor =
         selected ? AppColors.iconOnAccent : AppColors.iconInactive;
     final Color labelColor =
@@ -191,10 +190,10 @@ class _CategoryTile extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Icon(sx.icon, size: AppSize.icon, color: iconColor),
+                  Icon(section.icon, size: AppSize.icon, color: iconColor),
                   const SizedBox(height: 6),
                   Text(
-                    sx.label,
+                    section.label,
                     style: AppTextStyles.tileLabel.copyWith(color: labelColor),
                     maxLines: 1,
                     overflow: TextOverflow.clip,
@@ -268,7 +267,7 @@ class _PlaybackDetail extends ConsumerWidget {
     final PlayMode mode = ref.watch(playModeProvider);
 
     return _DetailScaffold(
-      title: SettingsSection.playback.x.title,
+      title: SettingsSection.playback.title,
       children: <Widget>[
         _SliderRow(
           label: '音量',
@@ -312,7 +311,7 @@ class _SourceDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _DetailScaffold(
-      title: SettingsSection.source.x.title,
+      title: SettingsSection.source.title,
       children: <Widget>[
         const Text(
           '管理外部流媒体与本地音源：Stelarith 服务器、局域网 Subsonic、'
@@ -346,7 +345,7 @@ class _SceneDetail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return _DetailScaffold(
-      title: SettingsSection.scene.x.title,
+      title: SettingsSection.scene.title,
       children: <Widget>[
         const Text(
           '调色盘：点按右侧圆点展开并挑选主色，自动派生整套配色。',
@@ -393,7 +392,7 @@ class _NotificationDetail extends ConsumerWidget {
     final bool notification = ref.watch(_notificationBarProvider);
 
     return _DetailScaffold(
-      title: SettingsSection.notification.x.title,
+      title: SettingsSection.notification.title,
       children: <Widget>[
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
@@ -431,7 +430,7 @@ class _AboutDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _DetailScaffold(
-      title: SettingsSection.about.x.title,
+      title: SettingsSection.about.title,
       children: <Widget>[
         Row(
           children: <Widget>[
