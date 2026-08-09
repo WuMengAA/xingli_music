@@ -18,9 +18,7 @@ class ScenePage extends ConsumerWidget {
     final List<Scene> scenes = ref.watch(sceneOrderProvider);
     final int activeIndex = ref.watch(currentSceneIndexProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 60, 16, 140),
-      child: SceneCardStack(
+    return SceneCardStack(
         scenes: scenes,
         currentIndex: activeIndex,
         nowPlaying: ref.watch(nowPlayingProvider),
@@ -30,7 +28,6 @@ class ScenePage extends ConsumerWidget {
           final Scene scene = scenes[i];
           unawaited(ref.read(audioServiceProvider).switchSoundscape(scene));
         },
-      ),
     );
   }
 }

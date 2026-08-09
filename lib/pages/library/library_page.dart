@@ -12,11 +12,9 @@ class LibraryPage extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final tracks = ref.watch(effectiveMusicLibraryProvider);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 60, 16, 140),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text('曲库',
@@ -51,7 +49,6 @@ class LibraryPage extends ConsumerWidget {
             ),
           ),
         ],
-      ),
     );
   }
 

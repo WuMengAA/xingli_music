@@ -17,9 +17,7 @@ class HomePage extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final double w = MediaQuery.of(context).size.width;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 60, 16, 140),
-      child: Center(
+    return Center(
         child: Container(
           width: w * 0.78,
           constraints: const BoxConstraints(maxWidth: 480),
@@ -63,7 +61,6 @@ class HomePage extends ConsumerWidget {
             ],
           ),
         ),
-      ),
     );
   }
 }
