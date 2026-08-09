@@ -8,6 +8,7 @@ import 'models/scene.dart';
 import 'pages/explore/explore_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
+import 'pages/now_playing/now_playing_page.dart';
 import 'pages/scene/scene_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'providers/audio/audio_providers.dart';
@@ -132,11 +133,20 @@ class _AppShellState extends ConsumerState<AppShell> {
             // 必须同进同退。若只给 Dock 加边距，Token 一旦改成非 0
             // 就会出现"播放器满宽、Dock 内缩"的错位。
             const SizedBox(height: AppSpace.sm),
-            const Padding(
-              padding: EdgeInsets.symmetric(
+            Padding(
+              padding: const EdgeInsets.symmetric(
                 horizontal: AppSize.shellEdgeInset,
               ),
-              child: MiniPlayer(),
+              child: MiniPlayer(
+                // T05：左胶囊点击 → 打开完整播放页（P1-04）
+                onOpenNowPlaying: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const NowPlayingPage(),
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: AppSpace.sm),
 
