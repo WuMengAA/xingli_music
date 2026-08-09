@@ -19,7 +19,16 @@ enum PlaybackState { idle, loading, playing, paused }
 /// - 淡入淡出不阻塞 UI：切歌先恢复/播放，音量渐变为后台任务
 /// - 音景：程序生成 WAV 随场景循环；换场景双播放器 crossfade
 class AudioService {
-  final AudioPlayer _music = AudioPlayer();
+  /// v2 EQ：允许外部装配 `AudioPipeline(androidAudioEffects: [eq])`。
+  /// 仅 Android 生效（非 Android 传入 null 走默认管线）。
+  AudioService({AudioPipeline? musicPipeline})
+      : _music = AudioPlayer(
+          audioPipeline: musicPipeline ?? AudioPipeline(),
+        ) {
+    _activeSc = _scA;
+  }
+
+  final AudioPlayer _music;
 
   /// 一次性事件音效播放器（「我的世界」主题音效调度用）
   final AudioPlayer _sfx = AudioPlayer();
@@ -68,10 +77,6 @@ class AudioService {
 
   /// 音景切换请求序号：快速切换时只执行最新一次
   int _scSeq = 0;
-
-  AudioService() {
-    _activeSc = _scA;
-  }
 
   /// 真实播放状态流（驱动 UI，状态永远跟引擎一致）
   Stream<bool> get playingStream =>

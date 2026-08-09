@@ -83,6 +83,17 @@ class Scene {
   final Color? bgTop;
   final Color? bgBottom;
 
+  /// v2 M5-2：是否在场景列表中显示（默认 true；false = 隐藏）。
+  ///
+  /// 向后兼容：旧 JSON 缺失该字段时默认 true。
+  final bool visible;
+
+  /// v2 M5-3：默认背景音乐（BGM，从曲库选曲）。三个字段均为可空，
+  /// 缺失即 null —— 旧数据不受影响（R-02 已缓解）。
+  final String? bgmUri;
+  final String? bgmTitle;
+  final String? bgmArtist;
+
   const Scene({
     required this.id,
     required this.name,
@@ -102,6 +113,10 @@ class Scene {
     this.particleMotion,
     this.bgTop,
     this.bgBottom,
+    this.visible = true,
+    this.bgmUri,
+    this.bgmTitle,
+    this.bgmArtist,
   });
 
   /// 是否为用户自定义场景（内置场景 id 无前缀，自定义以 'custom_' 开头）
@@ -126,10 +141,15 @@ class Scene {
     String? particleMotion,
     Color? bgTop,
     Color? bgBottom,
+    bool? visible,
+    String? bgmUri,
+    String? bgmTitle,
+    String? bgmArtist,
     bool clearMusicSourceId = false,
     bool clearSoundscapePath = false,
     bool clearParticleColor = false,
     bool clearBg = false,
+    bool clearBgm = false,
   }) {
     return Scene(
       id: id ?? this.id,
@@ -150,6 +170,10 @@ class Scene {
       particleMotion: particleMotion ?? this.particleMotion,
       bgTop: clearBg ? null : (bgTop ?? this.bgTop),
       bgBottom: clearBg ? null : (bgBottom ?? this.bgBottom),
+      visible: visible ?? this.visible,
+      bgmUri: clearBgm ? null : (bgmUri ?? this.bgmUri),
+      bgmTitle: clearBgm ? null : (bgmTitle ?? this.bgmTitle),
+      bgmArtist: clearBgm ? null : (bgmArtist ?? this.bgmArtist),
     );
   }
 
@@ -172,6 +196,10 @@ class Scene {
         'particleMotion': particleMotion,
         'bgTop': bgTop?.toARGB32(),
         'bgBottom': bgBottom?.toARGB32(),
+        'visible': visible,
+        'bgmUri': bgmUri,
+        'bgmTitle': bgmTitle,
+        'bgmArtist': bgmArtist,
       };
 
   factory Scene.fromJson(Map<String, dynamic> json) {
@@ -197,6 +225,11 @@ class Scene {
       particleMotion: json['particleMotion'] as String?,
       bgTop: json['bgTop'] != null ? Color(json['bgTop'] as int) : null,
       bgBottom: json['bgBottom'] != null ? Color(json['bgBottom'] as int) : null,
+      // v2 新字段：缺失即默认（向后兼容 R-02）
+      visible: json['visible'] as bool? ?? true,
+      bgmUri: json['bgmUri'] as String?,
+      bgmTitle: json['bgmTitle'] as String?,
+      bgmArtist: json['bgmArtist'] as String?,
     );
   }
 }

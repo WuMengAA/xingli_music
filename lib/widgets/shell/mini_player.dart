@@ -36,26 +36,33 @@ class MiniPlayer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: AppSize.heightMiniGroup,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSize.progressInset),
-            child: _ProgressBar(),
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: AppSize.landscapeMiniMaxWidth,
+        ),
+        child: SizedBox(
+          height: AppSize.heightMiniGroup,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSize.progressInset),
+                child: _ProgressBar(),
+              ),
+              SizedBox(
+                height: AppSize.heightMiniPill,
+                child: Row(
+                  children: <Widget>[
+                    Expanded(child: _InfoPill(onTap: onOpenNowPlaying)),
+                    const SizedBox(width: AppSpace.sm),
+                    const Expanded(child: _ControlPill()),
+                  ],
+                ),
+              ),
+            ],
           ),
-          SizedBox(
-            height: AppSize.heightMiniPill,
-            child: Row(
-              children: <Widget>[
-                Expanded(child: _InfoPill(onTap: onOpenNowPlaying)),
-                const SizedBox(width: AppSpace.sm),
-                const Expanded(child: _ControlPill()),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

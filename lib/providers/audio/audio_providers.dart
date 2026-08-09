@@ -1,30 +1,52 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
+
+import '../../models/local_dir_config.dart';
+import '../../models/play_mode.dart';
+import '../../models/scene.dart';
 import '../../models/server_config.dart';
 import '../../models/track.dart';
+import '../../providers/scene/scene_providers.dart';
 import '../../services/audio/audio_service.dart';
+import '../../services/audio/minecraft_sfx_service.dart';
+import '../../services/audio/playback_controller.dart';
+import '../../services/log_service.dart';
 import '../../services/music_sources/demo_source.dart';
+import '../../services/music_sources/local_dir_music_source.dart';
 import '../../services/music_sources/local_music_source.dart';
+import '../../services/music_sources/minecraft_music_source.dart';
 import '../../services/music_sources/music_source.dart';
 import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
-import '../audio/server_config_provider.dart';
-import '../../models/scene.dart';
-import '../../providers/scene/scene_providers.dart';
-import '../../services/music_sources/minecraft_music_source.dart';
-import '../../models/local_dir_config.dart';
-import '../../providers/audio/local_dir_providers.dart';
-import '../../services/music_sources/local_dir_music_source.dart';
-import '../../services/audio/minecraft_sfx_service.dart';
-import '../../services/audio/playback_controller.dart';
-import '../../models/play_mode.dart';
-import '../../services/log_service.dart';
+import 'local_dir_providers.dart';
+import 'server_config_provider.dart';
 
 export '../../models/play_mode.dart';
 
+/// Android 平台共享的 `AndroidEqualizer` 实例（v2 EQ）。
+///
+/// 非 Android 平台返回 `null`（不创建，避免平台通道调用）。
+/// 该实例必须与下方 [audioServiceProvider] 的 `AudioPipeline` 使用
+/// **同一个**实例，才能作用到正在播放的音乐。
+final Provider<AndroidEqualizer?> androidEqualizerProvider =
+    Provider<AndroidEqualizer?>((ref) {
+  if (kIsWeb || !Platform.isAndroid) return null;
+  return AndroidEqualizer();
+});
+
 /// 音频服务单例
 final audioServiceProvider = Provider<AudioService>((ref) {
-  final AudioService service = AudioService();
+  // v2 EQ：Android 经 AudioPipeline(androidAudioEffects:) 装配真 EQ；
+  // 其余平台走默认管线（模拟层）。
+  final AndroidEqualizer? eq = ref.watch(androidEqualizerProvider);
+  final AudioService service = AudioService(
+    musicPipeline: eq != null
+        ? AudioPipeline(androidAudioEffects: <AndroidEqualizer>[eq])
+        : null,
+  );
   ref.onDispose(service.dispose);
   return service;
 });

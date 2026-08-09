@@ -55,5 +55,8 @@
 	<!-- 访问 Apple 音乐库以读取本地歌曲元数据（音频模块二） -->
 	<key>NSAppleMusicUsageDescription</key>
 	<string>星璃需要访问你的音乐库，以播放本地歌曲并显示曲目信息</string>
+	<!-- v2 实验 F：加速度传感器（摇晃切场景，sensors_plus） -->
+	<key>NSMotionUsageDescription</key>
+	<string>星璃使用加速度传感器实现「摇一摇切换场景」实验功能，数据仅在本机处理，不会上传</string>
 </dict>
 </plist>

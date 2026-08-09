@@ -1,99 +1,190 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// 探索页 · 情绪网格（主内容，背景/控制栏由 AppShell 提供）
-class ExplorePage extends StatelessWidget {
+import '../../core/theme/light_tokens.dart';
+import '../../core/terms/naming_dict.dart';
+import '../../models/experiment.dart';
+import '../../providers/explore/experiment_providers.dart';
+import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/common/state_chip.dart';
+import 'consent_gate.dart';
+
+/// 探索页 = 实验场所（v2 M2 重写）。
+///
+/// - 未同意：全屏 [ConsentGate]（方案 A）。
+/// - 已同意：顶部说明条 + 实验列表容器（数据驱动 `experimentsProvider`）。
+/// - 每项：图标 + 名称 + 简介 + [StateChip] 状态 + 进入按钮；
+///   「已下线」置灰 + 禁入（P0-M2-4）。
+class ExplorePage extends ConsumerWidget {
   const ExplorePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final Color base = theme.colorScheme.primary;
-    final HSLColor hsl = HSLColor.fromColor(base);
-    final Color accent = hsl.withHue((hsl.hue + 30) % 360).toColor();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ExperimentConsent consent = ref.watch(experimentConsentProvider);
 
-    final moods = <_Mood>[
-      _Mood('雨夜', '🌧️', '平静 · 低落', base),
-      _Mood('极光', '✨', '惊喜 · 明亮', accent),
-      _Mood('壁炉', '🔥', '温暖 · 沉静', base),
-      _Mood('森林', '🌲', '清新 · 平静', accent),
-      _Mood('海洋', '🌊', '开阔 · 平静', base),
-      _Mood('雪落', '❄️', '沉静 · 纯白', accent),
-    ];
+    return PageScaffold(
+      title: '探索实验室',
+      body: consent.agreed
+          ? _ExperimentList(consent: consent)
+          : const ConsentGate(),
+    );
+  }
+}
+
+/// 已同意后的实验列表。
+class _ExperimentList extends ConsumerWidget {
+  const _ExperimentList({required this.consent});
+
+  final ExperimentConsent consent;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<ExperimentItem> experiments = ref.watch(experimentsProvider);
+    // 逐项启停过滤（P1-M2-5）
+    final List<ExperimentItem> visible = experiments
+        .where((ExperimentItem e) => consent.isEnabled(e))
+        .toList();
+
+    final double width = MediaQuery.sizeOf(context).width;
+    final bool landscape = width >= AppSize.landscapeBreakpoint;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            '探索',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
+      children: <Widget>[
+        // 顶部说明条（P0-M2-2）
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.accentSoft,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: const Row(
+            children: <Widget>[
+              Icon(Icons.science_rounded, size: AppSize.iconSm, color: AppColors.accent),
+              SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Text(
+                  '这里是实验场所：功能可能不稳定，数据本地处理不上传。',
+                  style: AppTextStyles.caption,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: AppSpace.md),
         Expanded(
-          child: GridView.builder(
-            padding: EdgeInsets.zero,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 14,
-              crossAxisSpacing: 14,
-              childAspectRatio: 1.05,
-            ),
-            itemCount: moods.length,
-            itemBuilder: (_, i) {
-              final m = moods[i];
-              return Card(
-                color: m.color,
-                child: InkWell(
-                  onTap: () {},
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(m.glyph, style: const TextStyle(fontSize: 32)),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              m.name,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.onPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              m.mood,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onPrimary.withValues(
-                                  alpha: 0.75,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+          child: visible.isEmpty
+              ? const _NoExperiments()
+              : GridView.builder(
+                  padding: EdgeInsets.zero,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: landscape ? 320 : 280,
+                    mainAxisSpacing: AppSpace.gridRowGap,
+                    crossAxisSpacing: AppSpace.md,
+                    childAspectRatio: 1.5,
                   ),
+                  itemCount: visible.length,
+                  itemBuilder: (BuildContext context, int i) {
+                    final ExperimentItem e = visible[i];
+                    return _ExperimentCard(item: e);
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
   }
 }
 
-class _Mood {
-  final String name;
-  final String glyph;
-  final String mood;
-  final Color color;
-  const _Mood(this.name, this.glyph, this.mood, this.color);
+/// 单张实验卡。
+class _ExperimentCard extends ConsumerWidget {
+  const _ExperimentCard({required this.item});
+
+  final ExperimentItem item;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool retired = item.status == ExperimentStatus.retired;
+
+    return Opacity(
+      opacity: retired ? 0.5 : 1.0,
+      child: Material(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: InkWell(
+          onTap: retired
+              ? null // 已下线禁入（P0-M2-4）
+              : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => item.builder()),
+                  ),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.borderDefault),
+            ),
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(item.icon,
+                        size: AppSize.icon,
+                        color: retired
+                            ? AppColors.iconInactive
+                            : AppColors.accent),
+                    const Spacer(),
+                    StateChip(
+                      tone: _toneOf(item.status),
+                      label: item.statusLabel,
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(item.name, style: AppTextStyles.subtitle),
+                const SizedBox(height: 2),
+                Text(
+                  item.description,
+                  style: AppTextStyles.artist,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpace.xs),
+                Text(
+                  retired ? '已下线，暂不可进入' : '点击进入',
+                  style: AppTextStyles.caption.copyWith(
+                    color: retired
+                        ? AppColors.textTertiary
+                        : AppColors.textAccent,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ChipTone _toneOf(ExperimentStatus s) => switch (s) {
+        ExperimentStatus.experimenting => ChipTone.experimenting,
+        ExperimentStatus.stable => ChipTone.stable,
+        ExperimentStatus.retired => ChipTone.retired,
+      };
+}
+
+class _NoExperiments extends StatelessWidget {
+  const _NoExperiments();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        '所有实验均已停用。\n可到设置 → ${Terms.experiment} 中重新启用。',
+        style: AppTextStyles.bodyMuted,
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
 }

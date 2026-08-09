@@ -24,7 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../shell/shell_providers.dart';
 
 
-/// 设置页 5 个分类槽位。
+/// 设置页 6 个分类槽位。
 enum SettingsSection {
   /// ① 播放：音量、静音、播放模式、视觉粒子。
   playback,
@@ -35,11 +35,14 @@ enum SettingsSection {
   /// ③ 场景：场景编辑器、调色盘、心情。
   scene,
 
-  /// ④ 通知：后台播放与锁屏控件。
+  /// ④ 通知：通知中心（运行状态 / 媒体控制 / 场景状态）。
   notification,
 
   /// ⑤ 关于：应用信息。
   about,
+
+  /// ⑥ 实验：同意状态 / 撤销同意 / 逐项启停（v2 M2 · P1-M2-5）。
+  experiment,
 }
 
 /// 分类的展示属性（标签 / 图标 / 搜索关键词）。
@@ -51,6 +54,7 @@ extension SettingsSectionX on SettingsSection {
         SettingsSection.scene => '场景',
         SettingsSection.notification => '通知',
         SettingsSection.about => '关于',
+        SettingsSection.experiment => '实验',
       };
 
   /// 详情区标题。
@@ -58,8 +62,9 @@ extension SettingsSectionX on SettingsSection {
         SettingsSection.playback => '播放设置',
         SettingsSection.source => '音源与服务器',
         SettingsSection.scene => '场景与配色',
-        SettingsSection.notification => '通知与后台',
+        SettingsSection.notification => '通知中心',
         SettingsSection.about => '关于星璃',
+        SettingsSection.experiment => '实验管理',
       };
 
   /// tile 图标（26dp）。
@@ -69,6 +74,7 @@ extension SettingsSectionX on SettingsSection {
         SettingsSection.scene => Icons.auto_awesome_outlined,
         SettingsSection.notification => Icons.notifications_none_rounded,
         SettingsSection.about => Icons.info_outline_rounded,
+        SettingsSection.experiment => Icons.science_outlined,
       };
 
   /// 搜索匹配用关键词（P1-02：设置页搜索过滤设置项）。
@@ -126,6 +132,19 @@ extension SettingsSectionX on SettingsSection {
             'about',
             'version',
             'log',
+          ],
+        SettingsSection.experiment => const <String>[
+            '实验',
+            '同意',
+            '撤销',
+            '传感器',
+            '均衡器',
+            '小游戏',
+            '心情',
+            'experiment',
+            'consent',
+            'sensor',
+            'equalizer',
           ],
       };
 

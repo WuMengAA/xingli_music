@@ -1,333 +1,220 @@
 classDiagram
     direction LR
 
-    %% ══════════ 主题 Token 层（新增，全 static const）══════════
-    class AppColors {
+    %% ══════ M1 统一层（新增）══════
+    class Terms {
         <<abstract final>>
-        +Color bgPage$
-        +Color bgSurface$
-        +Color bgSurfaceSunken$
-        +Color bgRail$
-        +Color bgTile$
-        +Color bgDock$
-        +Color bgInput$
-        +Color bgCard$
-        +Color bgControl$
-        +Color bgPlaceholder$
-        +Color accent$
-        +Color accentPressed$
-        +Color onAccent$
-        +Color textPrimary$
-        +Color textSecondary$
-        +Color textTertiary$
-        +Color textAccent$
-        +Color iconInactive$
-        +Color iconOnAccent$
-        +Color borderDefault$
-        +Color borderDock$
-        +Color divider$
-        +Color success$
-        +Color danger$
+        +String scene$ "场景"
+        +String library$ "曲库"
+        +String track$ "歌曲"
+        +String album$ "专辑"
+        +String folder$ "目录"
+        +String source$ "音源"
+        +String server$ "服务器"
+        +String notificationCenter$ "通知中心"
     }
-
-    class AppRadius {
-        <<abstract final>>
-        +double sm$
-        +double md$
-        +double lg$
-        +double xl$
-        +double pill$
+    class PageScaffold {
+        <<StatelessWidget>>
+        +String title
+        +Widget? search
+        +Widget? leadingPanel
+        +Widget body
+        +Widget build(context)
     }
-
-    class AppSpace {
-        <<abstract final>>
-        +double xs$
-        +double sm$
-        +double md$
-        +double lg$
-        +double xl$
+    class InfoRow {
+        <<StatelessWidget>>
+        +Track? track
+        +VoidCallback? onTap
+        +Widget build(context)
     }
-
-    class AppSize {
-        <<abstract final>>
-        +double shellEdgeInset$
-        +double heightSearch$
-        +double heightMiniPill$
-        +double heightMiniGroup$
-        +double heightDock$
-        +double heightProgress$
-        +double icon$
-        +double tabIndicator$
-        +double cover$
-        +double railWidth$
-        +double tileW$
-        +double tileH$
+    class StateChip {
+        <<StatelessWidget>>
+        +ChipTone tone
+        +String label
+        +Widget build(context)
     }
-
-    class AppShadow {
-        <<abstract final>>
-        +BoxShadow card$
-        +BoxShadow cardSoft$
-    }
-
-    class AppTextStyles {
-        <<abstract final>>
-        +TextStyle title$
-        +TextStyle body$
-        +TextStyle trackName$
-        +TextStyle artist$
-        +TextStyle caption$
-        +TextStyle tabLabel$
-        +TextStyle tileLabel$
-    }
-
-    class LightTheme {
-        <<library>>
-        +ThemeData kLightTheme$
-        +ThemeData buildLightTheme()$
-    }
-
-    LightTheme ..> AppColors : ColorScheme.light
-    LightTheme ..> AppTextStyles : TextTheme
-
-    %% ══════════ Shell 状态层（新增）══════════
-    class ShellPage {
+    class ChipTone {
         <<enumeration>>
-        scene
-        explore
-        library
-        settings
-        home
+        experimenting
+        stable
+        retired
+        connecting
+        ok
+        failed
     }
+    PageScaffold --> InfoRow : 复用
+    PageScaffold ..> Terms : 文案引用
 
-    class ShellProviders {
-        <<library>>
-        +StateProvider shellPageProvider$
-        +Provider selectedTabIndexProvider$
-        +StateProvider librarySearchQueryProvider$
-        +StateProvider settingsSearchQueryProvider$
-    }
-
-    ShellProviders ..> ShellPage
-
-    class SettingsCategory {
+    %% ══════ M2 实验（新增）══════
+    class ExperimentStatus {
         <<enumeration>>
+        experimenting
+        stable
+        retired
+    }
+    class ExperimentItem {
+        +String id
+        +String name
+        +String description
+        +IconData icon
+        +ExperimentStatus status
+        +bool enabledByDefault
+        +Widget Function() builder
+    }
+    class ExperimentConsent {
+        +bool agreed
+        +Map~String,bool~ enabled
+    }
+    class ExperimentConsentNotifier {
+        +Future~void~ agree()
+        +Future~void~ revoke()
+        +Future~void~ setEnabled(String id, bool on)
+    }
+    ExperimentItem ..> ExperimentStatus
+    ExperimentConsentNotifier ..> ExperimentConsent
+
+    %% ══════ M3 曲库三形态（新增）══════
+    class LibraryViewStyle {
+        <<enumeration>>
+        card
+        folder
+        album
+    }
+    class LibraryFolderNode {
+        +String name
+        +String pathKey
+        +List~LibraryFolderNode~ children
+        +List~Track~ tracks
+        +int get trackCount
+    }
+
+    %% ══════ M4 音源健康（新增）══════
+    class SourceHealthStatus {
+        <<enumeration>>
+        connecting
+        ok
+        failed
+        unknown
+    }
+    class SourceHealth {
+        +SourceHealthStatus status
+        +DateTime? lastTestedAt
+        +String? errorDetail
+    }
+    SourceHealth ..> SourceHealthStatus
+
+    %% ══════ M5 + 2.5D 共享基础（新增）══════
+    class VoxelBlockType {
+        +String id
+        +String name
+        +IconData icon
+        +String sfxKey
+        +double baseVolume
+        +Color color
+    }
+    class VoxelSoundScene {
+        +String id
+        +String name
+        +Map~String,String~ blocks
+        +Map~String,dynamic~ toJson()$
+        +factory VoxelSoundScene.fromJson()$
+    }
+    class VoxelCanvasController {
+        <<ChangeNotifier>>
+        +int cols
+        +int rows
+        +Map~String,String~ blocks
+        +VoxelBlockType selected
+        +void setBlock(int x, int y)
+        +void removeBlock(int x, int y)
+        +void undo()
+        +void redo()
+        +void clear()
+        +void load(VoxelSoundScene scene)
+        +VoxelSoundScene toScene(String id, String name)
+    }
+    class VoxelCanvasView {
+        <<CustomPaint widget>>
+        +VoxelCanvasController controller
+        +VoidCallback? onTapBlock
+        +Widget build(context)
+    }
+    class SoundBlockMixer {
+        +Future~void~ preview(VoxelCanvasController ctrl, {bool loop})
+        +Future~void~ stop()
+    }
+    VoxelCanvasView --> VoxelCanvasController
+    VoxelCanvasController *-- VoxelBlockType : selected
+    SoundBlockMixer --> VoxelCanvasController
+
+    %% ══════ EQ（新增）══════
+    class EqPreset {
+        +String id
+        +String name
+        +double low
+        +double mid
+        +double high
+    }
+    class EqEngine {
+        +bool get supported
+        +Future~void~ apply(EqPreset preset)
+        +void applySimulation(EqPreset preset)
+    }
+    EqEngine ..> EqPreset
+
+    %% ══════ 传感器（新增）══════
+    class SensorService {
+        +Stream~double~ lightLux()
+        +Stream~bool~ shakeDetected()
+        +void dispose()
+    }
+
+    %% ══════ M6 通知（新增）══════
+    class NotificationEvent {
+        +String id
+        +String title
+        +String message
+        +DateTime at
+    }
+
+    %% ══════ v2 Provider 层（新增/修改）══════
+    class V2Providers {
+        <<library>>
+        +StateNotifierProvider~ExperimentConsentNotifier,ExperimentConsent~ experimentConsentProvider$
+        +Provider~List~ExperimentItem~~ experimentsProvider$
+        +StateProvider~LibraryViewStyle~ libraryViewStyleProvider$
+        +StateNotifierProvider~SourceHealthNotifier,Map~String,SourceHealth~~ sourceHealthProvider$
+        +StateNotifierProvider~VoxelScenesNotifier,List~VoxelSoundScene~~ voxelSoundScenesProvider$
+        +StateNotifierProvider~NotificationNotifier,List~NotificationEvent~~ recentNotificationsProvider$
+        +StateProvider~bool~ backgroundPlayProvider$
+        +StateProvider~bool~ lockScreenProvider$
+        +StateProvider~bool~ notificationBarProvider$
+        +Provider~EqEngine~ eqEngineProvider$
+        +Provider~SensorService~ sensorServiceProvider$
+        +StateProvider~EqPreset~ eqPresetProvider$
+    }
+    V2Providers ..> ExperimentItem
+    V2Providers ..> LibraryViewStyle
+    V2Providers ..> SourceHealth
+    V2Providers ..> VoxelSoundScene
+    V2Providers ..> NotificationEvent
+    V2Providers ..> EqEngine
+    V2Providers ..> SensorService
+
+    %% ══════ 既有模型变更 ══════
+    class Scene {
+        <<existing · modified>>
+        +bool visible
+        +String? bgmUri
+        +String? bgmTitle
+        +String? bgmArtist
+    }
+    class SettingsSection {
+        <<existing enum · modified>>
         playback
         source
         scene
         notification
         about
+        experiment  "+ 新增第 6 槽"
     }
-
-    class SettingsCategoryMeta {
-        +SettingsCategory id
-        +IconData icon
-        +String label
-        +Widget buildDetail(BuildContext ctx, WidgetRef ref)
-    }
-
-    class SettingsUiProviders {
-        <<library>>
-        +StateProvider settingsCategoryProvider$
-        +List kSettingsCategories$
-    }
-
-    SettingsUiProviders ..> SettingsCategoryMeta
-    SettingsCategoryMeta --> SettingsCategory
-
-    %% ══════════ Shell 组件层（新增）══════════
-    class AppShell {
-        <<ConsumerStatefulWidget>>
-        +Widget build(BuildContext ctx)
-        -void initState()
-        -Widget buildBody()
-        -bool onSystemBack()
-    }
-
-    class ContentContainer {
-        <<StatelessWidget>>
-        +Widget child
-        +Widget build(BuildContext ctx)
-    }
-
-    class AppDock {
-        <<StatelessWidget>>
-        +int selectedIndex
-        +ValueChanged onTabSelected
-        +Widget build(BuildContext ctx)
-    }
-
-    class DockItem {
-        <<StatelessWidget>>
-        +IconData icon
-        +String label
-        +bool selected
-        +VoidCallback onTap
-        +Widget build(BuildContext ctx)
-    }
-
-    class MiniPlayer {
-        <<ConsumerWidget>>
-        +Widget build(BuildContext ctx, WidgetRef ref)
-        -Widget progressBar(Duration pos, Duration dur)
-        -Widget infoPill(Track track)
-        -Widget controlPill(WidgetRef ref)
-        -Future onPrev(WidgetRef ref)
-        -Future onToggle(WidgetRef ref)
-        -Future onNext(WidgetRef ref)
-        -void onCyclePlayMode(WidgetRef ref)
-        -Future onSeek(WidgetRef ref, Duration to)
-        -void openNowPlaying(BuildContext ctx)
-    }
-
-    class AppSearchBar {
-        <<ConsumerWidget>>
-        +String hintText
-        +StateProvider queryProvider
-        +Widget build(BuildContext ctx, WidgetRef ref)
-    }
-
-    AppShell *-- ContentContainer
-    AppShell *-- AppDock
-    AppShell *-- MiniPlayer
-    AppDock *-- DockItem
-    AppShell ..> ShellProviders
-    AppDock ..> ShellProviders
-
-    %% ══════════ 页面层 ══════════
-    class ScenePage {
-        <<ConsumerWidget>>
-        -void openHome(WidgetRef ref)
-        -void openCanvas(BuildContext ctx)
-    }
-
-    class ExplorePage {
-        <<ConsumerWidget>>
-    }
-
-    class LibraryPage {
-        <<ConsumerWidget>>
-        -List filterTracks(List all, String query)
-        -Future onTapCard(WidgetRef ref, Track t)
-    }
-
-    class HomePage {
-        <<ConsumerWidget>>
-    }
-
-    class SettingsPage {
-        <<ConsumerWidget>>
-        -Widget buildRail(WidgetRef ref)
-        -Widget buildDetail(WidgetRef ref)
-    }
-
-    class AlbumCard {
-        <<StatelessWidget>>
-        +Track track
-        +VoidCallback onTap
-        +Widget build(BuildContext ctx)
-    }
-
-    class StateViews {
-        <<library>>
-        +Widget loadingView()$
-        +Widget errorView(String msg, VoidCallback onRetry)$
-        +Widget emptyView(String msg, String action, VoidCallback onTap)$
-    }
-
-    AppShell --> ScenePage : IndexedStack 0
-    AppShell --> ExplorePage : IndexedStack 1
-    AppShell --> LibraryPage : IndexedStack 2
-    AppShell --> SettingsPage : IndexedStack 3
-    AppShell --> HomePage : IndexedStack 4
-    ScenePage *-- AppSearchBar
-    ExplorePage *-- AppSearchBar
-    LibraryPage *-- AppSearchBar
-    SettingsPage *-- AppSearchBar
-    LibraryPage *-- AlbumCard
-    LibraryPage ..> StateViews
-    SettingsPage ..> SettingsUiProviders
-
-    %% ══════════ 设置详情分区（Q5 五槽位）══════════
-    class PlaybackSection {
-        <<ConsumerWidget>>
-    }
-    class SourceSection {
-        <<ConsumerWidget>>
-    }
-    class SceneSection {
-        <<ConsumerWidget>>
-    }
-    class NotificationSection {
-        <<ConsumerWidget>>
-    }
-    class AboutSection {
-        <<ConsumerWidget>>
-    }
-
-    SettingsPage *-- PlaybackSection
-    SettingsPage *-- SourceSection
-    SettingsPage *-- SceneSection
-    SettingsPage *-- NotificationSection
-    SettingsPage *-- AboutSection
-
-    %% ══════════ 既有能力（不改动，仅被消费）══════════
-    class PlaybackActions {
-        <<existing>>
-        +Future toggle()
-        +Future next(int direction)
-        +Future playTrack(Track t)
-        +void setMode(PlayMode m)
-    }
-
-    class AudioService {
-        <<existing>>
-        +Stream playingStream
-        +Stream positionStream
-        +Stream durationStream
-        +Future seek(Duration position)
-        +Future setMusicVolume(double v)
-        +Future setMusicMuted(bool m)
-        +Future setSoundscapeVolume(double v)
-        +Future setSoundscapeMuted(bool m)
-        +Future switchSoundscape(Scene s)
-    }
-
-    class Track {
-        <<existing>>
-        +String title
-        +String artist
-        +String uri
-        +String coverUrl
-        +String coverPath
-        +Duration duration
-    }
-
-    class ServerSettingsPage {
-        <<existing recolor only>>
-    }
-    class SceneEditorPage {
-        <<existing recolor only>>
-    }
-    class PalettePanel {
-        <<existing unchanged>>
-    }
-    class PaletteStudioPage {
-        <<new dark island>>
-    }
-    class CanvasPage {
-        <<existing dark island>>
-    }
-
-    MiniPlayer ..> PlaybackActions
-    MiniPlayer ..> AudioService
-    MiniPlayer ..> Track
-    LibraryPage ..> PlaybackActions
-    AlbumCard --> Track
-    PlaybackActions ..> AudioService
-    SourceSection ..> ServerSettingsPage : push route
-    SceneSection ..> SceneEditorPage : push route
-    SceneSection ..> PaletteStudioPage : push route
-    PaletteStudioPage *-- PalettePanel
-    PlaybackSection ..> AudioService
-    ScenePage ..> CanvasPage : push fullscreen

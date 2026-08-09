@@ -13,9 +13,13 @@ Future<void> main() async {
   // 首帧之前就把系统栏切成「透明底 + 深色图标」，避免浅色 UI 上出现
   // 白字状态栏的一帧闪烁（配合 app.dart 的 AnnotatedRegion 双保险）。
   SystemChrome.setSystemUIOverlayStyle(kLightOverlayStyle);
+  // v2 M1 · P0-M1-4：整体适配横屏（宽 ≥ 600dp 时响应式重排）。
+  // 竖屏布局保持 v1；横屏由各页按 AppSize.landscapeBreakpoint 重排。
   await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
   ]);
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();

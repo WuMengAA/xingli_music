@@ -283,6 +283,22 @@ abstract final class AppSize {
 
   /// 几何基准宽度。
   static const double baseWidth = 390;
+
+  // ── v2 横屏 Token（M1 · P0-M1-4 / Q1 方案 C）────────────────
+  /// 横屏断点：宽 ≥ 600dp 启用横屏布局（PRD §4.1 / 架构 §7.5）。
+  static const double landscapeBreakpoint = 600;
+
+  /// 横屏时底部 Dock 最大宽度（方案 C：底部收窄居中限宽）。
+  static const double landscapeDockMaxWidth = 560;
+
+  /// 横屏时迷你播放器最大宽度。
+  static const double landscapeMiniMaxWidth = 760;
+
+  /// 横屏时内容容器最大宽度（居中，页面在容器内重排）。
+  static const double contentMaxWidth = 1200;
+
+  /// 通用信息行封面边长（InfoRow，P0-M1-3）。
+  static const double infoCover = 48;
 }
 
 // ─────────────────────────────────────────────────────────────────────────

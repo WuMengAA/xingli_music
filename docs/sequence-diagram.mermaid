@@ -1,158 +1,25 @@
 sequenceDiagram
     autonumber
     actor U as 用户
-    participant M as main()
-    participant App as StelarithMusicApp
-    participant Shell as AppShell
-    participant SP as shellPageProvider
-    participant TP as selectedTabIndexProvider
-    participant IS as IndexedStack
-    participant Dock as AppDock
-    participant Audio as AudioService
-    participant Canvas as CanvasPage
+    participant EP as ExplorePage(实验列表)
+    participant CP as experimentConsentProvider
+    participant CN as ExperimentConsentNotifier
+    participant Prefs as SharedPreferences
+    participant Gate as ConsentGate
 
-    Note over M,App: ── 冷启动 ──
-    U->>M: 启动应用
-    M->>M: SharedPreferences.getInstance()
-    M->>M: SystemChrome.setSystemUIOverlayStyle(dark icons)
-    M->>App: runApp(ProviderScope(prefs override))
-    App->>App: initState → LogService.init()
-    App->>App: _initAudio(): AudioSession.configure + AudioService.init(notificationColor #7C6BFF)
-    App->>Shell: MaterialApp(theme: kLightTheme, themeMode: light).home
-    Shell->>SP: read() → ShellPage.scene (默认，P0-B7)
-    Shell->>TP: watch() → 0
-    Shell->>IS: build(index: 0) 一次性构建全部 5 页
-    Shell->>Dock: AppDock(selectedIndex: 0)
-    Dock-->>U: 场景 Tab 紫圆高亮
-    Shell->>Shell: addPostFrameCallback
-    Shell->>Audio: switchSoundscape(activeScene)
-    Shell->>Shell: ref.listen(activeSceneProvider)
-
-    Note over U,IS: ── 切 Tab（状态保活，P0-B10）──
-    U->>Dock: 点击「曲库」
-    Dock->>Shell: onTabSelected(2)
-    Shell->>SP: state = ShellPage.library
-    SP-->>TP: 派生 → 2
-    SP-->>IS: index = 2（<200ms，P0-B3）
-    Note right of IS: ScenePage/ExplorePage 实例不销毁<br/>滚动位置与内部 state 全部保留
-    TP-->>Dock: selectedIndex = 2 → 200ms 缓动紫圆迁移(P1-03)
-
-    Note over U,IS: ── 场景页 → 首页（Shell 内，Tab 全灰）──
-    U->>Dock: 点击「场景」
-    Dock->>SP: state = ShellPage.scene
-    U->>IS: 点击场景页右上角入口 → 选「首页」
-    IS->>SP: state = ShellPage.home
-    SP-->>IS: index = 4
-    SP-->>TP: 派生 → null
-    TP-->>Dock: selectedIndex = null
-    Dock-->>U: 4 Tab 全部灰色未选中（P0-B9 / V6）
-    U->>Dock: 点击任一 Tab
-    Dock->>SP: state = 该 Tab
-    Note right of Dock: 首页自动退出，无需额外逻辑
-
-    Note over U,Canvas: ── 场景页 → 沉浸画布（全屏路由，脱离 Shell）──
-    U->>IS: 点击入口 → 选「沉浸画布」
-    IS->>Canvas: Navigator.push(MaterialPageRoute)
-    Canvas->>Canvas: Theme(data: buildAppTheme(effectivePrimary)) 暗色孤岛
-    Canvas->>Canvas: NoiseTexture + ReactiveParticles + Orb + ControlBar + MorePanel
-    Canvas-->>U: 全屏沉浸，无 Dock、无迷你播放器（P0-G3）
-    U->>Canvas: 返回按钮 / 系统返回手势
-    Canvas->>Shell: Navigator.pop()
-    Shell-->>U: 恢复到原 Tab（Shell 未被销毁，state 完整）
-
-    Note over U,Shell: ── 系统返回键（PRD §5.4）──
-    U->>Shell: 在 Tab 1/2/3 或 Home 按返回
-    Shell->>Shell: PopScope(canPop:false) 拦截
-    Shell->>SP: state = ShellPage.scene
-    U->>Shell: 在 Tab 0 按返回
-    Shell->>Shell: canPop → true，退出应用
-
----
-
-sequenceDiagram
-    autonumber
-    actor U as 用户
-    participant MP as MiniPlayer
-    participant LP as LibraryPage
-    participant PA as playbackActionsProvider
-    participant NP as nowPlayingProvider
-    participant Lib as effectiveMusicLibraryProvider
-    participant PM as playModeProvider
-    participant AS as AudioService
-    participant JA as just_audio
-    participant IP as isPlayingProvider
-    participant Pos as musicPositionProvider
-    participant Sys as audio_service 通知栏
-
-    Note over MP,IP: ── 状态订阅（建立即生效，永远由真实流驱动 P0-D8）──
-    MP->>IP: watch → StreamProvider(AS.playingStream)
-    MP->>Pos: watch → StreamProvider(AS.positionStream)
-    MP->>NP: watch → Track?
-    MP->>PM: watch → PlayMode
-    IP-->>MP: false → 显示「播放」图标
-    NP-->>MP: null → 「未知歌曲 / 未知歌手」+ 占位缩略图（P0-D4）
-
-    Note over U,Sys: ── ② 播放/暂停 ──
-    U->>MP: 点击 ②
-    MP->>PA: toggle()
-    alt nowPlaying == null
-        PA->>Lib: await future
-        alt 曲库为空
-            Lib-->>PA: []
-            PA-->>MP: '曲库为空，请先在曲库设置添加音乐'
-            MP-->>U: SnackBar
-        else 有曲目
-            PA->>AS: playMusic(library.first)
-            AS->>AS: _state = loading
-            AS->>JA: setUrl / setFilePath
-            AS->>JA: play() + 后台淡入
-            AS->>AS: _state = playing
-            PA->>NP: state = track
-        end
-    else 已有曲目
-        PA->>AS: togglePlay()
-        AS->>AS: 状态机拦截 idle/loading（连点 10 次不错乱 F5）
-        AS->>JA: pause() / play()
+    U->>EP: 首次进入探索 Tab
+    EP->>CP: watch agreed=false
+    EP->>Gate: 全屏 Gate 卡片（实验性说明 / 数据用途 / 可随时退出）
+    alt 点击「同意并进入」
+        U->>Gate: 主按钮
+        Gate->>CN: agree()
+        CN->>Prefs: setBool('experiment_consent_v1.agreed', true)
+        CN-->>CP: state = agreed:true
+        CP-->>EP: 重建 → 实验列表（数据驱动）
+    else 点击「暂不参与」（方案 A）
+        U->>Gate: 次按钮
+        Gate->>Gate: 切换为只读条款视图 + 「再次进入」按钮
+        U->>Gate: 点击「再次进入」
+        Gate->>Gate: 回到 Gate 卡片（同意/暂不参与二选一）
     end
-    JA-->>AS: playerStateStream
-    AS-->>IP: playingStream.distinct()
-    IP-->>MP: 图标翻转
-    AS-->>Sys: trackStream → 锁屏/通知栏同步（R7）
-
-    Note over U,NP: ── ①③ 上一首 / 下一首 ──
-    U->>MP: 点击 ① 或 ③
-    MP->>PA: next(direction: -1 | 1)
-    PA->>Lib: await future
-    PA->>PM: read → PlayMode
-    PA->>PA: nextTrackInLibrary(lib, current, mode, direction)
-    PA->>AS: playMusic(chosen)
-    PA->>NP: state = chosen
-    NP-->>MP: 歌名/歌手即时更新
-    NP-->>MP: 进度条归零（position 流复位）
-
-    Note over U,PM: ── ④ 播放模式循环 ──
-    U->>MP: 点击 ④
-    MP->>PM: read → 当前 mode
-    MP->>PA: setMode(order→reverse→shuffle→loop→order)
-    PM-->>MP: 图标切换（R11）
-
-    Note over U,AS: ── 进度条拖动 seek（P1-06）──
-    U->>MP: 拖动进度条
-    MP->>MP: 本地 _seekMs 预览（避免与流打架）
-    U->>MP: 松手
-    MP->>AS: seek(Duration)
-    AS->>JA: seek()
-    JA-->>Pos: positionStream
-    Pos-->>MP: 清除 _seekMs，回归流驱动
-
-    Note over U,MP: ── 曲库卡片点击（P0-E7 / F6）──
-    U->>LP: 点击 AlbumCard
-    LP->>PA: playTrack(track)
-    PA->>AS: playMusic(track)
-    PA->>NP: state = track
-    NP-->>MP: 迷你播放器同步歌名/歌手/封面
-    IP-->>MP: 图标变「暂停」
-
-    Note over U,MP: ── 左信息胶囊 → 完整播放页（P1-05）──
-    U->>MP: 点击左胶囊
-    MP->>MP: Navigator.push(NowPlayingPage)
+    Note over EP,CP: 每次进入先读 consent；agree=false 永不渲染实验项列表

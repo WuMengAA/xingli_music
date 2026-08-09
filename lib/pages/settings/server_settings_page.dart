@@ -4,18 +4,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_tokens.dart';
+import '../../core/terms/naming_dict.dart';
 import '../../models/local_dir_config.dart';
 import '../../models/server_config.dart';
+import '../../models/source_health.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/local_dir_providers.dart';
 import '../../providers/audio/server_config_provider.dart';
+import '../../providers/audio/source_health_providers.dart';
 import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
+import '../../widgets/common/state_chip.dart';
 
-/// 外部流媒体连接设置页
+/// 音源管理页（v2 M4 · P0-M4-1 ~ P0-M4-3 瘦身重写）。
 ///
-/// 支持新增 / 编辑 Subsonic 自建服务器与公开电台目录，
-/// 密码存于系统安全存储，连接信息存于本地 SharedPreferences。
+/// 原 `ServerSettingsPage`（515 行）中的**非音源区块**（全局播放 / 粒子 /
+/// 关于 / 高级）已全部迁出，本页只做纯音源管理：
+/// 三组卡片 = **本地目录 / 自建服务器（Subsonic）/ 公开电台**。
+///
+/// R12 保持：设置页「音源」分类单入口 → push 本页。
+/// 音源条目健康状态用 [StateChip] 展示（P1-M4-4，连接中 / 正常 / 失败 +
+/// 上次测试时间）。
 class ServerSettingsPage extends ConsumerStatefulWidget {
   const ServerSettingsPage({super.key});
 
@@ -24,56 +33,12 @@ class ServerSettingsPage extends ConsumerStatefulWidget {
 }
 
 class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
-  final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _dirCtrl = TextEditingController();
-  final TextEditingController _urlCtrl = TextEditingController();
-  final TextEditingController _userCtrl = TextEditingController();
-  final TextEditingController _pwdCtrl = TextEditingController();
-  final TextEditingController _tagsCtrl = TextEditingController(text: 'ambient');
-
-  SourceType _type = SourceType.subsonic;
-  bool _enabled = true;
-  bool _testing = false;
-  String? _testResult;
-  ServerConfig? _editing;
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
     _dirCtrl.dispose();
-    _urlCtrl.dispose();
-    _userCtrl.dispose();
-    _pwdCtrl.dispose();
-    _tagsCtrl.dispose();
     super.dispose();
-  }
-
-  void _startEdit(ServerConfig c) {
-    setState(() {
-      _editing = c;
-      _type = c.type;
-      _nameCtrl.text = c.name;
-      _urlCtrl.text = c.baseUrl;
-      _userCtrl.text = c.user;
-      _pwdCtrl.text = c.password;
-      _tagsCtrl.text = c.tags.join(', ');
-      _enabled = c.enabled;
-      _testResult = null;
-    });
-  }
-
-  void _resetForm() {
-    setState(() {
-      _editing = null;
-      _type = SourceType.subsonic;
-      _nameCtrl.clear();
-      _urlCtrl.clear();
-      _userCtrl.clear();
-      _pwdCtrl.clear();
-      _tagsCtrl.text = 'ambient';
-      _enabled = true;
-      _testResult = null;
-    });
   }
 
   Future<void> _addDir() async {
@@ -81,64 +46,47 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     if (p.isEmpty) return;
     await ref.read(localDirConfigsProvider.notifier).add(p);
     _dirCtrl.clear();
-    // 立即重新扫描曲库，回到曲库界面即能看到新目录
+    _invalidateLibrary();
+  }
+
+  void _invalidateLibrary() {
     ref.invalidate(musicLibraryProvider);
     ref.invalidate(effectiveMusicLibraryProvider);
   }
 
-  Future<void> _test() async {
-    final ServerConfig cfg = _buildConfig();
-    if (cfg.name.isEmpty) {
-      setState(() => _testResult = '请先填写名称');
-      return;
-    }
-    setState(() {
-      _testing = true;
-      _testResult = null;
-    });
-    final bool ok = cfg.type == SourceType.subsonic
-        ? await SubsonicSource(cfg).testConnection()
-        : await RadioSource(tags: cfg.tags).testConnection();
-    if (mounted) {
-      setState(() {
-        _testing = false;
-        _testResult = ok ? '连接成功 ✓' : '连接失败 ✗';
-      });
-    }
+  Future<void> _toggleDir(LocalDirConfig d, bool v) async {
+    await ref.read(localDirConfigsProvider.notifier).setEnabled(d.path, v);
+    _invalidateLibrary();
   }
 
-  ServerConfig _buildConfig() {
-    final List<String> tags = _tagsCtrl.text
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    return ServerConfig(
-      type: _type,
-      name: _nameCtrl.text.trim(),
-      baseUrl: _urlCtrl.text.trim(),
-      user: _userCtrl.text.trim(),
-      password: _pwdCtrl.text,
-      enabled: _enabled,
-      tags: tags.isNotEmpty ? tags : const ['ambient'],
-    );
+  Future<void> _removeDir(LocalDirConfig d) async {
+    await ref.read(localDirConfigsProvider.notifier).remove(d.path);
+    ref.read(sourceHealthProvider.notifier).remove(d.path);
+    _invalidateLibrary();
   }
 
-  Future<void> _save() async {
-    final ServerConfig cfg = _buildConfig();
-    if (cfg.name.isEmpty) {
-      setState(() => _testResult = '名称不能为空');
-      return;
+  Future<void> _testServer(ServerConfig c) async {
+    final SourceHealthNotifier health =
+        ref.read(sourceHealthProvider.notifier);
+    health.startTest(c.name);
+    final bool ok = c.type == SourceType.subsonic
+        ? await SubsonicSource(c).testConnection()
+        : await RadioSource(tags: c.tags, sourceId: c.name).testConnection();
+    if (ok) {
+      health.markOk(c.name);
+    } else {
+      health.markFailed(c.name, detail: '连接失败');
     }
-    await ref.read(serverConfigsProvider.notifier).addOrUpdate(cfg);
-    _resetForm();
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<ServerConfig> configs = ref.watch(serverConfigsProvider);
     final List<LocalDirConfig> dirs = ref.watch(localDirConfigsProvider);
-    final Color accent = Theme.of(context).colorScheme.primary;
+    final List<ServerConfig> configs = ref.watch(serverConfigsProvider);
+    final List<ServerConfig> servers =
+        configs.where((ServerConfig c) => c.type == SourceType.subsonic).toList();
+    final List<ServerConfig> radios =
+        configs.where((ServerConfig c) => c.type == SourceType.radio).toList();
 
     return Scaffold(
       backgroundColor: AppColors.bgPage,
@@ -150,372 +98,487 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
           icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('设置', style: TextStyle(color: AppColors.textSecondary)),
+        title: const Text(Terms.source, style: AppTextStyles.title),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // ── 全局设置 ──
-          _sectionTitle('全局设置'),
-          _globalPlayMode(accent),
-          const SizedBox(height: 8),
-          _globalMusicVolume(accent),
-          _globalSoundscapeVolume(accent),
+        padding: const EdgeInsets.all(AppSpace.lg),
+        children: <Widget>[
+          // ── 本地目录 ──────────────────────────────────────
+          _GroupCard(
+            title: '本地目录',
+            icon: Icons.folder_rounded,
+            addLabel: '添加目录',
+            onAdd: () => _showAddDirSheet(),
+            children: <Widget>[
+              if (dirs.isEmpty)
+                const _EmptyHint('尚未添加本地目录'),
+              for (final LocalDirConfig d in dirs) _dirTile(d),
+            ],
+          ),
+          const SizedBox(height: AppSpace.lg),
 
-          // ── 展示设置 ──
-          _sectionTitle('展示'),
-          _showParticlesSwitch(),
+          // ── 自建服务器（Subsonic）────────────────────────
+          _GroupCard(
+            title: '${Terms.server}（Subsonic）',
+            icon: Icons.storage_rounded,
+            addLabel: '添加${Terms.server}',
+            onAdd: () => _showServerSheet(null),
+            children: <Widget>[
+              if (servers.isEmpty)
+                const _EmptyHint('尚未配置自建服务器'),
+              for (final ServerConfig c in servers) _serverTile(c),
+            ],
+          ),
+          const SizedBox(height: AppSpace.lg),
 
-          // ── 曲库设置（可配置） ──
-          _sectionTitle('曲库（本地目录）'),
-          _field(_dirCtrl,
-              '如 d:/Music/我的音乐 或 /storage/emulated/0/Music/xxx', false),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: _addDir,
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('添加曲库'),
+          // ── 公开电台 ─────────────────────────────────────
+          _GroupCard(
+            title: '公开电台',
+            icon: Icons.radio_rounded,
+            addLabel: '添加电台',
+            onAdd: () => _showRadioSheet(null),
+            children: <Widget>[
+              if (radios.isEmpty)
+                const _EmptyHint('尚未配置公开电台'),
+              for (final ServerConfig c in radios) _serverTile(c),
+            ],
+          ),
+          const SizedBox(height: AppSpace.lg),
+        ],
+      ),
+    );
+  }
+
+  // ── 本地目录 ─────────────────────────────────────────────
+
+  Future<void> _showAddDirSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpace.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('添加本地目录', style: AppTextStyles.subtitle),
+                const SizedBox(height: AppSpace.md),
+                TextField(
+                  controller: _dirCtrl,
+                  style: AppTextStyles.body,
+                  decoration: const InputDecoration(
+                    labelText: '如 d:/Music/我的音乐',
+                    labelStyle: AppTextStyles.hint,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _addDir();
+                  },
+                  child: const Text(Terms.add),
+                ),
+              ],
             ),
           ),
-          if (dirs.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ...dirs.map((d) => _dirTile(d, accent)),
-          ],
+        );
+      },
+    );
+  }
 
-          _sectionTitle('已配置源'),
-          ...configs.map((c) => _configTile(c, accent)),
-          const SizedBox(height: 8),
-          _sectionTitle(_editing != null ? '编辑源' : '新增源'),
-          _typeToggle(),
-          const SizedBox(height: 12),
-          _field(_nameCtrl, '名称（唯一标识）', false),
-          if (_type == SourceType.subsonic) ...[
-            _field(_urlCtrl, '服务器地址（http://IP:4533）', false),
-            _field(_userCtrl, '用户名', false),
-            _field(_pwdCtrl, '密码', true),
-          ] else
-            _field(_tagsCtrl, '标签（逗号分隔，如 ambient, jazz）', false),
-          const SizedBox(height: 12),
+  Widget _dirTile(LocalDirConfig d) {
+    return _EntryTile(
+      icon: Icons.folder_outlined,
+      title: d.path,
+      subtitle: '已启用' ,
+      switchValue: d.enabled,
+      onSwitch: (bool v) => _toggleDir(d, v),
+      onEdit: null,
+      onDelete: () => _removeDir(d),
+      onTest: null,
+    );
+  }
+
+  // ── 服务器 / 电台 ────────────────────────────────────────
+
+  Future<void> _showServerSheet(ServerConfig? editing) =>
+      _showServerConfigSheet(editing, isRadio: false);
+
+  Future<void> _showRadioSheet(ServerConfig? editing) =>
+      _showServerConfigSheet(editing, isRadio: true);
+
+  Future<void> _showServerConfigSheet(ServerConfig? editing,
+      {required bool isRadio}) async {
+    final TextEditingController nameCtrl =
+        TextEditingController(text: editing?.name ?? '');
+    final TextEditingController urlCtrl =
+        TextEditingController(text: editing?.baseUrl ?? '');
+    final TextEditingController userCtrl =
+        TextEditingController(text: editing?.user ?? '');
+    final TextEditingController pwdCtrl =
+        TextEditingController(text: editing?.password ?? '');
+    final TextEditingController tagsCtrl =
+        TextEditingController(text: (editing?.tags ?? const ['ambient']).join(', '));
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.bgSurface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              AppSpace.lg,
+              AppSpace.lg,
+              AppSpace.lg,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + AppSpace.lg,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  editing != null ? '编辑${isRadio ? '电台' : '服务器'}' : '新增${isRadio ? '电台' : '服务器'}',
+                  style: AppTextStyles.subtitle,
+                ),
+                const SizedBox(height: AppSpace.md),
+                TextField(
+                  controller: nameCtrl,
+                  style: AppTextStyles.body,
+                  decoration: const InputDecoration(
+                    labelText: '名称（唯一标识）',
+                    labelStyle: AppTextStyles.hint,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: AppSpace.sm),
+                if (!isRadio) ...<Widget>[
+                  TextField(
+                    controller: urlCtrl,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      labelText: '服务器地址（http://IP:4533）',
+                      labelStyle: AppTextStyles.hint,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  TextField(
+                    controller: userCtrl,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      labelText: '用户名',
+                      labelStyle: AppTextStyles.hint,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  TextField(
+                    controller: pwdCtrl,
+                    obscureText: true,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      labelText: '密码',
+                      labelStyle: AppTextStyles.hint,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ] else ...<Widget>[
+                  TextField(
+                    controller: tagsCtrl,
+                    style: AppTextStyles.body,
+                    decoration: const InputDecoration(
+                      labelText: '标签（逗号分隔，如 ambient, jazz）',
+                      labelStyle: AppTextStyles.hint,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppSpace.md),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          final ServerConfig cfg = _buildServerConfig(
+                            editing: editing,
+                            isRadio: isRadio,
+                            name: nameCtrl.text.trim(),
+                            url: urlCtrl.text.trim(),
+                            user: userCtrl.text.trim(),
+                            password: pwdCtrl.text,
+                            tags: tagsCtrl.text,
+                          );
+                          _testServer(cfg);
+                        },
+                        child: const Text(Terms.testConnection),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpace.sm),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: () async {
+                          if (nameCtrl.text.trim().isEmpty) return;
+                          final ServerConfig cfg = _buildServerConfig(
+                            editing: editing,
+                            isRadio: isRadio,
+                            name: nameCtrl.text.trim(),
+                            url: urlCtrl.text.trim(),
+                            user: userCtrl.text.trim(),
+                            password: pwdCtrl.text,
+                            tags: tagsCtrl.text,
+                          );
+                          await ref
+                              .read(serverConfigsProvider.notifier)
+                              .addOrUpdate(cfg);
+                          if (sheetContext.mounted) {
+                            Navigator.of(sheetContext).pop();
+                          }
+                          _invalidateLibrary();
+                        },
+                        child: Text(editing != null ? Terms.save : Terms.add),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  ServerConfig _buildServerConfig({
+    required ServerConfig? editing,
+    required bool isRadio,
+    required String name,
+    required String url,
+    required String user,
+    required String password,
+    required String tags,
+  }) {
+    final List<String> tagList = tags
+        .split(',')
+        .map((String e) => e.trim())
+        .where((String e) => e.isNotEmpty)
+        .toList();
+    return ServerConfig(
+      type: isRadio ? SourceType.radio : SourceType.subsonic,
+      name: name,
+      baseUrl: url,
+      user: user,
+      password: password,
+      enabled: editing?.enabled ?? true,
+      tags: tagList.isNotEmpty ? tagList : const ['ambient'],
+    );
+  }
+
+  Widget _serverTile(ServerConfig c) {
+    final SourceHealth health =
+        ref.watch(sourceHealthProvider.select((Map<String, SourceHealth> m) =>
+            m[c.name] ?? const SourceHealth(status: SourceHealthStatus.unknown)));
+
+    return _EntryTile(
+      icon: c.type == SourceType.subsonic
+          ? Icons.storage_outlined
+          : Icons.radio_outlined,
+      title: c.name,
+      subtitle: c.type == SourceType.subsonic
+          ? (c.baseUrl.isEmpty ? '未填地址' : c.baseUrl)
+          : '标签：${c.tags.join(', ')}',
+      health: health,
+      switchValue: c.enabled,
+      onSwitch: (bool v) =>
+          ref.read(serverConfigsProvider.notifier).setEnabled(c.name, v),
+      onEdit: () => c.type == SourceType.subsonic
+          ? _showServerSheet(c)
+          : _showRadioSheet(c),
+      onDelete: () async {
+        await ref.read(serverConfigsProvider.notifier).remove(c.name);
+        ref.read(sourceHealthProvider.notifier).remove(c.name);
+        _invalidateLibrary();
+      },
+      onTest: () => _testServer(c),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// 小组件
+// ─────────────────────────────────────────────────────────────────────────
+
+/// 音源分组卡片（P0-M4-2）。
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({
+    required this.title,
+    required this.icon,
+    required this.addLabel,
+    required this.onAdd,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final String addLabel;
+  final VoidCallback onAdd;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(
+        color: AppColors.bgSurfaceSunken,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
           Row(
-            children: [
+            children: <Widget>[
+              Icon(icon, size: AppSize.iconSm, color: AppColors.iconPrimary),
+              const SizedBox(width: AppSpace.sm),
               Expanded(
-                child: OutlinedButton(
-                  onPressed: _testing ? null : _test,
-                  child: _testing
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('测试连接'),
-                ),
+                child: Text(title, style: AppTextStyles.subtitle),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  onPressed: _save,
-                  child: Text(_editing != null ? '保存修改' : '添加'),
-                ),
+              TextButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add, size: 18),
+                label: Text(addLabel),
               ),
             ],
           ),
-          if (_testResult != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 10),
-              child: Text(
-                _testResult!,
-                style: TextStyle(
-                  color: _testResult!.contains('成功')
-                      ? AppColors.success
-                      : AppColors.danger,
+          const SizedBox(height: AppSpace.sm),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+/// 音源条目行：开关 / 编辑 / 删除 / 测试连接 + 健康 StateChip。
+class _EntryTile extends StatelessWidget {
+  const _EntryTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.switchValue,
+    required this.onSwitch,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onTest,
+    this.health,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool switchValue;
+  final ValueChanged<bool> onSwitch;
+  final VoidCallback? onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback? onTest;
+  final SourceHealth? health;
+
+  @override
+  Widget build(BuildContext context) {
+    final SourceHealth? h = health;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpace.sm),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.bgCard,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(icon, size: AppSize.iconSm, color: AppColors.textTertiary),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(title,
+                        style: AppTextStyles.body,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    Text(subtitle,
+                        style: AppTextStyles.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
                 ),
               ),
-            ),
-          const SizedBox(height: 12),
-          if (_editing != null)
-            TextButton(
-              onPressed: _resetForm,
-              child: const Text('取消编辑', style: TextStyle(color: AppColors.textTertiary)),
-            ),
-
-          // ── 高级 ──
-          _sectionTitle('高级'),
-          _advancedTile(Icons.bug_report, '调试日志',
-              '查看或定位日志文件（自动写入 logs/app.log）', () {}),
-
-          // ── 关于 ──
-          _sectionTitle('关于'),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline, color: AppColors.textTertiary),
-            title: const Text('星璃 · 无限音乐空间',
-                style: TextStyle(color: AppColors.textPrimary)),
-            subtitle: const Text('v1.0 · 本地优先的沉浸式音乐空间',
-                style: TextStyle(color: AppColors.textTertiary)),
-            trailing: TextButton(
-              onPressed: () => _showAbout(context),
-              child: const Text('更多', style: TextStyle(color: AppColors.textTertiary)),
-            ),
+              Switch(value: switchValue, onChanged: onSwitch),
+            ],
+          ),
+          Row(
+            children: <Widget>[
+              if (h != null) ...<Widget>[
+                StateChip(tone: _toneOf(h.status), label: h.statusLabel),
+                const SizedBox(width: AppSpace.xs),
+                Text('上次 ${h.lastTestedLabel}',
+                    style: AppTextStyles.caption),
+              ],
+              const Spacer(),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 18, color: AppColors.textTertiary),
+                  onPressed: onEdit,
+                ),
+              if (onTest != null)
+                IconButton(
+                  icon: const Icon(Icons.network_check_rounded,
+                      size: 18, color: AppColors.textTertiary),
+                  tooltip: Terms.testConnection,
+                  onPressed: onTest,
+                ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    size: 18, color: AppColors.danger),
+                onPressed: onDelete,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// 全局：默认播放方式
-  Widget _globalPlayMode(Color accent) {
-    final PlayMode mode = ref.watch(playModeProvider);
-    const Map<PlayMode, String> labels = {
-      PlayMode.order: '顺序播放',
-      PlayMode.reverse: '倒叙播放',
-      PlayMode.shuffle: '随机播放',
-      PlayMode.loop: '单曲循环',
-    };
-    return Row(
-      children: [
-        const Text('播放方式', style: TextStyle(color: AppColors.textSecondary)),
-        const Spacer(),
-        DropdownButton<PlayMode>(
-          value: mode,
-          dropdownColor: AppColors.bgSurface,
-          style: const TextStyle(color: AppColors.textPrimary),
-          items: PlayMode.values
-              .map((m) =>
-                  DropdownMenuItem(value: m, child: Text(labels[m] ?? '')))
-              .toList(),
-          onChanged: (m) {
-            if (m != null) {
-              ref.read(playModeProvider.notifier).state = m;
-            }
-          },
-        ),
-      ],
+  ChipTone _toneOf(SourceHealthStatus status) => switch (status) {
+        SourceHealthStatus.connecting => ChipTone.connecting,
+        SourceHealthStatus.ok => ChipTone.ok,
+        SourceHealthStatus.failed => ChipTone.failed,
+        SourceHealthStatus.unknown => ChipTone.retired,
+      };
+}
+
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
+      child: Text(text, style: AppTextStyles.bodyMuted),
     );
   }
-
-  /// 全局：默认音乐声音量
-  Widget _globalMusicVolume(Color accent) {
-    final double v = ref.watch(musicVolumeProvider);
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          child: Text('音乐声 ${(v * 100).round()}%',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        ),
-        Expanded(
-          child: Slider(
-            value: v,
-            activeColor: accent,
-            onChanged: (nv) {
-              ref.read(musicVolumeProvider.notifier).state = nv;
-              unawaited(ref.read(audioServiceProvider).setMusicVolume(nv));
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 全局：默认背景声音量
-  Widget _globalSoundscapeVolume(Color accent) {
-    final double v = ref.watch(soundscapeVolumeProvider);
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          child: Text('背景声 ${(v * 100).round()}%',
-              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-        ),
-        Expanded(
-          child: Slider(
-            value: v,
-            activeColor: accent,
-            onChanged: (nv) {
-              ref.read(soundscapeVolumeProvider.notifier).state = nv;
-              unawaited(
-                  ref.read(audioServiceProvider).setSoundscapeVolume(nv));
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 展示：粒子开关
-  Widget _showParticlesSwitch() {
-    // 粒子显隐由主题派生，此处提供全局偏好（默认开）
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: const Text('粒子效果', style: TextStyle(color: AppColors.textSecondary)),
-      value: ref.watch(showParticlesProvider),
-      onChanged: (v) =>
-          ref.read(showParticlesProvider.notifier).state = v,
-    );
-  }
-
-  Widget _advancedTile(IconData icon, String title, String sub, VoidCallback onTap) =>
-      ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(icon, color: AppColors.textTertiary),
-        title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
-        subtitle: Text(sub, style: const TextStyle(color: AppColors.textTertiary)),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.iconInactive),
-        onTap: onTap,
-      );
-
-  void _showAbout(BuildContext context) {
-    showAboutDialog(
-      context: context,
-      applicationName: '星璃 · 无限音乐空间',
-      applicationVersion: 'v1.0',
-      applicationIcon: const Icon(Icons.music_note, color: AppColors.accent),
-      applicationLegalese: '本地优先的沉浸式音乐空间\n星璃 Stelarith',
-      children: const [
-        Text('在星光中流淌的真理之光，陪你找到答案。'),
-      ],
-    );
-  }
-
-  Widget _sectionTitle(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(t,
-            style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),
-      );
-
-  Widget _typeToggle() => ToggleButtons(
-        isSelected: [
-          _type == SourceType.subsonic,
-          _type == SourceType.radio,
-        ],
-        onPressed: (i) => setState(
-            () => _type = i == 0 ? SourceType.subsonic : SourceType.radio),
-        borderRadius: BorderRadius.circular(12),
-        selectedColor: AppColors.textPrimary,
-        fillColor: AppColors.accent.withValues(alpha: 0.4),
-        color: AppColors.textTertiary,
-        children: const [
-          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('自建服务器')),
-          Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('公开电台')),
-        ],
-      );
-
-  Widget _field(TextEditingController c, String label, bool obscure) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: TextField(
-          controller: c,
-          obscureText: obscure,
-          style: const TextStyle(color: AppColors.textPrimary),
-          decoration: InputDecoration(
-            labelText: label,
-            labelStyle: const TextStyle(color: AppColors.textTertiary),
-            enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: AppColors.iconInactive),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: AppColors.accent),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      );
-
-  Widget _dirTile(LocalDirConfig d, Color accent) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.borderDefault),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.folder_outlined,
-                color: AppColors.textTertiary, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(d.path,
-                  style: const TextStyle(
-                      color: AppColors.textPrimary, fontSize: 13)),
-            ),
-            Switch(
-              value: d.enabled,
-              activeThumbColor: accent,
-              onChanged: (v) async {
-                await ref
-                    .read(localDirConfigsProvider.notifier)
-                    .setEnabled(d.path, v);
-                ref.invalidate(musicLibraryProvider);
-                ref.invalidate(effectiveMusicLibraryProvider);
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: AppColors.danger, size: 18),
-              onPressed: () async {
-                await ref
-                    .read(localDirConfigsProvider.notifier)
-                    .remove(d.path);
-                ref.invalidate(musicLibraryProvider);
-                ref.invalidate(effectiveMusicLibraryProvider);
-              },
-            ),
-          ],
-        ),
-      );
-
-  Widget _configTile(ServerConfig c, Color accent) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.bgSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.borderDefault),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              c.type == SourceType.subsonic ? Icons.storage : Icons.radio,
-              color: AppColors.textTertiary,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(c.name,
-                      style: const TextStyle(
-                          color: AppColors.textPrimary, fontSize: 15)),
-                  Text(
-                    c.type == SourceType.subsonic
-                        ? (c.baseUrl.isEmpty ? '电台目录' : c.baseUrl)
-                        : '标签：${c.tags.join(", ")}',
-                    style: const TextStyle(
-                        color: AppColors.textTertiary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Switch(
-              value: c.enabled,
-              activeThumbColor: accent,
-              onChanged: (v) => ref
-                  .read(serverConfigsProvider.notifier)
-                  .setEnabled(c.name, v),
-            ),
-            IconButton(
-              icon: const Icon(Icons.edit, color: AppColors.textTertiary, size: 18),
-              onPressed: () => _startEdit(c),
-            ),
-            IconButton(
-              icon: const Icon(Icons.delete, color: AppColors.danger, size: 18),
-              onPressed: () =>
-                  ref.read(serverConfigsProvider.notifier).remove(c.name),
-            ),
-          ],
-        ),
-      );
 }

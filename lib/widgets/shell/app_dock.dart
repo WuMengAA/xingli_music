@@ -96,31 +96,39 @@ class AppDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius），不另立常量
-      borderRadius: BorderRadius.circular(AppSize.dockRadius),
-      child: Container(
-        height: AppSize.heightDock,
-        decoration: BoxDecoration(
-          color: AppColors.bgDock,
-          borderRadius: BorderRadius.circular(AppSize.dockRadius),
-          border: Border.all(color: AppColors.borderDock),
+    // 方案 C（Q1 已裁决）：底部 Dock 横屏收窄、居中限宽；竖屏保持满宽。
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: AppSize.landscapeDockMaxWidth,
         ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: Row(
-            // 4 个 Expanded 严格等分，中间不插 SizedBox —— 才能对齐
-            // 设计坐标 x=0/104/208/312（390dp 基准）。
-            children: <Widget>[
-              for (int i = 0; i < items.length; i++)
-                Expanded(
-                  child: _DockTab(
-                    item: items[i],
-                    selected: selectedIndex == i,
-                    onTap: () => onTabSelected(i),
-                  ),
-                ),
-            ],
+        child: ClipRRect(
+          // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius），不另立常量
+          borderRadius: BorderRadius.circular(AppSize.dockRadius),
+          child: Container(
+            height: AppSize.heightDock,
+            decoration: BoxDecoration(
+              color: AppColors.bgDock,
+              borderRadius: BorderRadius.circular(AppSize.dockRadius),
+              border: Border.all(color: AppColors.borderDock),
+            ),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Row(
+                // 4 个 Expanded 严格等分，中间不插 SizedBox —— 才能对齐
+                // 设计坐标 x=0/104/208/312（390dp 基准）。
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++)
+                    Expanded(
+                      child: _DockTab(
+                        item: items[i],
+                        selected: selectedIndex == i,
+                        onTap: () => onTabSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

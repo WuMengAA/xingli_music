@@ -5,33 +5,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_theme.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../core/terms/naming_dict.dart';
+import '../../models/experiment.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/settings_ui_providers.dart';
 import '../../providers/shell/shell_providers.dart';
+import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/common/state_chip.dart';
+import '../../widgets/notification/notification_center.dart';
 import '../../widgets/shell/app_search_bar.dart';
 import 'scene_editor_page.dart';
+import '../scene/custom_scene_list_page.dart';
+import '../scene/voxel_sound_editor_page.dart';
 import 'server_settings_page.dart';
 
-/// 设置页 · Master-Detail（主内容，背景/控制栏由 AppShell 提供）
+/// 设置页 · Master-Detail（v2 M1 接入 PageScaffold；M4/M6/M2 分类更新）。
 ///
-/// 依据 `docs/PRD_UI_重构.md` §F 与 `docs/API_CONTRACT_FROZEN.md`：
-///
-/// - **P0-F1** 内容区一张设置卡片：圆角 24dp、底色 `#EEEEEE`（[AppColors.bgSurfaceSunken]）。
-/// - **P0-F2** 卡片左侧 52dp 竖向分类栏（master），内含 5 个 48×76dp 分类
-///   tile（26dp 图标在上、文字标签在下、间距 4dp、圆角 18dp）；右侧为详情区（detail）。
-/// - **P0-F3** 点击 tile → 右侧详情切换；tile 置选中态（紫底白图标，沿用 Dock 规范）。
-/// - **P0-F6** 「关于」分类展示应用名与版本号。
-///
-/// **五大分类按 Q5 已授权功能性重映射**（非设计稿原分类名）：
-/// ① 播放 / ② 音源 / ③ 场景 / ④ 通知 / ⑤ 关于。
+/// 六分类（v2 A1 已裁决新增第 6 槽「实验」）：
+/// ① 播放 / ② 音源 / ③ 场景 / ④ 通知中心 / ⑤ 关于 / ⑥ 实验。
 ///
 /// **一票否决项**：
 /// - **R12** `ServerSettingsPage` 必须从设置页可达（音源分类入口行 `push` 整页）。
-/// - **R13** `SceneEditorPage` 必须从设置页可达（场景分类入口行 `push` 整页，
-///   构造需 `sceneId`，沿用旧值 `'rain'`）。
-/// 两个大页面均**不内联**进详情区，仅在详情区放入口行 + `Navigator.push` 打开整页，
-/// 可达性即达标。它们为旧深色主题，push 时用 [kLightTheme] 包一层低成本浅色化。
+/// - **R13** `SceneEditorPage` 必须从设置页可达（场景分类入口行 `push` 整页）。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -49,54 +46,41 @@ class SettingsPage extends ConsumerWidget {
       settingsSectionMatchesProvider,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        // 顶部搜索栏（.placeholder = 「搜索设置项」，P0-C1）
-        AppSearchBar(
-          hintText: '搜索设置项',
-          query: query,
-          onChanged: (String v) =>
-              ref.read(searchQueryProvider(ShellPage.settings).notifier).state =
-                  v,
+    return PageScaffold(
+      title: '设置',
+      search: AppSearchBar(
+        hintText: '搜索设置项',
+        query: query,
+        onChanged: (String v) =>
+            ref.read(searchQueryProvider(ShellPage.settings).notifier).state = v,
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          color: AppColors.bgSurfaceSunken,
+          borderRadius: AppRadius.brLg,
         ),
-        const SizedBox(height: 12),
-
-        // 设置卡片：左 52dp 竖栏 + 右详情区（P0-F1 / F2）
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.bgSurfaceSunken,
-              borderRadius: AppRadius.brLg,
+        clipBehavior: Clip.antiAlias,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // ── Master：左侧竖向分类导航栏 ─────────────
+            _CategoryRail(
+              selected: section,
+              matches: matches,
+              onSelect: (SettingsSection s) =>
+                  ref.read(settingsSectionProvider.notifier).state = s,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                // ── Master：左侧竖向分类导航栏 ─────────────
-                _CategoryRail(
-                  selected: section,
-                  matches: matches,
-                  onSelect: (SettingsSection s) =>
-                      ref.read(settingsSectionProvider.notifier).state = s,
-                ),
 
-                // ── Detail：右侧详情区 ─────────────────────
-                Expanded(child: _SectionDetail(section: section)),
-              ],
-            ),
-          ),
+            // ── Detail：右侧详情区 ─────────────────────
+            Expanded(child: _SectionDetail(section: section)),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
 
 /// 左侧 52dp 竖向分类导航栏（Master）。
-///
-/// 内含 5 个 [SettingsSection] tile，竖排；tile 间距 4dp、尺寸 48×76dp、圆角 18dp。
-/// 选中 tile 复用 Dock 规范：紫底（[AppColors.accent]）+ 白图标
-/// （[AppColors.iconOnAccent]）+ 紫字（[AppColors.textAccent]）。
 class _CategoryRail extends StatelessWidget {
   const _CategoryRail({
     required this.selected,
@@ -176,7 +160,6 @@ class _CategoryTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected ? AppColors.accent : AppColors.bgTile,
               borderRadius: AppRadius.brMd,
-              // 未命中搜索时整体降透明，但保留可点（P1-02）
               border: Border.all(
                 color: selected ? AppColors.accent : AppColors.borderDefault,
               ),
@@ -224,6 +207,8 @@ class _SectionDetail extends StatelessWidget {
         return const _NotificationDetail();
       case SettingsSection.about:
         return const _AboutDetail();
+      case SettingsSection.experiment:
+        return const _ExperimentDetail();
     }
   }
 }
@@ -237,13 +222,18 @@ class _DetailScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppSpace.lg),
-      children: <Widget>[
-        Text(title, style: AppTextStyles.title),
-        const SizedBox(height: AppSpace.lg),
-        ...children,
-      ],
+    return Material(
+      // ListTile 需要在 DecoratedBox 内部找到最近 Material 祖先，
+      // 否则「ListTile background color or ink splashes may be invisible」。
+      color: Colors.transparent,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpace.lg),
+        children: <Widget>[
+          Text(title, style: AppTextStyles.title),
+          const SizedBox(height: AppSpace.lg),
+          ...children,
+        ],
+      ),
     );
   }
 }
@@ -315,15 +305,15 @@ class _SourceDetail extends ConsumerWidget {
       title: SettingsSection.source.title,
       children: <Widget>[
         const Text(
-          '管理外部流媒体与本地音源：Stelarith 服务器、局域网 Subsonic、'
+          '管理外部流媒体与本地音源：${Terms.server}、局域网 Subsonic、'
           '本地目录与公开电台。',
           style: AppTextStyles.bodyMuted,
         ),
         const SizedBox(height: AppSpace.md),
         _EntryRow(
           icon: Icons.dns_outlined,
-          title: '服务器与音源',
-          subtitle: 'Stelarith-Admin / 局域网 Subsonic / 本地目录 / 电台',
+          title: '${Terms.server}与${Terms.source}',
+          subtitle: '本地目录 / Subsonic / 公开电台 分组管理',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               // 低成本浅色化：用全局浅色主题包一层（不改动页面内部实现）
@@ -337,7 +327,7 @@ class _SourceDetail extends ConsumerWidget {
   }
 }
 
-/// ③ 场景：入口行 → 整页 `SceneEditorPage` + 配色 + 心情（R13）。
+/// ③ 场景：入口行 → 整页 `SceneEditorPage` + 自定义场景 + 配色（R13）。
 class _SceneDetail extends ConsumerWidget {
   const _SceneDetail();
 
@@ -346,7 +336,10 @@ class _SceneDetail extends ConsumerWidget {
     return _DetailScaffold(
       title: SettingsSection.scene.title,
       children: <Widget>[
-        const Text('调色盘：将在场景页右上角微光圆点提供（后续阶段）。', style: AppTextStyles.bodyMuted),
+        const Text(
+          '自定义场景与配色：在场景页右上角微光圆点进入配色面板。',
+          style: AppTextStyles.bodyMuted,
+        ),
         const SizedBox(height: AppSpace.md),
         _EntryRow(
           icon: Icons.auto_awesome_outlined,
@@ -362,54 +355,48 @@ class _SceneDetail extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppSpace.md),
-        const Text(
-          '心情：在「场景」Tab 选择雨夜 / 极光 / 壁炉等情绪，联动配色与音景。',
-          style: AppTextStyles.bodyMuted,
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.collections_bookmark_outlined,
+          title: '自定义场景管理',
+          subtitle: '列出 / 新建 / 编辑自定义场景（含默认 BGM 选曲）',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => Theme(
+                data: kLightTheme,
+                child: const CustomSceneListPage(),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.grid_view_rounded,
+          title: '2.5D 音效编辑器',
+          subtitle: '类我的世界：摆放音效块，试听并保存独立音效层',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => Theme(
+                data: kLightTheme,
+                child: const VoxelSoundEditorPage(),
+              ),
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-/// ④ 通知：后台播放、锁屏控件、通知栏。
+/// ④ 通知中心（v2 M6 三区块）。
 class _NotificationDetail extends ConsumerWidget {
   const _NotificationDetail();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool background = ref.watch(_backgroundPlayProvider);
-    final bool lockScreen = ref.watch(_lockScreenProvider);
-    final bool notification = ref.watch(_notificationBarProvider);
-
     return _DetailScaffold(
       title: SettingsSection.notification.title,
-      children: <Widget>[
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('后台播放', style: AppTextStyles.body),
-          subtitle: const Text('切到其它 App 时继续播放', style: AppTextStyles.artist),
-          value: background,
-          onChanged: (bool v) =>
-              ref.read(_backgroundPlayProvider.notifier).state = v,
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('锁屏控件', style: AppTextStyles.body),
-          subtitle: const Text('锁屏显示播放 / 暂停 / 切歌', style: AppTextStyles.artist),
-          value: lockScreen,
-          onChanged: (bool v) =>
-              ref.read(_lockScreenProvider.notifier).state = v,
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('通知栏', style: AppTextStyles.body),
-          subtitle: const Text('在通知栏常驻音乐卡片', style: AppTextStyles.artist),
-          value: notification,
-          onChanged: (bool v) =>
-              ref.read(_notificationBarProvider.notifier).state = v,
-        ),
-      ],
+      children: const <Widget>[NotificationCenter()],
     );
   }
 }
@@ -465,6 +452,71 @@ class _AboutDetail extends StatelessWidget {
   }
 }
 
+/// ⑥ 实验管理（v2 M2 · P1-M2-5 / A1 已裁决新增第 6 槽）。
+class _ExperimentDetail extends ConsumerWidget {
+  const _ExperimentDetail();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ExperimentConsent consent = ref.watch(experimentConsentProvider);
+    final List<ExperimentItem> items = ref.watch(experimentsProvider);
+
+    return _DetailScaffold(
+      title: SettingsSection.experiment.title,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Text('同意状态', style: AppTextStyles.body),
+            const Spacer(),
+            StateChip(
+              tone: consent.agreed ? ChipTone.ok : ChipTone.retired,
+              label: consent.agreed ? '已同意' : '未同意',
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpace.sm),
+        const Text(
+          '同意后可在「探索」页进入实验；传感器 / 心情数据本地处理不上传。',
+          style: AppTextStyles.artist,
+        ),
+        const SizedBox(height: AppSpace.md),
+        // 撤销同意
+        OutlinedButton.icon(
+          onPressed: consent.agreed
+              ? () async {
+                  await ref.read(experimentConsentProvider.notifier).revoke();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已撤销同意，退出全部实验')),
+                    );
+                  }
+                }
+              : null,
+          icon: const Icon(Icons.logout_rounded, size: 18),
+          label: const Text('撤销同意'),
+        ),
+        const SizedBox(height: AppSpace.lg),
+        Text('逐项启停', style: AppTextStyles.subtitle),
+        const SizedBox(height: AppSpace.sm),
+        for (final ExperimentItem item in items)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            title: Text(item.name, style: AppTextStyles.body),
+            subtitle: Text(
+              item.statusLabel,
+              style: AppTextStyles.artist,
+            ),
+            value: consent.isEnabled(item),
+            onChanged: (bool v) => ref
+                .read(experimentConsentProvider.notifier)
+                .setEnabled(item.id, v),
+          ),
+      ],
+    );
+  }
+}
+
 /// 详情区：滑块行（音量类）。
 class _SliderRow extends StatelessWidget {
   const _SliderRow({
@@ -506,11 +558,11 @@ class _PlayModeRow extends ConsumerWidget {
   ];
 
   static String _label(PlayMode m) => switch (m) {
-    PlayMode.order => '顺序',
-    PlayMode.reverse => '倒序',
-    PlayMode.shuffle => '随机',
-    PlayMode.loop => '单曲循环',
-  };
+        PlayMode.order => '顺序',
+        PlayMode.reverse => '倒序',
+        PlayMode.shuffle => '随机',
+        PlayMode.loop => '单曲循环',
+      };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -611,18 +663,3 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────
-// 通知分类的本地开关（UI 状态）。既有音频模块一（audio_service / audio_session）
-// 已提供后台播放与锁屏能力；此处仅承载设置项的开合态，待音频层暴露 Provider
-// 后可一行替换为真实真源，不影响本页结构。
-// ─────────────────────────────────────────────────────────────────────────
-final StateProvider<bool> _backgroundPlayProvider = StateProvider<bool>(
-  (Ref ref) => true,
-);
-final StateProvider<bool> _lockScreenProvider = StateProvider<bool>(
-  (Ref ref) => true,
-);
-final StateProvider<bool> _notificationBarProvider = StateProvider<bool>(
-  (Ref ref) => true,
-);

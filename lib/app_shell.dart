@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
+import 'models/track.dart';
 import 'pages/explore/explore_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
@@ -13,6 +14,7 @@ import 'pages/scene/scene_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'providers/audio/audio_providers.dart';
 import 'providers/scene/scene_providers.dart';
+import 'providers/settings/notification_providers.dart';
 import 'providers/shell/shell_providers.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
@@ -91,6 +93,23 @@ class _AppShellState extends ConsumerState<AppShell> {
     // 「我的世界」主题音效调度：场景切换时自动启停（同样是全局副作用）
     ref.listen<Scene>(activeSceneProvider, (Scene? previous, Scene next) {
       unawaited(ref.read(minecraftSfxServiceProvider).ensureScene(next.id));
+      // v2 A5：通知中心自动记录场景事件（P2-M6-4）
+      if (previous == null || previous.id != next.id) {
+        ref.read(recentNotificationsProvider.notifier).append(
+              '场景',
+              '切换到「${next.name}」',
+            );
+      }
+    });
+
+    // v2 A5：自动记录播放事件（P2-M6-4）
+    ref.listen<Track?>(nowPlayingProvider, (Track? previous, Track? next) {
+      if (next != null && previous?.uri != next.uri) {
+        ref.read(recentNotificationsProvider.notifier).append(
+              '播放',
+              '${next.title} · ${next.artist}',
+            );
+      }
     });
 
     final int pageIndex = ref.watch(shellPageIndexProvider);
