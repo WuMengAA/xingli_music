@@ -45,6 +45,12 @@ dependencies:
   # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──
   crypto: ^3.0.6
 
+  # ── v2 实验 F：传感器（仅按需 import，非 Android 平台降级兜底）──
+  # 加速度：摇晃切场景（Android/iOS 均支持）
+  sensors_plus: ^7.0.0
+  # 环境光 lux：仅 Android 可用，其余平台 onError 兜底为 null
+  light: ^3.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
