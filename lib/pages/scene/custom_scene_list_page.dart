@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_tokens.dart';
-import '../../models/scene.dart';
 import '../../providers/scene/scene_custom_providers.dart';
 import '../../providers/scene/scene_providers.dart';
+import '../../scenes/scene_api.dart';
 import '../../widgets/common/page_scaffold.dart';
 import 'custom_scene_edit_page.dart';
 
@@ -151,6 +152,13 @@ class _SceneTile extends ConsumerWidget {
               ),
             ),
           ),
+          // P1-M5-6：导出场景包（复用 scene_packer / scene_api）
+          IconButton(
+            icon: const Icon(Icons.ios_share_rounded,
+                size: 18, color: AppColors.textTertiary),
+            tooltip: '导出场景包',
+            onPressed: () => _exportPack(context, scene),
+          ),
           if (scene.isCustom)
             IconButton(
               icon: const Icon(Icons.delete_outline,
@@ -163,6 +171,16 @@ class _SceneTile extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// 导出场景包：编码为 JSON 字符串并复制到剪贴板（P1-M5-6）。
+  Future<void> _exportPack(BuildContext context, Scene scene) async {
+    final String pack = Scenes.encodePack(scene);
+    await Clipboard.setData(ClipboardData(text: pack));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已导出「${scene.name}」场景包并复制到剪贴板')),
     );
   }
 }
