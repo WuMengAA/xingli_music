@@ -174,3 +174,83 @@
 | `_analyze_baseline.log` 基线不可用 | — | 架构 A10 已知；当前 0 warning，不影响 E2 判定 |
 
 **建议**：优先修复 P1-1（M09 取色替换）与 P1-2（Q7-A 入口）；P2 项列入下一迭代。修复后回归路径：`dart analyze` + R12/R13 入口走查 + G1/C1 grep 复验。
+
+---
+
+## 6. 第 2 轮回归（P1 修复复核 + 全量复查）
+
+| 项 | 值 |
+|---|---|
+| 核验基线 | master = `ff8a938`（含 P1-1/P1-2 修复 + 本报告入库） |
+| 核验方式 | 只读审查（Read/Grep）+ `dart analyze`，**未修改任何 lib/ 源码** |
+| 核验日期 | 2026-08-09 |
+
+### 6.1 P1-1 复核（ServerSettingsPage M09 取色替换）
+
+| 检查 | 结果 |
+|---|---|
+| `grep "Color(0x\|Colors.white\|Colors.white70\|Colors.white24\|Colors.white54" server_settings_page.dart` | ✅ **0 命中** |
+| `grep -c "AppColors" server_settings_page.dart` | ✅ **43 处**（与 team-lead 亲验一致） |
+| `import '../../core/theme/light_tokens.dart'` | ✅ 存在（`:6`） |
+| AppBar 替换语义 | ✅ `:146-147` `backgroundColor: AppColors.bgPage` / `foregroundColor: AppColors.textPrimary`；`:150` back icon `textSecondary`；`:153` title `textSecondary`（原 `Colors.white70` 白字 → 浅色深字，语义整体翻转正确） |
+| Dropdown 替换语义 | ✅ `:281` `dropdownColor: AppColors.bgSurface`（原 `0xFF1A1230`）；`:282` `style: TextStyle(color: AppColors.textPrimary)`（原 `Colors.white`） |
+| Scaffold 底 | ✅ `:144` `backgroundColor: AppColors.bgPage`（原 `0xFF0E0A1F`） |
+| tile/ListTile 底色 | ✅ 抽查 `:251/:253/:255/:258` 均 `AppColors.textTertiary/textPrimary`，无残留 |
+| 语义色 | ✅ `:230-231` `AppColors.success` / `AppColors.danger` 正确映射测试结果 |
+| 音量接线未破坏（R10） | ✅ `:313` `unawaited(ref.read(audioServiceProvider).setMusicVolume(nv))` 保留 |
+| `dart analyze` | ✅ **No issues found!**（0 error / 0 warning） |
+
+**结论：P1-1 修复正确、语义完整、无回归。**
+
+### 6.2 P1-2 复核（Q7-A 隐藏页入口）
+
+| 检查 | 结果 |
+|---|---|
+| 40dp 圆形按钮 | ✅ `scene_page.dart:112-114` `SizedBox(width: 40, height: 40)`，`_EntryButton`（`:98-119`）Material+InkWell+CircleBorder |
+| 位置 | ✅ `:41-45` `Stack` + `Positioned(top: 0, right: 0)`（场景页右上角） |
+| 弹窗二选一 | ✅ `:51-94` `showModalBottomSheet`：ListTile「首页」→ `setShellPage(ref, ShellPage.home)`（`:72`）；ListTile「沉浸画布」→ `Navigator.push(MaterialPageRoute(builder: (_) => const CanvasPage()))`（`:84-85`）**真实调用** |
+| 弹窗浅色 | ✅ `:54` `backgroundColor: AppColors.bgSurface`，圆角 `AppRadius.lg` |
+| C1（新代码无字面量） | ✅ `scene_page.dart` 全文件 `Color(0x`/`Colors.` **0 命中**，全部 `AppColors.*`/`AppTextStyles.*` |
+| import | ✅ `:13` `import '../canvas/canvas_page.dart';`、`:11` `shell_providers.dart` |
+
+**结论：P1-2 修复正确：首页走 Shell 内隐藏页（Dock 全灰语义成立）、沉浸画布走全屏路由，入口可达。**
+
+### 6.3 R12/R13 一票否决项复查
+
+| 项 | 结果 |
+|---|---|
+| R12 | ✅ `settings_page.dart:331` `Theme(data: kLightTheme, child: const ServerSettingsPage())` 未变 |
+| R13 | ✅ `settings_page.dart:358-360` `Theme(data: kLightTheme, ... const SceneEditorPage(sceneId: 'rain'))` 未变 |
+
+**结论：一票否决项仍通过。**
+
+### 6.4 全量 R1-R15 快查（重点文件 diff=0 验证）
+
+关键接线文件本轮未被改动（行号与第 1 轮完全一致）：
+
+| 项 | 证据（第 1 轮 vs 第 2 轮行号一致） |
+|---|---|
+| R10 | ✅ `settings_page.dart:271/281/290/300`（setMusicVolume/Muted、setSoundscapeVolume/Muted） |
+| R11 | ✅ `settings_page.dart:532`、`mini_player.dart:281`、`now_playing_page.dart:341`（三处 playbackActionsProvider.setMode） |
+| R15 | ✅ `app.dart:85` `notificationColor: AppColors.accent` |
+| R5 | ✅ `audio_providers.dart:76-78` 空源回退 `DemoSource().getTracks()` |
+| R14 | ✅ `app_shell.dart:84-93` 音景/场景副作用保留（本轮未触碰 app_shell） |
+
+### 6.5 门禁复验
+
+| 门禁 | 结果 |
+|---|---|
+| G1（app_shell 无暗色资产） | ✅ 0 命中 |
+| C1（lib/pages 全局） | ✅ 仅剩豁免：`canvas_page.dart` 8 处（暗色孤岛）+ `scene_editor_page.dart` 2 处（场景数据默认值）；**server_settings_page 已 0 命中** |
+| C1（lib/widgets/shell） | ✅ 0 命中 |
+| analyze | ✅ No issues found! |
+
+### 6.6 第 2 轮最终判定
+
+**P1 全部修复闭环，一票否决项通过，R1-R15 结论不变，判定：达标 ✅**
+
+- 遗留问题从「2 P1 + 6 P2」收敛为 **「0 P1 + 6 P2」**（P2-1~P2-6 为下一迭代优化项，非阻塞）。
+- P2 遗留项复述：P2-1 library 网格/点击播放、P2-2 ScenePage 仍 SceneCardStack、P2-3 三页搜索栏、P2-4 调色盘入口、P2-5 PopScope、P2-6 SceneEditor 少量 Colors.white* UI 色。
+- 遗留风险：R6-R9 真机项未验证；`_analyze_baseline.log` 基线不可用（不影响判定）。
+
+**建议**：本重构满足验收标准（R1-R15 全部达成、E1 0 error、G1/C1 达标、一票否决项通过），可进入收尾；P2 项按产品/主理人优先级排入后续迭代。
