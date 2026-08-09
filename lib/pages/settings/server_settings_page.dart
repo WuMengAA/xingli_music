@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/light_tokens.dart';
 import '../../models/local_dir_config.dart';
 import '../../models/server_config.dart';
 import '../../providers/audio/audio_providers.dart';
@@ -140,15 +141,16 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     final Color accent = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0A1F),
+      backgroundColor: AppColors.bgPage,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.bgPage,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white70),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('设置', style: TextStyle(color: Colors.white70)),
+        title: const Text('设置', style: TextStyle(color: AppColors.textSecondary)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -225,8 +227,8 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 _testResult!,
                 style: TextStyle(
                   color: _testResult!.contains('成功')
-                      ? Colors.greenAccent
-                      : Colors.redAccent,
+                      ? AppColors.success
+                      : AppColors.danger,
                 ),
               ),
             ),
@@ -234,7 +236,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
           if (_editing != null)
             TextButton(
               onPressed: _resetForm,
-              child: const Text('取消编辑', style: TextStyle(color: Colors.white54)),
+              child: const Text('取消编辑', style: TextStyle(color: AppColors.textTertiary)),
             ),
 
           // ── 高级 ──
@@ -246,14 +248,14 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
           _sectionTitle('关于'),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.info_outline, color: Colors.white54),
+            leading: const Icon(Icons.info_outline, color: AppColors.textTertiary),
             title: const Text('星璃 · 无限音乐空间',
-                style: TextStyle(color: Colors.white)),
+                style: TextStyle(color: AppColors.textPrimary)),
             subtitle: const Text('v1.0 · 本地优先的沉浸式音乐空间',
-                style: TextStyle(color: Colors.white38)),
+                style: TextStyle(color: AppColors.textTertiary)),
             trailing: TextButton(
               onPressed: () => _showAbout(context),
-              child: const Text('更多', style: TextStyle(color: Colors.white54)),
+              child: const Text('更多', style: TextStyle(color: AppColors.textTertiary)),
             ),
           ),
         ],
@@ -272,12 +274,12 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     };
     return Row(
       children: [
-        const Text('播放方式', style: TextStyle(color: Colors.white70)),
+        const Text('播放方式', style: TextStyle(color: AppColors.textSecondary)),
         const Spacer(),
         DropdownButton<PlayMode>(
           value: mode,
-          dropdownColor: const Color(0xFF1A1230),
-          style: const TextStyle(color: Colors.white),
+          dropdownColor: AppColors.bgSurface,
+          style: const TextStyle(color: AppColors.textPrimary),
           items: PlayMode.values
               .map((m) =>
                   DropdownMenuItem(value: m, child: Text(labels[m] ?? '')))
@@ -300,7 +302,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         SizedBox(
           width: 56,
           child: Text('音乐声 ${(v * 100).round()}%',
-              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
         ),
         Expanded(
           child: Slider(
@@ -324,7 +326,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         SizedBox(
           width: 56,
           child: Text('背景声 ${(v * 100).round()}%',
-              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
         ),
         Expanded(
           child: Slider(
@@ -346,7 +348,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     // 粒子显隐由主题派生，此处提供全局偏好（默认开）
     return SwitchListTile(
       contentPadding: EdgeInsets.zero,
-      title: const Text('粒子效果', style: TextStyle(color: Colors.white70)),
+      title: const Text('粒子效果', style: TextStyle(color: AppColors.textSecondary)),
       value: ref.watch(showParticlesProvider),
       onChanged: (v) =>
           ref.read(showParticlesProvider.notifier).state = v,
@@ -356,10 +358,10 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   Widget _advancedTile(IconData icon, String title, String sub, VoidCallback onTap) =>
       ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: Icon(icon, color: Colors.white54),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        subtitle: Text(sub, style: const TextStyle(color: Colors.white38)),
-        trailing: const Icon(Icons.chevron_right, color: Colors.white24),
+        leading: Icon(icon, color: AppColors.textTertiary),
+        title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+        subtitle: Text(sub, style: const TextStyle(color: AppColors.textTertiary)),
+        trailing: const Icon(Icons.chevron_right, color: AppColors.iconInactive),
         onTap: onTap,
       );
 
@@ -368,7 +370,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
       context: context,
       applicationName: '星璃 · 无限音乐空间',
       applicationVersion: 'v1.0',
-      applicationIcon: const Icon(Icons.music_note, color: Colors.purpleAccent),
+      applicationIcon: const Icon(Icons.music_note, color: AppColors.accent),
       applicationLegalese: '本地优先的沉浸式音乐空间\n星璃 Stelarith',
       children: const [
         Text('在星光中流淌的真理之光，陪你找到答案。'),
@@ -379,7 +381,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   Widget _sectionTitle(String t) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(t,
-            style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            style: const TextStyle(color: AppColors.textTertiary, fontSize: 13)),
       );
 
   Widget _typeToggle() => ToggleButtons(
@@ -390,9 +392,9 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         onPressed: (i) => setState(
             () => _type = i == 0 ? SourceType.subsonic : SourceType.radio),
         borderRadius: BorderRadius.circular(12),
-        selectedColor: Colors.white,
-        fillColor: Colors.purpleAccent.withValues(alpha: 0.4),
-        color: Colors.white54,
+        selectedColor: AppColors.textPrimary,
+        fillColor: AppColors.accent.withValues(alpha: 0.4),
+        color: AppColors.textTertiary,
         children: const [
           Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('自建服务器')),
           Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('公开电台')),
@@ -405,16 +407,16 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         child: TextField(
           controller: c,
           obscureText: obscure,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.textPrimary),
           decoration: InputDecoration(
             labelText: label,
-            labelStyle: const TextStyle(color: Colors.white54),
+            labelStyle: const TextStyle(color: AppColors.textTertiary),
             enabledBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.white24),
+              borderSide: const BorderSide(color: AppColors.iconInactive),
               borderRadius: BorderRadius.circular(12),
             ),
             focusedBorder: OutlineInputBorder(
-              borderSide: const BorderSide(color: Colors.purpleAccent),
+              borderSide: const BorderSide(color: AppColors.accent),
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -425,17 +427,19 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.bgSurface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white12),
+          border: Border.all(color: AppColors.borderDefault),
         ),
         child: Row(
           children: [
-            const Icon(Icons.folder_outlined, color: Colors.white54, size: 20),
+            const Icon(Icons.folder_outlined,
+                color: AppColors.textTertiary, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(d.path,
-                  style: const TextStyle(color: Colors.white, fontSize: 13)),
+                  style: const TextStyle(
+                      color: AppColors.textPrimary, fontSize: 13)),
             ),
             Switch(
               value: d.enabled,
@@ -449,7 +453,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
               },
             ),
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
+              icon: const Icon(Icons.delete, color: AppColors.danger, size: 18),
               onPressed: () async {
                 await ref
                     .read(localDirConfigsProvider.notifier)
@@ -466,15 +470,15 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.bgSurface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white12),
+          border: Border.all(color: AppColors.borderDefault),
         ),
         child: Row(
           children: [
             Icon(
               c.type == SourceType.subsonic ? Icons.storage : Icons.radio,
-              color: Colors.white54,
+              color: AppColors.textTertiary,
               size: 20,
             ),
             const SizedBox(width: 12),
@@ -483,12 +487,14 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(c.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 15)),
+                      style: const TextStyle(
+                          color: AppColors.textPrimary, fontSize: 15)),
                   Text(
                     c.type == SourceType.subsonic
                         ? (c.baseUrl.isEmpty ? '电台目录' : c.baseUrl)
                         : '标签：${c.tags.join(", ")}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    style: const TextStyle(
+                        color: AppColors.textTertiary, fontSize: 12),
                   ),
                 ],
               ),
@@ -501,11 +507,11 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                   .setEnabled(c.name, v),
             ),
             IconButton(
-              icon: const Icon(Icons.edit, color: Colors.white54, size: 18),
+              icon: const Icon(Icons.edit, color: AppColors.textTertiary, size: 18),
               onPressed: () => _startEdit(c),
             ),
             IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
+              icon: const Icon(Icons.delete, color: AppColors.danger, size: 18),
               onPressed: () =>
                   ref.read(serverConfigsProvider.notifier).remove(c.name),
             ),
