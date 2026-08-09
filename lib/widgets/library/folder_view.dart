@@ -237,9 +237,18 @@ class _DetailList extends ConsumerWidget {
 ///
 /// - 本地路径曲目（`uri` 含路径）：按 `/` 与 `\` 分隔建目录；
 /// - 在线曲目（`http`）：归入「在线音源」虚拟目录（按 sourceId 分组）。
+///
+/// ⚠️ 本函数会向节点列表 `add`，因此**必须**显式传可变列表
+/// （`children: <...>[]` / `tracks: <Track>[]`），否则 `LibraryFolderNode`
+/// 的 `const []` 默认值会抛 `Unsupported operation: Cannot add to an
+/// unmodifiable list`（P1-1 根因修复，勿改回缺省构造）。
 LibraryFolderNode buildFolderTree(List<Track> tracks) {
-  final LibraryFolderNode root =
-      LibraryFolderNode(name: '全部', pathKey: '/root');
+  final LibraryFolderNode root = LibraryFolderNode(
+    name: '全部',
+    pathKey: '/root',
+    children: <LibraryFolderNode>[],
+    tracks: <Track>[],
+  );
   final Map<String, LibraryFolderNode> nodes = <String, LibraryFolderNode>{
     '/root': root,
   };
@@ -256,7 +265,12 @@ LibraryFolderNode buildFolderTree(List<Track> tracks) {
       path = '$path/${segs[i]}';
       LibraryFolderNode? child = nodes[path];
       if (child == null) {
-        child = LibraryFolderNode(name: segs[i], pathKey: path);
+        child = LibraryFolderNode(
+          name: segs[i],
+          pathKey: path,
+          children: <LibraryFolderNode>[],
+          tracks: <Track>[],
+        );
         nodes[path] = child;
         current.children.add(child);
       }
