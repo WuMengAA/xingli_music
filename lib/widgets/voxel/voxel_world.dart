@@ -11,6 +11,9 @@
 /// 纯数据模型 + 确定性生成，不依赖 Flutter 渲染，可在任意 Isolate / 测试使用。
 library;
 
+import 'dart:math' as math;
+import 'dart:typed_data' show Int32List;
+
 import 'voxel_daynight.dart';
 import 'voxel_world_types.dart';
 
@@ -237,7 +240,16 @@ class VoxelWorld {
     final bool snowCap = spec.snowy &&
         h > (spec.baseHeight + spec.amplitude * spec.snowLine);
     final Voxel surface = snowCap ? Voxel.snow : spec.surface;
+    // R26e 分层叠加：2D 高度图为基石，逐层叠加洞穴/浮空岛/矿脉（全部 O(列高)）。
+    final (bool hasIsland, int islandBase) = _islandInfo(x, z);
     for (int y = 0; y <= h; y++) {
+      // 洞穴：低于地表 2 格起、伪 3D 噪声 > 阈值 → 留空（洞内不产矿）。
+      // 阈值按实测值域标定（伪 3D 噪声实际 ±0.35，0.15 触发适度空洞）。
+      if (y < h - 1 &&
+          y > 1 &&
+          _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.16) > 0.15) {
+        continue;
+      }
       Voxel v;
       if (y == h) {
         v = surface;
@@ -247,14 +259,35 @@ class VoxelWorld {
             : spec.subsurface;
       } else {
         v = Voxel.stone;
+        // 矿脉：深层石头中的稀有斑块（金 / 铁 / 煤，伪 3D 噪声分型）。
+        // 阈值按实测值域标定（伪 3D 噪声@0.4 实际 ±0.42，0.32 触发稀疏斑块）。
+        if (y < h - 4) {
+          final double ore =
+              _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.4);
+          if (ore.abs() > 0.32) {
+            final int t = ((ore * 100).abs().round()) % 3;
+            v = t == 0 ? Voxel.gold : (t == 1 ? Voxel.ironOre : Voxel.coalOre);
+          }
+        }
       }
       col[y] = v;
+    }
+    // 浮空岛（独立悬浮层，与地面列无关；顶部草 + 内核石）
+    if (hasIsland) {
+      for (int y = islandBase; y <= islandBase + 2 && y < maxY; y++) {
+        col[y] = y == islandBase + 2 ? Voxel.grass : Voxel.stone;
+      }
     }
     // 低洼注水
     if (h < waterLevel) {
       for (int y = h + 1; y <= waterLevel; y++) {
         col[y] = Voxel.water;
       }
+    }
+    // 结构（沙漠沙堡）：确定性散列后处理，覆盖在列生成之上。
+    for (int y = h + 1; y <= h + 2 && y < maxY; y++) {
+      final Voxel? sv = _structureBlock(x, z, y, h);
+      if (sv != null) col[y] = sv;
     }
     // 树：本列树干 + 树冠，以及 5×5 邻列树冠对本列的覆盖（缓存加速）。
     _applyTrees(col, x, z, h);
@@ -265,9 +298,13 @@ class VoxelWorld {
   ///
   /// R23u：单 octave Perlin 低频采样 → 大区块（数百格）连续群系；
   /// 频段：山地（稀）→ 森林 → 平原（常见）→ 沙漠。
-  Biome _biomeAt(int x, int z) {
-    final double bx = x * 0.012 + 5000 + _shiftX * 0.01;
-    final double bz = z * 0.012 + 5000 + _shiftZ * 0.01;
+  Biome _biomeAt(int x, int z) => _biomeAtS(x, z, _shiftX, _shiftZ);
+
+  /// R26f：生物群系纯函数版（Isolate 预热复用，与实例采样同一算法；
+  /// 一致性由测试锁死，避免双实现漂移）。
+  static Biome _biomeAtS(int x, int z, double shiftX, double shiftZ) {
+    final double bx = x * 0.012 + 5000 + shiftX * 0.01;
+    final double bz = z * 0.012 + 5000 + shiftZ * 0.01;
     final double b = _perlin(bx, bz);
     if (b > 0.3) return Biome.mountain;
     if (b > 0.05) return Biome.forest;
@@ -310,11 +347,24 @@ class VoxelWorld {
   }
 
   /// 树高（确定性，按群系树干范围）。
-  int _treeTrunk(int tx, int tz) {
-    final Biome biome = _biomeAt(tx, tz);
+  int _treeTrunk(int tx, int tz) => _treeTrunkS(tx, tz, _shiftX, _shiftZ);
+
+  /// R26f：树高纯函数版（Isolate 预热复用）。
+  static int _treeTrunkS(int tx, int tz, double shiftX, double shiftZ) {
+    final Biome biome = _biomeAtS(tx, tz, shiftX, shiftZ);
     final BiomeSpec spec = kBiomes[biome]!;
     final int span = (spec.maxTrunk - spec.minTrunk + 1).clamp(1, 99);
     return spec.minTrunk + (_hash(tx * 3 + 1, tz * 3 + 5) * span).floor();
+  }
+
+  /// R26f：树有无纯函数版（Isolate 预热复用；h 为已算出的地形高度）。
+  static bool _hasTreeAtS(
+      int tx, int tz, double shiftX, double shiftZ, int h, int waterLevelV) {
+    if (h <= waterLevelV + 1) return false;
+    final Biome biome = _biomeAtS(tx, tz, shiftX, shiftZ);
+    final BiomeSpec spec = kBiomes[biome]!;
+    if (spec.treeDensity <= 0) return false;
+    return _treeChance(tx, tz) < spec.treeDensity;
   }
 
   /// 把本列及邻列的树应用到本列（树冠半径 2 → 5×5 邻域足够）。
@@ -356,17 +406,84 @@ class VoxelWorld {
   }
 
   /// 地形高度（确定性，任意坐标；含生物群系基准/振幅）。
-  int _heightAt(int x, int z) {
-    final Biome biome = _biomeAt(x, z);
+  ///
+  /// R26e 悬崖增强：对噪声正负区间做幂陡化——正值抬成尖峰、负值削成峡谷，
+  /// 地形从「缓坡」变「有陡崖」，代价仅为每列一次幂运算（O(列数)）。
+  int _heightAt(int x, int z) =>
+      _heightAtS(x, z, _shiftX, _shiftZ, waterLevel, maxY);
+
+  /// R26f：地形高度纯函数版（Isolate 预热复用，与实例采样同一算法）。
+  static int _heightAtS(
+    int x,
+    int z,
+    double shiftX,
+    double shiftZ,
+    int waterLevelV,
+    int maxYV,
+  ) {
+    final Biome biome = _biomeAtS(x, z, shiftX, shiftZ);
     final BiomeSpec spec = kBiomes[biome]!;
-    final double n = _fbm(x + 1000 + _shiftX, z + 1000 + _shiftZ);
+    // R26e 修复：Perlin 在整数网格点恒为 0（梯度点积在顶点归零）——此前
+    // defaultSeed 世界高度噪声恒 0、地形恒平。加 0.5 小数偏移恢复起伏。
+    final double n = _fbm(x + 1000.5 + shiftX, z + 1000.5 + shiftZ);
     // Perlin fbm 输出约 ±1 → 群系基准高度 ±振幅。
-    final double h = spec.baseHeight + spec.amplitude * n;
-    return h.round().clamp(8, maxY - 6);
+    double h = spec.baseHeight + spec.amplitude * n;
+    if (n > 0.15) {
+      h += math.pow(n - 0.15, 1.6).toDouble() * 14; // 正向隆起 → 尖峰/悬崖
+    } else if (n < -0.15) {
+      h -= math.pow(-(n + 0.15), 1.6).toDouble() * 9; // 负向加深 → 峡谷
+    }
+    return h.round().clamp(8, maxYV - 6);
+  }
+
+  /// R26e 伪 3D 噪声（确定性、零额外依赖）：三张 2D Perlin 在不同平面组合，
+  /// 用于洞穴 / 矿脉的**体块**判定。量级约 ±1（洞穴阈值与矿脉阈值以此标定）。
+  static double _noise3(double x, double y, double z, double scale) {
+    final double a = _perlin(x * scale + 5000, y * scale + 3000);
+    final double b = _perlin(y * scale + 3000, z * scale + 7000);
+    final double c = _perlin(z * scale + 7000, x * scale + 9000);
+    return a * 0.5 + b * 0.3 + c * 0.2;
+  }
+
+  /// R26e 浮空岛判定（确定性）：低频噪声 > 阈值且远离出生点 → 该列在
+  /// [60, ~100] 高度区间有一块 3 格厚浮岛（顶部草、内核石）。O(列数)。
+  /// 阈值按实测值域标定（perlin@0.05 实际 ±0.35，0.18 触发上部成片区域）。
+  (bool, int) _islandInfo(int x, int z) {
+    final double n = _perlin(
+      x * 0.05 + 2000 + _shiftX * 0.01,
+      z * 0.05 + 2000 + _shiftZ * 0.01,
+    );
+    if (n < 0.18) return (false, 0);
+    if (x.abs() < 4 && z.abs() < 4) return (false, 0); // 避开出生区
+    final int base = 60 + ((n - 0.18) * 160).round().clamp(0, 40);
+    return (true, base);
+  }
+
+  /// R26e 沙漠结构（沙堡）：确定性 hash + 沙漠群系 → 底座 3×3（cobble）+
+  /// 四角柱（brick）。返回本列 (x,z) 在高度 [y] 处的结构方块；无则 null。
+  /// O(9 邻域 × hash) 每列一次（列重建时），符合「结构=确定性散列后处理」。
+  Voxel? _structureBlock(int x, int z, int y, int h) {
+    if (_biomeAt(x, z) != Biome.desert) return null;
+    if (h <= waterLevel) return null;
+    for (int dx = -1; dx <= 1; dx++) {
+      for (int dz = -1; dz <= 1; dz++) {
+        final int cx = x + dx;
+        final int cz = z + dz;
+        if (_hash(cx * 7 + 3, cz * 7 + 11) >= 0.04) continue; // ~1/25 中签
+        final int ch = _heightCached(cx, cz);
+        if (_biomeAt(cx, cz) != Biome.desert || ch <= waterLevel) continue;
+        if (y == ch + 1) {
+          if ((x - cx).abs() <= 1 && (z - cz).abs() <= 1) return Voxel.cobble;
+        } else if (y == ch + 2) {
+          if ((x - cx).abs() == 1 && (z - cz).abs() == 1) return Voxel.brick;
+        }
+      }
+    }
+    return null;
   }
 
   /// 树的确定性抽签：与列坐标强相关（同 (x,z) 恒同）。
-  double _treeChance(int x, int z) {
+  static double _treeChance(int x, int z) {
     final double h = _hash(x * 31 + 7, z * 31 + 13);
     return h;
   }
@@ -386,24 +503,24 @@ class VoxelWorld {
     return ((n & 0x7fffffff) % 262144) / 64.0;
   }
 
-  double _hash(int x, int z) {
+  static double _hash(int x, int z) {
     int n = x * 374761393 + z * 668265263;
     n = (n ^ (n >> 13)) * 1274126177;
     n = n ^ (n >> 16);
     return ((n & 0x7fffffff) % 100000) / 100000.0;
   }
 
-  double _smooth(double t) => t * t * (3 - 2 * t);
+  static double _smooth(double t) => t * t * (3 - 2 * t);
 
   /// 确定性伪随机梯度（两个分量 -1~1）。
-  (double, double) _grad(int ix, int iz) {
+  static (double, double) _grad(int ix, int iz) {
     final double gx = _hash(ix, iz) * 2 - 1;
     final double gz = _hash(ix ^ 0x9E3779B9, iz ^ 0x85EBCA6B) * 2 - 1;
     return (gx, gz);
   }
 
   /// 2D Perlin 梯度噪声，输出约 ±1。
-  double _perlin(double x, double z) {
+  static double _perlin(double x, double z) {
     final int xi = x.floor();
     final int zi = z.floor();
     final double xf = x - xi;
@@ -423,7 +540,7 @@ class VoxelWorld {
   }
 
   /// Perlin 分形（4 octaves）。
-  double _fbm(double x, double z) {
+  static double _fbm(double x, double z) {
     double amp = 1.0;
     double freq = 1.0;
     double sum = 0.0;
@@ -491,6 +608,69 @@ class VoxelWorld {
       if (vi >= 0 && vi < Voxel.values.length) {
         _lights[(x, y, z)] = Voxel.values[vi];
       }
+    }
+  }
+
+  // ── R26f：Isolate 地形预热 ──────────────────────────────
+  //
+  // 跑图/转身时新 chunk 的高度 + 树判定在主线程算 fbm（缓存 miss），是
+  // 卡顿来源之一。这里提供**纯函数版**批量预计算（compute() 可在后台
+  // Isolate 调用，参数/返回值均可传输），主线程算完后用
+  // [injectTerrainPrecache] 回填缓存，渲染热路径从此命中缓存。
+  // 与实例采样的同一套算法（static 纯函数），一致性由测试锁死。
+
+  /// 批量预计算 (cx,cz) 为中心 radius 方块半径的列数据。
+  /// 返回扁平 [Int32List]，每列 4 个 int = [x, z, height, treeTopY]
+  /// （treeTopY == height 表示无树；[withTrees] 为 false 时恒等于 height）。
+  /// 顶层可调（compute 要求），不访问任何实例状态。
+  static Int32List precomputeTerrain(
+    int seed,
+    int cx,
+    int cz,
+    int radius,
+    bool withTrees,
+  ) {
+    final double shiftX = _noiseShift(seed, 1);
+    final double shiftZ = _noiseShift(seed, 2);
+    const int waterLevelV = 43; // 默认水位（与构造默认一致）
+    const int maxYV = 256; // 默认高度（与构造默认一致）
+    final int span = radius * 2;
+    final Int32List out = Int32List(span * span * 4);
+    int i = 0;
+    for (int z = cz - radius; z < cz + radius; z++) {
+      for (int x = cx - radius; x < cx + radius; x++) {
+        final int h = _heightAtS(x, z, shiftX, shiftZ, waterLevelV, maxYV);
+        int top = h;
+        if (withTrees &&
+            _hasTreeAtS(x, z, shiftX, shiftZ, h, waterLevelV)) {
+          top = h + _treeTrunkS(x, z, shiftX, shiftZ);
+        }
+        out[i++] = x;
+        out[i++] = z;
+        out[i++] = h;
+        out[i++] = top;
+      }
+    }
+    return out;
+  }
+
+  /// compute() 单参数包装：[seed, cx, cz, radius, withTrees(0/1)]。
+  /// 供 `compute(VoxelWorld.precomputeTerrainArgs, args)` 后台调用。
+  static Int32List precomputeTerrainArgs(List<int> a) =>
+      precomputeTerrain(a[0], a[1], a[2], a[3], a[4] != 0);
+
+  /// 回填 Isolate 预计算的高度/树缓存（[precomputeTerrain] 的输出）。
+  /// seedFor 与实例 seed 不一致（换世界）则丢弃。
+  void injectTerrainPrecache(Int32List data, int seedFor) {
+    if (seedFor != seed) return;
+    final int n = data.length ~/ 4;
+    for (int i = 0; i < n; i++) {
+      final int x = data[i * 4];
+      final int z = data[i * 4 + 1];
+      final int h = data[i * 4 + 2];
+      final int top = data[i * 4 + 3];
+      _heightCache[x * 65521 + z] = h;
+      _treeCache[x * 65521 + z] = (top > h, top);
     }
   }
 }

@@ -216,9 +216,13 @@ class VoxelCamera {
   /// 俯仰硬限位（±83°，避免万向节翻转）。
   static const double maxPitch = 1.45;
 
-  /// 视场角限位（约 31.5°~85.9°）。
+  /// 视场角限位（约 31.5°~120°）。
+  ///
+  /// R26：用户反馈「视角剔除太狠，FOV 不得低于 120°」——上限从 1.50(86°)
+  /// 提到 2.094(120°)。fullWidth（俯瞰/2.5D）模式下 [fov] 即水平视野；
+  /// 第一/三人称（fullWidth=false）为垂直视野（水平由 aspect 推导）。
   static const double minFov = 0.55;
-  static const double maxFov = 1.50;
+  static const double maxFov = 2.094;
 
   /// 眼高（walk/第一人称模式贴地时用；R23 用户定版：人物 1.6 米）。
   static const double eyeHeight = 1.6;

@@ -80,6 +80,12 @@ enum Voxel {
 
   /// 钻石（青钻反光）。
   diamond,
+
+  /// 铁矿石（棕褐 + 铁色斑，R26e 矿脉生成用）。
+  ironOre,
+
+  /// 煤矿石（深灰 + 黑斑，R26e 矿脉生成用）。
+  coalOre,
 }
 
 /// 自绘材质图案（R23k：在纯色填充之上叠加的程序化纹理）。
@@ -272,6 +278,14 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     id: Voxel.diamond,
     base: Color(0xFF5EE6D8),
     pattern: VoxelPattern.diamondShine,
+  ),
+  Voxel.ironOre: VoxelSpec(
+    id: Voxel.ironOre,
+    base: Color(0xFFB08968),
+  ),
+  Voxel.coalOre: VoxelSpec(
+    id: Voxel.coalOre,
+    base: Color(0xFF3B3B3B),
   ),
 };
 

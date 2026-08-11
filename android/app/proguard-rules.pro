@@ -50,6 +50,17 @@
 -keep class com.lucasjosino.on_audio_query.** { *; }
 -dontwarn com.lucasjosino.on_audio_query.**
 
+# ── media_kit（libmpv 播放引擎，S2）──────────────────────────
+# media_kit_libs_android_video 的 JNI 桥（MediaKitAndroidHelper 持有 libmpv
+# 的 native 方法）与插件注册类**不自带 consumer-proguard-rules**；工程开启
+# R8(minifyEnabled) 后若被混淆改名/裁剪 → 安卓 release 播放即崩
+# （ClassNotFound / JNI 方法找不到）——「安卓默认解码器播放崩溃」根因。
+# 整包保留（类极少，体积代价可忽略），并抑制其警告。
+-keep class com.alexmercerind.mediakitandroidhelper.** { *; }
+-keep class com.alexmercerind.media_kit_libs_android_video.** { *; }
+-keep class com.alexmercerind.media_kit.** { *; }
+-dontwarn com.alexmercerind.**
+
 # ── permission_handler ───────────────────────────────────────
 -keep class com.baseflow.permissionhandler.** { *; }
 

@@ -58,7 +58,7 @@ abstract final class AppVersion {
   static const AppStage stage = AppStage.alpha;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增）。
-  static const int buildCount = 8;
+  static const int buildCount = 9;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

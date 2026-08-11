@@ -542,6 +542,31 @@ class _AudioDetail extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: AppSpace.lg),
+
+        // ── 播放引擎（R26c：从「画面 → 性能与质量」移入「音频」区）──
+        // 播放引擎属于音频范畴，与画面性能无关；与上方音量/音源同组。
+        Text('播放引擎', style: context.appText.body),
+        const SizedBox(height: AppSpace.xs),
+        Wrap(
+          spacing: AppSpace.xs,
+          children: <Widget>[
+            for (final MusicEngine e in MusicEngine.values)
+              ChoiceChip(
+                label: Text(e.label),
+                selected: ref.watch(musicEngineProvider) == e,
+                onSelected: (_) {
+                  ref.read(musicEngineProvider.notifier).state = e;
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'just_audio：默认，Android 真 EQ；media_kit：全格式 / Hi-Res / '
+          '无缝播放（EQ 走模拟层）· 切换即时生效',
+          style: context.appText.artist,
+        ),
       ],
     );
   }
@@ -727,29 +752,6 @@ class _VisualDetail extends ConsumerWidget {
                 onSelected: (_) => _applyPerformancePreset(ref, m),
               ),
           ],
-        ),
-        const SizedBox(height: AppSpace.sm),
-        // ── 播放引擎（S2 · media_kit 迁移）──
-        Text('播放引擎', style: context.appText.body),
-        const SizedBox(height: AppSpace.xs),
-        Wrap(
-          spacing: AppSpace.xs,
-          children: <Widget>[
-            for (final MusicEngine e in MusicEngine.values)
-              ChoiceChip(
-                label: Text(e.label),
-                selected: ref.watch(musicEngineProvider) == e,
-                onSelected: (_) {
-                  ref.read(musicEngineProvider.notifier).state = e;
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'just_audio：默认，Android 真 EQ；media_kit：全格式 / Hi-Res / '
-          '无缝播放（EQ 走模拟层）· 切换即时生效',
-          style: context.appText.artist,
         ),
         const SizedBox(height: AppSpace.sm),
         Text('帧率限制', style: context.appText.body),

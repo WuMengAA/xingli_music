@@ -43,6 +43,8 @@ void main() {
         camera: camera,
         viewport: const Size(800, 500),
         cache: null,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       expect(f.chunkHits, 0);
       expect(f.chunkMisses, 0);
@@ -59,12 +61,16 @@ void main() {
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
         world: world,
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
 
       // 首帧全未命中、第二帧有命中。
@@ -87,6 +93,8 @@ void main() {
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       cache.clear();
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
@@ -94,6 +102,8 @@ void main() {
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       // 清空后第二帧至少重新生成了部分区块（未命中 > 0）。
       expect(f2.chunkMisses, greaterThan(0));
@@ -112,12 +122,16 @@ void main() {
         camera: c1,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
         world: world,
         camera: c2,
         viewport: const Size(800, 500),
         cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
       );
       // 仅窗口边缘少量 chunk 因进入视野变化而重建，大部分命中。
       expect(f2.chunkHits, greaterThan(f2.chunkMisses));

@@ -81,6 +81,8 @@ String itemNameOf(Voxel v) => switch (v) {
       Voxel.bread => '面包',
       Voxel.gold => '金锭',
       Voxel.diamond => '钻石',
+      Voxel.ironOre => '铁矿石',
+      Voxel.coalOre => '煤矿石',
     };
 
 /// 单个物品格。
@@ -165,58 +167,92 @@ class _Slot extends StatelessWidget {
     required this.stack,
     this.selected = false,
     this.size = 42,
+    this.showName = false,
     this.onTap,
   });
 
   final ItemStack stack;
   final bool selected;
   final double size;
+
+  /// R26d：物品下方显示名称（背包面板开启；快捷栏关闭以免拥挤）。
+  final bool showName;
+
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: const Color(0x59000000),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: selected ? const Color(0xFFFFFFFF) : const Color(0x40FFFFFF),
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: stack.isEmpty
-            ? null
-            : Stack(
-                children: <Widget>[
-                  Center(
-                    child: _IsoVoxelIcon(
-                      color: itemColorOf(stack.item),
-                      size: size * 0.64,
-                    ),
-                  ),
-                  if (stack.count > 1)
-                    Positioned(
-                      right: 2,
-                      bottom: 0,
-                      child: Text(
-                        '${stack.count}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          height: 1.1,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFFFFFF),
-                          shadows: <Shadow>[
-                            Shadow(blurRadius: 3, color: Color(0xCC000000)),
-                          ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: const Color(0x59000000),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: selected
+                    ? const Color(0xFFFFFFFF)
+                    : const Color(0x40FFFFFF),
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: stack.isEmpty
+                ? null
+                : Stack(
+                    children: <Widget>[
+                      Center(
+                        child: _IsoVoxelIcon(
+                          color: itemColorOf(stack.item),
+                          size: size * 0.64,
                         ),
                       ),
-                    ),
-                ],
+                      if (stack.count > 1)
+                        Positioned(
+                          right: 2,
+                          bottom: 0,
+                          child: Text(
+                            '${stack.count}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              height: 1.1,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFFFFFFF),
+                              shadows: <Shadow>[
+                                Shadow(
+                                    blurRadius: 3, color: Color(0xCC000000)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+          ),
+          if (showName && !stack.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: SizedBox(
+                width: size + 4,
+                child: Text(
+                  itemNameOf(stack.item),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    height: 1.1,
+                    color: Color(0xE6FFFFFF),
+                    shadows: <Shadow>[
+                      Shadow(blurRadius: 3, color: Color(0xCC000000)),
+                    ],
+                  ),
+                ),
               ),
+            ),
+        ],
       ),
     );
   }
@@ -446,6 +482,8 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       stack: s,
       selected: index == widget.inventory.selected &&
           index < VoxelInventory.hotbarSize,
+      // R26d：背包面板格子下方显示物品名（快捷栏格子不显示，避免拥挤）。
+      showName: index >= VoxelInventory.hotbarSize,
       onTap: () {
         if (index < VoxelInventory.hotbarSize) {
           widget.inventory.selected = index;

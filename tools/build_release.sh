@@ -11,6 +11,13 @@ cd "$(dirname "$0")/.."
 FLUTTER="D:/flutter/bin/flutter.bat"
 RELEASE_DIR="D:/Stellara/Music/release"
 
+# ── D 盘构建约定（2026-08-12 SDK/缓存迁移后）──────────────
+# C 盘空间紧张：Android SDK 已迁到 D:\Android\Sdk、Gradle 缓存迁到 D:\.gradle。
+# 本脚本显式指定，避免因 shell 环境（setx 只对新进程生效）未继承变量而
+# 回到 C 盘重建缓存（曾导致构建冷启动 10+ 分钟 + 重复下载依赖，用户反馈浪费流量）。
+export GRADLE_USER_HOME="D:\.gradle"
+export ANDROID_HOME="D:\Android\Sdk"
+
 echo "==> 构建 release APK（可能耗时 1-3 分钟）"
 "$FLUTTER" build apk --release
 

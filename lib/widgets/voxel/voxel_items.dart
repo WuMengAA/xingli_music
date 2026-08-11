@@ -142,7 +142,13 @@ ToolCategory properToolFor(Voxel v) => switch (v) {
 int harvestLevelOf(Voxel v) => switch (v) {
       Voxel.diamond => 3,
       Voxel.gold => 2,
-      Voxel.stone || Voxel.cobble || Voxel.brick || Voxel.furnace => 1,
+      Voxel.stone ||
+          Voxel.cobble ||
+          Voxel.brick ||
+          Voxel.furnace ||
+          Voxel.ironOre ||
+          Voxel.coalOre =>
+        1,
       _ => 0,
     };
 
@@ -166,6 +172,8 @@ double blockHardness(Voxel v) => switch (v) {
       Voxel.furnace => 5.5,
       Voxel.gold => 6.0,
       Voxel.diamond => 7.5,
+      Voxel.ironOre => 4.5,
+      Voxel.coalOre => 4.0,
     };
 
 /// 实际挖掘耗时（秒）。工具对口才吃倍率，不对口只给一点点加成。
