@@ -233,27 +233,49 @@ void main() {
   });
 
   group('M2-C · EQ 预设与引擎', () {
-    test('4 组预设数值与架构 §3.2.4 一致', () {
+    test('7 组预设数值与 10 段结构一致', () {
       final Map<String, EqPreset> byId = <String, EqPreset>{
         for (final EqPreset p in kEqPresets) p.id: p,
       };
-      expect(byId['flat']!.low, 0);
-      expect(byId['flat']!.mid, 0);
-      expect(byId['flat']!.high, 0);
-      expect(byId['bass']!.low, 6);
-      expect(byId['bass']!.high, -3);
-      expect(byId['vocal']!.mid, 4);
-      expect(byId['treble']!.high, 6);
+      // 每组预设都是 10 段
+      for (final EqPreset p in kEqPresets) {
+        expect(p.gains.length, kEqFrequencies.length);
+      }
+      // 平坦全 0
+      expect(byId['flat']!.gains.every((double g) => g == 0), isTrue);
+      // 低音增强：低频段为正、高频段为负
+      expect(byId['bass']!.gainAt(0), greaterThan(0));
+      expect(byId['bass']!.gainAt(1), greaterThan(0));
+      expect(byId['bass']!.gainAt(9), lessThan(0));
+      // 人声突出：中频段最大（1kHz 档 +4，R-EQ 收紧 ±6）
+      expect(byId['vocal']!.gainAt(5), 4);
+      // 高音清亮：高频段为正
+      expect(byId['treble']!.gainAt(8), greaterThan(0));
+      expect(byId['treble']!.gainAt(9), greaterThan(0));
+      // R-EQ：所有预设增益都在 ±6dB 内（防削波震耳）
+      for (final EqPreset p in kEqPresets) {
+        for (final double g in p.gains) {
+          expect(g, lessThanOrEqualTo(kEqMaxGain));
+          expect(g, greaterThanOrEqualTo(kEqMinGain));
+        }
+      }
+      // ≥6 组预设（R9）
+      expect(kEqPresets.length, greaterThanOrEqualTo(6));
     });
 
     test('EqPreset JSON 往返 + 缺省兜底', () {
-      const EqPreset p = EqPreset(id: 'bass', name: '低音增强', low: 6, mid: 0, high: -3);
+      const EqPreset p = EqPreset(
+        id: 'bass',
+        name: '低音增强',
+        gains: <double>[6, 6, 5, 3, 1, 0, -1, -2, -2, -3],
+      );
       final EqPreset back = EqPreset.fromJson(p.toJson());
-      expect(back.low, 6);
-      expect(back.high, -3);
+      expect(back.gainAt(0), 6);
+      expect(back.gainAt(9), -3);
       final EqPreset empty = EqPreset.fromJson(<String, dynamic>{});
       expect(empty.id, 'flat');
       expect(empty.name, '平坦');
+      expect(empty.gains.length, kEqFrequencies.length);
     });
 
     test('模拟层 supported=false（桌面/非 Android 行为）', () {

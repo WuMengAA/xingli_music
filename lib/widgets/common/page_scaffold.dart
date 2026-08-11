@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../theme/theme_switch_button.dart';
 
 /// 统一页面模板（v2 M1 · P0-M1-1）
 ///
 /// 依据 `docs/ARCHITECTURE_V2_增量.md` §3.2.1：
-/// - **竖屏**（默认，沿用 v1）：标题行（[AppTextStyles.title]）→ 可选搜索栏(40)
+/// - **竖屏**（默认，沿用 v1）：标题行（[context.appText.title]）→ 可选搜索栏(40)
 ///   → 内容区（弹性）。
 /// - **横屏**（宽 ≥ `AppSize.landscapeBreakpoint`）：可选 `leadingPanel`
 ///   （左信息/导航栏，≤ 360dp）+ 右侧内容区；搜索栏位于右内容区顶部。
@@ -47,31 +49,43 @@ class PageScaffold extends StatelessWidget {
     final bool landscape =
         width >= AppSize.landscapeBreakpoint;
 
+    // 桌面无系统返回键：不传 onBack 但能返回时自动补返回按钮（否则页面关不掉）。
+    final VoidCallback? back = onBack ??
+        (Navigator.of(context).canPop()
+            ? () => Navigator.of(context).maybePop()
+            : null);
+
     final Widget header = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
-        if (onBack != null)
+        if (back != null)
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.xs),
             child: IconButton(
               visualDensity: VisualDensity.compact,
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_rounded,
                 size: AppSize.iconSm,
-                color: AppColors.textSecondary,
+                color: context.appColors.textSecondary,
               ),
-              onPressed: onBack,
+              onPressed: back,
             ),
           ),
         Expanded(
           child: Text(
             title,
-            style: AppTextStyles.title,
+            // R16：标题色跟随主题
+            style: context.appText.title.copyWith(
+              color: context.appColors.textPrimary,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ),
         if (actions != null) ...actions!,
+        // 全局主题切换（右上角）：所有 PageScaffold 页面统一出现，
+        // 切换主题模式 + 皮肤，即时全局生效并持久化。
+        const ThemeSwitchButton(),
       ],
     );
 

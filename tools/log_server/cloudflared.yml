@@ -1,0 +1,20 @@
+# Cloudflare Tunnel 配置模板（内网穿透）
+#
+# 用法：
+#   1. 登录 Cloudflare 控制台 → Zero Trust → Networks → Tunnels → Create a tunnel，
+#      得到 <TUNNEL_ID> 与连接凭据（域名由你提供，如 logs.example.com）。
+#   2. 把下面 yaml 的 tunnel/credentials-file 改成你的值，然后：
+#      cloudflared tunnel --config cloudflared.yml run
+#   3. 域名解析由 Cloudflare 自动处理（无需改 A 记录），
+#      隧道把公网请求转发到本机 8765 的日志服务。
+#
+# 配合 server.js（node server.js 8765）使用。建议经 nginx/basic auth 再加一层。
+tunnel: <TUNNEL_ID>
+credentials-file: C:\Users\<你的用户名>\.cloudflared\<TUNNEL_ID>.json
+
+ingress:
+  # 日志上报接口 + 网页查看器
+  - hostname: logs.example.com
+    service: http://127.0.0.1:8765
+  # 兜底：其它流量拒绝
+  - service: http_status:404

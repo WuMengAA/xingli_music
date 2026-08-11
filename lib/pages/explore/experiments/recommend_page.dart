@@ -1,3 +1,4 @@
+import '../../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,7 +28,7 @@ class RecommendPage extends ConsumerWidget {
         ref.watch(effectiveMusicLibraryProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: '智能推荐',
@@ -37,12 +38,12 @@ class RecommendPage extends ConsumerWidget {
             children: <Widget>[
               Text(
                 '当前场景：${scene.name}（${scene.mood}）',
-                style: AppTextStyles.bodyMuted,
+                style: context.appText.bodyMuted,
               ),
               const SizedBox(height: AppSpace.xs),
               Text(
                 '启发式：偏好 valence/energy 与场景接近的曲目',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
               const SizedBox(height: AppSpace.md),
               Expanded(

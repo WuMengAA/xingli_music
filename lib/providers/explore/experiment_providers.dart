@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/experiment.dart';
+import '../../pages/explore/experiments/companion_page.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/mood_analysis_page.dart';
 import '../../pages/explore/experiments/recommend_page.dart';
@@ -121,6 +122,14 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             icon: Icons.sensors_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const SensorPage(),
+          ),
+          ExperimentItem(
+            id: 'companion',
+            name: 'AI 陪伴（实验）',
+            description: '一个陌生人，先由你开口；全程离线、模板生成',
+            icon: Icons.chat_bubble_outline_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const CompanionPage(),
           ),
           // 示例：已下线（P0-M2-4 置灰禁入）
           // ExperimentItem(

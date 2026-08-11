@@ -72,13 +72,17 @@ class LocalDirMusicSource implements MusicSource {
         isLiveStream: false,
       ));
     }
+    // P-1：`config.path` 是用户绝对路径（含真实用户名），日志只留目录名。
     LogService.instance.i(
-        'source', '目录曲库 ${config.path}: 扫描到 ${tracks.length} 首');
+        'source', '目录曲库 …/$artist: 扫描到 ${tracks.length} 首');
     return tracks;
   }
 
   @override
   Future<String> resolveStreamUrl(Track track) async => track.uri;
+
+  @override
+  Map<String, String> get playbackHeaders => const <String, String>{};
 
   String _baseName(String path) {
     final String f = path.replaceAll('\\', '/');

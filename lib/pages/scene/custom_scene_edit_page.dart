@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -123,7 +124,7 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: _isNew ? '新建场景' : '编辑场景',
@@ -139,7 +140,7 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
               _field(_mood, '心情（如：温暖 / 平静）'),
               const SizedBox(height: AppSpace.md),
 
-              Text('图标', style: AppTextStyles.bodyMuted),
+              Text('图标', style: context.appText.bodyMuted),
               const SizedBox(height: AppSpace.xs),
               Wrap(
                 spacing: AppSpace.xs,
@@ -157,13 +158,13 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
 
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('在列表中显示', style: AppTextStyles.body),
+                title: Text('在列表中显示', style: context.appText.body),
                 value: _visible,
                 onChanged: (bool v) => setState(() => _visible = v),
               ),
               const SizedBox(height: AppSpace.md),
 
-              Text('默认背景音乐（BGM）', style: AppTextStyles.bodyMuted),
+              Text('默认背景音乐（BGM）', style: context.appText.bodyMuted),
               const SizedBox(height: AppSpace.xs),
               _BgmPicker(
                 selected: _bgmTrackScene,
@@ -214,10 +215,10 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
         padding: const EdgeInsets.only(bottom: AppSpace.sm),
         child: TextField(
           controller: c,
-          style: AppTextStyles.body,
+          style: context.appText.body,
           decoration: InputDecoration(
             labelText: label,
-            labelStyle: AppTextStyles.hint,
+            labelStyle: context.appText.hint,
             border: const OutlineInputBorder(),
           ),
         ),
@@ -286,7 +287,7 @@ class _BgmPicker extends ConsumerWidget {
                     padding: const EdgeInsets.only(top: AppSpace.xs),
                     child: Text(
                       '（仅展示前 20 首，完整曲库见曲库页）',
-                      style: AppTextStyles.caption,
+                      style: context.appText.caption,
                     ),
                   ),
               ],
@@ -295,14 +296,14 @@ class _BgmPicker extends ConsumerWidget {
           loading: () => const LoadingView(),
           error: (Object e, StackTrace st) => Text(
             '曲库加载失败：$e',
-            style: AppTextStyles.caption.copyWith(color: AppColors.danger),
+            style: context.appText.caption.copyWith(color: context.appColors.danger),
           ),
         ),
         if (bgmTitle != null) ...<Widget>[
           const SizedBox(height: AppSpace.xs),
           Text(
             '已选 BGM：$bgmTitle · ${selected?.bgmArtist ?? ''}',
-            style: AppTextStyles.caption,
+            style: context.appText.caption,
           ),
         ],
       ],

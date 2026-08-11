@@ -3,22 +3,29 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/theme/app_theme_colors.dart';
 import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
 import 'models/track.dart';
 import 'pages/explore/explore_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
-import 'pages/now_playing/now_playing_page.dart';
 import 'pages/scene/scene_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'providers/audio/audio_providers.dart';
+import 'providers/audio/equalizer_providers.dart';
 import 'providers/scene/scene_providers.dart';
 import 'providers/settings/notification_providers.dart';
+import 'providers/settings/performance_providers.dart';
+import 'providers/settings/settings_persistence_providers.dart';
+import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
+import 'widgets/lyrics/lyrics_view.dart';
+import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
-import 'widgets/shell/mini_player.dart';
+import 'widgets/playback/unified_player.dart';
+import 'widgets/noise_texture.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 星璃 · 应用外壳（浅色扁平化重构版）
@@ -65,10 +72,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   ///
   /// 全部 `const`：配合 [IndexedStack] 实现「切 Tab 不重建、滚动位置不丢」
   /// （P0-B10 / 约定 C11）。
+  /// v3 调整：曲库提前到 Tab 1、探索后移到 Tab 2（用户需求）。
   static const List<Widget> _pages = <Widget>[
     ScenePage(), //   0 · 场景
-    ExplorePage(), // 1 · 探索
-    LibraryPage(), // 2 · 曲库
+    LibraryPage(), // 1 · 曲库
+    ExplorePage(), // 2 · 探索
     SettingsPage(), //3 · 设置
     HomePage(), //    4 · 首页（隐藏页，无 Tab 高亮）
   ];
@@ -85,6 +93,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return;
       final Scene scene = ref.read(activeSceneProvider);
       unawaited(ref.read(audioServiceProvider).switchSoundscape(scene));
+      // R10：冷启动恢复用户设置（音量/主题/EQ/场景/上次曲目等）
+      unawaited(restoreSettings(ref));
     });
   }
 
@@ -115,13 +125,48 @@ class _AppShellState extends ConsumerState<AppShell> {
     final int pageIndex = ref.watch(shellPageIndexProvider);
     final int? selectedTab = ref.watch(selectedTabIndexProvider);
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    // 低端设备优化：省电模式关闭全屏噪点层（最大渲染开销之一）
+    final bool noiseOn = ref.watch(noiseEnabledProvider);
+
+    // R10/R11：运行期同步写回持久化（唯一触发点）
+    ref.watch(settingsSyncProvider);
+    // R4：EQ 播放开始补应用（唯一触发点）
+    ref.watch(eqReapplyOnPlayProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      // R16：跟随全局明暗主题（不再是固定浅色 bgPage）
+      backgroundColor: context.appColors.bgPage,
       // 【裁决 A3】关闭系统自动避让：Dock + MiniPlayer 是固定底部结构，
       // 让 Scaffold 整体上顶会把它们挤变形。改为只给内容区补 padding.bottom。
       resizeToAvoidBottomInset: false,
-      body: SafeArea(
+      body: LiquidGlassCapture(
+        child: Stack(
+        children: <Widget>[
+          // ── 玻璃背景层：极淡的场景主色 + 噪点 ──
+          // 一层就够了：让玻璃组件透出"背景是场景色 + 颗粒"的干净质感。
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      context.appColors.accent.withValues(alpha: 0.10),
+                      context.appColors.bgPage,
+                    ],
+                    stops: const <double>[0, 0.6],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (noiseOn)
+            Positioned.fill(
+              child: IgnorePointer(child: NoiseTexture(seed: 11)),
+            ),
+          // 主内容层
+          SafeArea(
         bottom: false,
         child: Column(
           children: <Widget>[
@@ -134,40 +179,46 @@ class _AppShellState extends ConsumerState<AppShell> {
                           .clamp(0.0, double.infinity);
                   final double bottomPad = keyboardInset.clamp(0.0, room);
 
+                  // 布局对齐场景页：内容(弹性) + 底部播放器(带边距)。
+                  // 播放器在 ContentContainer 内部、IndexedStack 下方，
+                  // 与场景页 PageScaffold.body 的「内容 + 播放面板」同构；
+                  // 仅非场景页显示（场景页自带播放面板，避免双播放器）。
                   return ContentContainer(
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: bottomPad),
-                      child: IndexedStack(
-                        index: pageIndex,
-                        children: _pages,
-                      ),
+                    child: Column(
+                      children: <Widget>[
+                        Expanded(
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: bottomPad),
+                            child: IndexedStack(
+                              index: pageIndex,
+                              children: _pages,
+                            ),
+                          ),
+                        ),
+                        if (pageIndex != ShellPage.scene) ...<Widget>[
+                          const SizedBox(height: AppSpace.sm),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(
+                              AppSpace.md,
+                              AppSpace.sm,
+                              AppSpace.md,
+                              AppSpace.sm,
+                            ),
+                            child: UnifiedPlayer(
+                              // 歌词区：LyricsView 自行跟随 audio_providers 的
+                              // 当前曲目与播放进度（全屏播放时显示）
+                              lyricsSlot: const LyricsView(),
+                              // R23j：点击信息区默认打开全屏播放卡片
+                              //（不再 push NowPlayingPage）
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   );
                 },
               ),
             ),
-
-            // ── 迷你播放器（全局唯一，P0-D1 / V5）─────────────
-            // 与下方 Dock 共用 shellEdgeInset：两者同为"贴边浮起的操作条"，
-            // 必须同进同退。若只给 Dock 加边距，Token 一旦改成非 0
-            // 就会出现"播放器满宽、Dock 内缩"的错位。
-            const SizedBox(height: AppSpace.sm),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSize.shellEdgeInset,
-              ),
-              child: MiniPlayer(
-                // T05：左胶囊点击 → 打开完整播放页（P1-04）
-                onOpenNowPlaying: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const NowPlayingPage(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpace.sm),
 
             // ── 底部 Dock ────────────────────────────────────
             // 【裁决 A7】手势条机型交给 SafeArea 让位；
@@ -183,11 +234,21 @@ class _AppShellState extends ConsumerState<AppShell> {
                 child: AppDock(
                   selectedIndex: selectedTab,
                   onTabSelected: (int index) => setShellPage(ref, index),
+                  density: ref.watch(uiDensityProvider),
                 ),
               ),
             ),
           ],
         ),
+        ),
+          // ── AI 陪伴全局浮层（FAB，浮在 Dock 上方）──
+          //
+          // ⚠️ 必须挂在**外层 Stack**，不能放进上面的 Column：
+          // Column 给 child 的是无界高度，而 FAB 内部是 Stack，
+          // 会触发 "A Stack requires bounded constraints" 断言。
+          const Positioned.fill(child: CompanionGlobalFab()),
+        ],
+      ),
       ),
     );
   }

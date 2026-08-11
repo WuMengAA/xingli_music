@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,7 +27,7 @@ class AlbumDetailPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: albumName,
@@ -45,7 +46,7 @@ class AlbumDetailPage extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: AppSpace.sm),
                   child: Text(
                     '$artist · ${tracks.length} ${Terms.track}',
-                    style: AppTextStyles.bodyMuted,
+                    style: context.appText.bodyMuted,
                   ),
                 );
               }

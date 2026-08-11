@@ -13,7 +13,9 @@ class SoundscapeGenerator {
   static const int sampleRate = 22050;
 
   /// 生成逻辑版本号：改合成算法时 +1，避免旧缓存文件生效
-  static const int version = 2;
+  /// R23n：白噪 / 程序合成音景**源响度**整体降 ~56%（峰值 0.8→0.35），
+  /// 解决"白噪刺耳 / 调到最低仍很大声"（源文件太满），版本 2→3 强制重建。
+  static const int version = 3;
 
   /// 循环淡入淡出时长（秒）：首尾各一段包络，循环时不突兀
   static const double loopFadeSeconds = 2.0;
@@ -28,6 +30,137 @@ class SoundscapeGenerator {
     final Uint8List wav = await compute(_synthesizeToWav, sceneId);
     await file.writeAsBytes(wav, flush: true);
     return file.path;
+  }
+
+  /// 白噪音文件（R4：全局白噪音开关用，独立于场景音景）
+  ///
+  /// 30 秒纯白噪声 + 首尾淡入淡出，独立文件，可叠加在音乐之上。
+  static Future<String> ensureWhiteNoise() async {
+    const String id = '__whitenoise__';
+    final File file = await _fileFor(id);
+    if (await file.exists()) return file.path;
+    final Uint8List wav = await compute(_synthesizeWhiteNoise, 0);
+    await file.writeAsBytes(wav, flush: true);
+    return file.path;
+  }
+
+  /// 分类反馈音文件（#170：调整某分类音量时播的代表性短音）。
+  ///
+  /// 每类一个 ~0.35 秒短样本，算法合成、无版权素材，首次调用后落盘复用：
+  /// 音乐→柔和纯音，背景声→风声，白噪音→shhh，音效→click，
+  /// 世界空间音效→脚步，提示音→ding。
+  static Future<String> ensureCategoryCue(String tag) async {
+    final File file = await _fileFor('__cue_$tag');
+    if (await file.exists()) return file.path;
+    final Uint8List wav = await compute(_synthesizeCue, tag);
+    await file.writeAsBytes(wav, flush: true);
+    return file.path;
+  }
+
+  /// compute 入口：分类反馈音合成（后台 isolate，不占 UI 线程）。
+  static Uint8List _synthesizeCue(String tag) {
+    final Random rng = Random(11);
+    final int n = (sampleRate * 0.35).round();
+    final List<double> buf = List<double>.filled(n, 0);
+
+    switch (tag) {
+      case 'music':
+        // 柔和纯音（A5 + 八度泛音），缓入缓出
+        for (int i = 0; i < n; i++) {
+          final double t = i / sampleRate;
+          buf[i] = (sin(2 * pi * 880 * t) + 0.3 * sin(2 * pi * 1760 * t)) * 0.5;
+        }
+      case 'soundscape':
+        // 风声：带通噪声 + 缓慢起伏
+        double lp = 0;
+        for (int i = 0; i < n; i++) {
+          lp += ((rng.nextDouble() * 2 - 1) - lp) * 0.05;
+          final double sway = 0.6 + 0.4 * sin(2 * pi * 3 * i / sampleRate);
+          buf[i] = lp * 2.2 * sway;
+        }
+      case 'whiteNoise':
+        // shhh：轻低通白噪
+        double prev = 0;
+        for (int i = 0; i < n; i++) {
+          final double white = rng.nextDouble() * 2 - 1;
+          prev = white - prev * 0.35;
+          buf[i] = prev * 0.7;
+        }
+      case 'sfx':
+        // click：极短高频脉冲，快速衰减
+        for (int i = 0; i < n; i++) {
+          final double decay = exp(-i / (sampleRate * 0.012));
+          buf[i] = (rng.nextDouble() * 2 - 1) * decay;
+        }
+      case 'worldSpatial':
+        // 脚步：低频闷响 + 少量噪声颗粒
+        for (int i = 0; i < n; i++) {
+          final double t = i / sampleRate;
+          final double decay = exp(-i / (sampleRate * 0.05));
+          buf[i] = (sin(2 * pi * 110 * t) * 0.8 +
+                  (rng.nextDouble() * 2 - 1) * 0.35) *
+              decay;
+        }
+      case 'uiCue':
+        // ding：明亮双音（E6 + B6），钟形衰减
+        for (int i = 0; i < n; i++) {
+          final double t = i / sampleRate;
+          final double decay = exp(-i / (sampleRate * 0.09));
+          buf[i] = (sin(2 * pi * 1319 * t) + 0.45 * sin(2 * pi * 1976 * t)) *
+              decay *
+              0.6;
+        }
+      default:
+        for (int i = 0; i < n; i++) {
+          final double decay = exp(-i / (sampleRate * 0.05));
+          buf[i] = sin(2 * pi * 660 * i / sampleRate) * decay;
+        }
+    }
+
+    // 首尾 8ms 包络：消除起停爆音（click 类尤其明显）
+    final int edge = (sampleRate * 0.008).round();
+    for (int i = 0; i < edge && i < n; i++) {
+      buf[i] *= i / edge;
+      buf[n - 1 - i] *= i / edge;
+    }
+    // 归一化到 0.5 峰值：反馈音统一响度，实际大小交由通道音量决定
+    double peak = 0;
+    for (final double v in buf) {
+      if (v.abs() > peak) peak = v.abs();
+    }
+    final double gain = peak > 0 ? 0.5 / peak : 1.0;
+    return _encodeWav(
+        buf.map((v) => (v * gain * 32767).round().clamp(-32768, 32767)).toList());
+  }
+
+  /// compute 入口：白噪声合成（后台 isolate）
+  static Uint8List _synthesizeWhiteNoise(int _) {
+    final Random rng = Random(7);
+    final int n = sampleRate * 30;
+    final List<double> buf = List<double>.filled(n, 0);
+    double prev = 0;
+    for (int i = 0; i < n; i++) {
+      // 轻微低通滤波让白噪声更柔和（不再是刺耳的纯白）
+      final double white = rng.nextDouble() * 2 - 1;
+      prev = white - prev * 0.35;
+      buf[i] = prev * 0.7;
+    }
+    // 循环包络
+    final int fadeLen = (sampleRate * loopFadeSeconds).round();
+    for (int i = 0; i < fadeLen && i < buf.length; i++) {
+      buf[i] *= i / fadeLen;
+    }
+    for (int i = buf.length - 1; i > buf.length - 1 - fadeLen && i >= 0; i--) {
+      buf[i] *= (buf.length - 1 - i) / fadeLen;
+    }
+    // 归一化到低峰值（R23n：0.8 → 0.35，源响度整体降 ~56%，不再刺耳）。
+    double peak = 0;
+    for (final double v in buf) {
+      if (v.abs() > peak) peak = v.abs();
+    }
+    final double gain = peak > 0 ? 0.35 / peak : 1.0;
+    return _encodeWav(
+        buf.map((v) => (v * gain * 32767).round().clamp(-32768, 32767)).toList());
   }
 
   /// compute 入口：合成 + 编码为 WAV（在后台 isolate 运行）
@@ -93,7 +226,7 @@ class SoundscapeGenerator {
     for (final double v in buf) {
       if (v.abs() > peak) peak = v.abs();
     }
-    final double gain = peak > 0 ? 0.85 / peak : 1.0;
+    final double gain = peak > 0 ? 0.4 / peak : 1.0;
     return buf.map((v) => (v * gain * 32767).round().clamp(-32768, 32767)).toList();
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../models/experiment.dart';
@@ -56,17 +57,18 @@ class _ExperimentList extends ConsumerWidget {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
           decoration: BoxDecoration(
-            color: AppColors.accentSoft,
+            // R16：说明条底色跟随主题
+            color: context.appColors.accentSoft,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          child: const Row(
+          child: Row(
             children: <Widget>[
-              Icon(Icons.science_rounded, size: AppSize.iconSm, color: AppColors.accent),
+              Icon(Icons.science_rounded, size: AppSize.iconSm, color: context.appColors.accent),
               SizedBox(width: AppSpace.sm),
               Expanded(
                 child: Text(
                   '这里是实验场所：功能可能不稳定，数据本地处理不上传。',
-                  style: AppTextStyles.caption,
+                  style: context.appText.caption,
                 ),
               ),
             ],
@@ -109,7 +111,8 @@ class _ExperimentCard extends ConsumerWidget {
     return Opacity(
       opacity: retired ? 0.5 : 1.0,
       child: Material(
-        color: AppColors.bgCard,
+        // R16：实验卡底色跟随主题
+        color: context.appColors.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           onTap: retired
@@ -121,7 +124,7 @@ class _ExperimentCard extends ConsumerWidget {
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.borderDefault),
+              border: Border.all(color: context.appColors.border),
             ),
             padding: const EdgeInsets.all(AppSpace.md),
             child: Column(
@@ -132,8 +135,8 @@ class _ExperimentCard extends ConsumerWidget {
                     Icon(item.icon,
                         size: AppSize.icon,
                         color: retired
-                            ? AppColors.iconInactive
-                            : AppColors.accent),
+                            ? context.appColors.iconInactive
+                            : context.appColors.accent),
                     const Spacer(),
                     StateChip(
                       tone: _toneOf(item.status),
@@ -142,21 +145,21 @@ class _ExperimentCard extends ConsumerWidget {
                   ],
                 ),
                 const Spacer(),
-                Text(item.name, style: AppTextStyles.subtitle),
+                Text(item.name, style: context.appText.subtitle),
                 const SizedBox(height: 2),
                 Text(
                   item.description,
-                  style: AppTextStyles.artist,
+                  style: context.appText.artist,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: AppSpace.xs),
                 Text(
                   retired ? '已下线，暂不可进入' : '点击进入',
-                  style: AppTextStyles.caption.copyWith(
+                  style: context.appText.caption.copyWith(
                     color: retired
-                        ? AppColors.textTertiary
-                        : AppColors.textAccent,
+                        ? context.appColors.textTertiary
+                        : context.appColors.accent,
                   ),
                 ),
               ],
@@ -182,7 +185,7 @@ class _NoExperiments extends StatelessWidget {
     return Center(
       child: Text(
         '所有实验均已停用。\n可到设置 → ${Terms.experiment} 中重新启用。',
-        style: AppTextStyles.bodyMuted,
+        style: context.appText.bodyMuted,
         textAlign: TextAlign.center,
       ),
     );

@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -40,10 +41,10 @@ class NowPlayingPage extends ConsumerWidget {
     final PlaybackActions actions = ref.read(playbackActionsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       appBar: AppBar(
-        backgroundColor: AppColors.bgPage,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: context.appColors.bgPage,
+        foregroundColor: context.appColors.textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
@@ -53,7 +54,7 @@ class NowPlayingPage extends ConsumerWidget {
           tooltip: '收起',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: const Text('正在播放', style: AppTextStyles.title),
+        title: Text('正在播放', style: context.appText.title),
       ),
       body: SafeArea(
         top: false,
@@ -110,25 +111,25 @@ class _LargeCover extends StatelessWidget {
     if (hasImage) {
       return TrackCover(track: t, size: size, radius: AppRadius.lg);
     }
-    // 主色渐变占位（派生自 AppColors.accent，不引动态主题）
+    // 主色渐变占位（派生自 context.appColors.accent，不引动态主题）
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: SizedBox(
         width: size,
         height: size,
         child: DecoratedBox(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: <Color>[AppColors.accentSoft, AppColors.accent],
+              colors: <Color>[context.appColors.accentSoft, context.appColors.accent],
             ),
           ),
           child: Center(
             child: Icon(
               Icons.music_note,
               size: size * 0.4,
-              color: AppColors.onAccent,
+              color: context.appColors.onAccent,
             ),
           ),
         ),
@@ -150,7 +151,7 @@ class _TrackInfo extends StatelessWidget {
       children: <Widget>[
         Text(
           track?.title ?? '未在播放',
-          style: AppTextStyles.title.copyWith(
+          style: context.appText.title.copyWith(
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -161,7 +162,7 @@ class _TrackInfo extends StatelessWidget {
         const SizedBox(height: AppSpace.xs),
         Text(
           track?.artist ?? '从曲库挑一首开始',
-          style: AppTextStyles.bodyMuted,
+          style: context.appText.bodyMuted,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.center,
@@ -235,13 +236,13 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: <Widget>[
-                      const ColoredBox(color: AppColors.progressTrack),
+                      ColoredBox(color: context.appColors.progressTrack),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: FractionallySizedBox(
                           widthFactor: ratio,
                           heightFactor: 1,
-                          child: const ColoredBox(color: AppColors.accent),
+                          child: ColoredBox(color: context.appColors.accent),
                         ),
                       ),
                     ],
@@ -263,9 +264,9 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
                             (ratio * duration.inMilliseconds).round())
                     : position,
               ),
-              style: AppTextStyles.caption,
+              style: context.appText.caption,
             ),
-            Text(formatDuration(duration), style: AppTextStyles.caption),
+            Text(formatDuration(duration), style: context.appText.caption),
           ],
         ),
       ],
@@ -374,12 +375,12 @@ class _ControlButton extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: primary ? AppColors.accent : AppColors.bgControl,
+            color: primary ? context.appColors.accent : context.appColors.bgControl,
           ),
           child: Icon(
             icon,
             size: primary ? 32 : AppSize.icon,
-            color: primary ? AppColors.onAccent : AppColors.iconPrimary,
+            color: primary ? context.appColors.onAccent : context.appColors.iconPrimary,
           ),
         ),
       ),
@@ -397,10 +398,10 @@ class _VolumeRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Row(
       children: <Widget>[
-        const Icon(
+        Icon(
           Icons.volume_down,
           size: AppSize.iconSm,
-          color: AppColors.iconInactive,
+          color: context.appColors.iconInactive,
         ),
         Expanded(
           child: Slider(
@@ -411,10 +412,10 @@ class _VolumeRow extends ConsumerWidget {
             },
           ),
         ),
-        const Icon(
+        Icon(
           Icons.volume_up,
           size: AppSize.iconSm,
-          color: AppColors.iconInactive,
+          color: context.appColors.iconInactive,
         ),
       ],
     );

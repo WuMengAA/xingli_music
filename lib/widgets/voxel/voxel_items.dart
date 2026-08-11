@@ -1,0 +1,227 @@
+/// ════════════════════════════════════════════════════════════════════════
+/// 物品 / 工具 / 硬度 / 掉落（R23w · GDD §3.2 §4.1 §5.1）
+/// ════════════════════════════════════════════════════════════════════════
+///
+/// 这一层是纯数据 + 纯函数：不引用 Flutter widgets，可在单测里直接跑。
+///
+/// - [ItemStack]：一格物品（方块类型 + 数量），背包 / 合成 / 掉落物共用。
+/// - [ToolKind]：工具种类与等级，决定挖掘倍率与"能否有效开采"。
+/// - [blockHardness]：方块基础硬度（秒·徒手基准）。
+/// - [breakSeconds]：硬度 × 工具倍率 → 实际挖掘耗时。
+/// - [dropsOf]：破坏后掉什么（石头掉圆石、草方块掉泥土……）。
+/// - [foodValue]：可食用物品回复的饥饿值。
+library;
+
+import 'voxel_world_types.dart';
+
+/// 一格物品：方块类型 + 数量。
+///
+/// 值语义（不可变），改数量返回新实例，避免背包里两格互相串改。
+class ItemStack {
+  const ItemStack(this.item, [this.count = 1]);
+
+  /// 空格（数量 0 视为空）。
+  static const ItemStack empty = ItemStack(Voxel.air, 0);
+
+  final Voxel item;
+  final int count;
+
+  bool get isEmpty => count <= 0 || item == Voxel.air;
+
+  /// 单格最大堆叠数（食物 / 稀有物少一些，贴近 MC 手感）。
+  int get maxStack => switch (item) {
+        Voxel.apple || Voxel.bread => 16,
+        Voxel.diamond || Voxel.gold => 32,
+        _ => 64,
+      };
+
+  ItemStack withCount(int c) =>
+      c <= 0 ? ItemStack.empty : ItemStack(item, c > maxStack ? maxStack : c);
+
+  ItemStack plus(int d) => withCount(count + d);
+
+  Map<String, dynamic> toJson() =>
+      <String, dynamic>{'i': item.name, 'c': count};
+
+  static ItemStack fromJson(Map<String, dynamic> j) {
+    final String name = (j['i'] as String?) ?? 'air';
+    final Voxel v = Voxel.values.firstWhere(
+      (Voxel e) => e.name == name,
+      orElse: () => Voxel.air,
+    );
+    return ItemStack(v, (j['c'] as num?)?.toInt() ?? 0);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is ItemStack && other.item == item && other.count == count;
+
+  @override
+  int get hashCode => Object.hash(item, count);
+
+  @override
+  String toString() => isEmpty ? 'ItemStack.empty' : '${item.name}×$count';
+}
+
+/// 工具种类（决定对哪类方块加速）。
+enum ToolCategory {
+  /// 徒手。
+  none,
+
+  /// 镐（石 / 矿物）。
+  pickaxe,
+
+  /// 斧（木头 / 木制品）。
+  axe,
+
+  /// 锹（土 / 沙 / 雪）。
+  shovel,
+}
+
+/// 工具材质等级。
+enum ToolTier {
+  none(1.0, 0, '徒手'),
+  wood(2.0, 1, '木'),
+  stone(4.0, 2, '石'),
+  iron(6.0, 3, '铁'),
+  diamond(8.0, 4, '钻石');
+
+  const ToolTier(this.speed, this.level, this.label);
+
+  /// 挖掘倍率（对"对口"的方块生效）。
+  final double speed;
+
+  /// 采集等级（低于方块要求时挖了也不掉落）。
+  final int level;
+
+  final String label;
+}
+
+/// 手上的工具。
+class ToolKind {
+  const ToolKind(this.category, this.tier);
+
+  static const ToolKind hand = ToolKind(ToolCategory.none, ToolTier.none);
+
+  final ToolCategory category;
+  final ToolTier tier;
+
+  String get label => category == ToolCategory.none
+      ? '徒手'
+      : '${tier.label}${switch (category) {
+          ToolCategory.pickaxe => '镐',
+          ToolCategory.axe => '斧',
+          ToolCategory.shovel => '锹',
+          ToolCategory.none => '',
+        }}';
+}
+
+/// 方块对口的工具类别（用对了才吃倍率）。
+ToolCategory properToolFor(Voxel v) => switch (v) {
+      Voxel.stone ||
+      Voxel.cobble ||
+      Voxel.brick ||
+      Voxel.slab ||
+      Voxel.stairs ||
+      Voxel.furnace ||
+      Voxel.gold ||
+      Voxel.diamond =>
+        ToolCategory.pickaxe,
+      Voxel.wood ||
+      Voxel.planks ||
+      Voxel.fence ||
+      Voxel.chest ||
+      Voxel.campfire =>
+        ToolCategory.axe,
+      Voxel.dirt || Voxel.grass || Voxel.sand || Voxel.snow =>
+        ToolCategory.shovel,
+      _ => ToolCategory.none,
+    };
+
+/// 有效开采所需的最低工具等级（不足时可以挖掉但不掉落）。
+int harvestLevelOf(Voxel v) => switch (v) {
+      Voxel.diamond => 3,
+      Voxel.gold => 2,
+      Voxel.stone || Voxel.cobble || Voxel.brick || Voxel.furnace => 1,
+      _ => 0,
+    };
+
+/// 方块硬度（徒手挖掉的基准秒数；0 = 瞬破，负 = 不可破坏）。
+double blockHardness(Voxel v) => switch (v) {
+      Voxel.air || Voxel.water => -1,
+      Voxel.torch => 0.05,
+      Voxel.apple || Voxel.bread => 0.05,
+      Voxel.leaves => 0.25,
+      Voxel.snow => 0.35,
+      Voxel.sand => 0.6,
+      Voxel.dirt => 0.75,
+      Voxel.grass => 0.9,
+      Voxel.glass => 0.45,
+      Voxel.planks || Voxel.fence || Voxel.chest => 2.5,
+      Voxel.wood => 3.0,
+      Voxel.campfire => 2.0,
+      Voxel.cobble || Voxel.slab || Voxel.stairs => 3.5,
+      Voxel.stone => 4.0,
+      Voxel.brick => 4.5,
+      Voxel.furnace => 5.5,
+      Voxel.gold => 6.0,
+      Voxel.diamond => 7.5,
+    };
+
+/// 实际挖掘耗时（秒）。工具对口才吃倍率，不对口只给一点点加成。
+///
+/// 返回 <= 0 表示不可破坏；瞬破方块返回一个极小正数（渲染裂纹用）。
+double breakSeconds(Voxel v, ToolKind tool) {
+  final double h = blockHardness(v);
+  if (h < 0) return -1;
+  if (h == 0) return 0.01;
+  final bool proper = tool.category != ToolCategory.none &&
+      tool.category == properToolFor(v);
+  final double mul = proper ? tool.tier.speed : (1 + (tool.tier.level * 0.12));
+  final double t = h / mul;
+  return t < 0.05 ? 0.05 : t;
+}
+
+/// 是否能有效开采（工具等级够 → 掉落物品；不够 → 挖掉但什么都不掉）。
+bool canHarvest(Voxel v, ToolKind tool) =>
+    tool.tier.level >= harvestLevelOf(v);
+
+/// 破坏后的掉落（不考虑工具等级；等级由 [canHarvest] 单独判定）。
+///
+/// 空表示什么都不掉（如树叶大概率空、水不可破坏）。
+List<ItemStack> dropsOf(Voxel v) => switch (v) {
+      Voxel.air || Voxel.water => const <ItemStack>[],
+      // 草方块掉泥土、石头掉圆石——MC 经典规则。
+      Voxel.grass => const <ItemStack>[ItemStack(Voxel.dirt)],
+      Voxel.stone => const <ItemStack>[ItemStack(Voxel.cobble)],
+      // 树叶不稳定掉落，这里给"偶尔掉苹果"的确定性简化：不掉。
+      Voxel.leaves => const <ItemStack>[],
+      _ => <ItemStack>[ItemStack(v)],
+    };
+
+/// 食物回复的饥饿值（0 = 不可食用）。
+int foodValue(Voxel v) => switch (v) {
+      Voxel.apple => 4,
+      Voxel.bread => 5,
+      _ => 0,
+    };
+
+/// 破坏方块给的经验值（0 = 不给）。
+int xpOnBreak(Voxel v) => switch (v) {
+      Voxel.diamond => 5,
+      Voxel.gold => 3,
+      Voxel.stone || Voxel.cobble => 0,
+      _ => 0,
+    };
+
+/// 手持物品推出的工具（方块也能当工具：拿着钻石就是钻石镐的简化模型）。
+ToolKind toolFromHeld(Voxel held) => switch (held) {
+      Voxel.diamond => const ToolKind(ToolCategory.pickaxe, ToolTier.diamond),
+      Voxel.gold => const ToolKind(ToolCategory.pickaxe, ToolTier.iron),
+      Voxel.cobble || Voxel.stone =>
+        const ToolKind(ToolCategory.pickaxe, ToolTier.stone),
+      Voxel.planks || Voxel.wood =>
+        const ToolKind(ToolCategory.axe, ToolTier.wood),
+      Voxel.slab => const ToolKind(ToolCategory.shovel, ToolTier.stone),
+      _ => ToolKind.hand,
+    };

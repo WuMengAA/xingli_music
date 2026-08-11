@@ -1,3 +1,4 @@
+import '../../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,7 +44,7 @@ class _MoodAnalysisPageState extends ConsumerState<MoodAnalysisPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: '心情分析',
@@ -56,9 +57,9 @@ class _MoodAnalysisPageState extends ConsumerState<MoodAnalysisPage> {
           body: ListView(
             padding: EdgeInsets.zero,
             children: <Widget>[
-              const Text(
+              Text(
                 '隐私说明：问卷结果仅在本机计算，用于匹配场景，不会上传。',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
               const SizedBox(height: AppSpace.md),
               for (int i = 0; i < _questions.length; i++) _questionBlock(i),
@@ -81,7 +82,7 @@ class _MoodAnalysisPageState extends ConsumerState<MoodAnalysisPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('${i + 1}. ${_questions[i]}', style: AppTextStyles.body),
+          Text('${i + 1}. ${_questions[i]}', style: context.appText.body),
           const SizedBox(height: AppSpace.xs),
           Wrap(
             spacing: AppSpace.xs,

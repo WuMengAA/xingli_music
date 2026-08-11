@@ -1,0 +1,21 @@
+import '../../models/track.dart';
+
+/// 曲库数据源抽象。
+///
+/// 本地扫描、自建 Subsonic 服务器、公开电台、演示流都实现本接口。
+/// 现有 AudioService 只认 [Track]（isRemote → setUrl / setFilePath），
+/// 因此新增任何源都不必改动播放层，差异全部收敛在 [resolveStreamUrl]。
+abstract class MusicSource {
+  /// 数据源唯一 id（'local' / 'demo' / ServerConfig.name / 'radio'）
+  String get sourceId;
+
+  /// 是否参与曲库聚合
+  bool get enabled;
+
+  /// 拉取该源的全部曲目（失败应抛异常，由聚合层 catch 回退）
+  Future<List<Track>> getTracks();
+
+  /// 把一首曲解析为可直接播放的 URL。
+  /// 多数源在 [getTracks] 时已经预解析并填好 uri，本方法作为按需重解析的备用。
+  Future<String> resolveStreamUrl(Track track);
+}

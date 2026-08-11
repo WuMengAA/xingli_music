@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../models/scene.dart';
@@ -30,16 +31,17 @@ class HomePage extends ConsumerWidget {
           constraints: const BoxConstraints(maxWidth: 480),
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: AppColors.bgCard,
+            // R16：首页卡片底色跟随主题
+            color: context.appColors.bgCard,
             borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: AppColors.borderDefault),
+            border: Border.all(color: context.appColors.border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(scene.name,
-                  style: AppTextStyles.bodyMuted),
+                  style: context.appText.bodyMuted),
               const SizedBox(height: AppSpace.md),
               Center(
                 child: TrackCover(
@@ -51,21 +53,21 @@ class HomePage extends ConsumerWidget {
               const SizedBox(height: AppSpace.lg),
               Text(
                 now?.title ?? scene.track,
-                style: AppTextStyles.title.copyWith(fontSize: 28),
+                style: context.appText.title.copyWith(fontSize: 28),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSpace.xs),
               Text(
                 now?.artist ?? scene.artist,
-                style: AppTextStyles.bodyMuted,
+                style: context.appText.bodyMuted,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: AppSpace.md),
               Text(
                 '场景：${scene.name} · ${scene.mood}',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
             ],
           ),

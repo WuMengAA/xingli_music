@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -70,16 +71,16 @@ class _AppSearchBarState extends State<AppSearchBar> {
     return Container(
       height: AppSize.heightSearch,
       decoration: BoxDecoration(
-        color: AppColors.bgInput,
+        color: context.appColors.bgInput,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: <Widget>[
-          const Icon(
+          Icon(
             Icons.search,
             size: 18,
-            color: AppColors.iconInactive,
+            color: context.appColors.iconInactive,
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -88,8 +89,8 @@ class _AppSearchBarState extends State<AppSearchBar> {
               focusNode: _focusNode,
               onChanged: widget.onChanged,
               textInputAction: TextInputAction.search,
-              style: AppTextStyles.body,
-              cursorColor: AppColors.accent,
+              style: context.appText.body,
+              cursorColor: context.appColors.accent,
               decoration: InputDecoration(
                 isDense: true,
                 filled: false,
@@ -98,10 +99,10 @@ class _AppSearchBarState extends State<AppSearchBar> {
                 focusedBorder: InputBorder.none,
                 contentPadding: EdgeInsets.zero,
                 hintText: widget.hintText,
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontSize: 14,
                   height: 1.4,
-                  color: AppColors.textTertiary,
+                  color: context.appColors.textTertiary,
                 ),
               ),
             ),
@@ -110,13 +111,13 @@ class _AppSearchBarState extends State<AppSearchBar> {
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _clear,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 28,
                 height: AppSize.heightSearch,
                 child: Icon(
                   Icons.close,
                   size: 16,
-                  color: AppColors.iconInactive,
+                  color: context.appColors.iconInactive,
                 ),
               ),
             ),

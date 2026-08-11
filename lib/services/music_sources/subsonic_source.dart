@@ -104,4 +104,7 @@ class SubsonicSource implements MusicSource {
 
   @override
   Future<String> resolveStreamUrl(Track track) async => track.uri;
+
+  @override
+  Map<String, String> get playbackHeaders => const <String, String>{};
 }

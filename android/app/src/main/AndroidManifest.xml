@@ -5,6 +5,10 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- R13：通知权限（Android 13+ 必须，否则通知栏不显示媒体通知） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 传感器：心率（TYPE_HEART_RATE，仅部分手表/手机有；可选权限） -->
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
     <!-- 在线流媒体 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -15,11 +19,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
-        android:label="星璃音乐"
+        android:label="星璃音乐·星尘初聚"
         android:name="${applicationName}"
         android:icon="@drawable/ic_launcher">
+
+        <!-- R25：显式开启 Impeller（Android 优先走 Vulkan 硬件渲染），加速体素绘制 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="true" />
+
         <activity
-            android:name="com.ryanheise.audioservice.AudioServiceActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -35,6 +45,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- 网易云内嵌登录页（自写原生 WebView，抓取含 httpOnly MUSIC_U 的完整 cookie） -->
+        <activity
+            android:name=".CookieWebViewActivity"
+            android:exported="false"
+            android:theme="@style/NormalTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true" />
 
         <!-- 后台媒体播放服务（锁屏/通知栏控件） -->
         <service

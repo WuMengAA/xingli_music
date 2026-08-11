@@ -1,8 +1,10 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
 import '../../core/utils/format.dart';
 import '../../models/track.dart';
+import '../liquid_glass.dart';
 import 'track_cover.dart';
 
 /// 曲库卡片视图卡（v2 M3 · P0-M3-2）。
@@ -21,47 +23,49 @@ class AlbumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.bgCard,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.borderDefault),
-            boxShadow: AppShadow.cardList,
-          ),
-          padding: const EdgeInsets.all(AppSpace.md),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              TrackCover(
-                track: track,
-                size: AppSize.cover,
-                radius: AppRadius.md,
-              ),
-              const SizedBox(height: AppSpace.sm),
-              Text(
-                track.title,
-                style: AppTextStyles.trackName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                track.artist,
-                style: AppTextStyles.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                formatDuration(track.duration),
-                style: AppTextStyles.caption,
-              ),
-            ],
+    return LiquidGlass(
+      radius: AppRadius.lg,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: context.appColors.border),
+              boxShadow: AppShadow.cardList,
+            ),
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                TrackCover(
+                  track: track,
+                  size: AppSize.cover,
+                  radius: AppRadius.md,
+                ),
+                const SizedBox(height: AppSpace.sm),
+                Text(
+                  track.title,
+                  style: context.appText.trackName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  track.artist,
+                  style: context.appText.artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  formatDuration(track.duration),
+                  style: context.appText.caption,
+                ),
+              ],
+            ),
           ),
         ),
       ),

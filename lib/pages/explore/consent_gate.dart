@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,38 +28,38 @@ class ConsentGate extends ConsumerWidget {
           constraints: const BoxConstraints(maxWidth: 460),
           padding: const EdgeInsets.all(AppSpace.lg),
           decoration: BoxDecoration(
-            color: AppColors.bgCard,
+            color: context.appColors.bgCard,
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.borderDefault),
+            border: Border.all(color: context.appColors.border),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Icon(
+              Icon(
                 Icons.science_rounded,
                 size: 48,
-                color: AppColors.accent,
+                color: context.appColors.accent,
               ),
               const SizedBox(height: AppSpace.md),
-              Text('探索实验室', style: AppTextStyles.title),
+              Text('探索实验室', style: context.appText.title),
               const SizedBox(height: AppSpace.sm),
               Text(
                 '这里是实验场所',
-                style: AppTextStyles.subtitle.copyWith(color: AppColors.textAccent),
+                style: context.appText.subtitle.copyWith(color: context.appColors.accent),
               ),
               const SizedBox(height: AppSpace.md),
-              const Text(
+              Text(
                 '这里的实验功能仍在打磨中：\n'
                 '· 可能不稳定，界面随时调整\n'
                 '· 数据仅用于本地个性化，不会上传\n'
                 '· 你可以在设置「实验」中随时撤销同意',
-                style: AppTextStyles.bodyMuted,
+                style: context.appText.bodyMuted,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpace.md),
               Text(
                 privacyNote,
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpace.lg),
@@ -73,7 +74,7 @@ class ConsentGate extends ConsumerWidget {
               const SizedBox(height: AppSpace.sm),
               TextButton(
                 onPressed: () => _showReadOnly(context, ref),
-                child: const Text('暂不参与', style: AppTextStyles.body),
+                child: Text('暂不参与', style: context.appText.body),
               ),
             ],
           ),
@@ -86,7 +87,7 @@ class ConsentGate extends ConsumerWidget {
   void _showReadOnly(BuildContext context, WidgetRef ref) {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.bgSurface,
+      backgroundColor: context.appColors.bgSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
@@ -98,14 +99,14 @@ class ConsentGate extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('暂不参与', style: AppTextStyles.subtitle),
+                Text('暂不参与', style: context.appText.subtitle),
                 const SizedBox(height: AppSpace.md),
                 Text(
                   '你选择了暂不参与实验。你可以随时重新进入：\n\n'
                   '· 实验功能仍处于开发阶段，可能不稳定；\n'
                   '· 数据（传感器 / 心情）全部本地处理，不上传；\n'
                   '· 同意状态保存在本机，可在设置「实验」中撤销。',
-                  style: AppTextStyles.bodyMuted,
+                  style: context.appText.bodyMuted,
                 ),
                 const SizedBox(height: AppSpace.lg),
                 SizedBox(
@@ -118,7 +119,7 @@ class ConsentGate extends ConsumerWidget {
                 const SizedBox(height: AppSpace.xs),
                 TextButton(
                   onPressed: () => Navigator.of(sheetContext).pop(),
-                  child: const Text(Terms.cancel, style: AppTextStyles.body),
+                  child: Text(Terms.cancel, style: context.appText.body),
                 ),
               ],
             ),

@@ -1,3 +1,4 @@
+import '../../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,7 +33,7 @@ class SensorPage extends ConsumerWidget {
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: '传感器',
@@ -45,10 +46,10 @@ class SensorPage extends ConsumerWidget {
           body: ListView(
             padding: EdgeInsets.zero,
             children: <Widget>[
-              const Text(
+              Text(
                 '隐私说明：光线与加速度数据全部在本机处理，用于场景联动，'
                 '不会上传到任何服务器。',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
               const SizedBox(height: AppSpace.md),
 
@@ -88,18 +89,18 @@ class SensorPage extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(AppSpace.md),
                 decoration: BoxDecoration(
-                  color: AppColors.bgSurfaceSunken,
+                  color: context.appColors.bgSurfaceSunken,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.landscape_rounded,
-                        color: AppColors.accent),
+                    Icon(Icons.landscape_rounded,
+                        color: context.appColors.accent),
                     const SizedBox(width: AppSpace.sm),
                     Expanded(
                       child: Text(
                         '当前场景：${scene.name}',
-                        style: AppTextStyles.body,
+                        style: context.appText.body,
                       ),
                     ),
                   ],
@@ -108,13 +109,13 @@ class SensorPage extends ConsumerWidget {
 
               if (message != null) ...<Widget>[
                 const SizedBox(height: AppSpace.md),
-                Text(message, style: AppTextStyles.caption),
+                Text(message, style: context.appText.caption),
               ],
 
               const SizedBox(height: AppSpace.lg),
               Text(
                 '提示：桌面端无法读取传感器数据，请在 Android 真机上体验。',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
             ],
           ),
@@ -145,22 +146,22 @@ class _SensorCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpace.md),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: context.appColors.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.borderDefault),
+        border: Border.all(color: context.appColors.border),
       ),
       child: Row(
         children: <Widget>[
-          Icon(icon, size: AppSize.icon, color: AppColors.accent),
+          Icon(icon, size: AppSize.icon, color: context.appColors.accent),
           const SizedBox(width: AppSpace.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text(title, style: AppTextStyles.body),
-                Text(value, style: AppTextStyles.subtitle),
+                Text(title, style: context.appText.body),
+                Text(value, style: context.appText.subtitle),
                 const SizedBox(height: 2),
-                Text(subtitle, style: AppTextStyles.artist),
+                Text(subtitle, style: context.appText.artist),
               ],
             ),
           ),

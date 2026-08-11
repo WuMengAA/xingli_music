@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -47,14 +48,14 @@ class InfoRow extends StatelessWidget {
               children: <Widget>[
                 Text(
                   title,
-                  style: AppTextStyles.trackName,
+                  style: context.appText.trackName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   artist,
-                  style: AppTextStyles.artist,
+                  style: context.appText.artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -65,7 +66,7 @@ class InfoRow extends StatelessWidget {
           trailing ??
               Text(
                 formatDuration(duration),
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
         ],
       ),

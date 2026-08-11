@@ -24,97 +24,156 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../shell/shell_providers.dart';
 
 
-/// 设置页 6 个分类槽位。
+/// 设置页二级分类（R22 用户定版三级结构）：
+///
+/// ```
+/// {关于}                    → about
+/// {基础                     → basic
+///    【音频 > 音量·音源】     → audio
+///    【画面 > 外观·场景·游戏】 → visual
+///    【通知】                → notification
+/// }
+/// {高级 > 实验}              → advanced(experiment)
+/// ```
 enum SettingsSection {
-  /// ① 播放：音量、静音、播放模式、视觉粒子。
-  playback,
+  /// 基础·音频：音量、静音、播放模式、EQ + 音源入口。
+  audio,
 
-  /// ② 音源：服务器 / 本地目录 / 电台（`ServerSettingsPage`）。
-  source,
+  /// 基础·画面：外观（主题/皮肤/密度）、场景、游戏、性能。
+  visual,
 
-  /// ③ 场景：场景编辑器、调色盘、心情。
-  scene,
-
-  /// ④ 通知：通知中心（运行状态 / 媒体控制 / 场景状态）。
+  /// 基础·通知：通知中心、后台播放。
   notification,
 
-  /// ⑤ 关于：应用信息。
-  about,
-
-  /// ⑥ 实验：同意状态 / 撤销同意 / 逐项启停（v2 M2 · P1-M2-5）。
+  /// 高级·实验：同意状态、逐项启停、大模型。
   experiment,
+
+  /// 关于：应用信息、日志上报。
+  about,
 }
 
-/// 分类的展示属性（标签 / 图标 / 搜索关键词）。
+/// 设置页一级分组（用户定版：关于 / 基础 / 高级）。
+enum SettingsGroup {
+  /// ① 基础：音频 + 画面 + 通知
+  basic,
+
+  /// ② 高级：实验
+  advanced,
+
+  /// ③ 关于
+  about,
+}
+
+/// 分类的展示属性（标签 / 图标 / 搜索关键词 / 分组）。
 extension SettingsSectionX on SettingsSection {
+  /// 所属一级分组。
+  SettingsGroup get group => switch (this) {
+        SettingsSection.audio ||
+        SettingsSection.visual ||
+        SettingsSection.notification =>
+          SettingsGroup.basic,
+        SettingsSection.experiment => SettingsGroup.advanced,
+        SettingsSection.about => SettingsGroup.about,
+      };
+
   /// 竖栏 tile 文字（52dp 宽栏内仅容 2 个汉字）。
   String get label => switch (this) {
-        SettingsSection.playback => '播放',
-        SettingsSection.source => '音源',
-        SettingsSection.scene => '场景',
+        SettingsSection.audio => '音频',
+        SettingsSection.visual => '画面',
         SettingsSection.notification => '通知',
-        SettingsSection.about => '关于',
         SettingsSection.experiment => '实验',
+        SettingsSection.about => '关于',
       };
 
   /// 详情区标题。
   String get title => switch (this) {
-        SettingsSection.playback => '播放设置',
-        SettingsSection.source => '音源与服务器',
-        SettingsSection.scene => '场景与配色',
+        SettingsSection.audio => '音频 · 音量与音源',
+        SettingsSection.visual => '画面 · 外观与场景',
         SettingsSection.notification => '通知中心',
-        SettingsSection.about => '关于星璃',
         SettingsSection.experiment => '实验管理',
+        SettingsSection.about => '关于星璃',
       };
 
   /// tile 图标（26dp）。
   IconData get icon => switch (this) {
-        SettingsSection.playback => Icons.play_circle_outline_rounded,
-        SettingsSection.source => Icons.dns_outlined,
-        SettingsSection.scene => Icons.auto_awesome_outlined,
+        SettingsSection.audio => Icons.music_note_rounded,
+        SettingsSection.visual => Icons.palette_outlined,
         SettingsSection.notification => Icons.notifications_none_rounded,
-        SettingsSection.about => Icons.info_outline_rounded,
         SettingsSection.experiment => Icons.science_outlined,
+        SettingsSection.about => Icons.info_outline_rounded,
       };
 
   /// 搜索匹配用关键词（P1-02：设置页搜索过滤设置项）。
   List<String> get keywords => switch (this) {
-        SettingsSection.playback => const <String>[
-            '播放',
+        SettingsSection.audio => const <String>[
+            '音频',
             '音量',
             '静音',
             '播放模式',
             '顺序',
-            '倒序',
             '随机',
             '单曲',
-            '粒子',
-            'volume',
-            'mute',
-            'mode',
-          ],
-        SettingsSection.source => const <String>[
+            '均衡器',
+            'EQ',
+            '音效',
             '音源',
             '服务器',
             'subsonic',
             '本地',
             '目录',
             '电台',
-            'minecraft',
-            '扫描',
-            'server',
+            '网易云',
+            '登录',
+            'volume',
+            'mute',
+            'mode',
+            'equalizer',
             'source',
+            'netease',
           ],
-        SettingsSection.scene => const <String>[
+        SettingsSection.visual => const <String>[
+            '画面',
+            '外观',
+            '主题',
+            '皮肤',
+            '浅色',
+            '深色',
+            '跟随系统',
+            '明暗',
+            '密度',
+            '紧凑',
             '场景',
             '编辑器',
             '调色盘',
             '配色',
-            '主色',
             '心情',
+            '游戏',
+            '体素',
+            'AI',
+            '陪伴',
+            '性能',
+            '质量',
+            '帧率',
+            'fps',
+            '图形',
+            '后端',
+            '渲染',
+            'OpenGL',
+            'Vulkan',
+            'DX11',
+            '特效',
+            '噪点',
+            '模糊',
+            '动画',
+            '液态玻璃',
+            'theme',
+            'skin',
+            'density',
             'scene',
-            'palette',
-            'mood',
+            'voxel',
+            'performance',
+            'engine',
+            'backend',
           ],
         SettingsSection.notification => const <String>[
             '通知',
@@ -125,26 +184,28 @@ extension SettingsSectionX on SettingsSection {
             'notification',
             'background',
           ],
-        SettingsSection.about => const <String>[
-            '关于',
-            '版本',
-            '日志',
-            'about',
-            'version',
-            'log',
-          ],
         SettingsSection.experiment => const <String>[
             '实验',
             '同意',
             '撤销',
             '传感器',
-            '均衡器',
+            '大模型',
+            'AI',
             '小游戏',
-            '心情',
             'experiment',
             'consent',
             'sensor',
-            'equalizer',
+            'llm',
+          ],
+        SettingsSection.about => const <String>[
+            '关于',
+            '版本',
+            '日志',
+            '上报',
+            'about',
+            'version',
+            'log',
+            'upload',
           ],
       };
 
@@ -158,9 +219,31 @@ extension SettingsSectionX on SettingsSection {
   }
 }
 
-/// 当前选中的设置分类（默认「播放」）。
+/// 一级分组的展示属性（R22 用户定版：关于 / 基础 / 高级）。
+extension SettingsGroupX on SettingsGroup {
+  /// 分组标题（顶部小标，4 字内紧凑）。
+  String get label => switch (this) {
+        SettingsGroup.basic => '基础',
+        SettingsGroup.advanced => '高级',
+        SettingsGroup.about => '关于',
+      };
+
+  /// 分组图标（左栏分组标题前的图标）。
+  IconData get icon => switch (this) {
+        SettingsGroup.basic => Icons.tune_rounded,
+        SettingsGroup.advanced => Icons.science_outlined,
+        SettingsGroup.about => Icons.info_outline_rounded,
+      };
+
+  /// 分组内包含的 SettingsSection 列表（按显示顺序）。
+  List<SettingsSection> get sections => SettingsSection.values
+      .where((SettingsSection s) => s.group == this)
+      .toList(growable: false);
+}
+
+/// 当前选中的设置分类（默认「音频」，保持历史习惯首项）。
 final StateProvider<SettingsSection> settingsSectionProvider =
-    StateProvider<SettingsSection>((Ref ref) => SettingsSection.playback);
+    StateProvider<SettingsSection>((Ref ref) => SettingsSection.audio);
 
 /// 设置页搜索命中的分类集合（P1-02）。
 ///

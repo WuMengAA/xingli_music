@@ -101,6 +101,9 @@ class MinecraftMusicSource implements MusicSource {
   @override
   Future<String> resolveStreamUrl(Track track) async => track.uri;
 
+  @override
+  Map<String, String> get playbackHeaders => const <String, String>{};
+
   String _baseName(String path) {
     final String f = path.replaceAll('\\', '/');
     return f.substring(f.lastIndexOf('/') + 1);

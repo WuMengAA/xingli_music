@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,11 +43,11 @@ class _FolderViewState extends ConsumerState<FolderView> {
           SizedBox(
             width: 260,
             child: Card(
-              color: AppColors.bgCard,
+              color: context.appColors.bgCard,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                side: const BorderSide(color: AppColors.borderDefault),
+                side: BorderSide(color: context.appColors.border),
               ),
               child: ListView(
                 padding: const EdgeInsets.all(AppSpace.sm),
@@ -144,14 +145,14 @@ class _FolderViewState extends ConsumerState<FolderView> {
                       ? Icons.folder_open_rounded
                       : Icons.folder_rounded),
               size: AppSize.iconSm,
-              color: isSelected ? AppColors.accent : AppColors.iconInactive,
+              color: isSelected ? context.appColors.accent : context.appColors.iconInactive,
             ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 node.name,
-                style: AppTextStyles.body.copyWith(
-                  color: isSelected ? AppColors.accent : AppColors.textPrimary,
+                style: context.appText.body.copyWith(
+                  color: isSelected ? context.appColors.accent : context.appColors.textPrimary,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                 ),
                 maxLines: 1,
@@ -161,7 +162,7 @@ class _FolderViewState extends ConsumerState<FolderView> {
             const SizedBox(width: 8),
             Text(
               '${node.trackCount}',
-              style: AppTextStyles.caption,
+              style: context.appText.caption,
             ),
           ],
         ),

@@ -1,7 +1,7 @@
+import '../../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/theme/light_tokens.dart';
 import '../../../models/track.dart';
 import '../../../providers/audio/audio_providers.dart';
 import '../../../providers/audio/playback_notifier.dart';
@@ -28,7 +28,7 @@ class SearchExperimentPage extends ConsumerWidget {
         ref.watch(effectiveMusicLibraryProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: '跨源搜索',

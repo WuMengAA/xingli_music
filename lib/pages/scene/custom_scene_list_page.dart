@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +26,7 @@ class CustomSceneListPage extends ConsumerWidget {
         all.where((Scene s) => s.isCustom).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
           title: '自定义场景',
@@ -49,9 +50,9 @@ class CustomSceneListPage extends ConsumerWidget {
                 for (final Scene s in builtIn) _SceneTile(scene: s),
               ],
               const SizedBox(height: AppSpace.lg),
-              const Text(
+              Text(
                 '提示：自定义场景可导出 / 导入场景包（复用场景编辑器导出能力）。',
-                style: AppTextStyles.caption,
+                style: context.appText.caption,
               ),
             ],
           ),
@@ -78,7 +79,7 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpace.xs),
-      child: Text(label, style: AppTextStyles.bodyMuted),
+      child: Text(label, style: context.appText.bodyMuted),
     );
   }
 }
@@ -95,9 +96,9 @@ class _SceneTile extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: AppSpace.sm),
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: context.appColors.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderDefault),
+        border: Border.all(color: context.appColors.border),
       ),
       child: Row(
         children: <Widget>[
@@ -105,15 +106,15 @@ class _SceneTile extends ConsumerWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: AppColors.accentSoft,
+              color: context.appColors.accentSoft,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Center(
               child: Text(
                 scene.visual.glyph,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
-                  color: AppColors.accent,
+                  color: context.appColors.accent,
                 ),
               ),
             ),
@@ -124,12 +125,12 @@ class _SceneTile extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(scene.name,
-                    style: AppTextStyles.body,
+                    style: context.appText.body,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 Text(
                   scene.isCustom ? '自定义 · ${scene.mood}' : '内置 · ${scene.mood}',
-                  style: AppTextStyles.artist,
+                  style: context.appText.artist,
                 ),
               ],
             ),
@@ -144,8 +145,8 @@ class _SceneTile extends ConsumerWidget {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined,
-                size: 18, color: AppColors.textTertiary),
+            icon: Icon(Icons.edit_outlined,
+                size: 18, color: context.appColors.textTertiary),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => CustomSceneEditPage(scene: scene),
@@ -154,15 +155,15 @@ class _SceneTile extends ConsumerWidget {
           ),
           // P1-M5-6：导出场景包（复用 scene_packer / scene_api）
           IconButton(
-            icon: const Icon(Icons.ios_share_rounded,
-                size: 18, color: AppColors.textTertiary),
+            icon: Icon(Icons.ios_share_rounded,
+                size: 18, color: context.appColors.textTertiary),
             tooltip: '导出场景包',
             onPressed: () => _exportPack(context, scene),
           ),
           if (scene.isCustom)
             IconButton(
-              icon: const Icon(Icons.delete_outline,
-                  size: 18, color: AppColors.danger),
+              icon: Icon(Icons.delete_outline,
+                  size: 18, color: context.appColors.danger),
               onPressed: () async {
                 await ref
                     .read(customScenesProvider.notifier)

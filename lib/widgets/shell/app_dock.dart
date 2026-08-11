@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/layout/responsive_layout.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../providers/settings/performance_providers.dart';
+import '../liquid_glass.dart';
 
 /// Dock 单个 Tab 的静态描述
 @immutable
@@ -22,8 +27,9 @@ class DockItem {
 }
 
 /// 4 个 Tab 的顺序 —— 必须与 `ShellPage` 的前 4 个页面常量
-/// （`scene=0 / explore=1 / library=2 / settings=3`）严格一致（P0-B2）。
+/// （`scene=0 / library=1 / explore=2 / settings=3`）严格一致（P0-B2）。
 ///
+/// v3 调整：曲库提前到第二位、探索后移（用户需求）。
 /// 注意 `ShellPage` 是 `abstract final class` 的 int 常量集合，**不是 Dart enum**，
 /// 因此没有 `.values`，两边顺序只能靠本注释与 code review 约束。
 const List<DockItem> kDockItems = <DockItem>[
@@ -33,14 +39,14 @@ const List<DockItem> kDockItems = <DockItem>[
     label: '场景',
   ),
   DockItem(
-    icon: Icons.explore_outlined,
-    selectedIcon: Icons.explore,
-    label: '探索',
-  ),
-  DockItem(
     icon: Icons.library_music_outlined,
     selectedIcon: Icons.library_music,
     label: '曲库',
+  ),
+  DockItem(
+    icon: Icons.explore_outlined,
+    selectedIcon: Icons.explore,
+    label: '探索',
   ),
   DockItem(
     icon: Icons.settings_outlined,
@@ -69,7 +75,11 @@ class AppDock extends StatelessWidget {
     required this.selectedIndex,
     required this.onTabSelected,
     this.items = kDockItems,
+    this.density = UiDensity.standard,
   });
+
+  /// 界面密度（R21：紧凑 0.8× 高度）。
+  final UiDensity density;
 
   /// 当前高亮 Tab 下标（0..3）。
   ///
@@ -97,36 +107,53 @@ class AppDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // 方案 C（Q1 已裁决）：底部 Dock 横屏收窄、居中限宽；竖屏保持满宽。
+    // UI 自适应：紧凑屏（手表等）Dock 几乎满宽且隐藏文字标签。
+    // R21：界面密度由 AppShell 注入（本组件保持纯组件、可单测）。
+    final ResponsiveLayout rl = ResponsiveLayout.of(context);
+    final double dockH =
+        AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: AppSize.landscapeDockMaxWidth,
-        ),
+        constraints: BoxConstraints(maxWidth: rl.dockMaxWidth),
         child: ClipRRect(
           // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius），不另立常量
           borderRadius: BorderRadius.circular(AppSize.dockRadius),
           child: Container(
-            height: AppSize.heightDock,
+            height: dockH,
+            // 液态玻璃：半透明 + 背景模糊 + 边缘高光
             decoration: BoxDecoration(
-              color: AppColors.bgDock,
-              borderRadius: BorderRadius.circular(AppSize.dockRadius),
-              border: Border.all(color: AppColors.borderDock),
+              color: Colors.transparent,
             ),
-            child: Material(
-              type: MaterialType.transparency,
-              child: Row(
-                // 4 个 Expanded 严格等分，中间不插 SizedBox —— 才能对齐
-                // 设计坐标 x=0/104/208/312（390dp 基准）。
-                children: <Widget>[
-                  for (int i = 0; i < items.length; i++)
-                    Expanded(
-                      child: _DockTab(
-                        item: items[i],
-                        selected: selectedIndex == i,
-                        onTap: () => onTabSelected(i),
-                      ),
-                    ),
-                ],
+            clipBehavior: Clip.antiAlias,
+              child: LiquidGlass(
+                radius: AppSize.dockRadius,
+                // 与统一播放器同为毛玻璃（frosted），背景透出 AppShell 玻璃层
+                style: GlassStyle.frosted,
+                // blur 跟随全局性能模式
+                tint: const Color(0x1AFFFFFF),
+
+                child: SizedBox(
+                height: dockH,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: Row(
+                    // 4 个 Expanded 严格等分，中间不插 SizedBox —— 才能对齐
+                    // 设计坐标 x=0/104/208/312（390dp 基准）。
+                    children: <Widget>[
+                      for (int i = 0; i < items.length; i++)
+                        Expanded(
+                          child: _DockTab(
+                            item: items[i],
+                            selected: selectedIndex == i,
+                            // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
+                            showLabel: rl.dockShowLabels &&
+                                density != UiDensity.compact,
+                            onTap: () => onTabSelected(i),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -140,60 +167,66 @@ class AppDock extends StatelessWidget {
 ///
 /// 垂直排布（架构 §1.3 几何裁定，合计精确 76dp）：
 /// `0–5 留白 → 5–49 Ø44 圆 → 49–50 间隙 → 50–62 标签 → 62–76 留白`
-class _DockTab extends StatelessWidget {
+class _DockTab extends ConsumerWidget {
   const _DockTab({
     required this.item,
     required this.selected,
     required this.onTap,
+    this.showLabel = true,
   });
 
   final DockItem item;
   final bool selected;
   final VoidCallback onTap;
+  final bool showLabel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppThemeColors c = context.appColors;
+    // 省电模式：动画时长减半，接近瞬时（用户要求：去除动画、提流畅度）
+    final double motionScale = ref.watch(motionScaleProvider);
+    final Duration tabDur =
+        AppMotion.tab * motionScale;
     return InkWell(
       onTap: onTap,
       child: SizedBox(
         height: AppSize.heightDock,
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            const SizedBox(height: 5),
             AnimatedContainer(
-              duration: AppMotion.tab,
+              duration: tabDur,
               curve: AppMotion.ease,
               width: AppSize.tabIndicator,
               height: AppSize.tabIndicator,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 // 未选中必须是 transparent 而非 null，否则不做补间
-                color: selected ? AppColors.accent : Colors.transparent,
+                color: selected ? c.accent : Colors.transparent,
               ),
               child: Icon(
                 selected ? item.selectedIcon : item.icon,
                 size: AppSize.icon,
-                color: selected
-                    ? AppColors.iconOnAccent
-                    : AppColors.iconInactive,
+                color: selected ? Colors.white : c.iconInactive,
               ),
             ),
-            const SizedBox(height: 1),
-            AnimatedDefaultTextStyle(
-              duration: AppMotion.tab,
-              curve: AppMotion.ease,
-              style: AppTextStyles.tabLabel.copyWith(
-                color: selected
-                    ? AppColors.textAccent
-                    : AppColors.textTertiary,
+            // 紧凑屏（手表等）隐藏文字标签，只留图标
+            if (showLabel) ...<Widget>[
+              const SizedBox(height: 1),
+              AnimatedDefaultTextStyle(
+                duration: tabDur,
+                curve: AppMotion.ease,
+                style: context.appText.tabLabel.copyWith(
+                  color: selected ? c.accent : c.textTertiary,
+                ),
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
+                ),
               ),
-              child: Text(
-                item.label,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.clip,
-              ),
-            ),
+            ],
           ],
         ),
       ),

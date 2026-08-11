@@ -31,20 +31,66 @@ android {
 
     defaultConfig {
         applicationId = "com.stelarith.xingli_music"
-        // Android 5.0（Lollipop / API 21）起
+        // 兼容取舍（用户拍板）：最低 Android 5.0（API 21）。
+        // 4.4 放弃（just_audio/sensors 生态对旧版支持差，适配成本高）。
+        // light 插件（minSdk 21）已移除，光线传感器用自写 MethodChannel。
         minSdkVersion = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
-        versionName = flutterVersionName
+        // R18/R19：安装/应用信息显示完整展示版本串（0.26.8.11_alpha_cl01），
+        // 而非 pubspec 截断的 "0.26.8"（flutter.versionName 只取 x.y.z）。
+        // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion 同步更新！
+        versionName = "0.26.8.11_alpha_cl08"
+        // 空间精简：只打 arm64（现代设备）+ armeabi-v7a 兼容旧机。
+        // 注意：这条只管得住第三方 AAR 带进来的 .so，管不住 Flutter 引擎与
+        // libapp.so（见文件末尾 androidComponents 块的说明），两者需配合使用。
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
     }
 
     buildTypes {
         release {
-            // 第一版使用 debug 签名，正式发布时替换为发布签名
+            // ⚠️ 高危：当前仍使用 debug 签名，仅为让 `flutter build apk --release`
+            // 能直接跑通。正式对外发布前必须替换为自有 release 密钥库，
+            // 否则该 APK 无法上架应用商店，且后续无法用正式密钥覆盖升级。
             signingConfig = signingConfigs.debug
+
+            // R8 代码混淆 + 无用代码裁剪。保活规则见 proguard-rules.pro。
+            // 注：本工程 dex 仅约 1MB（业务逻辑几乎都在 Dart 侧的 libapp.so），
+            // 因此这一项的瘦身收益有限，主要价值是代码混淆与去除未引用类。
+            minifyEnabled = true
+            // 资源缩减：依赖 minifyEnabled，剔除未被引用的 res 资源。
+            shrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// 原生库（.so）按架构裁剪 —— 本工程 APK 体积的决定性因素
+//
+// 背景：`flutter build apk --release` 默认会为 android-arm / android-arm64 /
+// android-x64 三套架构各编译一份引擎（libflutter.so）与业务代码（libapp.so），
+// 且 Flutter Gradle 插件注入这些 .so 的路径绕开了 defaultConfig.ndk.abiFilters
+// —— 实测上面的 abiFilters 并未拦住 x86_64，旧包里白白多带了约 20MB。
+//
+// 这里改用 AGP 8 的按变体打包 API 在打包阶段强制剔除 x86/x86_64。
+// 只作用于 release：debug 档保持原样，x86_64 模拟器调试不受影响。
+// ─────────────────────────────────────────────────────────────
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.add("**/x86/**")
+        variant.packaging.jniLibs.excludes.add("**/x86_64/**")
+    }
+}
+
+// 关于 per-ABI 拆包：不在此处加 `splits { abi {...} }`——它与 Flutter Gradle
+// 插件的架构管理机制重叠，容易产生重复/冲突的产物。需要更小的分架构包时，
+// 直接用 Flutter 自带的命令行开关即可，无需改动本文件：
+//   flutter build apk --release --split-per-abi
+// 会额外产出 app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk。
 
 flutter {
     source = "../.."

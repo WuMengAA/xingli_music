@@ -49,6 +49,32 @@ class AmbientSoundscapeService {
     return null;
   }
 
+  /// 用户素材（assets/audio 裁剪片段）优先映射：场景 id → asset 路径。
+  ///
+  /// R23g：audio_material 原始素材经素材管线裁剪成 21 个片段打进包，
+  /// 场景音景优先用它们（原始文件 566MB 无法进包，用裁剪产物）。
+  /// 自定义音景路径（用户指定文件）优先走原逻辑，返回 null。
+  static String? assetFor(Scene scene) {
+    if (scene.soundscapePath?.isNotEmpty == true) return null;
+    return _sceneToAsset[scene.id];
+  }
+
+  /// 场景 id → assets/audio 素材片段映射（从 audio_material 裁剪而来）。
+  static const Map<String, String> _sceneToAsset = {
+    'rain': 'assets/audio/rain_432hz_a.m4a',
+    'forest': 'assets/audio/leaves_rustle_a.m4a',
+    'ocean': 'assets/audio/beach_waves_a.m4a',
+    'beach': 'assets/audio/beach_waves_a.m4a',
+    'cozy': 'assets/audio/campfire_a.m4a',
+    'warm': 'assets/audio/rainforest_birds_a.m4a',
+    'cool': 'assets/audio/bamboo_wind_a.m4a',
+    'starnight': 'assets/audio/ambience_soft_a.m4a',
+    'night': 'assets/audio/ambience_soft_b.m4a',
+    'dawn': 'assets/audio/summer_ambience_a.m4a',
+    'dusk': 'assets/audio/summer_ambience_b.m4a',
+    'aurora': 'assets/audio/wind_chimes_a.m4a',
+  };
+
   static const Map<String, String> _sceneToAmbient = {
     'rain': 'weather/rain1',
     'ocean': 'underwater/underwater_ambience',

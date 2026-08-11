@@ -54,6 +54,7 @@ void main() {
 
   group('M2 · 探索同意 Gate（整 App 集成）', () {
     testWidgets('首次进入探索页出现 Gate，同意后进入实验列表', (tester) async {
+      useRoomySurface(tester);
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -89,6 +90,7 @@ void main() {
 
   group('M6 · 通知中心（整 App 集成 · P0-M6-1/2）', () {
     testWidgets('设置 → 通知分类渲染三区块 + 事件日志', (tester) async {
+      useRoomySurface(tester);
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -104,8 +106,14 @@ void main() {
       await tester.tap(find.text('设置'));
       await settle(tester);
 
-      // 竖栏第 4 槽「通知」
-      await tester.tap(find.text('通知'));
+      // 「通知」文本同时出现在分组小标与分类 tile 上，
+      // 用「被 InkWell 包着」锁定真正可点击的 tile（分组小标没有 InkWell）。
+      final Finder notificationTile = find.ancestor(
+        of: find.text('通知'),
+        matching: find.byType(InkWell),
+      );
+      expect(notificationTile, findsOneWidget, reason: '竖栏应有唯一可点击的「通知」分类');
+      await tester.tap(notificationTile);
       await settle(tester);
 
       // 三区块 + 日志（P0-M6-1）
@@ -223,10 +231,10 @@ void main() {
       await settle(tester);
       expect(find.text('卡片'), findsOneWidget);
 
-      // 设置页
+      // 设置页（R22：默认分类=音频）
       await tester.tap(find.text('设置'));
       await settle(tester);
-      expect(find.text('播放设置'), findsOneWidget);
+      expect(find.text('音频 · 音量与音源'), findsOneWidget);
     });
   });
 }
@@ -236,6 +244,19 @@ const String termsNowPlaying = '当前播放';
 
 /// 命名词典「音源」实体文案（Terms.source）。
 const String termsSource = '音源';
+
+/// 整 App 集成用例统一使用的「宽松画布」。
+///
+/// 默认测试画布是 800×600，扣掉标题栏 + 搜索栏 + 底部 MiniPlayer/Dock 后，
+/// 页面正文只剩 ~187dp 高：设置页左侧竖栏被迫滚动，目标 tile 落在 Viewport
+/// 之外（painted 位置仍可算出，但 hitTest 被 Viewport 边界拒绝），
+/// 表现为「would not hit test」。集成用例关注的是内容与交互契约，
+/// 不是极小窗口的滚动行为，故统一放到 1000×1400 的常规平板尺寸。
+void useRoomySurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1000, 1400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+}
 
 /// 固定帧 pump（替代 pumpAndSettle）：
 /// AppShell 用 IndexedStack 保活 5 页（v1 契约），场景页等含常驻动画，

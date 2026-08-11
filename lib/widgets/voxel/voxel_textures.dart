@@ -1,0 +1,270 @@
+/// ════════════════════════════════════════════════════════════════════════
+/// 16×16 体素纹理图集（R24c）
+/// ════════════════════════════════════════════════════════════════════════
+///
+/// 每个方块类型对应图集里一格 16×16 像素画瓦片，逐像素程序化生成
+/// （基色 + 确定性抖动 + 块种花纹）。渲染时通过 [tileUV] 把面四边形映射到
+/// 对应瓦片，走 GPU `drawVertices` 贴图（不拖 CPU）。
+///
+/// 仅生成一次（[build]），结果 [ui.Image] 跨世界复用。
+library;
+
+import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'voxel_world_types.dart';
+
+class VoxelTextureAtlas {
+  VoxelTextureAtlas._();
+
+  /// 单瓦片像素边长（MC 惯例 16×16）。
+  static const int tile = 16;
+
+  /// 图集列数（足够容纳全部枚举值，多余格留空）。
+  static const int cols = 8;
+
+  /// 皮肤图（MC 2×，128×128 RGBA）烘焙区域：图集在体素瓦片下方追加 128×128。
+  /// 与地形共用同一张 [ui.Image]，实体面以图集像素 UV 采样，免去第二纹理。
+  static const int skinW = 128;
+  static int _skinExtraH = 0;
+  static double _skinOx = 0;
+  static double _skinOy = 0;
+  static double _skinScale = 2; // 皮肤图宽 / 64（2× → 2）
+  static bool _hasSkin = false;
+
+  static int get rows => ((Voxel.values.length + cols - 1) / cols).ceil();
+
+  static int get width => math.max(cols * tile, skinW);
+
+  static int get height => rows * tile + _skinExtraH;
+
+  /// 是否已烘焙皮肤（加载/解码失败则为 false，实体回退纯色）。
+  static bool get hasSkin => _hasSkin;
+
+  /// 返回某方块瓦片在图集中的 UV（图集像素坐标，角序对齐 [_fillCorners]：
+  /// 0=(minX,minZ) 1=(maxX,minZ) 2=(maxX,maxZ) 3=(minX,maxZ)）。
+  static Float32List tileUV(int index) {
+    final int col = index % cols;
+    final int row = index ~/ cols;
+    final double x0 = (col * tile).toDouble();
+    final double y0 = (row * tile).toDouble();
+    final double x1 = x0 + tile;
+    final double y1 = y0 + tile;
+    return Float32List.fromList(<double>[
+      x0, y0, //
+      x1, y0, //
+      x1, y1, //
+      x0, y1, //
+    ]);
+  }
+
+  /// 构建图集图像（异步：PictureRecorder → toImage）。
+  ///
+  /// [skinBytes] 为可选 MC 2× 皮肤 PNG；非空则解码后烘焙到图集下方 128×128 区域，
+  /// 实体面经 [skinRectFor] 取该区域 UV 采样。解码失败安全回退（无皮肤）。
+  static Future<ui.Image> build({Uint8List? skinBytes}) async {
+    final ui.PictureRecorder rec = ui.PictureRecorder();
+    final ui.Canvas canvas = ui.Canvas(rec);
+    _hasSkin = false;
+    _skinExtraH = 0;
+    final int n = Voxel.values.length;
+    for (int i = 0; i < n; i++) {
+      _drawTile(canvas, i % cols, i ~/ cols, Voxel.values[i]);
+    }
+    if (skinBytes != null) {
+      try {
+        final ui.Codec codec = await ui.instantiateImageCodec(skinBytes);
+        final ui.Image skin = (await codec.getNextFrame()).image;
+        _skinOx = 0;
+        _skinOy = rows * tile.toDouble();
+        _skinScale = skin.width / 64.0;
+        _skinExtraH = skin.height;
+        canvas.drawImageRect(
+          skin,
+          ui.Rect.fromLTWH(0, 0, skin.width.toDouble(), skin.height.toDouble()),
+          ui.Rect.fromLTWH(
+              _skinOx, _skinOy, skin.width.toDouble(), skin.height.toDouble()),
+          ui.Paint(),
+        );
+        skin.dispose();
+        _hasSkin = true;
+      } catch (_) {
+        _hasSkin = false;
+        _skinExtraH = 0;
+      }
+    }
+    final ui.Picture pic = rec.endRecording();
+    final ui.Image img = await pic.toImage(width, height);
+    return img;
+  }
+
+  /// MC 2× 皮肤各部位 6 面在 64×64 基准图中的像素矩形 [x,y,w,h]。
+  /// 仅用于 2× 单图层皮肤；面索引对齐 [BlockFace] 序：0=top 1=bottom
+  /// 2=north 3=south 4=west 5=east（south=正面+Z / north=背面 / east=右+X / west=左）。
+  static const Map<String, Map<int, List<double>>> _skinLayout =
+      <String, Map<int, List<double>>>{
+    'head': <int, List<double>>{
+      0: <double>[8, 0, 8, 8],
+      1: <double>[16, 0, 8, 8],
+      3: <double>[8, 8, 8, 8], // 正面（脸）
+      2: <double>[24, 8, 8, 8],
+      5: <double>[0, 8, 8, 8],
+      4: <double>[16, 8, 8, 8],
+    },
+    'torso': <int, List<double>>{
+      0: <double>[20, 16, 8, 4],
+      1: <double>[28, 16, 8, 4],
+      3: <double>[20, 20, 8, 12],
+      2: <double>[32, 20, 8, 12],
+      5: <double>[16, 20, 4, 12],
+      4: <double>[24, 20, 4, 12],
+    },
+    'armL': <int, List<double>>{
+      0: <double>[44, 16, 4, 4],
+      1: <double>[48, 16, 4, 4],
+      3: <double>[44, 20, 4, 12],
+      2: <double>[48, 20, 4, 12],
+      5: <double>[40, 20, 4, 12],
+      4: <double>[52, 20, 4, 12],
+    },
+    'armR': <int, List<double>>{
+      0: <double>[44, 16, 4, 4],
+      1: <double>[48, 16, 4, 4],
+      3: <double>[44, 20, 4, 12],
+      2: <double>[48, 20, 4, 12],
+      5: <double>[40, 20, 4, 12],
+      4: <double>[52, 20, 4, 12],
+    },
+    'legL': <int, List<double>>{
+      0: <double>[4, 16, 4, 4],
+      1: <double>[8, 16, 4, 4],
+      3: <double>[4, 20, 4, 12],
+      2: <double>[12, 20, 4, 12],
+      5: <double>[0, 20, 4, 12],
+      4: <double>[8, 20, 4, 12],
+    },
+    'legR': <int, List<double>>{
+      0: <double>[20, 48, 4, 4],
+      1: <double>[24, 48, 4, 4],
+      3: <double>[20, 52, 4, 12],
+      2: <double>[28, 52, 4, 12],
+      5: <double>[16, 52, 4, 12],
+      4: <double>[24, 52, 4, 12],
+    },
+  };
+
+  /// 返回某部位某面（[BlockFace.index]）在「图集像素坐标」中的矩形 [x,y,w,h]；
+  /// 无皮肤/未知返回 null。
+  static Float32List? skinRectFor(String part, int faceIndex) {
+    if (!_hasSkin) return null;
+    final Map<int, List<double>>? m = _skinLayout[part];
+    final List<double>? r = m == null ? null : m[faceIndex];
+    if (r == null) return null;
+    return Float32List.fromList(<double>[
+      _skinOx + r[0] * _skinScale,
+      _skinOy + r[1] * _skinScale,
+      r[2] * _skinScale,
+      r[3] * _skinScale,
+    ]);
+  }
+
+  static void _drawTile(ui.Canvas c, int col, int row, Voxel v) {
+    final double ox = col * tile.toDouble();
+    final double oy = row * tile.toDouble();
+    for (int py = 0; py < tile; py++) {
+      for (int px = 0; px < tile; px++) {
+        final ui.Color pix = _pixel(v, px, py);
+        c.drawRect(
+          ui.Rect.fromLTWH(ox + px, oy + py, 1, 1),
+          ui.Paint()..color = pix,
+        );
+      }
+    }
+  }
+
+  /// 单像素颜色（确定性：同坐标恒同，避免闪烁）。
+  static ui.Color _pixel(Voxel v, int px, int py) {
+    final double n = _noise(px, py, v.index * 131 + 7);
+    final double f = 1.0 + (n - 0.5) * 0.18; // ±9% 亮度抖动，去平涂感
+    switch (v) {
+      case Voxel.grass:
+        if (py < 4) return _shade(const ui.Color(0xFF6A4A2B), 1.0); // 顶边土
+        return _shade(const ui.Color(0xFF5BA83A), f);
+      case Voxel.dirt:
+        return _shade(const ui.Color(0xFF6A4A2B), f);
+      case Voxel.stone:
+        return _shade(const ui.Color(0xFF8A8A8E), f);
+      case Voxel.cobble:
+        return _shade(const ui.Color(0xFF7C7C80), f * (n > 0.7 ? 0.85 : 1.1));
+      case Voxel.sand:
+        return _shade(const ui.Color(0xFFE0D2A0), f);
+      case Voxel.snow:
+        return _shade(const ui.Color(0xFFF2F6FB), f);
+      case Voxel.wood:
+        final double bark = (px % 4 == 0) ? 0.82 : 1.0; // 竖纹
+        return _shade(const ui.Color(0xFF6E4B27), f * bark);
+      case Voxel.leaves:
+        return _shade(const ui.Color(0xFF3C7A2E), f);
+      case Voxel.planks:
+        final double plank = (py % 4 == 0) ? 0.82 : 1.0; // 横纹
+        return _shade(const ui.Color(0xFFB8894E), f * plank);
+      case Voxel.brick:
+        final bool rowLine = (py % 4 == 0);
+        final bool colLine = ((py ~/ 4) % 2 == 0)
+            ? (px % 8 == 0)
+            : (px % 8 == 4); // 错缝
+        final double bf = (rowLine || colLine) ? 0.8 : 1.0;
+        return _shade(const ui.Color(0xFF9E4B3B), f * bf);
+      case Voxel.glass:
+        return _shade(const ui.Color(0xFFBFE6F2), f);
+      case Voxel.water:
+        final double w = math.sin((px + py) * 0.8) * 0.5 + 0.5;
+        return _shade(const ui.Color(0xFF3A6EA5), 0.85 + w * 0.2);
+      case Voxel.slab:
+      case Voxel.stairs:
+        return _shade(const ui.Color(0xFF9A9A9E), f);
+      case Voxel.fence:
+        return _shade(const ui.Color(0xFF7A5230), f);
+      case Voxel.furnace:
+        return (py > 8)
+            ? _shade(const ui.Color(0xFF3A2A22), 1.0)
+            : _shade(const ui.Color(0xFF6E6E72), f);
+      case Voxel.campfire:
+        return (py > 8)
+            ? _shade(const ui.Color(0xFFE0642A), 1.0)
+            : _shade(const ui.Color(0xFF5A4030), f);
+      case Voxel.torch:
+        return _shade(const ui.Color(0xFFFFC56B), f);
+      case Voxel.chest:
+        return _shade(const ui.Color(0xFF8A5A2B), f);
+      case Voxel.apple:
+        return _shade(const ui.Color(0xFFD8392F), f);
+      case Voxel.bread:
+        return _shade(const ui.Color(0xFFC98A3A), f);
+      case Voxel.gold:
+        return _shade(const ui.Color(0xFFF2C94C), f);
+      case Voxel.diamond:
+        return _shade(const ui.Color(0xFF5FE0D0), f);
+      default:
+        final ui.Color base =
+            ui.Color(v.spec.base.toARGB32() | 0xFF000000);
+        return _shade(base, f);
+    }
+  }
+
+  static double _noise(int x, int y, int seed) {
+    int k = (x * 374761393 + y * 668265263 + seed * 982451653) & 0x7fffffff;
+    k = (k ^ (k >> 13)) * 1274126177;
+    k = k ^ (k >> 16);
+    return ((k & 0xffff) / 0xffff).toDouble();
+  }
+
+  static ui.Color _shade(ui.Color c, double f) {
+    final int r = (c.r * f).round().clamp(0, 255);
+    final int g = (c.g * f).round().clamp(0, 255);
+    final int b = (c.b * f).round().clamp(0, 255);
+    return ui.Color.fromARGB(255, r, g, b);
+  }
+}

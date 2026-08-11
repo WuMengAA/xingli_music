@@ -1,14 +1,25 @@
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/throttled_binding.dart';
 import 'core/theme/light_theme.dart';
 import 'providers/color_memory/color_memory_providers.dart';
+import 'services/log_service.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // R22：帧率节流 binding —— 必须在任何 ensureInitialized 之前初始化，
+  // 全局帧率限制（24/30/60/120）经 throttledFps 生效。
+  // ⚠️ 只构造、不显式 initInstances()：Flutter binding 的构造函数已自动
+  // 完成 initInstances（含 _instance 注册与各 mixin 初始化），再显式调用
+  // 会让 ServicesBinding._defaultBinaryMessenger（late final）重复赋值
+  // → LateInitializationError → 启动即崩（04:21 实测双端无法启动的根因）。
+  ThrottledWidgetsBinding();
 
   // 首帧之前就把系统栏切成「透明底 + 深色图标」，避免浅色 UI 上出现
   // 白字状态栏的一帧闪烁（配合 app.dart 的 AnnotatedRegion 双保险）。
@@ -22,15 +33,34 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
+  // ── 全局崩溃捕获：所有未处理异常都进 LogService（已脱敏；配置了日志
+  // 服务器后会自动上报），用于真机定位闪退。─────────────────
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    LogService.instance.e(
+      'crash',
+      'Flutter 异常: ${details.exceptionAsString()}',
+      details.stack,
+    );
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    LogService.instance.e('crash', '平台异常: $error', stack);
+    return true; // 已处理，避免向系统重复上报
+  };
+
   final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        // 注入 SharedPreferences：配色记忆、使用行为等本地数据都存这里
-        prefsProvider.overrideWithValue(prefs),
-      ],
-      child: const StelarithMusicApp(),
-    ),
-  );
+  runZonedGuarded(() {
+    runApp(
+      ProviderScope(
+        overrides: [
+          // 注入 SharedPreferences：配色记忆、使用行为等本地数据都存这里
+          prefsProvider.overrideWithValue(prefs),
+        ],
+        child: const StelarithMusicApp(),
+      ),
+    );
+  }, (Object error, StackTrace stack) {
+    LogService.instance.e('crash', '未捕获异步异常: $error', stack);
+  });
 }

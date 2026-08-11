@@ -18,4 +18,8 @@ abstract class MusicSource {
   /// 把一首曲解析为可直接播放的 URL。
   /// 多数源在 [getTracks] 时已经预解析并填好 uri，本方法作为按需重解析的备用。
   Future<String> resolveStreamUrl(Track track);
+
+  /// 播放 CDN 必须携带的请求头（如网易云的 User-Agent / Referer）。
+  /// 多数源返回空；需要鉴权头/反热链头的源自行实现（`NeteaseSource` 已实现）。
+  Map<String, String> get playbackHeaders;
 }

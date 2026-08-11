@@ -1,5 +1,7 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -89,16 +91,16 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         configs.where((ServerConfig c) => c.type == SourceType.radio).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.bgPage,
+      backgroundColor: context.appColors.bgPage,
       appBar: AppBar(
-        backgroundColor: AppColors.bgPage,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: context.appColors.bgPage,
+        foregroundColor: context.appColors.textPrimary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+          icon: Icon(Icons.arrow_back, color: context.appColors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(Terms.source, style: AppTextStyles.title),
+        title: Text(Terms.source, style: context.appText.title),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpace.lg),
@@ -154,7 +156,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   Future<void> _showAddDirSheet() async {
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.bgSurface,
+      backgroundColor: context.appColors.bgSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
@@ -166,16 +168,24 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('添加本地目录', style: AppTextStyles.subtitle),
+                Text('添加本地目录', style: context.appText.subtitle),
                 const SizedBox(height: AppSpace.md),
                 TextField(
                   controller: _dirCtrl,
-                  style: AppTextStyles.body,
-                  decoration: const InputDecoration(
+                  style: context.appText.body,
+                  decoration: InputDecoration(
                     labelText: '如 d:/Music/我的音乐',
-                    labelStyle: AppTextStyles.hint,
+                    labelStyle: context.appText.hint,
                     border: OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: AppSpace.md),
+                // 系统文件管理器选取目录（桌面 Windows 原生对话框 /
+                // Android SAF DocumentsUI；选完回填输入框）
+                OutlinedButton.icon(
+                  onPressed: () => _pickDir(sheetContext),
+                  icon: const Icon(Icons.folder_open_rounded, size: 18),
+                  label: Text('浏览…', style: context.appText.button),
                 ),
                 const SizedBox(height: AppSpace.md),
                 FilledButton(
@@ -191,6 +201,46 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         );
       },
     );
+  }
+
+  /// 弹出系统文件选择器选目录，回填 [_dirCtrl]。
+  ///
+  /// - 桌面（Windows / Linux / macOS）：返回真实文件系统路径，直接用。
+  /// - Android：file_picker 走 SAF 返回 `content://.../tree/<docId>` URI，
+  ///   解码成真实路径（`primary:Music` → `/storage/emulated/0/Music`），
+  ///   供 [LocalDirMusicSource] 的 `Directory(path)` 扫描；解码失败提示手动输入。
+  Future<void> _pickDir(BuildContext sheetContext) async {
+    final String? picked = await FilePicker.getDirectoryPath();
+    if (picked == null || !sheetContext.mounted) return; // 用户取消
+    final String path = _toRealPath(picked);
+    if (path.isEmpty) {
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        const SnackBar(content: Text('该目录无法转换为本地路径，请手动输入')),
+      );
+      return;
+    }
+    _dirCtrl.text = path;
+  }
+
+  /// 把 file_picker 返回值转成可扫描的真实路径。
+  ///
+  /// - 普通路径原样返回。
+  /// - SAF tree URI（`content://com.android.externalstorage.documents/tree/
+  ///   primary%3AMusic`）解码为 `/storage/emulated/0/Music`；`home%3A...`
+  ///   与其它 document provider 无法映射时返回空串。
+  static String _toRealPath(String picked) {
+    if (!picked.startsWith('content://')) return picked;
+
+    final Uri? uri = Uri.tryParse(picked);
+    final String? tree = uri?.pathSegments
+        .where((String s) => s.isNotEmpty)
+        .last; // 例: primary%3AMusic
+    if (tree == null) return '';
+    final String doc = Uri.decodeComponent(tree);
+    if (doc.startsWith('primary:')) {
+      return '/storage/emulated/0/${doc.substring('primary:'.length)}';
+    }
+    return ''; // home: / SD 卡等无法简单映射 → 提示手动输入
   }
 
   Widget _dirTile(LocalDirConfig d) {
@@ -229,7 +279,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.bgSurface,
+      backgroundColor: context.appColors.bgSurface,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
@@ -249,15 +299,15 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
               children: <Widget>[
                 Text(
                   editing != null ? '编辑${isRadio ? '电台' : '服务器'}' : '新增${isRadio ? '电台' : '服务器'}',
-                  style: AppTextStyles.subtitle,
+                  style: context.appText.subtitle,
                 ),
                 const SizedBox(height: AppSpace.md),
                 TextField(
                   controller: nameCtrl,
-                  style: AppTextStyles.body,
-                  decoration: const InputDecoration(
+                  style: context.appText.body,
+                  decoration: InputDecoration(
                     labelText: '名称（唯一标识）',
-                    labelStyle: AppTextStyles.hint,
+                    labelStyle: context.appText.hint,
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -265,20 +315,20 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 if (!isRadio) ...<Widget>[
                   TextField(
                     controller: urlCtrl,
-                    style: AppTextStyles.body,
-                    decoration: const InputDecoration(
+                    style: context.appText.body,
+                    decoration: InputDecoration(
                       labelText: '服务器地址（http://IP:4533）',
-                      labelStyle: AppTextStyles.hint,
+                      labelStyle: context.appText.hint,
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: AppSpace.sm),
                   TextField(
                     controller: userCtrl,
-                    style: AppTextStyles.body,
-                    decoration: const InputDecoration(
+                    style: context.appText.body,
+                    decoration: InputDecoration(
                       labelText: '用户名',
-                      labelStyle: AppTextStyles.hint,
+                      labelStyle: context.appText.hint,
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -286,20 +336,20 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                   TextField(
                     controller: pwdCtrl,
                     obscureText: true,
-                    style: AppTextStyles.body,
-                    decoration: const InputDecoration(
+                    style: context.appText.body,
+                    decoration: InputDecoration(
                       labelText: '密码',
-                      labelStyle: AppTextStyles.hint,
+                      labelStyle: context.appText.hint,
                       border: OutlineInputBorder(),
                     ),
                   ),
                 ] else ...<Widget>[
                   TextField(
                     controller: tagsCtrl,
-                    style: AppTextStyles.body,
-                    decoration: const InputDecoration(
+                    style: context.appText.body,
+                    decoration: InputDecoration(
                       labelText: '标签（逗号分隔，如 ambient, jazz）',
-                      labelStyle: AppTextStyles.hint,
+                      labelStyle: context.appText.hint,
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -439,7 +489,7 @@ class _GroupCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpace.md),
       decoration: BoxDecoration(
-        color: AppColors.bgSurfaceSunken,
+        color: context.appColors.bgSurfaceSunken,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
@@ -447,10 +497,10 @@ class _GroupCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, size: AppSize.iconSm, color: AppColors.iconPrimary),
+              Icon(icon, size: AppSize.iconSm, color: context.appColors.iconPrimary),
               const SizedBox(width: AppSpace.sm),
               Expanded(
-                child: Text(title, style: AppTextStyles.subtitle),
+                child: Text(title, style: context.appText.subtitle),
               ),
               TextButton.icon(
                 onPressed: onAdd,
@@ -498,27 +548,27 @@ class _EntryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpace.sm),
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.bgCard,
+        color: context.appColors.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderDefault),
+        border: Border.all(color: context.appColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, size: AppSize.iconSm, color: AppColors.textTertiary),
+              Icon(icon, size: AppSize.iconSm, color: context.appColors.textTertiary),
               const SizedBox(width: AppSpace.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(title,
-                        style: AppTextStyles.body,
+                        style: context.appText.body,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     Text(subtitle,
-                        style: AppTextStyles.artist,
+                        style: context.appText.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ],
@@ -533,25 +583,25 @@ class _EntryTile extends StatelessWidget {
                 StateChip(tone: _toneOf(h.status), label: h.statusLabel),
                 const SizedBox(width: AppSpace.xs),
                 Text('上次 ${h.lastTestedLabel}',
-                    style: AppTextStyles.caption),
+                    style: context.appText.caption),
               ],
               const Spacer(),
               if (onEdit != null)
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined,
-                      size: 18, color: AppColors.textTertiary),
+                  icon: Icon(Icons.edit_outlined,
+                      size: 18, color: context.appColors.textTertiary),
                   onPressed: onEdit,
                 ),
               if (onTest != null)
                 IconButton(
-                  icon: const Icon(Icons.network_check_rounded,
-                      size: 18, color: AppColors.textTertiary),
+                  icon: Icon(Icons.network_check_rounded,
+                      size: 18, color: context.appColors.textTertiary),
                   tooltip: Terms.testConnection,
                   onPressed: onTest,
                 ),
               IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    size: 18, color: AppColors.danger),
+                icon: Icon(Icons.delete_outline,
+                    size: 18, color: context.appColors.danger),
                 onPressed: onDelete,
               ),
             ],
@@ -578,7 +628,7 @@ class _EmptyHint extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-      child: Text(text, style: AppTextStyles.bodyMuted),
+      child: Text(text, style: context.appText.bodyMuted),
     );
   }
 }

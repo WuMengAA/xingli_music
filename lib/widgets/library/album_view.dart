@@ -1,3 +1,4 @@
+import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -48,7 +49,7 @@ class AlbumView extends StatelessWidget {
         final MapEntry<String, List<Track>> e = albums[i];
         final Track first = e.value.first;
         return Material(
-          color: AppColors.bgCard,
+          color: context.appColors.bgCard,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: InkWell(
             onTap: () => Navigator.of(context).push(
@@ -64,7 +65,7 @@ class AlbumView extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.borderDefault),
+                border: Border.all(color: context.appColors.border),
               ),
               padding: const EdgeInsets.all(AppSpace.md),
               child: Column(
@@ -82,21 +83,21 @@ class AlbumView extends StatelessWidget {
                   const SizedBox(height: AppSpace.sm),
                   Text(
                     e.key,
-                    style: AppTextStyles.trackName,
+                    style: context.appText.trackName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     first.artist,
-                    style: AppTextStyles.artist,
+                    style: context.appText.artist,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
                   Text(
                     '${e.value.length} ${Terms.track}',
-                    style: AppTextStyles.caption,
+                    style: context.appText.caption,
                   ),
                 ],
               ),

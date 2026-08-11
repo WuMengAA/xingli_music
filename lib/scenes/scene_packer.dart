@@ -50,21 +50,27 @@ class ScenePacker {
       );
 
   /// [ScenePack] → 字符串（可直接写文件 / 分享）。
+  ///
+  /// P-2：用 [Scene.toShareJson]，不外泄本机绝对路径。
   static String encode(ScenePack pack) => jsonEncode({
         'schema': pack.schema,
         'packedAtMs': pack.packedAtMs,
         if (pack.packedBy != null) 'packedBy': pack.packedBy,
-        'scene': pack.scene.toJson(),
+        'scene': pack.scene.toShareJson(),
       });
 
   /// 字符串 → [ScenePack]。
+  ///
+  /// P-2：与 `Scenes.decodePack` 同样按不可信输入处理 —— 重写 id、
+  /// 强制自定义身份、清除外来本机路径。
   static ScenePack decode(String raw) {
     final Map<String, dynamic> root = jsonDecode(raw) as Map<String, dynamic>;
     return ScenePack(
       schema: root['schema'] as int,
       packedAtMs: root['packedAtMs'] as int,
       packedBy: root['packedBy'] as String?,
-      scene: Scene.fromJson(root['scene'] as Map<String, dynamic>),
+      scene: Scenes.sanitizeImported(
+          Scene.fromJson(root['scene'] as Map<String, dynamic>)),
     );
   }
 
