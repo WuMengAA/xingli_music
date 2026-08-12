@@ -24,6 +24,8 @@ import 'dart:typed_data' show Int32List;
 import 'dart:ui' as ui;
 
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cross_file/cross_file.dart';
 
 import '../../models/companion_action.dart';
 import '../../models/companion_models.dart';
@@ -35,6 +37,8 @@ import '../../providers/scene/scene_providers.dart';
 import '../../providers/scene/scene_custom_providers.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../providers/voxel/graphics_quality_provider.dart';
+import '../../providers/voxel/cloud_view_distance_provider.dart';
+import '../../providers/settings/performance_providers.dart';
 import '../../providers/voxel/hud_layout_provider.dart';
 import '../../providers/storage/storage_providers.dart';
 import 'voxel_capture_models.dart';
@@ -75,19 +79,20 @@ enum _Nav { forward, back, left, right, up, down }
 /// 视角模式（R23：2.5D 等距 / 3D 俯瞰 / 3D 第一人称；R23k + 第三人称跟随）。
 enum _ViewMode { iso2d5, orbit, firstPerson, thirdPerson }
 
-/// 画面精度档（R24c）：在 [PerformanceMode] 基础上进一步细分渲染参数。
+/// 画面精度档（R24c；R26o 用户定版：放弃贴图高画质——纹理图集在目标平台
+/// 渲染黑，以**低画质纯色**为基础做优化；新增 0.5 倍分辨率性能档）。
 enum GraphicsQuality {
-  /// 流畅：近视距 + 关雾 + 关水波 + 关贴图，保帧率。
-  smooth('流畅', viewDistanceChunks: 3, lodStartChunks: 1, lodStepChunks: 1,
-      maxFaces: 9000, fog: false, water: false, texture: false),
+  /// 性能：0.5 倍分辨率渲染 + 放大显示（帧率翻倍），视距/面数最低。
+  perf('性能', viewDistanceChunks: 2, lodStartChunks: 1, lodStepChunks: 1,
+      maxFaces: 6000, fog: false, water: false, texture: false, renderScale: 0.5),
 
-  /// 标准：均衡视距 + 雾 + 水波 + 贴图。
-  standard('标准', viewDistanceChunks: 4, lodStartChunks: 2, lodStepChunks: 2,
-      maxFaces: 16000, fog: true, water: true, texture: true),
+  /// 流畅：默认。纯色平铺 + 雾 + 水波（贴图恒关）。
+  smooth('流畅', viewDistanceChunks: 4, lodStartChunks: 2, lodStepChunks: 2,
+      maxFaces: 12000, fog: true, water: true, texture: false, renderScale: 1.0),
 
-  /// 高清：远视距 + 贴图 + 雾 + 水波，面数更宽。
-  fine('高清', viewDistanceChunks: 6, lodStartChunks: 3, lodStepChunks: 2,
-      maxFaces: 26000, fog: true, water: true, texture: true);
+  /// 标准：更远视距 + 更大面数预算（纯色）。
+  standard('标准', viewDistanceChunks: 6, lodStartChunks: 3, lodStepChunks: 2,
+      maxFaces: 18000, fog: true, water: true, texture: false, renderScale: 1.0);
 
   const GraphicsQuality(
     this.label, {
@@ -98,6 +103,7 @@ enum GraphicsQuality {
     required this.fog,
     required this.water,
     required this.texture,
+    required this.renderScale,
   });
 
   final String label;
@@ -108,6 +114,9 @@ enum GraphicsQuality {
   final bool fog;
   final bool water;
   final bool texture;
+
+  /// R26o：渲染分辨率倍率（性能档 0.5 = 半分辨率渲染 + 放大，帧率翻倍）。
+  final double renderScale;
 }
 
 /// 3D 体素世界视图（撑满父容器）。
@@ -153,6 +162,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   static const double _idleDelay = 6.0;
 
   late VoxelCamera _camera;
+
+  /// R26g：测试钩子——当前相机俯仰（回归测试验证「进入第一人称归位
+  /// pitch、不再朝下看灰地面」用；跨库测试无法直接读私有 `_camera`）。
+  @visibleForTesting
+  double get debugCameraPitch => _camera.pitch;
+
+  /// R26h：世界种子短哈希（顶部居中信息条「世界名」用）。
+  String get _seedTag =>
+      '#${(widget.world.seed & 0xffff).toRadixString(16).toUpperCase().padLeft(4, '0')}';
   late final Ticker _ticker;
   final ValueNotifier<VoxelFrame> _frame = ValueNotifier<VoxelFrame>(
     VoxelFrame.empty,
@@ -189,10 +207,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   double _idle = 0;
   double _wave = 0;
   bool _dirty = true;
+  // R26r2：恢复遮挡剔除——透视根因是绘制顺序（已由深度排序修复），与剔除无关；
+  // 恢复后性能回正常，正确性由画家算法保证。
   bool _occlusionCull = true;
 
   // ── R23 视角模式 ─────────────────────────────────────
-  _ViewMode _viewMode = _ViewMode.orbit;
+  // R26m：去掉俯视/2.5D 视角——初始即第一人称（进入世界前是中心地表预览）。
+  _ViewMode _viewMode = _ViewMode.firstPerson;
 
   /// 第一人称：玩家脚底坐标（世界，方块单位）。
   Vec3 _fpPos = Vec3.zero;
@@ -212,7 +233,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   // ── R24c 画面精度 / 16×16 纹理图集 ──────────────────
   /// 画面精度档（流畅 / 标准 / 高清），影响视距 / LOD / 面数 / 雾 / 水波 / 贴图。
-  GraphicsQuality _quality = GraphicsQuality.standard;
+  // R26o：默认画质 = 流畅（低画质纯色为基础）；initState 里再按 provider 覆盖。
+  GraphicsQuality _quality = GraphicsQuality.smooth;
 
   /// 16×16 纹理图集（异步构建；null = 尚未就绪，回退纯色）。
   ui.Image? _atlas;
@@ -220,8 +242,20 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// HUD 折叠（沉浸模式）：隐藏全部控件，仅留准星。
   bool _uiCollapsed = false;
 
+  // ── R26h UI 重组：顶栏精简 + 折叠面板 + 顶部居中信息条 ──
+  /// 折叠面板（坐标 / 模式等次级控制）开合。
+  bool _foldOpen = false;
+  /// 会话开始时间（顶部「游戏时长」统计用）。
+  DateTime? _sessionStart;
+
   /// 虚拟摇杆输出（x=横移, y=前后；上为负）。
   double _joyX = 0;
+
+  // R26o：第三人称摄像机环绕参数（「环绕」摇杆控制；默认身后 4 格、
+  // 上方 2.5 格 = pitch asin(0.9/4)≈0.227）。
+  double _tpCamYaw = 0;
+  double _tpCamPitch = 0.227;
+  double _tpCamDist = 4.0;
   double _joyY = 0;
 
   // ── R23d 相机模式（取景 + 焦距 + 快门截图）────────────
@@ -240,6 +274,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // ── R23e 物理 / 生存模式 ────────────────────────────
   /// true=生存模式（生命/摔落伤害/禁飞）；false=创造（可飞行）。
   bool _survival = false;
+
+  // R26p-camera：创造飞行模式。false=未飞行（受重力下落）；true=飞行（无重力、
+  // 保持当前高度，升降键控制 altitude）。双击跳跃切换；再次双击退出→开始下落。
+  bool _flyMode = false;
+  DateTime? _lastJumpPress;
 
   /// 破坏/放置交互半径（格，MC 默认 5）。
   static const double _reach = 5.0;
@@ -294,6 +333,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 是否正按住（长按挖掘）。
   bool _acting = false;
 
+  // R26k：桌面鼠标绑定（FPS）——鼠标移动视角、左键挖掘/攻击、右键放置；
+  // Alt 按住暂停视角（可点 UI）。触屏拖拽环视走 GestureDetector（不受影响）。
+  // R26m：光标保持可见；[ _mousePos] 用于「边缘续转」（贴窗口边缘继续转）。
+  bool _fpMouseCaptured = true;
+  Offset? _lastMousePos;
+  Offset? _mousePos;
+
   /// 本次按住期间是否已挖掉方块（松手时不再补一刀）。
   bool _brokeInHold = false;
 
@@ -326,7 +372,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 由本 state 持有，编辑方块 / 换世界 / 切换遮挡剔除时失效。
   final VoxelChunkCache _chunkCache = VoxelChunkCache();
 
-  Duration _interval = const Duration(milliseconds: 56);
   double _motionScale = 1;
   bool _autoOrbit = true;
 
@@ -340,7 +385,19 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   @override
   void initState() {
     super.initState();
-    _camera = widget.initialCamera ?? VoxelCamera.overview(widget.world);
+    // R26m：初始相机 = 世界中心地表第一人称（去掉俯视 overview 预览）。
+    final double cx0 = widget.world.sizeX / 2;
+    final double cz0 = widget.world.sizeZ / 2;
+    _camera = widget.initialCamera ??
+        VoxelCamera(
+          position: Vec3(
+            cx0,
+            VoxelCamera.groundHeightAt(widget.world, cx0, cz0) +
+                VoxelCamera.eyeHeight,
+            cz0,
+          ),
+          pitch: -0.15,
+        );
     // 小人初始站在世界中心。
     _figurePos = Vec3(
       widget.world.sizeX / 2,
@@ -413,18 +470,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // R24c：异步构建纹理图集（含可选的玩家皮肤，#169）。皮肤缺失/解码失败
     // 安全回退为无皮肤图集，实体走纯色。
     () async {
-      Uint8List? skin;
-      try {
-        final ByteData bd = await rootBundle.load('assets/player_skin.png');
-        skin = bd.buffer.asUint8List(bd.offsetInBytes, bd.lengthInBytes);
-      } catch (_) {
-        skin = null;
-      }
-      // R26：build 异常不抛未捕获（否则 _atlas 永远 null + 未处理 async 错误），
-      // 直接走无图集纯色回退（painter 已对 shader=null 做白色兜底）。
+      // R26g：不再加载玩家皮肤——自身方块人模型已移除（其皮肤贴图在高画质下
+      // 会污染地形批次导致黑方块）。skinBytes:null ⇒ _hasSkin=false，实体一律
+      // 纯色，图集更省内存，且无任何副作用。
       ui.Image? img;
       try {
-        img = await VoxelTextureAtlas.build(skinBytes: skin);
+        img = await VoxelTextureAtlas.build(skinBytes: null);
       } catch (_) {
         img = null;
       }
@@ -561,32 +612,28 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       }
       _aimNotifier.value = _aimCached?.$1;
     }
-    if (_lastTick != Duration.zero && elapsed - _lastTick < _interval) {
-      return; // 帧率节流（按性能档位）
-    }
+    // R26q：移除固定 56ms 重建节流——它把实际世界重建压到 ~18fps，导致转动视角
+    // 明显卡顿（而 Ticker 仍 60fps，FPS 计数"正常"）。重建本就由 `_dirty` 门控：
+    // 有变化才重建、静止后由静态快照(_staticPicture)完全跳过，无需再节流。
+    // 现在相机转动时每帧全速重建 → 顺滑。
     final double dt = _lastTick == Duration.zero
         ? 1 / 60
         : ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.25);
     _lastTick = elapsed;
 
-    if (_held.isNotEmpty) {
-      _idle = 0;
-      if (_viewMode == _ViewMode.firstPerson ||
-          _viewMode == _ViewMode.thirdPerson) {
-        _applyNavFP(dt);
-      } else {
-        _applyNav(dt);
-      }
-    } else {
-      _idle += dt;
-      // 自动巡航仅俯瞰模式（第一人称/2.5D 不自动转）。
-      if (_autoOrbit &&
-          _viewMode == _ViewMode.orbit &&
-          _idle > _idleDelay * _motionScale) {
-        _camera = _camera.rotate(_orbitSpeed * dt, 0);
-        _dirty = true;
-      }
+    // R26n：第一/第三人称**每帧**跑物理（重力/落地/移动）——此前只在按键时
+    // 跑，松开按键即停重力 → 走平地被地形推起后悬浮、无下落物理（用户反馈）。
+    // 自动巡航（orbit 模式）已随俯视/2.5D 一并移除，不再需要。
+    final bool fpNow = _viewMode == _ViewMode.firstPerson ||
+        _viewMode == _ViewMode.thirdPerson;
+    if (fpNow) {
+      _applyNavFP(dt);
+    } else if (_held.isNotEmpty) {
+      _applyNav(dt);
     }
+
+    // R26m：鼠标贴窗口边缘 → 持续转视角（FPS 手感，无需平台鼠标捕获）。
+    _applyEdgeLook(dt);
 
     if (_config.waterAnimation) {
       _wave = (_wave + dt * 0.35 / _motionScale) % 1000;
@@ -661,16 +708,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _dirty = false;
     // 外送当前机位（供父级拍照取景，不触发 rebuild）
     widget.cameraOut?.value = _camera;
+    // R26o：渲染分辨率倍率（性能档 0.5 → 半分辨率渲染 + 画家放大）。
+    final double rs = _quality.renderScale;
     _frame.value = VoxelRenderer.buildFrame(
       world: widget.world,
       camera: _camera,
-      viewport: _viewport,
+      viewport: Size(_viewport.width * rs, _viewport.height * rs),
+      // R26n/R26o：贴图图集在目标平台渲染黑 → 恒走纯色（textureEnabled=false）。
       config: _config.copyWith(occlusionCull: _occlusionCull),
       timePhase: _time.phase,
       wavePhase: _wave,
-      // R23w：AI 小人 + 僵尸 + 掉落物 + 玩家方块人（#169）一起交给渲染器。
-      // 玩家在 orbit / thirdPerson 下可见（脚底=_fpPos，orbit 落到地表），
-      // firstPerson 沉浸时不显示自身。
+      // R23w：AI 小人 + 僵尸 + 掉落物 + 玩家方块人一起交给渲染器。
+      // R26o：玩家在 thirdPerson 下渲染自身模型（脚底=_fpPos）；firstPerson 不显示。
       entities: _buildEntities(),
       cache: _chunkCache,
       lights: widget.world.lightsNear(_camera.position.x, _camera.position.z),
@@ -681,8 +730,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   ui.Picture _recordStaticPicture(VoxelFrame frame) {
     final ui.PictureRecorder rec = ui.PictureRecorder();
     final Canvas cv = Canvas(rec);
-    _VoxelFramePainter(frame, _quality.texture ? _atlas : null)
-        .paint(cv, _viewport);
+    _VoxelFramePainter(
+      frame,
+      _quality.texture ? _atlas : null,
+      renderScale: _quality.renderScale,
+    ).paint(cv, _viewport);
     return rec.endRecording();
   }
 
@@ -757,16 +809,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 玩家在 [orbit] / [thirdPerson] 下渲染（脚底=_fpPos；orbit 无第一人称位移，
   /// 用地表高度落位避免埋进地形）；[firstPerson] 沉浸视角不显示自身。
   List<VoxelEntity> _buildEntities() {
+    // R26o：第三人称渲染**玩家自身模型**（纯色方块人，不用皮肤贴图——贴图
+    // 图集在目标平台渲染黑，纯色安全）；第一人称沉浸不显示自身。
     final List<VoxelEntity> ents = <VoxelEntity>[];
-    if (_viewMode == _ViewMode.orbit || _viewMode == _ViewMode.thirdPerson) {
-      final double py = _viewMode == _ViewMode.orbit
-          ? VoxelCamera.groundHeightAt(widget.world, _fpPos.x, _fpPos.z)
-          : _fpPos.y;
+    if (_viewMode == _ViewMode.thirdPerson) {
       ents.add(VoxelEntity(
-        position: Vec3(_fpPos.x, py, _fpPos.z),
-        color: const Color(0xFFC8A079), // 无皮肤时的纯色回退（肤色）
+        position: Vec3(_fpPos.x, _fpPos.y, _fpPos.z),
+        color: const Color(0xFFC8A079), // 肤色（无皮肤纯色回退）
         scale: 1.0,
-        useSkin: true,
       ));
     }
     if (_companionEntities.isNotEmpty) ents.addAll(_companionEntities);
@@ -810,19 +860,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     return pos;
   }
 
-  /// 第三人称相机位：玩家身后 4 格、上方 2.5 格（跟随玩家朝向）。
+  /// 第三人称相机位：玩家身后 [ _tpCamDist] 格、上方 [_tpCamPitch] 角
+  /// （默认 ≈ 身后 4 格、上方 2.5 格，跟随玩家朝向）。
   ///
   /// R23m：相机带碰撞箱——从玩家位置沿视线方向步进，遇到实心方块
   /// 就把相机**拉近到阻挡前一格**（MC 式第三人称防穿墙），并兜底抬出。
+  /// R26o：yaw/pitch/dist 由第三人称「环绕」摇杆调节，可一键复原。
   Vec3 _thirdPersonPos() {
-    final double sy = math.sin(_camera.yaw);
-    final double cy = math.cos(_camera.yaw);
-    const double dist = 4.0;
+    final double yaw = _camera.yaw + _tpCamYaw;
+    final double cp = math.cos(_tpCamPitch);
+    final double sp = math.sin(_tpCamPitch);
+    final double dist = math.max(1.0, _tpCamDist);
     final Vec3 from = Vec3(_fpPos.x, _fpPos.y + 1.6, _fpPos.z);
     final Vec3 target = Vec3(
-      from.x - sy * dist,
-      _fpPos.y + 2.5,
-      from.z - cy * dist,
+      from.x - math.sin(yaw) * cp * dist,
+      from.y + sp * dist,
+      from.z - math.cos(yaw) * cp * dist,
     );
     final VoxelWorld w = widget.world;
     final double dx = (target.x - from.x) / dist;
@@ -945,7 +998,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       ny = _fpPos.y + _fpVy * dt;
     } else {
       _fpJumpQueued = false;
-      if (lift != 0) {
+      if (_flyMode) {
+        // R26p-camera：创造飞行——无重力，保持当前高度；升降键控制 altitude。
+        _fpVy = 0;
+        ny = _fpPos.y + lift;
+      } else if (lift != 0) {
         // 创造：按住升降 → 直接位移（零冲量）。
         _fpVy = 0;
         ny = _fpPos.y + lift;
@@ -1016,17 +1073,25 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   /// 玩家包围盒（0.6 宽 × [bodyH] 高）与实心方块是否碰撞（水/叶不挡）。
   ///
-  /// R23k：无限地图——x/z 不再有边界空气墙，越界由世界确定性生成地形；
-  /// 碰撞判定完全交给 [VoxelWorld.get]（越界高度返回空气）。
+  /// R26p：原实现只测玩家**中心那一列**（半径 0），0.6 宽身体会直接插进墙里。
+  /// 改为测整个足迹 AABB——覆盖 [x-r, x+r] × [z-r, z+r] 内所有列，杜绝穿模，
+  /// 同时保留逐轴移动时的「贴墙滑动」。r=0.3 即 0.6 宽的一半。
   bool _bodyCollides(double x, double y, double z, [double bodyH = 1.75]) {
     final VoxelWorld w = widget.world;
-    final int xi = x.floor();
-    final int zi = z.floor();
+    const double r = 0.3; // 玩家半宽（0.6 宽），贴墙不穿模
+    final int xMin = (x - r).floor();
+    final int xMax = (x + r).floor();
+    final int zMin = (z - r).floor();
+    final int zMax = (z + r).floor();
     final int yTop = (y + bodyH).floor();
     for (int yy = y.floor(); yy <= yTop; yy++) {
       if (yy < 0) continue;
       if (yy >= w.maxY) return true;
-      if (w.get(xi, yy, zi).occludes) return true;
+      for (int xi = xMin; xi <= xMax; xi++) {
+        for (int zi = zMin; zi <= zMax; zi++) {
+          if (w.get(xi, yy, zi).occludes) return true;
+        }
+      }
     }
     return false;
   }
@@ -1300,6 +1365,126 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _dirty = true;
   }
 
+  // ── R26k：桌面鼠标绑定（FPS 操作）─────────────────────────
+  // 触屏拖拽环视走 GestureDetector._onScaleUpdate；这里只处理鼠标：
+  //   移动 → 视角（相对位移，与光标位置解耦）
+  //   左键按下 → 攻击/挖掘（按住 = 连续，复用 _acting 长按挖掘）
+  //   右键按下 → 放置
+  //   Alt 按住 → 显示光标 + 解绑（可点 UI），松开重新绑定。
+
+  // R26p-camera：环视（鼠标/拖拽转视角）在相机模式下也允许——否则进相机模式
+  // 后既不能用鼠标也不能用拖拽取景（「鼠标不跟随」）。挖掘/放置仍仅在非相机模式。
+  bool get _fpLookActive =>
+      (_viewMode == _ViewMode.firstPerson ||
+          _viewMode == _ViewMode.thirdPerson) &&
+      !_bagOpen;
+
+  bool get _fpMouseActive => _fpLookActive && !_cameraMode;
+
+  void _onPointerDown(PointerDownEvent e) {
+    if (e.kind != PointerDeviceKind.mouse) return;
+    _lastMousePos = e.position;
+    _mousePos = e.position;
+    // _fpMouseActive 已排除相机模式（相机模式只环视、不挖掘/放置）。
+    if (!_fpMouseActive || !_fpMouseCaptured) return;
+    if (e.buttons & kSecondaryMouseButton != 0) {
+      _placeAt();
+    } else if (e.buttons & kPrimaryMouseButton != 0) {
+      _primaryAction();
+      _acting = true;
+      _dirty = true;
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent e) {
+    if (e.kind != PointerDeviceKind.mouse) return;
+    _lastMousePos = null;
+    if (e.buttons & kPrimaryMouseButton != 0) return; // 左键仍按着（多键）
+    if (_acting) {
+      _acting = false;
+      _resetMining();
+      _dirty = true;
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (e.kind != PointerDeviceKind.mouse) return;
+    final Offset? last = _lastMousePos;
+    _lastMousePos = e.position;
+    _mousePos = e.position;
+    if (last == null) return; // 首次进入不跳
+    if (!_fpLookActive || !_fpMouseCaptured) return;
+    final Offset delta = e.position - last;
+    if (delta == Offset.zero) return;
+    _camera = _camera.rotate(delta.dx * 0.003, -delta.dy * 0.003);
+    _idle = 0;
+    _dirty = true;
+  }
+
+  /// R26m：边缘续转——鼠标停在窗口边缘时继续转视角（无鼠标捕获时的 FPS
+  /// 替代方案：不需要第三方插件/平台通道，贴边即连续转向，离开边缘即停）。
+  void _applyEdgeLook(double dt) {
+    if (!_fpLookActive || !_fpMouseCaptured) return;
+    final Offset? m = _mousePos;
+    if (m == null || _viewport.isEmpty) return;
+    const double margin = 16.0;
+    double rx = 0, ry = 0;
+    if (m.dx < margin) {
+      rx = -1;
+    } else if (m.dx > _viewport.width - margin) {
+      rx = 1;
+    }
+    if (m.dy < margin) {
+      ry = 1;
+    } else if (m.dy > _viewport.height - margin) {
+      ry = -1;
+    }
+    if (rx == 0 && ry == 0) return;
+    const double speed = 1.7; // rad/s
+    _camera = _camera.rotate(rx * speed * dt, ry * speed * dt);
+    _idle = 0;
+    _dirty = true;
+  }
+
+  // R26p-camera：跳跃输入（键盘空格 / 移动端「跳」键共用）。
+  // 生存：入队一次跳跃。创造：双击切换飞行——首次按下记时，320ms 内再按一次
+  // 翻转 _flyMode；飞行中按住「跳」键=上升（见 _onJumpButtonDown）。
+  void _onJumpInput() {
+    if (_survival) {
+      _fpJumpQueued = true;
+      return;
+    }
+    final DateTime now = DateTime.now();
+    if (_lastJumpPress != null &&
+        now.difference(_lastJumpPress!).inMilliseconds < 320) {
+      _flyMode = !_flyMode;
+      if (!_flyMode) _fpVy = 0; // 退出飞行 → 开始下落
+      _lastJumpPress = null;
+      _dirty = true;
+    } else {
+      _lastJumpPress = now;
+    }
+  }
+
+  // 移动端「跳」键：飞行中按住=上升；未飞行时=双击检测。
+  void _onJumpButtonDown() {
+    if (_survival) {
+      _fpJumpQueued = true;
+      return;
+    }
+    if (_flyMode) {
+      _held.add(_Nav.up);
+      _idle = 0;
+      return;
+    }
+    _onJumpInput();
+  }
+
+  void _onJumpButtonUp() {
+    if (_survival) return;
+    if (_flyMode) _held.remove(_Nav.up);
+  }
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     final bool fp = _viewMode == _ViewMode.firstPerson ||
         _viewMode == _ViewMode.thirdPerson;
@@ -1307,6 +1492,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final bool up = event is KeyUpEvent;
     final LogicalKeyboardKey k = event.logicalKey;
 
+    // R26k：Alt 按住 = 显示光标并临时解绑鼠标视角（松开重新绑定）。
+    if ((k == LogicalKeyboardKey.altLeft ||
+            k == LogicalKeyboardKey.altRight) &&
+        fp) {
+      if (down) {
+        _fpMouseCaptured = false;
+      } else if (up) {
+        _fpMouseCaptured = true;
+      }
+      _lastMousePos = null;
+      return KeyEventResult.handled;
+    }
     // R26c：Ctrl = 疾跑（按住提速；蹲下时无效，由 _applyNavFP 速度倍率处理）。
     if ((k == LogicalKeyboardKey.controlLeft ||
             k == LogicalKeyboardKey.controlRight) &&
@@ -1314,17 +1511,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       _sprinting = down;
       return KeyEventResult.handled;
     }
-    // 空格：生存 = 跳跃入队；创造 = 按住飞升（松手停止）。
+    // 空格：生存 = 跳跃入队；创造 = 双击跳跃切换飞行（见 _onJumpInput）。
     if (k == LogicalKeyboardKey.space && fp) {
-      if (_survival) {
-        if (down) _fpJumpQueued = true;
-      } else {
-        if (down) {
-          _held.add(_Nav.up);
-        } else if (up) {
-          _held.remove(_Nav.up);
-        }
-      }
+      if (down) _onJumpInput();
       return KeyEventResult.handled;
     }
     // Shift：生存 = 蹲（按住）；创造 = 按住下降（与 MC 飞行一致）。
@@ -1406,13 +1595,21 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   void _enterWorld(bool survival) {
     setState(() {
       _survival = survival;
+      _flyMode = false; // 进入世界重置飞行：创造默认落地，双击跳跃起飞
+      _lastJumpPress = null;
       if (survival) {
         _vitals.respawn();
         _mobs.clear();
       }
       _syncInventoryForMode();
       _viewMode = _ViewMode.firstPerson;
+      // R26g 修复：初始相机是 overview（pitch ≈ -78° 垂直俯视），进入第一
+      // 人称时此前只改 position 不动 pitch → 玩家持续朝下看满屏灰地面/石头
+      // （用户反馈「点击生存后画面被套上灰色滤镜、无法关闭」）。归位为水平
+      // 略俯视（-0.15），保留 yaw 面朝方向，进入即见正常地平线。
+      _camera = _camera.copyWith(pitch: -0.15);
       _started = true;
+      _sessionStart = DateTime.now(); // R26h：会话计时起点
       _dirty = true;
     });
   }
@@ -1564,26 +1761,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   void _setView(_ViewMode mode) {
     _viewMode = mode;
     if (mode == _ViewMode.firstPerson || mode == _ViewMode.thirdPerson) {
-      final int sx = widget.world.sizeX ~/ 2;
-      final int sz = widget.world.sizeZ ~/ 2;
-      final int top = widget.world.surfaceHeight(sx, sz);
-      _fpPos = Vec3(sx.toDouble(), (top + 1).toDouble(), sz.toDouble());
+      // R26o：视角切换**在角色当前位置**进行（不再重置到世界中心/随机点，
+      // 用户「切换视角是在角色本身的位置切换」）。只归位俯仰避免沿用俯视。
       _fpVy = 0;
-      _fpOnGround = true;
       _fpJumpQueued = false;
+      _camera = _camera.copyWith(pitch: -0.15);
     }
     _dirty = true;
     setState(() {});
   }
 
-  /// 视角切换按钮回调：循环 2.5D / 俯瞰 / 第一人称 / 第三人称。
+  /// 视角切换按钮回调：R26m 起只循环 第一人称 ↔ 第三人称（去掉俯视/2.5D）。
   ///
   /// 具体实现由本方法提供（外部只需把 [ViewModeButton.onPressed] 指向它），
   /// 组件本身不依赖任何视角枚举。
   void _cycleViewMode() {
     const List<_ViewMode> order = <_ViewMode>[
-      _ViewMode.orbit,
-      _ViewMode.iso2d5,
       _ViewMode.firstPerson,
       _ViewMode.thirdPerson,
     ];
@@ -1607,7 +1800,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   }
 
   void _setFov(double f) {
-    _camera = _camera.copyWith(fov: f.clamp(30.0, 100.0));
+    // ⚠️ 相机内部 fov 是**弧度**（minFov=0.55≈31.5° / maxFov=1.92≈110°），
+    // 滑块 _CameraPanel 也工作在弧度（value 0.35~1.5、标签按 fov>=1.1 判广角）。
+    // 之前的 clamp(30.0, 100.0) 是角度写法，会把任意弧度输入（<30）钳到 30 弧度
+    // （≈1719°）→ tan 周期翻转 → 投影 f 变负 → 画面畸变/颠倒。改为弧度边界。
+    _camera = _camera.copyWith(
+      fov: f.clamp(VoxelCamera.minFov, VoxelCamera.maxFov),
+    );
     _dirty = true;
   }
 
@@ -1732,6 +1931,177 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (mounted) _snack('已读取存档「$name」');
   }
 
+  // ── R26p：游戏中也可以备份当前世界 / 导出存档（与主页管理器共享函数）──
+  Future<void> _backupCurrentFromMenu() async {
+    final List<VoxelManualSaveMeta> saves = await listManualSaves();
+    if (!mounted) return;
+    if (saves.isEmpty) {
+      final Map<String, dynamic>? cur = await readVoxelSave();
+      if (cur == null) {
+        if (mounted) _snack('当前没有可备份的世界');
+        return;
+      }
+      final String id = await writeManualSave(cur, '我的世界');
+      await createBackup(id);
+    } else {
+      await createBackup(saves.first.id);
+    }
+    if (mounted) {
+      _snack('已备份当前世界');
+      _openSaveMenu();
+    }
+  }
+
+  Future<void> _exportManualFromMenu(String id, String name) async {
+    try {
+      final File f = await manualSaveFile(id);
+      if (!await f.exists()) {
+        if (mounted) _snack('文件不存在');
+        return;
+      }
+      await Share.shareXFiles(
+        <XFile>[XFile(f.path)],
+        subject: name,
+        text: '星璃音乐 · 体素世界存档「$name」',
+      );
+    } catch (_) {
+      if (mounted) _snack('导出失败');
+    }
+  }
+
+  /// R26h：游戏中快捷设置（由外层页迁入内部 State）。**不复制**首页设置 UI——
+  /// 直接读写首页设置的同一批 provider（白噪音/世界音效/帧率/播放引擎 →
+  /// 天然联动）；画质档是 3D 内私有状态（[_setQuality] 同步渲染配置）。
+  /// 底部弹窗可滚动（isScrollControlled + 高度上限），窄屏选项也不被截断。
+  void _openQuickSettings() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.appColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.85,
+            ),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpace.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('游戏设置', style: AppTextStyles.subtitle),
+                  const SizedBox(height: 2),
+                  Text(
+                    '与「设置」页共享同一状态，改动即时生效',
+                    style: context.appText.artist,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  // 设置菜单内的存档列表入口（手动存档 · 命名 · 读档/重命名/删除）。
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        _openSaveMenu();
+                      },
+                      icon: const Icon(Icons.save_outlined, size: 18),
+                      label: const Text('存档列表'),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                  const SizedBox(height: AppSpace.md),
+                  // 快捷开关组（声音 / 布局）——分组标题，分类清晰。
+                  Text('快捷开关', style: context.appText.body),
+                  const SizedBox(height: AppSpace.xs),
+                  Consumer(
+                    builder: (BuildContext ctx, WidgetRef ref, Widget? _) {
+                      return Wrap(
+                        spacing: AppSpace.sm,
+                        runSpacing: AppSpace.sm,
+                        children: <Widget>[
+                          FilterChip(
+                            label: const Text('白噪音'),
+                            selected: ref.watch(whiteNoiseEnabledProvider),
+                            onSelected: (bool v) => ref
+                                .read(whiteNoiseEnabledProvider.notifier)
+                                .state = v,
+                          ),
+                          FilterChip(
+                            label: const Text('世界音效'),
+                            selected: ref.watch(worldAudioEnabledProvider),
+                            onSelected: (bool v) => ref
+                                .read(worldAudioEnabledProvider.notifier)
+                                .state = v,
+                          ),
+                          // 布局编辑——开 = 浮动 HUD（坐标/摇杆/动作键）
+                          // 显示边框可拖动；关 = 自动保存位置。核心元素（退出/
+                          // 标题/物品栏/顶部控制条）锁定不可拖。
+                          FilterChip(
+                            label: const Text('布局编辑'),
+                            selected: ref.watch(hudEditProvider),
+                            onSelected: (bool v) => ref
+                                .read(hudEditProvider.notifier)
+                                .state = v,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                  Consumer(
+                    builder: (BuildContext ctx, WidgetRef ref, Widget? _) {
+                      final FpsLimit fps = ref.watch(fpsLimitProvider);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('帧率限制', style: context.appText.body),
+                          const SizedBox(height: AppSpace.xs),
+                          Wrap(
+                            spacing: AppSpace.xs,
+                            children: <Widget>[
+                              for (final FpsLimit f in FpsLimit.values)
+                                ChoiceChip(
+                                  label: Text('${f.value} FPS'),
+                                  selected: fps == f,
+                                  onSelected: (_) => ref
+                                      .read(fpsLimitProvider.notifier)
+                                      .state = f,
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpace.md),
+                          Text('播放引擎', style: context.appText.body),
+                          const SizedBox(height: AppSpace.xs),
+                          Wrap(
+                            spacing: AppSpace.xs,
+                            children: <Widget>[
+                              for (final MusicEngine e in MusicEngine.values)
+                                ChoiceChip(
+                                  label: Text(e.label),
+                                  selected:
+                                      ref.watch(musicEngineProvider) == e,
+                                  onSelected: (_) => ref
+                                      .read(musicEngineProvider.notifier)
+                                      .state = e,
+                                ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   /// 存档菜单：新建（命名）+ 列表（读档 / 重命名 / 删除）。
   Future<void> _openSaveMenu() async {
     final List<VoxelManualSaveMeta> saves = await listManualSaves();
@@ -1794,6 +2164,19 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                   ],
                 ),
                 const SizedBox(height: AppSpace.md),
+                // R26p：一键备份当前世界（快照自动存档到最近存档 / 新建「我的世界」）。
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(sheetContext).pop();
+                      _backupCurrentFromMenu();
+                    },
+                    icon: const Icon(Icons.backup_outlined, size: 18),
+                    label: const Text('备份当前世界'),
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
                 // 存档列表
                 if (saves.isEmpty)
                   Text('暂无手动存档', style: context.appText.artist)
@@ -1836,6 +2219,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                                   _snack('已删除「${s.name}」');
                                   _openSaveMenu();
                                 }
+                              } else if (act == 'backup') {
+                                await createBackup(s.id);
+                                if (mounted) {
+                                  _snack('已备份「${s.name}」');
+                                  _openSaveMenu();
+                                }
+                              } else if (act == 'export') {
+                                Navigator.of(sheetContext).pop();
+                                await _exportManualFromMenu(s.id, s.name);
                               }
                             },
                             itemBuilder: (BuildContext bc) =>
@@ -1843,6 +2235,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                               PopupMenuItem<String>(
                                 value: 'rename',
                                 child: Text('重命名'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'backup',
+                                child: Text('备份当前'),
+                              ),
+                              PopupMenuItem<String>(
+                                value: 'export',
+                                child: Text('导出分享'),
                               ),
                               PopupMenuItem<String>(
                                 value: 'delete',
@@ -1906,11 +2306,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       final ui.Image img = await boundary.toImage(pixelRatio: 2.0);
       final bytes = await img.toByteData(format: ui.ImageByteFormat.png);
       if (bytes == null) return;
-      final Directory dir = await getApplicationDocumentsDirectory();
-      final File file = File(
-        '${dir.path}/voxel_${DateTime.now().millisecondsSinceEpoch}.png',
+      // R26p2：存到「应用支持目录 / captures」，不再进用户「文档」目录。
+      final Directory dir = await getApplicationSupportDirectory();
+      final Directory capDir = Directory('${dir.path}/captures');
+      await capDir.create(recursive: true);
+      final String ts = DateTime.now().millisecondsSinceEpoch.toString();
+      final File png = File('${capDir.path}/voxel_$ts.png');
+      final File json = File('${capDir.path}/voxel_$ts.json');
+      await png.writeAsBytes(bytes.buffer.asUint8List());
+      // 同时写场景快照 JSON，使照片墙能「进入场景」（否则只有图、进不去）。
+      final VoxelSceneCapture cap = VoxelSceneCapture.fromCamera(
+        widget.world,
+        _camera,
+        aspect: 1.0,
+        timePhase: 0.25,
       );
-      await file.writeAsBytes(bytes.buffer.asUint8List());
+      await json.writeAsString(const JsonEncoder().convert(cap.toJson()));
       _snack('已保存截图');
     } catch (e) {
       _snack('截图失败: $e');
@@ -1919,21 +2330,45 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   // ── 画面精度 → 渲染配置映射（R24c）────────────────────
   RenderConfig _configFor(GraphicsQuality q) => RenderConfig(
-        viewDistanceChunks: q.viewDistanceChunks,
-        lodStartChunks: q.lodStartChunks,
-        lodStepChunks: q.lodStepChunks,
+        // R26i/R26p：视距、LOD 起止全部取自共享 provider（与首页「游戏画面」页同源），
+        // 使页内滑块即时生效；画质档仅决定 maxFaces/雾/水波/贴图/分辨率倍率。
+        viewDistanceChunks: ref.read(viewDistanceChunksProvider),
+        lodStartChunks: ref.read(lodStartChunksProvider),
+        lodStepChunks: ref.read(lodStepChunksProvider),
+        // R26p2：云层区块视距独立可调（与首页「游戏画面」同源）。
+        cloudViewDistanceChunks: ref.read(cloudViewDistanceProvider),
         maxFaces: q.maxFaces,
         fogEnabled: q.fog,
         waterAnimation: q.water,
         textureEnabled: q.texture,
+        // R26r2：恢复剔除——透视根因=绘制顺序（已由深度排序修复），剔除无害。
+        // 遮挡剔除：隐藏方块内部面（最大面数收益；被遮挡面本就会被近面盖住）。
         occlusionCull: _occlusionCull,
+        // 背面剔除：去掉背向相机的面（面数减半；画家算法下背面本来就看不见）。
         backFaceCull: true,
+        // 视锥剔除：去掉完全在视角外的区块（AABB 8 角测试，不误删可见面）。
+        frustumCull: true,
+        // R26r2：LOD 采样保持关闭——采样抽稀会在远处制造「空洞」= 另一种透视，
+        // 正确性优先；远处面数由地形面数预算收敛（最远面优先裁、雾掩盖）。
+        lodEnabled: false,
         skyGradient: true,
+        // R26p：关闭区块级 LOD 面剔除——allowMask 误删走廊/隧道里垂直于视线的
+        // 侧壁面（剔穿墙）。远处面数由地形面数预算收敛。
+        lodFaceCull: false,
       );
 
   void _setQuality(GraphicsQuality q) {
     if (_quality == q) return;
     _quality = q;
+    // R26p：画质档切换 → 把其内置的视距/LOD 子参数写回共享 provider，
+    // 使首页「游戏画面」页的滑块与游戏内状态始终一致（修复「参数不同步」）。
+    // provider 变更由 settings_persistence_providers 的 listener 自动落盘。
+    ref.read(viewDistanceChunksProvider.notifier).state =
+        q.viewDistanceChunks.clamp(2, 12);
+    ref.read(lodStartChunksProvider.notifier).state =
+        q.lodStartChunks.clamp(0, 6);
+    ref.read(lodStepChunksProvider.notifier).state =
+        q.lodStepChunks.clamp(1, 4);
     _config = _configFor(q);
     _dirty = true;
     _staticPicture = null; // R26f：画质切换 → 静态快照失效
@@ -1946,6 +2381,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _idle = 0;
   }
 
+  // ── R26o：第三人称摄像机环绕（另一摇杆控制，一键复原）────────
+  void _onTpCamJoy(Offset v) {
+    _tpCamYaw += v.dx * 0.018;
+    _tpCamPitch = (_tpCamPitch - v.dy * 0.018).clamp(-0.35, 1.25);
+    _dirty = true;
+  }
+
+  void _resetTpCam() {
+    setState(() {
+      _tpCamYaw = 0;
+      _tpCamPitch = 0.227; // 默认身后 4 格、上方 2.5 格
+      _tpCamDist = 4.0;
+    });
+    _dirty = true;
+  }
+
   void _toggleBag() => setState(() => _bagOpen = !_bagOpen);
 
   // ── HUD ────────────────────────────────────────────────
@@ -1956,10 +2407,32 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         (_, __) => _audio?.setGlobalVolume(_worldAudioGain()));
     ref.listen<double>(masterVolumeProvider,
         (_, __) => _audio?.setGlobalVolume(_worldAudioGain()));
+    // R26p：世界音效开关即时生效——之前只 init 读一次，菜单里开关只改状态
+    // 不调 _syncAudio()，故开关「没绑定好」。此处补 live 监听（启动/停止引擎）。
+    ref.listen<bool>(worldAudioEnabledProvider, (_, bool v) {
+      if (!mounted) return;
+      _audioEnabled = v;
+      _syncAudio();
+    });
     // R26c：游戏中快捷设置改画质档 → 同步渲染配置（ref.listen 须在 build）。
     ref.listen<GraphicsQuality>(graphicsQualityProvider,
         (GraphicsQuality? prev, GraphicsQuality next) {
       if (prev != next && mounted) _setQuality(next);
+    });
+    // R26i：可见度（视距）独立可调 → 改后同步渲染配置并重绘。
+    // R26m：监听持久化的 viewDistanceChunksProvider（首页设置同源）。
+    ref.listen<int>(viewDistanceChunksProvider, (_, __) {
+      if (!mounted) return;
+      _config = _configFor(_quality);
+      _dirty = true;
+      _staticPicture = null; // 视距变化 → 静态快照失效
+    });
+    // R26p2：云层区块视距独立可调 → 改后同步渲染配置并重绘。
+    ref.listen<int>(cloudViewDistanceProvider, (_, __) {
+      if (!mounted) return;
+      _config = _configFor(_quality);
+      _dirty = true;
+      _staticPicture = null; // 云层视距变化 → 静态快照失效
     });
     // R26d：HUD 布局变化自动持久化到 prefs。
     ref.listen<Map<String, Offset>>(hudLayoutProvider, (prev, next) {
@@ -1982,102 +2455,91 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           child: Padding(
             padding: const EdgeInsets.symmetric(
                 horizontal: AppSpace.md, vertical: AppSpace.xs),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: <Widget>[
-                _ToggleChip(
-                  icon: Icons.high_quality,
-                  label: _quality.label,
-                  onTap: () => _setQuality(
-                    GraphicsQuality.values[(GraphicsQuality.values
-                                .indexOf(_quality) +
-                            1) %
-                        GraphicsQuality.values.length],
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  // R26h：顶部居中信息条（世界名 · 存档时间 · 游戏时长）
+                  _WorldInfoBar(
+                    seedTag: _seedTag,
+                    lastSavedAt: _lastSavedAt,
+                    sessionStart: _sessionStart,
                   ),
-                ),
-                // R26d：存档管理（手动存档 · 命名 · 读档/重命名/删除）
-                _ToggleChip(
-                  icon: Icons.save_outlined,
-                  label: '存档',
-                  onTap: () => _openSaveMenu(),
-                ),
-                // 视角切换：独立按钮组件，点击触发 _cycleViewMode（外部实现）。
-                ViewModeButton(
-                  onPressed: _cycleViewMode,
-                  label: _viewModeLabel(),
-                  tooltip: '切换视角',
-                  semanticsLabel: '切换视角，当前${_viewModeLabel()}',
-                  active: _viewMode != _ViewMode.orbit,
-                ),
-                if (_lastSavedAt != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 7),
-                    decoration: BoxDecoration(
-                      color: const Color(0x59000000),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0x40FFFFFF)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        const Icon(Icons.save_outlined,
-                            size: 16, color: Color(0xFFF2F5FA)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '存档 ${_fmtTime(_lastSavedAt!)}',
-                          style: const TextStyle(
-                            color: Color(0xFFF2F5FA),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 6),
+                  // R26h：顶栏只保留「菜单 / 视角 / 相机 / 存档 / 设置 / 时间」，
+                  // 其余次级控制（坐标 / 模式 / 自动跳 / 画质 / 沉浸）收进折叠面板。
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      // 折叠菜单（坐标 / 模式等次级控制）
+                      _ToggleChip(
+                        icon: Icons.menu,
+                        label: '菜单',
+                        active: _foldOpen,
+                        onTap: () => setState(() => _foldOpen = !_foldOpen),
+                      ),
+                      // 视角切换：独立按钮组件，点击触发 _cycleViewMode。
+                      ViewModeButton(
+                        onPressed: _cycleViewMode,
+                        label: _viewModeLabel(),
+                        tooltip: '切换视角',
+                        semanticsLabel: '切换视角，当前${_viewModeLabel()}',
+                        active: _viewMode != _ViewMode.orbit,
+                      ),
+                      // 相机（取景 / 焦距 / 快门）
+                      _ToggleChip(
+                        icon: Icons.camera_alt_outlined,
+                        label: '相机',
+                        active: _cameraMode,
+                        onTap: () => setState(() => _cameraMode = !_cameraMode),
+                      ),
+                      // 存档管理（手动存档 · 命名 · 读档/重命名/删除）
+                      _ToggleChip(
+                        icon: Icons.save_outlined,
+                        label: '存档',
+                        onTap: () => _openSaveMenu(),
+                      ),
+                      // 设置（游戏中快捷设置，底部弹窗可滑动）
+                      _ToggleChip(
+                        icon: Icons.settings_outlined,
+                        label: '设置',
+                        onTap: _openQuickSettings,
+                      ),
+                      ValueListenableBuilder<String>(
+                        valueListenable: _clockText,
+                        builder: (BuildContext c, String s, Widget? _) =>
+                            _ClockChip(text: s),
+                      ),
+                    ],
                   ),
-                _ToggleChip(
-                  icon: Icons.place,
-                  label: '坐标',
-                  active: _showCoords,
-                  onTap: () => setState(() => _showCoords = !_showCoords),
-                ),
-                if (fp)
-                  _ToggleChip(
-                    icon: Icons.run_circle_outlined,
-                    label: '自动跳',
-                    active: _autoJump,
-                    onTap: () => setState(() => _autoJump = !_autoJump),
-                  ),
-                if (fp)
-                  _ToggleChip(
-                    icon: Icons.camera_alt_outlined,
-                    label: '拍照',
-                    active: _cameraMode,
-                    onTap: () => setState(() => _cameraMode = !_cameraMode),
-                  ),
-                _ToggleChip(
-                  icon: Icons.flutter_dash,
-                  label: _survival ? '生存' : '创造',
-                  active: _survival,
-                  onTap: () => _enterWorld(!_survival),
-                ),
-                ValueListenableBuilder<String>(
-                  valueListenable: _clockText,
-                  builder: (BuildContext c, String s, Widget? _) =>
-                      _ClockChip(text: s),
-                ),
-                _ToggleChip(
-                  icon: _uiCollapsed ? Icons.fullscreen : Icons.fullscreen_exit,
-                  label: _uiCollapsed ? '展开' : '折叠',
-                  onTap: () => setState(() => _uiCollapsed = !_uiCollapsed),
-                ),
-              ],
-            ),
+                ],
+              ),
           ),
         ),
       ),
     );
+
+    // R26h：折叠面板（坐标 / 模式 / 自动跳 / 画质 / 沉浸），开合时显示在顶栏下方。
+    if (_foldOpen)
+      controls.add(
+        Positioned(
+          top: 66,
+          left: AppSpace.md,
+          child: _FoldPanel(
+            showCoords: _showCoords,
+            onToggleCoords: () => setState(() => _showCoords = !_showCoords),
+            survival: _survival,
+            onToggleSurvival: () => _enterWorld(!_survival),
+            autoJump: _autoJump,
+            onToggleAutoJump: () => setState(() => _autoJump = !_autoJump),
+            uiCollapsed: _uiCollapsed,
+            onToggleUiCollapsed: () =>
+                setState(() => _uiCollapsed = !_uiCollapsed),
+            onClose: () => setState(() => _foldOpen = false),
+          ),
+        ),
+      );
 
     // 坐标 HUD（第一人称，R26d：位置可自定义）
     if (fp && _showCoords)
@@ -2112,7 +2574,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _HudWrap(
           id: HudIds.joystick,
           defaultPos: const Offset(0.02, 0.83),
-          child: fp ? _Joystick(onChanged: _onJoystick) : _LiftPad(onPress: _press, onRelease: _release),
+          // R26n：去掉 LiftPad 上下箭头（用户「把左边上下箭头删了」）——
+          // 第一/第三人称统一用摇杆移动；创造升降改由右侧「上升」按钮 + Shift。
+          child: _Joystick(onChanged: _onJoystick),
         ),
       );
 
@@ -2148,8 +2612,36 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
               const SizedBox(height: 12),
               _BigActionButton(
                 icon: Icons.arrow_upward_rounded,
-                label: '跳',
-                onTap: _queueJump,
+                label: _survival ? '跳' : (_flyMode ? '飞行' : '上升'),
+                // R26p-camera：生存 = 点击跳跃；创造 = 双击切换飞行，飞行中按住上升。
+                onPress: _survival ? _queueJump : _onJumpButtonDown,
+                onRelease: _survival ? null : _onJumpButtonUp,
+              ),
+            ],
+          ),
+        ),
+      );
+
+    // R26o：第三人称「环绕」摄像机摇杆（另一摇杆控制相机环绕玩家）+ 一键复原。
+    if (_started &&
+        fp &&
+        _viewMode == _ViewMode.thirdPerson &&
+        !_cameraMode)
+      controls.add(
+        _HudWrap(
+          id: 'tpCamOrbit',
+          defaultPos: const Offset(0.82, 0.5),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text('环绕',
+                  style: TextStyle(color: Color(0xFFF2F5FA), fontSize: 11)),
+              const SizedBox(height: 4),
+              _Joystick(onChanged: _onTpCamJoy),
+              const SizedBox(height: 6),
+              _GlassCircleButton(
+                icon: Icons.center_focus_strong,
+                onTap: _resetTpCam,
               ),
             ],
           ),
@@ -2265,10 +2757,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 用 LayoutBuilder 从实际布局约束取视口尺寸（与 2.5D 画布页同模式）。
     // R26b：外层包 Focus 绑定键盘（_onKey 此前从未被任何 widget 引用 →
     // WASD/方向键/空格/Shift 全失效，玩家完全无法移动/跳跃/蹲）。
+    // R26m：光标保持可见——隐藏 + 无平台鼠标捕获会让视角转到窗口边缘就
+    // "卡死"、体感像"转不动/绑错了"（用户反馈）。相对移动 + 边缘续转
+    // （见 _applyEdgeLook）实现无需插件的 FPS 视角；Alt 仍可暂停视角。
     return Focus(
       onKeyEvent: _onKey,
       autofocus: true,
-      child: LayoutBuilder(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.basic,
+        child: LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           _viewport = constraints.biggest;
           return SizedBox.expand(
@@ -2277,6 +2774,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
             Positioned.fill(
               child: Listener(
                 onPointerSignal: _onPointerSignal,
+                // R26k：桌面鼠标绑定——移动视角 / 左键挖掘 / 右键放置。
+                // 控件（摇杆/动作键/顶栏胶囊）在 Stack 上层先命中，不受影响。
+                onPointerDown: _onPointerDown,
+                onPointerMove: _onPointerMove,
+                onPointerUp: _onPointerUp,
                 child: GestureDetector(
                   // 独立触控区：单指拖动环视；双指捏合 / 滚轮调焦距（FOV）。
                   // 按钮（Joystick/动作键/顶栏胶囊）在其上以 opaque 命中，互不误触。
@@ -2293,6 +2795,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             frame,
                             _quality.texture ? _atlas : null,
                             staticPicture: _staticPicture,
+                            renderScale: _quality.renderScale,
                           ),
                           child: const SizedBox.expand(),
                         ),
@@ -2303,18 +2806,30 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
             if (_showAim)
               Positioned.fill(
-                child: CustomPaint(painter: _AimBoxPainter(this)),
+                // 纯视觉叠层：CustomPaint 默认命中（painter 非空且无 child →
+                // RenderCustomPaint.hitTestSelf 返回 true）会吃掉下方 3D 画布的
+                // 拖拽/缩放事件，导致「视角不能滑动」。IgnorePointer 放行到画布。
+                child: IgnorePointer(
+                  child: CustomPaint(painter: _AimBoxPainter(this)),
+                ),
               ),
             if (fp)
               Positioned.fill(
-                child: CustomPaint(painter: _CrosshairPainter()),
+                // 同上：准星纯视觉，必须 IgnorePointer，否则吞掉拖拽事件。
+                child: IgnorePointer(
+                  child: CustomPaint(painter: _CrosshairPainter()),
+                ),
               ),
             if (fp)
               Positioned.fill(
-                child: ValueListenableBuilder<double>(
-                  valueListenable: _crackNotifier,
-                  builder: (BuildContext c, double _, Widget? __) =>
-                      CustomPaint(painter: _CrackPainter(_crackNotifier)),
+                // 同上：挖掘裂纹纯视觉叠层，必须 IgnorePointer，否则吞掉画布的
+                // 拖拽/缩放事件，导致「视角不能滑动」。
+                child: IgnorePointer(
+                  child: ValueListenableBuilder<double>(
+                    valueListenable: _crackNotifier,
+                    builder: (BuildContext c, double _, Widget? __) =>
+                        CustomPaint(painter: _CrackPainter(_crackNotifier)),
+                  ),
                 ),
               ),
             if (!_started)
@@ -2342,19 +2857,29 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         );
         },
       ),
+      ),
     );
   }
 }   // ← 关闭 _VoxelWorldView3DState
 
 /// R24c: 体素帧画家：消费 [VoxelFrame]，按图集分流纯色/贴图；画家算法单桶（先不透明后半透明，根治水穿透）。
 class _VoxelFramePainter extends CustomPainter {
-  _VoxelFramePainter(this.frame, this.atlas, {this.staticPicture});
+  _VoxelFramePainter(
+    this.frame,
+    this.atlas, {
+    this.staticPicture,
+    this.renderScale = 1.0,
+  });
   final VoxelFrame frame;
   final ui.Image? atlas;
 
   /// R26f：静态快照（相机静止 ≥1.5s 录制的整帧 Picture）。
   /// 非空时直接 drawPicture 跳过全部绘制逻辑（挂机/观景 CPU -90%）。
   final ui.Picture? staticPicture;
+
+  /// R26o：渲染分辨率倍率。帧坐标按 renderScale 倍视口算出，绘制时放大
+  /// 1/renderScale 铺满全屏（性能档 0.5 = 半分辨率 + 放大，帧率翻倍）。
+  final double renderScale;
 
   late final ui.ImageShader? _shader = atlas == null
       ? null
@@ -2392,95 +2917,108 @@ class _VoxelFramePainter extends CustomPainter {
       return;
     }
     final SkyPalette sky = frame.sky;
+    // R26o：低分辨率渲染——整帧画在 renderScale 倍空间再放大铺满全屏。
+    canvas.save();
+    canvas.scale(1.0 / renderScale);
+    final Size fs = Size(size.width * renderScale, size.height * renderScale);
     canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
+      Rect.fromLTWH(0, 0, fs.width, fs.height),
       Paint()
         ..shader = ui.Gradient.linear(
           Offset(0, 0),
-          Offset(0, size.height),
+          Offset(0, fs.height),
           <Color>[sky.zenith, sky.horizon],
         ),
     );
-    _drawSkyDecor(canvas, size);
-    // R25：批量网格优先（每材质 1 次 drawVertices，GPU 加速）；占位空帧回退逐面。
-    if (frame.opaquePlain != null ||
-        frame.opaqueTextured != null ||
-        frame.waterBatch != null ||
-        frame.edges != null) {
+    _drawSkyDecor(canvas, fs);
+    // R25：批量网格优先（每材质按深度桶 1 次 drawVertices，GPU 加速）；
+    // 占位空帧（所有桶为空）回退逐面绘制。
+    if (frame.opaquePlainBuckets.any((b) => b != null) ||
+        frame.opaqueTexturedBuckets.any((b) => b != null) ||
+        frame.waterBuckets.any((b) => b != null) ||
+        frame.edgeBuckets.any((b) => b != null)) {
       _drawBatched(canvas);
     } else {
       final bool textured = _shader != null;
       _drawFaces(canvas, frame.opaque, textured);
       _drawFaces(canvas, frame.translucent, textured);
     }
+    canvas.restore();
   }
 
-  /// R25：批量提交。不透明纯色 → 贴图 → 水面 → 描边线段，各 1 次 drawVertices。
+  /// R25：批量提交。地形面 / 水面 / 描边按相机深度 8 桶（远→近）逐桶交错提交，
+  /// 每桶内 不透明纯色 → 贴图 → 水面 → 描边，确保画家算法正确（无透视/穿墙）。
   void _drawBatched(Canvas canvas) {
     final VoxelFrame f = frame;
-    if (f.opaquePlain != null) {
-      canvas.drawVertices(
-        ui.Vertices.raw(
-          ui.VertexMode.triangles,
-          f.opaquePlain!.positions,
-          colors: f.opaquePlain!.colors,
-        ),
-        ui.BlendMode.srcOver,
-        _plainPaint,
-      );
-    }
-    if (f.opaqueTextured != null) {
-      canvas.drawVertices(
-        ui.Vertices.raw(
-          ui.VertexMode.triangles,
-          f.opaqueTextured!.positions,
-          colors: f.opaqueTextured!.colors,
-          textureCoordinates: f.opaqueTextured!.uv!,
-        ),
-        ui.BlendMode.srcOver,
-        _texPaint,
-      );
-    }
-    if (f.waterBatch != null) {
-      canvas.drawVertices(
-        ui.Vertices.raw(
-          ui.VertexMode.triangles,
-          f.waterBatch!.positions,
-          colors: f.waterBatch!.colors,
-          textureCoordinates: f.waterBatch!.uv!,
-        ),
-        ui.BlendMode.srcOver,
-        _texPaint,
-      );
-    }
-    // R26b：描边深度桶优先（远→近依次绘制，前面面的描边盖住后面面的），
-    // 修复旧实现单批次一次提交导致的「描边透视」；空则回退单批次。
-    final List<VoxelMeshBatch> edgeBatches = f.edgeBatches.isNotEmpty
-        ? f.edgeBatches
-        : <VoxelMeshBatch>[if (f.edges != null) f.edges!];
-    for (final VoxelMeshBatch e in edgeBatches) {
-      canvas.drawVertices(
-        ui.Vertices.raw(
-          ui.VertexMode.triangles,
-          e.positions,
-          colors: e.colors,
-        ),
-        ui.BlendMode.srcOver,
-        _edgePaint,
-      );
+    // R26q：画家算法——远→近绘制。桶索引 bkt=(depth/far*8)：桶 7=最远、桶 0=最近。
+    // 必须先画远桶(7)、后画近桶(0)，近面才能盖住远面，消除「透视/穿墙」。
+    // 原循环 for(i=0..7) 是「先近后远」，远面盖在近面上 = 典型的 x-ray，已反转。
+    for (int i = 7; i >= 0; i--) {
+      final VoxelMeshBatch? plain = f.opaquePlainBuckets[i];
+      if (plain != null) {
+        canvas.drawVertices(
+          ui.Vertices.raw(
+            ui.VertexMode.triangles,
+            plain.positions,
+            colors: plain.colors,
+          ),
+          ui.BlendMode.srcOver,
+          _plainPaint,
+        );
+      }
+      final VoxelMeshBatch? tex = f.opaqueTexturedBuckets[i];
+      if (tex != null) {
+        canvas.drawVertices(
+          ui.Vertices.raw(
+            ui.VertexMode.triangles,
+            tex.positions,
+            colors: tex.colors,
+            textureCoordinates: tex.uv,
+          ),
+          ui.BlendMode.srcOver,
+          _texPaint,
+        );
+      }
+      final VoxelMeshBatch? water = f.waterBuckets[i];
+      if (water != null) {
+        canvas.drawVertices(
+          ui.Vertices.raw(
+            ui.VertexMode.triangles,
+            water.positions,
+            colors: water.colors,
+            textureCoordinates: water.uv,
+          ),
+          ui.BlendMode.srcOver,
+          _texPaint,
+        );
+      }
+      final VoxelMeshBatch? edge = f.edgeBuckets[i];
+      if (edge != null) {
+        canvas.drawVertices(
+          ui.Vertices.raw(
+            ui.VertexMode.triangles,
+            edge.positions,
+            colors: edge.colors,
+          ),
+          ui.BlendMode.srcOver,
+          _edgePaint,
+        );
+      }
     }
   }
 
-  /// 太阳 + 云（天象层）：画在天空渐变之上、地形之下。
-  /// 太阳方向来自 [VoxelFrame.sunX/Y/Z]（世界空间），粗略映射到屏幕；夜间 sunWeight≈0 不绘制。
+  /// 太阳 + 月亮（天象层）：画在天空渐变之上、地形之下。
+  /// 坐标来自 [VoxelFrame.sunSX/sunSY] 等——由相机投影得到（真实 3D 天象，
+  /// 转视角时随世界移动，不是屏幕固定）；落在相机后方/地平线下时
+  /// [VoxelFrame.sunVisible]/[VoxelFrame.moonVisible]=false，不绘制。
   void _drawSkyDecor(Canvas canvas, Size size) {
-    final double sw = frame.sunWeight;
-    if (sw > 0.04) {
-      final double ang = math.atan2(frame.sunX, frame.sunZ);
-      final double sx = size.width * 0.5 + math.sin(ang) * size.width * 0.42;
-      final double sy = size.height * 0.62 - frame.sunY * size.height * 0.5;
-      if (sy > -60 && sy < size.height) {
-        final double r = 24 + sw * 16;
+    // 太阳（白天）。
+    if (frame.sunVisible && frame.sunWeight > 0.04) {
+      final double sx = frame.sunSX;
+      final double sy = frame.sunSY;
+      if (sy > -80 && sy < size.height + 80) {
+        final double sw = frame.sunWeight;
+        final double r = 22 + sw * 16;
         canvas.drawCircle(
           Offset(sx, sy),
           r,
@@ -2497,8 +3035,25 @@ class _VoxelFramePainter extends CustomPainter {
         );
       }
     }
-    // R26b：云已改为「世界空间方块云」（见 VoxelRenderer._emitClouds：
-    // 不透明、自北向南漂移、随相机铺开），此处不再画屏幕固定的半透明椭圆。
+    // 月亮（夜里，sunWeight 低时）。投影取 -sunDir，故夜间月亮在天顶附近。
+    if (frame.moonVisible && frame.sunWeight < 0.5) {
+      final double mx = frame.moonSX;
+      final double my = frame.moonSY;
+      if (my > -80 && my < size.height + 80) {
+        canvas.drawCircle(
+          Offset(mx, my),
+          15,
+          Paint()..color = const Color(0xFFE8ECF2),
+        );
+        canvas.drawCircle(
+          Offset(mx, my),
+          36,
+          Paint()
+            ..color = const Color(0x332C3350)
+            ..blendMode = ui.BlendMode.screen,
+        );
+      }
+    }
   }
 
   void _drawFaces(Canvas canvas, List<RenderFace> faces, bool textured) {
@@ -2557,37 +3112,38 @@ class _HudWrap extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bool edit = ref.watch(hudEditProvider);
     final Offset pos = ref.watch(hudLayoutProvider)[id] ?? defaultPos;
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final Size size = Size(constraints.maxWidth, constraints.maxHeight);
-        final double left = pos.dx * size.width;
-        final double top = pos.dy * size.height;
-        final Widget content = GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onPanUpdate: edit
-              ? (DragUpdateDetails d) {
-                  final Offset np = Offset(
-                    (pos.dx + d.delta.dx / size.width).clamp(0.0, 0.92),
-                    (pos.dy + d.delta.dy / size.height).clamp(0.0, 0.92),
-                  );
-                  ref
-                      .read(hudLayoutProvider.notifier)
-                      .update((Map<String, Offset> m) => <String, Offset>{...m, id: np});
-                }
-              : null,
-          child: Container(
-            decoration: edit
-                ? BoxDecoration(
-                    border: Border.all(color: const Color(0xFFFFC107)),
-                    borderRadius: BorderRadius.circular(6),
-                  )
-                : null,
-            child: child,
-          ),
-        );
-        return Positioned(left: left, top: top, child: content);
-      },
+    // R26g 修复：此前用 LayoutBuilder 取尺寸再返回 Positioned——Positioned
+    // 被包在 LayoutBuilder 子级里违反 ParentDataWidget（Positioned 必须直接
+    // 挂在 Stack 下），进入世界（摇杆/动作键出现）即抛异常（用户「点生存
+    // 后画面异常」的伴随 bug）。改用 MediaQuery 视口尺寸计算归一化位置，
+    // 直接返回 Positioned（作为 Stack 的直接子级，合法）。
+    final Size size = MediaQuery.of(context).size;
+    final double left = pos.dx * size.width;
+    final double top = pos.dy * size.height;
+    final Widget content = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanUpdate: edit
+          ? (DragUpdateDetails d) {
+              final Offset np = Offset(
+                (pos.dx + d.delta.dx / size.width).clamp(0.0, 0.92),
+                (pos.dy + d.delta.dy / size.height).clamp(0.0, 0.92),
+              );
+              ref
+                  .read(hudLayoutProvider.notifier)
+                  .update((Map<String, Offset> m) => <String, Offset>{...m, id: np});
+            }
+          : null,
+      child: Container(
+        decoration: edit
+            ? BoxDecoration(
+                border: Border.all(color: const Color(0xFFFFC107)),
+                borderRadius: BorderRadius.circular(6),
+              )
+            : null,
+        child: child,
+      ),
     );
+    return Positioned(left: left, top: top, child: content);
   }
 }
 
@@ -2864,6 +3420,9 @@ class VoxelWorld3DPage extends StatefulWidget {
 }
 
 class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
+  /// R26g：视图 State 桥（设置弹层里的「存档列表」入口需触达视图层的
+  /// `_openSaveMenu`，用 GlobalKey 拿视图 State 动态调用）。
+  final GlobalKey _viewKey = GlobalKey();
   late int _seed = widget.seed;
   late VoxelWorld _world = VoxelWorld(seed: _seed);
 
@@ -2884,141 +3443,8 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
     });
   }
 
-  /// R26c：游戏中快捷设置。**不复制**首页设置 UI——直接读写首页设置的同一批
-  /// provider（白噪音/世界音效/帧率/播放引擎 → 天然联动）；画质档是 3D 内
-  /// 私有状态（[_setQuality] 同步渲染配置）。卡片式列表，项少、尺寸受限。
-  void _openQuickSettings() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.appColors.bgSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpace.md),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('快捷设置', style: AppTextStyles.subtitle),
-                const SizedBox(height: 2),
-                Text(
-                  '与「设置」页共享同一状态，改动即时生效',
-                  style: context.appText.artist,
-                ),
-                const SizedBox(height: AppSpace.md),
-                const SizedBox(height: AppSpace.md),
-                Text('画质', style: context.appText.body),
-                const SizedBox(height: AppSpace.xs),
-                Consumer(
-                  builder: (BuildContext ctx, WidgetRef ref, Widget? _) {
-                    final GraphicsQuality q0 =
-                        ref.watch(graphicsQualityProvider);
-                    return Wrap(
-                      spacing: AppSpace.xs,
-                      children: <Widget>[
-                        for (final GraphicsQuality q in GraphicsQuality.values)
-                          ChoiceChip(
-                            label: Text(q.label),
-                            selected: q0 == q,
-                            onSelected: (_) => ref
-                                .read(graphicsQualityProvider.notifier)
-                                .state = q,
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSpace.md),
-                // R26d：快捷开关组（声音 / 布局）——分组标题，分类清晰。
-                Text('快捷开关', style: context.appText.body),
-                const SizedBox(height: AppSpace.xs),
-                Consumer(
-                  builder: (BuildContext ctx, WidgetRef ref, Widget? _) {
-                    return Wrap(
-                      spacing: AppSpace.sm,
-                      runSpacing: AppSpace.sm,
-                      children: <Widget>[
-                        FilterChip(
-                          label: const Text('白噪音'),
-                          selected: ref.watch(whiteNoiseEnabledProvider),
-                          onSelected: (bool v) => ref
-                              .read(whiteNoiseEnabledProvider.notifier)
-                              .state = v,
-                        ),
-                        FilterChip(
-                          label: const Text('世界音效'),
-                          selected: ref.watch(worldAudioEnabledProvider),
-                          onSelected: (bool v) => ref
-                              .read(worldAudioEnabledProvider.notifier)
-                              .state = v,
-                        ),
-                        // R26d：布局编辑——开 = 浮动 HUD（坐标/摇杆/动作键）
-                        // 显示边框可拖动；关 = 自动保存位置。核心元素（退出/
-                        // 标题/物品栏/顶部控制条）锁定不可拖。
-                        FilterChip(
-                          label: const Text('布局编辑'),
-                          selected: ref.watch(hudEditProvider),
-                          onSelected: (bool v) => ref
-                              .read(hudEditProvider.notifier)
-                              .state = v,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: AppSpace.md),
-                Consumer(
-                  builder: (BuildContext ctx, WidgetRef ref, Widget? _) {
-                    final FpsLimit fps = ref.watch(fpsLimitProvider);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Text('帧率限制', style: context.appText.body),
-                        const SizedBox(height: AppSpace.xs),
-                        Wrap(
-                          spacing: AppSpace.xs,
-                          children: <Widget>[
-                            for (final FpsLimit f in FpsLimit.values)
-                              ChoiceChip(
-                                label: Text('${f.value} FPS'),
-                                selected: fps == f,
-                                onSelected: (_) => ref
-                                    .read(fpsLimitProvider.notifier)
-                                    .state = f,
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: AppSpace.md),
-                        Text('播放引擎', style: context.appText.body),
-                        const SizedBox(height: AppSpace.xs),
-                        Wrap(
-                          spacing: AppSpace.xs,
-                          children: <Widget>[
-                            for (final MusicEngine e in MusicEngine.values)
-                              ChoiceChip(
-                                label: Text(e.label),
-                                selected:
-                                    ref.watch(musicEngineProvider) == e,
-                                onSelected: (_) => ref
-                                    .read(musicEngineProvider.notifier)
-                                    .state = e,
-                              ),
-                          ],
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+  // R26h：_openQuickSettings 已迁入内部 _VoxelWorldView3DState（顶栏「设置」
+  // 按钮直接调用；存档列表入口改为直接调用本类的 _openSaveMenu，去掉 _viewKey 中转）。
 
   String get _seedTag =>
       '#${(_seed & 0xffff).toRadixString(16).toUpperCase().padLeft(4, '0')}';
@@ -3036,7 +3462,11 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(
-              child: VoxelWorldView3D(world: _world, cameraOut: _cameraOut),
+              child: VoxelWorldView3D(
+                key: _viewKey,
+                world: _world,
+                cameraOut: _cameraOut,
+              ),
             ),
             SafeArea(
               child: Padding(
@@ -3046,17 +3476,6 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                     _GlassCircleButton(
                       icon: Icons.arrow_back,
                       onTap: () => Navigator.of(context).maybePop(),
-                    ),
-                    const SizedBox(width: AppSpace.xs),
-                    Flexible(
-                      child: Text(
-                        '体素世界 $_seedTag',
-                        style: AppTextStyles.subtitle.copyWith(
-                          color: const Color(0xFFF2F5FA),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
                     ),
                     const Spacer(),
                     _GlassCircleButton(
@@ -3098,17 +3517,200 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                       ),
                     ),
                     const SizedBox(width: AppSpace.xs),
-                    // R26c：游戏中快捷设置（引用首页设置的同一批 provider，天然联动）。
-                    _GlassCircleButton(
-                      icon: Icons.settings_outlined,
-                      onTap: _openQuickSettings,
-                    ),
                   ],
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// R26h：顶部居中信息条——世界名 · 存档时间 · 游戏时长 三合一。
+/// 游戏时长由内部 1s 定时器自更新，与渲染帧率解耦。
+class _WorldInfoBar extends StatefulWidget {
+  const _WorldInfoBar({
+    required this.seedTag,
+    this.lastSavedAt,
+    this.sessionStart,
+  });
+
+  final String seedTag;
+  final DateTime? lastSavedAt;
+  final DateTime? sessionStart;
+
+  @override
+  State<_WorldInfoBar> createState() => _WorldInfoBarState();
+}
+
+class _WorldInfoBarState extends State<_WorldInfoBar> {
+  Timer? _timer;
+  String _duration = '0秒';
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
+  }
+
+  @override
+  void didUpdateWidget(covariant _WorldInfoBar old) {
+    super.didUpdateWidget(old);
+    if (old.sessionStart != widget.sessionStart ||
+        old.lastSavedAt != widget.lastSavedAt) {
+      _refresh();
+    }
+  }
+
+  void _refresh() {
+    final DateTime? s = widget.sessionStart;
+    final Duration d = s == null ? Duration.zero : DateTime.now().difference(s);
+    final int h = d.inHours;
+    final int m = d.inMinutes % 60;
+    final int sec = d.inSeconds % 60;
+    final String dur =
+        h > 0 ? '$h时${m}分' : (m > 0 ? '$m分${sec}秒' : '${sec}秒');
+    if (mounted && dur != _duration) setState(() => _duration = dur);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _fmt(DateTime t) {
+    final int h = t.hour, m = t.minute, s = t.second;
+    String p2(int v) => v.toString().padLeft(2, '0');
+    return '${p2(h)}:${p2(m)}:${p2(s)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String save =
+        widget.lastSavedAt == null ? '—' : _fmt(widget.lastSavedAt!);
+    final TextStyle style = const TextStyle(
+      color: Color(0xFFF2F5FA),
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: const Color(0x59000000),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0x40FFFFFF)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.public, size: 15, color: Color(0xFFF2F5FA)),
+          const SizedBox(width: 5),
+          Text('体素世界 ${widget.seedTag}', style: style),
+          const SizedBox(width: 10),
+          const Icon(Icons.save_outlined, size: 14, color: Color(0xFFF2F5FA)),
+          const SizedBox(width: 4),
+          Text('存档 $save', style: style),
+          const SizedBox(width: 10),
+          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFFF2F5FA)),
+          const SizedBox(width: 4),
+          Text('时长 $_duration', style: style),
+        ],
+      ),
+    );
+  }
+}
+
+/// R26h/R26p2：折叠面板——收纳次级控制（坐标 / 模式 / 自动跳 / 沉浸），
+/// 由顶栏「菜单」按钮开合，避免顶栏按钮过多。视距 / 画质仅保留在首页
+/// 「游戏画面」设置页（与游戏内共享 provider），不在游戏内菜单堆砌。
+class _FoldPanel extends StatelessWidget {
+  const _FoldPanel({
+    required this.showCoords,
+    required this.onToggleCoords,
+    required this.survival,
+    required this.onToggleSurvival,
+    required this.autoJump,
+    required this.onToggleAutoJump,
+    required this.uiCollapsed,
+    required this.onToggleUiCollapsed,
+    required this.onClose,
+  });
+
+  final bool showCoords;
+  final VoidCallback onToggleCoords;
+  final bool survival;
+  final VoidCallback onToggleSurvival;
+  final bool autoJump;
+  final VoidCallback onToggleAutoJump;
+  final bool uiCollapsed;
+  final VoidCallback onToggleUiCollapsed;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget sep = const SizedBox(height: 6);
+    return Container(
+      width: 232,
+      padding: const EdgeInsets.all(AppSpace.sm),
+      decoration: BoxDecoration(
+        color: context.appColors.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: const Color(0x40FFFFFF)),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x40000000),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(child: Text('折叠菜单', style: context.appText.body)),
+              GestureDetector(
+                onTap: onClose,
+                behavior: HitTestBehavior.opaque,
+                child: const Icon(Icons.close, size: 18, color: Color(0xFFF2F5FA)),
+              ),
+            ],
+          ),
+          sep,
+          _ToggleChip(
+            icon: Icons.place,
+            label: '坐标',
+            active: showCoords,
+            onTap: onToggleCoords,
+          ),
+          sep,
+          _ToggleChip(
+            icon: Icons.flutter_dash,
+            label: survival ? '生存' : '创造',
+            active: survival,
+            onTap: onToggleSurvival,
+          ),
+          sep,
+          _ToggleChip(
+            icon: Icons.run_circle_outlined,
+            label: '自动跳',
+            active: autoJump,
+            onTap: onToggleAutoJump,
+          ),
+          sep,
+          _ToggleChip(
+            icon: uiCollapsed ? Icons.fullscreen : Icons.fullscreen_exit,
+            label: uiCollapsed ? '展开' : '折叠',
+            active: uiCollapsed,
+            onTap: onToggleUiCollapsed,
+          ),
+        ],
       ),
     );
   }
@@ -3178,9 +3780,11 @@ class _CameraPanel extends StatelessWidget {
           SizedBox(
             width: 110,
             child: Slider(
-              value: fov.clamp(0.35, 1.5),
-              min: 0.35,
-              max: 1.5,
+              // 相机 fov 为弧度，滑块范围与 VoxelCamera 弧度边界对齐
+              // （原 0.35~1.5 与 _setFov 旧角度钳制不一致）。
+              value: fov.clamp(VoxelCamera.minFov, VoxelCamera.maxFov),
+              min: VoxelCamera.minFov,
+              max: VoxelCamera.maxFov,
               activeColor: const Color(0xFFFFD54F),
               onChanged: onFov,
             ),

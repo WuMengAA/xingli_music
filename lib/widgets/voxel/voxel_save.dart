@@ -3,7 +3,8 @@
 ///
 /// 定时 30s 周期落盘 + 进出世界时落盘，把"所有东西"持久化到本地 JSON：
 /// 世界编辑层 / 发光方块 / 相机机位 / 视角模式 / 第一人称坐标 / 体素小人位置 /
-/// 生存数值 / 背包。文件位于应用文档目录 `voxel_world_save.json`。
+/// 生存数值 / 背包。文件位于**应用支持目录**（getApplicationSupportDirectory，
+/// 即 AppData/Roaming 等，**不再写入用户「文档」目录**）。
 /// ════════════════════════════════════════════════════════════════════════
 library;
 
@@ -13,10 +14,64 @@ import 'dart:io' show Directory, File, FileSystemEntity, Platform;
 
 import 'package:path_provider/path_provider.dart';
 
+import 'voxel_world.dart';
+
 const String _kVoxelSaveFile = 'voxel_world_save.json';
 
+/// 应用私有数据目录：支持目录（不再用文档目录，避免污染「文档」）。
+/// 首次调用时把旧文档目录里的存档一次性搬到此处（失败静默）。
+Future<Directory> _appDataDir() async {
+  final Directory dir = await getApplicationSupportDirectory();
+  await dir.create(recursive: true);
+  await _migrateFromDocuments(dir);
+  return dir;
+}
+
+bool _migratedFromDocuments = false;
+Future<void> _migrateFromDocuments(Directory target) async {
+  if (_migratedFromDocuments) return;
+  _migratedFromDocuments = true;
+  try {
+    final Directory old = await getApplicationDocumentsDirectory();
+    if (!await old.exists()) return;
+    // 自动存档 + 手动存档 + 备份：voxel_world_save.json / voxel_save_*
+    await for (final FileSystemEntity e in old.list()) {
+      final String n = e.path.split(Platform.pathSeparator).last;
+      if (n == _kVoxelSaveFile || n.startsWith('voxel_save')) {
+        try {
+          final File dest =
+              File('${target.path}${Platform.pathSeparator}$n');
+          if (e is File && !await dest.exists()) await e.rename(dest.path);
+        } catch (_) {
+          // 单文件失败不影响其余
+        }
+      }
+    }
+    // 旧截图目录（若有）整体搬入支持目录
+    final Directory oldCap =
+        Directory('${old.path}${Platform.pathSeparator}captures');
+    if (await oldCap.exists()) {
+      final Directory newCap =
+          Directory('${target.path}${Platform.pathSeparator}captures');
+      await newCap.create(recursive: true);
+      await for (final FileSystemEntity e in oldCap.list()) {
+        try {
+          final String n = e.path.split(Platform.pathSeparator).last;
+          final File dest =
+              File('${newCap.path}${Platform.pathSeparator}$n');
+          if (e is File && !await dest.exists()) await e.rename(dest.path);
+        } catch (_) {
+          // 单文件失败不影响其余
+        }
+      }
+    }
+  } catch (_) {
+    // 迁移失败静默（不影响后续游玩）
+  }
+}
+
 Future<File> _voxelSavePath() async {
-  final Directory dir = await getApplicationDocumentsDirectory();
+  final Directory dir = await _appDataDir();
   return File('${dir.path}/$_kVoxelSaveFile');
 }
 
@@ -79,7 +134,7 @@ class VoxelManualSaveMeta {
   final DateTime createdAt;
 }
 
-Future<Directory> _voxelDir() async => getApplicationDocumentsDirectory();
+Future<Directory> _voxelDir() async => _appDataDir();
 
 Future<String> _manualPath(String id) async {
   final Directory d = await _voxelDir();
@@ -181,4 +236,163 @@ Future<void> renameManualSave(String id, String name) async {
   } catch (_) {
     // 忽略
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// R26p 存档增强：同一存档「多个自动备份」+ 导出分享 + 导入 + 新建空白世界。
+// 备份文件命名：`voxel_save_<id>_bak_<ts>.json`，元数据 parent=id、ts=时间戳，
+// 列表时按创建时间倒序；恢复时与手动存档走完全相同的 _applySaveData 路径。
+// ─────────────────────────────────────────────────────────────
+
+/// 备份文件路径（同一存档的多个时间戳快照）。
+Future<String> _bakPath(String id, String ts) async {
+  final Directory d = await _voxelDir();
+  return '${d.path}${Platform.pathSeparator}voxel_save_${id}_bak_${ts}.json';
+}
+
+/// 列出某存档的全部备份（按创建时间倒序）；损坏文件跳过。
+Future<List<VoxelManualSaveMeta>> listBackups(String id) async {
+  final Directory d = await _voxelDir();
+  if (!await d.exists()) return <VoxelManualSaveMeta>[];
+  final String pre = '${_kManualPrefix}${id}_bak';
+  final List<VoxelManualSaveMeta> metas = <VoxelManualSaveMeta>[];
+  await for (final FileSystemEntity e in d.list()) {
+    final String n = e.path.split(Platform.pathSeparator).last;
+    if (!n.startsWith(pre) || !n.endsWith(_kManualSuffix)) continue;
+    final String ts = n.substring(pre.length, n.length - _kManualSuffix.length);
+    try {
+      final String raw = await File(e.path).readAsString();
+      final dynamic parsed = const JsonDecoder().convert(raw);
+      if (parsed is! Map<String, dynamic>) continue;
+      final dynamic m = parsed['_meta'];
+      final String name = (m is Map && m['name'] is String)
+          ? m['name'] as String
+          : '备份';
+      final DateTime createdAt =
+          (m is Map && m['createdAt'] is String &&
+                  DateTime.tryParse(m['createdAt'] as String) != null)
+              ? DateTime.parse(m['createdAt'] as String)
+              : DateTime.fromMillisecondsSinceEpoch(
+                  int.tryParse(ts, radix: 36) ?? 0,
+                );
+      // meta.id 编码为 "<存档id>|<时间戳>"，便于管理器拆分定位。
+      metas.add(VoxelManualSaveMeta(
+        id: '$id|$ts',
+        name: name,
+        createdAt: createdAt,
+      ));
+    } catch (_) {
+      // 损坏备份跳过
+    }
+  }
+  metas.sort((VoxelManualSaveMeta a, VoxelManualSaveMeta b) =>
+      b.createdAt.compareTo(a.createdAt));
+  return metas;
+}
+
+/// 把「当前正在游玩的世界」（自动存档）快照为一个备份，挂到 [id] 存档下。
+/// 自动存档为空时回退用该存档自身数据；两者皆空则不产生备份。
+Future<String?> createBackup(String id) async {
+  final Map<String, dynamic>? current = await readVoxelSave();
+  final Map<String, dynamic> data =
+      current ?? await readManualSave(id) ?? <String, dynamic>{};
+  if (data.isEmpty) return null;
+  final Map<String, dynamic>? main = await readManualSave(id);
+  final String baseName =
+      (main?['_meta'] is Map && main!['_meta']['name'] is String)
+          ? main['_meta']['name'] as String
+          : '存档';
+  final String ts = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+  data['_meta'] = <String, dynamic>{
+    'name': '$baseName · 备份',
+    'createdAt': DateTime.now().toIso8601String(),
+    'parent': id,
+    'ts': ts,
+  };
+  final File f = File(await _bakPath(id, ts));
+  await f.writeAsString(const JsonEncoder().convert(data));
+  return ts;
+}
+
+/// 读取指定备份；不存在 / 损坏返回 null。
+Future<Map<String, dynamic>?> readBackup(String id, String ts) async {
+  try {
+    final File f = File(await _bakPath(id, ts));
+    if (!await f.exists()) return null;
+    final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+    if (parsed is Map<String, dynamic>) return parsed;
+  } catch (_) {
+    // 损坏忽略
+  }
+  return null;
+}
+
+/// 删除指定备份。
+Future<void> deleteBackup(String id, String ts) async {
+  try {
+    final File f = File(await _bakPath(id, ts));
+    if (await f.exists()) await f.delete();
+  } catch (_) {
+    // 忽略
+  }
+}
+
+/// 删除存档及其全部备份（一键清理）。
+Future<void> deleteSaveWithBackups(String id) async {
+  await deleteManualSave(id);
+  final List<VoxelManualSaveMeta> baks = await listBackups(id);
+  for (final VoxelManualSaveMeta b in baks) {
+    final List<String> parts = b.id.split('|');
+    if (parts.length == 2) await deleteBackup(parts[0], parts[1]);
+  }
+}
+
+/// 导出用：返回存档文件（供分享 / 复制）。
+Future<File> manualSaveFile(String id) async => File(await _manualPath(id));
+
+/// 导出用：返回备份文件。
+Future<File> backupFile(String id, String ts) async =>
+    File(await _bakPath(id, ts));
+
+/// 从外部文件导入为新的手动存档（保留源命名；文件损坏返回 null）。
+Future<String?> importSave(File source) async {
+  final String raw;
+  try {
+    raw = await source.readAsString();
+  } catch (_) {
+    return null;
+  }
+  dynamic parsed;
+  try {
+    parsed = const JsonDecoder().convert(raw);
+  } catch (_) {
+    parsed = null;
+  }
+  if (parsed is! Map<String, dynamic>) return null;
+  final Map<String, dynamic> data = Map<String, dynamic>.from(parsed);
+  final dynamic m = data['_meta'];
+  final String name = (m is Map && m['name'] is String)
+      ? m['name'] as String
+      : '导入的存档';
+  data['_meta'] = <String, dynamic>{
+    'name': name,
+    'createdAt': DateTime.now().toIso8601String(),
+  };
+  final String id =
+      DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
+          '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
+  final File f = File(await _manualPath(id));
+  await f.writeAsString(const JsonEncoder().convert(data));
+  return id;
+}
+
+/// 生成一份全新的空白世界存档数据（仅含种子化地形，生存/背包/机位走默认值）。
+/// 用于「新建空白世界」：管理器无活动世界实例，直接由模型构造最小合法存档。
+Map<String, dynamic> freshWorldSave(int seed) {
+  final VoxelWorld w = VoxelWorld(seed: seed);
+  return <String, dynamic>{
+    'v': 1,
+    'savedAt': DateTime.now().millisecondsSinceEpoch,
+    'world': w.toJson(),
+  };
 }

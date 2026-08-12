@@ -49,6 +49,7 @@ class SettingsRepository {
   static const String kPerformanceMode = 'settings.performanceMode';
   static const String kFpsLimit = 'settings.fpsLimit';
   static const String kViewDistanceChunks = 'settings.voxel.viewDistanceChunks';
+  static const String kGraphicsQuality = 'settings.voxel.graphicsQuality';
   static const String kLodStartChunks = 'settings.voxel.lodStartChunks';
   static const String kLodStepChunks = 'settings.voxel.lodStepChunks';
   static const String kEngineBackend = 'settings.engineBackend';
@@ -170,6 +171,11 @@ class SettingsRepository {
   int get viewDistanceChunks => _prefs.getInt(kViewDistanceChunks) ?? 4;
   Future<void> setViewDistanceChunks(int v) =>
       _prefs.setInt(kViewDistanceChunks, v);
+
+  /// R26m：3D 画质档索引（0=流畅 1=标准 2=高清；默认 1）。
+  int get graphicsQuality => _prefs.getInt(kGraphicsQuality) ?? 1;
+  Future<void> setGraphicsQuality(int v) =>
+      _prefs.setInt(kGraphicsQuality, v);
 
   int get lodStartChunks => _prefs.getInt(kLodStartChunks) ?? 2;
   Future<void> setLodStartChunks(int v) =>

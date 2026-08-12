@@ -15,6 +15,8 @@ import '../scene/scene_providers.dart';
 import '../session/session_providers.dart';
 import '../storage/storage_providers.dart';
 import '../theme/theme_providers.dart';
+import '../voxel/graphics_quality_provider.dart';
+import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import 'log_upload_providers.dart';
 import 'llm_providers.dart';
 import 'performance_providers.dart';
@@ -94,6 +96,9 @@ Future<void> restoreSettings(WidgetRef ref) async {
       repo.lodStartChunks.clamp(0, 6);
   ref.read(lodStepChunksProvider.notifier).state =
       repo.lodStepChunks.clamp(1, 4);
+  // R26m：3D 画质档（流畅/标准/高清）持久化恢复
+  ref.read(graphicsQualityProvider.notifier).state = GraphicsQuality.values[
+      repo.graphicsQuality.clamp(0, GraphicsQuality.values.length - 1)];
   // 图形后端：Vulkan 在 Windows 引擎不可用（R22），遗留配置自动回退 DX11
   EngineBackend backend = EngineBackend.values.firstWhere(
     (EngineBackend e) => e.name == repo.engineBackend,
@@ -242,6 +247,10 @@ final settingsSyncProvider = Provider<void>((ref) {
   });
   ref.listen<int>(viewDistanceChunksProvider, (_, v) {
     repo.setViewDistanceChunks(v);
+  });
+  // R26m：3D 画质档即时落盘
+  ref.listen<GraphicsQuality>(graphicsQualityProvider, (_, q) {
+    repo.setGraphicsQuality(q.index);
   });
   ref.listen<int>(lodStartChunksProvider, (_, v) {
     repo.setLodStartChunks(v);

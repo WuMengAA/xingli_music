@@ -197,6 +197,9 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
   Voxel.leaves: VoxelSpec(
     id: Voxel.leaves,
     base: Color(0xFF4F9A3A),
+    // R26n：树叶设透明 → occludes=false → 可穿过、不被 groundHeightAt 当
+    // 地面（修复「走平地被顶到树顶空中悬浮」）；视觉更接近 MC 可透树冠。
+    transparent: true,
   ),
   Voxel.snow: VoxelSpec(
     id: Voxel.snow,

@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/voxel/voxel_world_view3d.dart';
 
-/// 当前 3D 画质档（流畅 / 标准 / 高清）。
+/// 当前 3D 画质档（性能 / 流畅 / 标准；R26o 起以低画质纯色为基础，无贴图档）。
 final graphicsQualityProvider = StateProvider<GraphicsQuality>(
-  (ref) => GraphicsQuality.standard,
+  (ref) => GraphicsQuality.smooth,
 );

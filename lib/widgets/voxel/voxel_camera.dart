@@ -213,16 +213,19 @@ class VoxelCamera {
   /// 铺满宽度，而不是被标准垂直-fov 投影压成"屏幕上方一条"。
   final bool fullWidth;
 
-  /// 俯仰硬限位（±83°，避免万向节翻转）。
-  static const double maxPitch = 1.45;
+  /// 俯仰硬限位（±88.8°，R26l：允许朝正上/正下。基向量由 sin/cos 直接
+  /// 构造、恒正交归一（right 恒水平），无需动态 Up / 四元数也不会有万向节锁；
+  /// 留 1.2° 余量避免 cp=0 数值边缘）。
+  static const double maxPitch = 1.55;
 
-  /// 视场角限位（约 31.5°~120°）。
+  /// 视场角限位（约 31.5°~110°）。
   ///
-  /// R26：用户反馈「视角剔除太狠，FOV 不得低于 120°」——上限从 1.50(86°)
-  /// 提到 2.094(120°)。fullWidth（俯瞰/2.5D）模式下 [fov] 即水平视野；
+  /// R26o：上限从 2.094(120°) 收到 1.92(110°)——极广角 + 近裁剪镜像会让
+  /// 身后几何倒置（用户「拉倒广角画面颠倒」）；硬丢弃近裁剪后广角仍需留
+  /// 安全余量。fullWidth（俯瞰/2.5D）模式下 [fov] 即水平视野；
   /// 第一/三人称（fullWidth=false）为垂直视野（水平由 aspect 推导）。
   static const double minFov = 0.55;
-  static const double maxFov = 2.094;
+  static const double maxFov = 1.92;
 
   /// 眼高（walk/第一人称模式贴地时用；R23 用户定版：人物 1.6 米）。
   static const double eyeHeight = 1.6;
@@ -318,7 +321,11 @@ class VoxelCamera {
     final double dy = wy - b.eyeY;
     final double dz = wz - b.eyeZ;
     final double viewZ = dx * b.fwdX + dy * b.fwdY + dz * b.fwdZ;
-    if (viewZ < p.near) return null; // 简单近裁剪：整面丢弃
+    // R26o：近裁剪改回**硬丢弃**（viewZ < near → 整面丢弃）——R26l 的「夹紧
+    // 到 0.02」会把相机**身后**的顶点镜像投影到屏幕边缘，广角/FOV 大时身后
+    // 几何变多 → 画面颠倒（用户「拉倒广角颠倒」）。看脚下方块已由 AABB
+    // 视锥剔除（R26n）正确保留，不再需要夹紧。
+    if (viewZ < p.near) return null;
     final double viewX = dx * b.rightX + dy * b.rightY + dz * b.rightZ;
     final double viewY = dx * b.upX + dy * b.upY + dz * b.upZ;
     final double inv = 1 / viewZ;

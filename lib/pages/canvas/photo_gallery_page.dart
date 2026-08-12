@@ -2,7 +2,7 @@
 /// 照片墙（R23k）：拍下的「照片」= 可随时进入的场景
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 读取应用文档目录 captures/ 下「同名 .png + .json」对：
+/// 读取**应用支持目录** captures/ 下「同名 .png + .json」对：
 /// - 网格展示缩略图（PNG）；
 /// - 点击 → 用 .json 里的 [VoxelSceneCapture]（seed + 机位）重建世界与
 ///   相机，push [PhotoScenePage] 进入该场景；
@@ -49,7 +49,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
   Future<void> _load() async {
     try {
       final Directory dir =
-          Directory('${(await getApplicationDocumentsDirectory()).path}/captures');
+          Directory('${(await getApplicationSupportDirectory()).path}/captures');
       if (!await dir.exists()) {
         setState(() => _photos = const <_Photo>[]);
         return;

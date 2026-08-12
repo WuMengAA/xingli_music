@@ -43,4 +43,41 @@ void main() {
     expect(tester.takeException(), isNull,
         reason: '3D 世界页渲染/勾子出现异常（viewport 修复应保证 buildFrame 正常执行）');
   });
+
+  testWidgets('进入生存模式后相机俯仰归位为水平（R26g 灰色滤镜修复）', (tester) async {
+    // 背景：初始 overview 相机 pitch ≈ -78°（垂直俯视）；此前 _enterWorld 只改
+    // position 不动 pitch → 第一人称持续朝下看满屏灰地面（用户反馈「生存模式
+    // 被套上灰色滤镜、无法关闭」）。修复：进入第一人称时归位 pitch = -0.15。
+    await tester.binding.setSurfaceSize(const Size(480, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
+        child: const MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: VoxelWorld3DPage(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final dynamic viewState = tester.state(find.byType(VoxelWorldView3D));
+    final double pitchBefore = viewState.debugCameraPitch as double;
+    // R26m：初始相机已从 overview（-78° 垂直俯视）改为世界中心第一人称
+    // （pitch -0.15）——去掉俯视预览，不再有「满屏灰地面」的前提。
+    expect(pitchBefore, closeTo(-0.15, 0.01),
+        reason: '初始应为第一人称水平略俯视（R26m 去 overview）');
+
+    await tester.tap(find.text('生存'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final double pitchAfter = viewState.debugCameraPitch as double;
+    expect(pitchAfter, closeTo(-0.15, 0.01),
+        reason: '进入生存（第一人称）后俯仰保持水平略俯视，不朝下看地面');
+    expect(tester.takeException(), isNull);
+  });
 }

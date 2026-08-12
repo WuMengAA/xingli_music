@@ -33,6 +33,8 @@ import '../../widgets/voxel/voxel_world_view3d.dart';
 import 'scene_editor_page.dart';
 import '../scene/custom_scene_list_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
+import 'game_graphics_page.dart';
+import 'voxel_save_manager_page.dart';
 import '../sources/netease_search_page.dart';
 import 'server_settings_page.dart';
 
@@ -522,26 +524,6 @@ class _AudioDetail extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.cloud_outlined,
-          title: '网易云音乐',
-          subtitle: netease.isLoggedIn
-              ? '已登录：${netease.account?.nickname ?? '网易云用户'}'
-              : '未登录 · 应用内登录 / 粘贴 Cookie',
-          onTap: () => showNeteaseLoginSheet(context),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.search_rounded,
-          title: '网易云搜索',
-          subtitle: '登录后搜索并在线播放网易云曲库',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const NeteaseSearchPage(),
-            ),
-          ),
-        ),
         const SizedBox(height: AppSpace.lg),
 
         // ── 播放引擎（R26c：从「画面 → 性能与质量」移入「音频」区）──
@@ -694,33 +676,11 @@ class _VisualDetail extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.grid_view_rounded,
-          title: '2.5D 音效编辑器',
-          subtitle: '类我的世界：摆放音效块，试听并保存独立音效层',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VoxelSoundEditorPage(),
-            ),
-          ),
-        ),
         const SizedBox(height: AppSpace.lg),
 
         // ═══ 游戏 ═══
         Text('游戏', style: context.appText.subtitle),
         const SizedBox(height: AppSpace.xs),
-        _EntryRow(
-          icon: Icons.view_in_ar_rounded,
-          title: '3D 体素世界',
-          subtitle: '进入 3D 视图 · 世界内空间音效 · AI 体素小人',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VoxelWorld3DPage(),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
         _EntryRow(
           icon: Icons.graphic_eq_rounded,
           title: '世界音效设置',
@@ -728,6 +688,30 @@ class _VisualDetail extends ConsumerWidget {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => const VoxelSoundEditorPage(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        // R26p：游戏画面专属设置（与游戏内共享 provider）。
+        _EntryRow(
+          icon: Icons.tune_rounded,
+          title: '游戏画面',
+          subtitle: '画质档 / 视距 / LOD / 帧率 · 与游戏内共享',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const GameGraphicsPage(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        // R26p：世界存档管理器（新建 / 恢复多备份 / 导出 / 重命名 / 删除）。
+        _EntryRow(
+          icon: Icons.save_outlined,
+          title: '世界存档',
+          subtitle: '新建 / 恢复（多备份）/ 导出分享 / 重命名 / 删除',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const VoxelSaveManagerPage(),
             ),
           ),
         ),
@@ -1005,6 +989,8 @@ class _ExperimentDetail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ExperimentConsent consent = ref.watch(experimentConsentProvider);
     final List<ExperimentItem> items = ref.watch(experimentsProvider);
+    // R26p2：实验性功能分组需要网易云登录态（副标题展示账号）。
+    final NeteaseAuthState netease = ref.watch(neteaseAuthProvider);
 
     return _DetailScaffold(
       title: SettingsSection.experiment.title,
@@ -1064,6 +1050,56 @@ class _ExperimentDetail extends ConsumerWidget {
                 .read(experimentConsentProvider.notifier)
                 .setEnabled(item.id, v),
           ),
+        // ═══ 实验性功能（R26p2：把仍在打磨的功能入口从主设置移入此处）═══
+        const SizedBox(height: AppSpace.lg),
+        Text('实验性功能', style: context.appText.subtitle),
+        const SizedBox(height: AppSpace.xs),
+        Text(
+          '体素世界 / 2.5D 音效 / 网易云音乐等仍在打磨的功能入口。',
+          style: context.appText.artist,
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.view_in_ar_rounded,
+          title: '3D 体素世界',
+          subtitle: '进入 3D 视图 · 世界内空间音效 · AI 体素小人',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const VoxelWorld3DPage(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.grid_view_rounded,
+          title: '2.5D 音效编辑器',
+          subtitle: '类我的世界：摆放音效块，试听并保存独立音效层',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const VoxelSoundEditorPage(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.cloud_outlined,
+          title: '网易云音乐',
+          subtitle: netease.isLoggedIn
+              ? '已登录：${netease.account?.nickname ?? '网易云用户'}'
+              : '未登录 · 应用内登录 / 粘贴 Cookie',
+          onTap: () => showNeteaseLoginSheet(context),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.search_rounded,
+          title: '网易云搜索',
+          subtitle: '登录后搜索并在线播放网易云曲库',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const NeteaseSearchPage(),
+            ),
+          ),
+        ),
       ],
     );
   }

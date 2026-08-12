@@ -303,9 +303,13 @@ class VoxelWorld {
   /// R26f：生物群系纯函数版（Isolate 预热复用，与实例采样同一算法；
   /// 一致性由测试锁死，避免双实现漂移）。
   static Biome _biomeAtS(int x, int z, double shiftX, double shiftZ) {
+    // R26j：群系阈值随种子偏移（±0.06）→ 每个世界群系比例不同
+    //（沙漠世界 / 森林世界 / 山地世界），不再千篇一律。默认种子不动。
+    final bool isDefault = shiftX == 0 && shiftZ == 0;
+    final double bShift = isDefault ? 0 : _styleF(shiftX, shiftZ, 4) * 0.12 - 0.06;
     final double bx = x * 0.012 + 5000 + shiftX * 0.01;
     final double bz = z * 0.012 + 5000 + shiftZ * 0.01;
-    final double b = _perlin(bx, bz);
+    final double b = _perlin(bx, bz) + bShift;
     if (b > 0.3) return Biome.mountain;
     if (b > 0.05) return Biome.forest;
     if (b < -0.15) return Biome.desert;
@@ -423,11 +427,34 @@ class VoxelWorld {
   ) {
     final Biome biome = _biomeAtS(x, z, shiftX, shiftZ);
     final BiomeSpec spec = kBiomes[biome]!;
+    // R26j：种子风格参数（由 shift 确定性派生，纯函数 → Isolate 与实例一致）。
+    // 默认种子（shift=0）保持历史观感不变；换种子才派生风格：
+    //   elev 海拔偏移 -3~+3（低海拔世界→更多海洋，高海拔→山地大陆）
+    //   ampMul 山体幅度 0.6~1.5（平滑丘陵 ↔ 陡峭崎岖）
+    //   warp 域扭曲强度 0~24（打破平直线条，山脊扭成麻花）
+    final bool isDefault = shiftX == 0 && shiftZ == 0;
+    final double elev = isDefault ? 0 : _styleF(shiftX, shiftZ, 1) * 6.0 - 3.0;
+    final double ampMul = isDefault ? 1.0 : 0.6 + _styleF(shiftX, shiftZ, 2) * 0.9;
+    final double warp = isDefault ? 0 : _styleF(shiftX, shiftZ, 3) * 24.0;
+    // 域扭曲：先算低频扭曲偏移，再用扭曲后的坐标取高度（不同种子山形各异）。
+    double sx = x + 1000.5 + shiftX;
+    double sz = z + 1000.5 + shiftZ;
+    if (warp > 0.01) {
+      sx += _perlin(x * 0.02 + 300, z * 0.02 + 300) * warp;
+      sz += _perlin(x * 0.02 + 500, z * 0.02 + 500) * warp;
+    }
     // R26e 修复：Perlin 在整数网格点恒为 0（梯度点积在顶点归零）——此前
     // defaultSeed 世界高度噪声恒 0、地形恒平。加 0.5 小数偏移恢复起伏。
-    final double n = _fbm(x + 1000.5 + shiftX, z + 1000.5 + shiftZ);
+    final double n = _fbm(sx, sz);
+    // 大陆层：超低频噪声（freq≈0.004）决定海洋/大陆宏观轮廓（默认种子为 0）。
+    final double cont = isDefault
+        ? 0
+        : _perlin(
+            x * 0.004 + 7000 + shiftX * 0.001,
+            z * 0.004 + 7000 + shiftZ * 0.001,
+          );
     // Perlin fbm 输出约 ±1 → 群系基准高度 ±振幅。
-    double h = spec.baseHeight + spec.amplitude * n;
+    double h = spec.baseHeight + spec.amplitude * ampMul * n + cont * 20.0 + elev;
     if (n > 0.15) {
       h += math.pow(n - 0.15, 1.6).toDouble() * 14; // 正向隆起 → 尖峰/悬崖
     } else if (n < -0.15) {
@@ -508,6 +535,14 @@ class VoxelWorld {
     n = (n ^ (n >> 13)) * 1274126177;
     n = n ^ (n >> 16);
     return ((n & 0x7fffffff) % 100000) / 100000.0;
+  }
+
+  /// R26j：由噪声平移量（种子派生）确定性取 [0,1) 风格参数。
+  /// 纯函数（只依赖 shiftX/shiftZ），保证 Isolate 预热与实例采样一致。
+  static double _styleF(double shiftX, double shiftZ, int salt) {
+    final int a = (shiftX * 1000).round() * 31 + salt;
+    final int b = (shiftZ * 1000).round() * 31 + salt * 7;
+    return _hash(a, b);
   }
 
   static double _smooth(double t) => t * t * (3 - 2 * t);

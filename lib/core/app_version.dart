@@ -52,7 +52,7 @@ abstract final class AppVersion {
   static const int month = 8;
 
   /// 日期。
-  static const int day = 11;
+  static const int day = 12;
 
   /// 阶段。
   static const AppStage stage = AppStage.alpha;

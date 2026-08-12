@@ -196,13 +196,23 @@ class RenderConfig {
     this.fogEnabled = true,
     this.occlusionCull = true,
     this.backFaceCull = true,
+    // R26r：视锥/方位剔除总开关（用户要求全部关闭以排查透视）。
+    this.frustumCull = true,
     this.waterAnimation = true,
     this.skyGradient = true,
     this.viewDistanceChunks = 4,
     this.lodStartChunks = 2,
     this.lodStepChunks = 2,
+    // R26p2：云层区块视距（默认 3 区块 = 48 格半径云场覆盖）。
+    this.cloudViewDistanceChunks = 3,
     this.textureEnabled = true,
     this.maxChunkBuildsPerFrame = 4,
+    // R26p：默认关闭区块级 LOD 面剔除——其 allowMask 启发式只保留「主朝向面」，
+    // 会误删走廊/隧道里垂直于视线的侧壁面（剔穿墙）。正确性优先，远处面数已由
+    // 分帧构建 + LOD 采样步长 + 视锥/背面剔除共同收敛。
+    this.lodFaceCull = false,
+    // R26r：区块级 LOD 采样降精度总开关（用户要求关闭 → 全距离满精度）。
+    this.lodEnabled = true,
   });
 
   /// 区块边长（格，R23m：16×16 一区块，MC 惯例）。
@@ -223,6 +233,10 @@ class RenderConfig {
   /// 背面剔除开关。
   final bool backFaceCull;
 
+  /// 视锥/方位剔除总开关（R26r：用户要求全部关闭以排查透视——关掉后
+  /// 不剔除「完全在视角外」的区块、也不做逐面方位粗剔除）。
+  final bool frustumCull;
+
   /// 水面波纹（只动水的顶面）。
   final bool waterAnimation;
 
@@ -238,6 +252,10 @@ class RenderConfig {
   /// 每 N 区块降一级精度（R23m：默认 1 = 每远一区块降一级）。
   final int lodStepChunks;
 
+  /// 云层区块视距（R26p2：默认 3 = 48 格半径云场覆盖）。
+  /// 渲染端云场以相机为中心重定心，覆盖半径 = 区块数 × 16 格。
+  final int cloudViewDistanceChunks;
+
   /// 是否使用 16×16 纹理图集贴图（R24c）。关闭则回退纯色平铺。
   final bool textureEnabled;
 
@@ -246,18 +264,31 @@ class RenderConfig {
   /// （缓存天然记录已建/未建，帧间只差 1 帧，雾遮挡下无感）。
   final int maxChunkBuildsPerFrame;
 
+  /// R26i：按区块朝向减面（LOD 面数）。以区块为整体只算一次「视角→可见面」
+  /// 规则（0~30° 1 面 / 30~60° 2 面 / 60~90° 1 面 / >90° 0 面），应用到本
+  /// 区块全部侧面（忽略顶/底面，地面不消失）；距相机 < lodStart 的近区块不裁剪。
+  /// 仅第一/三人称生效，俯瞰/2.5D 关闭（需全图）。
+  final bool lodFaceCull;
+
+  /// 区块级 LOD 采样降精度总开关（R26r：关闭 → 所有距离满采样，无 LOD 抽稀）。
+  final bool lodEnabled;
+
   RenderConfig copyWith({
     double? renderDistance,
     int? maxFaces,
     bool? fogEnabled,
     bool? occlusionCull,
     bool? backFaceCull,
+    bool? frustumCull,
     bool? waterAnimation,
     bool? skyGradient,
     int? viewDistanceChunks,
     int? lodStartChunks,
     int? lodStepChunks,
+    int? cloudViewDistanceChunks,
     bool? textureEnabled,
+    bool? lodFaceCull,
+    bool? lodEnabled,
   }) {
     return RenderConfig(
       renderDistance: renderDistance ?? this.renderDistance,
@@ -265,12 +296,19 @@ class RenderConfig {
       fogEnabled: fogEnabled ?? this.fogEnabled,
       occlusionCull: occlusionCull ?? this.occlusionCull,
       backFaceCull: backFaceCull ?? this.backFaceCull,
+      frustumCull: frustumCull ?? this.frustumCull,
       waterAnimation: waterAnimation ?? this.waterAnimation,
       skyGradient: skyGradient ?? this.skyGradient,
       viewDistanceChunks: viewDistanceChunks ?? this.viewDistanceChunks,
       lodStartChunks: lodStartChunks ?? this.lodStartChunks,
       lodStepChunks: lodStepChunks ?? this.lodStepChunks,
+      cloudViewDistanceChunks:
+          cloudViewDistanceChunks ?? this.cloudViewDistanceChunks,
       textureEnabled: textureEnabled ?? this.textureEnabled,
+      maxChunkBuildsPerFrame:
+          maxChunkBuildsPerFrame ?? this.maxChunkBuildsPerFrame,
+      lodFaceCull: lodFaceCull ?? this.lodFaceCull,
+      lodEnabled: lodEnabled ?? this.lodEnabled,
     );
   }
 }
@@ -289,11 +327,16 @@ class VoxelFrame {
     this.sunY = 1,
     this.sunZ = 0,
     this.sunWeight = 0,
-    this.opaquePlain,
-    this.opaqueTextured,
-    this.waterBatch,
-    this.edges,
-    this.edgeBatches = const <VoxelMeshBatch>[],
+    this.sunSX = 0,
+    this.sunSY = 0,
+    this.sunVisible = false,
+    this.moonSX = 0,
+    this.moonSY = 0,
+    this.moonVisible = false,
+    this.opaquePlainBuckets = const <VoxelMeshBatch?>[],
+    this.opaqueTexturedBuckets = const <VoxelMeshBatch?>[],
+    this.waterBuckets = const <VoxelMeshBatch?>[],
+    this.edgeBuckets = const <VoxelMeshBatch?>[],
   });
 
   final SkyPalette sky;
@@ -320,17 +363,26 @@ class VoxelFrame {
   final double sunZ;
   final double sunWeight;
 
-  /// 批量网格（R25 GPU 加速）：非贴图不透明面 / 贴图不透明面 / 水面 / 描边线段。
-  /// 为空时画家回退到逐面绘制（如 [empty] 占位帧）。
-  final VoxelMeshBatch? opaquePlain;
-  final VoxelMeshBatch? opaqueTextured;
-  final VoxelMeshBatch? waterBatch;
-  final VoxelMeshBatch? edges;
+  /// R26i：太阳/月亮的屏幕坐标（像素，已由相机投影——转视角时天象随世界
+  /// 真实移动，是「实体」而非屏幕固定）。不可见（落在相机后方/地平线下）时
+  /// [sunVisible]/[moonVisible]=false，画家不绘制。
+  final double sunSX;
+  final double sunSY;
+  final bool sunVisible;
+  final double moonSX;
+  final double moonSY;
+  final bool moonVisible;
 
-  /// R26b 描边深度桶：按相机深度分 8 桶、远→近排列，绘制时前面面的描边
-  /// 正确盖住后面面的描边（修复「描边透视」——旧实现所有描边一次提交，
-  /// 后面面的描边会穿透前面面显示）。空 = 无描边。
-  final List<VoxelMeshBatch> edgeBatches;
+  /// 批量网格（R25 GPU 加速）：非贴图/贴图不透明面 / 水面 / 描边，各按相机深度
+  /// 分 8 桶（远→近）。逐桶提交并与描边桶交错 → 画家算法正确，消除透视/穿墙。
+  /// 桶为空 = null。空帧（[empty]）全部为空，画家回退逐面绘制。
+  final List<VoxelMeshBatch?> opaquePlainBuckets;
+  final List<VoxelMeshBatch?> opaqueTexturedBuckets;
+  final List<VoxelMeshBatch?> waterBuckets;
+
+  /// R26b 描边深度桶：按相机深度分 8 桶、远→近排列，绘制时与地形面桶交错
+  /// 提交——前面面的描边正确盖住后面面的描边（修复「描边透视」）。
+  final List<VoxelMeshBatch?> edgeBuckets;
 
   int get faceCount => opaque.length + translucent.length;
 
@@ -343,8 +395,18 @@ class VoxelFrame {
     ),
     opaque: <RenderFace>[],
     translucent: <RenderFace>[],
+    opaquePlainBuckets: const <VoxelMeshBatch?>[],
+    opaqueTexturedBuckets: const <VoxelMeshBatch?>[],
+    waterBuckets: const <VoxelMeshBatch?>[],
+    edgeBuckets: const <VoxelMeshBatch?>[],
     columnsVisited: 0,
     facesCollected: 0,
+    sunSX: 0,
+    sunSY: 0,
+    sunVisible: false,
+    moonSX: 0,
+    moonSY: 0,
+    moonVisible: false,
   );
 }
 
@@ -375,25 +437,70 @@ abstract final class VoxelRenderer {
     final ({double x, double y, double z}) sd = sun.sunDir;
     final double sunWeight = sun.sunWeight;
 
+    // R26i：把太阳/月亮投影到屏幕（真实 3D 天象——转视角时随世界移动，
+    // 不是屏幕固定贴图）。白天画太阳（eye + sunDir·R），夜里画月亮
+    // （eye - sunDir·R：此时 sunDir.y<0 → -sunDir 在头顶上方）。落在相机
+    // 后方 / 地平线下 → projectWith 返回 null → 不可见。
+    double sunSX = 0, sunSY = 0;
+    bool sunVisible = false;
+    double moonSX = 0, moonSY = 0;
+    bool moonVisible = false;
+    {
+      final double R = camera.far * 0.9;
+      final ScreenPoint? sp = VoxelCamera.projectWith(
+        b.eyeX + sd.x * R,
+        b.eyeY + sd.y * R,
+        b.eyeZ + sd.z * R,
+        b,
+        proj,
+      );
+      if (sp != null) {
+        sunSX = sp.x;
+        sunSY = sp.y;
+        sunVisible = true;
+      }
+      final ScreenPoint? mp = VoxelCamera.projectWith(
+        b.eyeX - sd.x * R,
+        b.eyeY - sd.y * R,
+        b.eyeZ - sd.z * R,
+        b,
+        proj,
+      );
+      if (mp != null) {
+        moonSX = mp.x;
+        moonSY = mp.y;
+        moonVisible = true;
+      }
+    }
+
     final List<RenderFace> allFaces = <RenderFace>[];
 
-    // R25 批量缓冲：把每面顶点拼进单一列表，画家一次性提交（见 VoxelMeshBatch）。
-    // 每面 6 顶点（2 三角形）；线段批次（描边）每边 2 顶点。
-    final List<double> plainPos = <double>[];
-    final List<int> plainCol = <int>[];
-    final List<double> texPos = <double>[];
-    final List<double> texUV = <double>[];
-    final List<int> texCol = <int>[];
-    final List<double> waterPos = <double>[];
-    final List<double> waterUV = <double>[];
-    final List<int> waterCol = <int>[];
-    final List<double> edgePos = <double>[];
-    final List<int> edgeCol = <int>[];
-    // R26b：描边深度桶（远→近 8 桶）——修复「描边透视」。
-    final List<List<double>> edgePosB =
+    // R25 批量缓冲：把每面顶点拼进「按相机深度分 8 桶」的列表，画家逐桶
+    // 远→近提交并与描边桶交错（见 _drawBatched）——画家算法正确，消除
+    // 「透视/穿墙」（原单批按区块网格顺序提交，远处块会盖住近处块）。
+    // 每桶存按面顶点 + 颜色，保留逐角 AO。
+    List<List<double>> newBuckets() =>
         List<List<double>>.generate(8, (_) => <double>[]);
-    final List<List<int>> edgeColB =
+    List<List<int>> newColBuckets() =>
         List<List<int>>.generate(8, (_) => <int>[]);
+    final List<List<double>> plainPosB = newBuckets();
+    final List<List<int>> plainColB = newColBuckets();
+    final List<List<double>> texPosB = newBuckets();
+    final List<List<double>> texUVB = newBuckets();
+    final List<List<int>> texColB = newColBuckets();
+    final List<List<double>> waterPosB = newBuckets();
+    final List<List<double>> waterUVB = newBuckets();
+    final List<List<int>> waterColB = newColBuckets();
+    // R26b：描边深度桶（远→近 8 桶）——修复「描边透视」。
+    final List<List<double>> edgePosB = newBuckets();
+    final List<List<int>> edgeColB = newColBuckets();
+    // R26q：每桶逐面深度（1 个 double/面），固化前在桶内做远→近排序，
+    // 消除「单桶内 chunk 迭代顺序错序」导致的滑窗内透视（8 桶只切深度段，
+    // 段内仍须排序才正确）。
+    final List<List<double>> plainDepthB = newBuckets();
+    final List<List<double>> texDepthB = newBuckets();
+    final List<List<double>> waterDepthB = newBuckets();
+    final List<List<double>> edgeDepthB = newBuckets();
     const int kOutline = 0x4D000000; // 描边色：~30% 黑，ARGB
     // R26f：描边最大深度（世界格）。超过则不生成描边（远处不可见 + 省面数）。
     const double kEdgeMaxDepth = 15.0;
@@ -402,7 +509,11 @@ abstract final class VoxelRenderer {
     // [depth]：面中心相机深度（0~far），描边按其落入深度桶，绘制时远→近，
     // 使前面面的描边正确盖住后面面的描边（消除透视）。
     void pushFace(Float32List xy, Float32List? uv, int argb, int tint,
-        bool translucentFace, [double depth = 0]) {
+        bool translucentFace,
+        [double depth = 0,
+        List<double>? ao,
+        double aoScale = 1.0,
+        List<bool>? edgeMask]) {
       final double x0 = xy[0], y0 = xy[1];
       final double x1 = xy[2], y1 = xy[3];
       final double x2 = xy[4], y2 = xy[5];
@@ -413,33 +524,49 @@ abstract final class VoxelRenderer {
                   ((kWaterAlpha * 255).round().clamp(0, 255) << 24)
               : tint)
           : argb;
+      // R26j：顶点烘焙 AO + 斜度着色。6 顶点（2 三角形）逐角颜色 = 基色 ×
+      // 角落 AO × 斜度；未传 ao（云 / 实体等路径）保持整面同色。
+      final List<int> cols = ao == null
+          ? <int>[c, c, c, c, c, c]
+          : <int>[
+              _modulate(c, ao[0] * aoScale),
+              _modulate(c, ao[1] * aoScale),
+              _modulate(c, ao[2] * aoScale),
+              _modulate(c, ao[0] * aoScale),
+              _modulate(c, ao[2] * aoScale),
+              _modulate(c, ao[3] * aoScale),
+            ];
+      final int bkt = (depth / camera.far * 8).floor().clamp(0, 7);
       if (uv != null) {
         final double u0 = uv[0], v0 = uv[1];
         final double u1 = uv[2], v1 = uv[3];
         final double u2 = uv[4], v2 = uv[5];
         final double u3 = uv[6], v3 = uv[7];
         if (translucentFace) {
-          waterPos
+          waterPosB[bkt]
             ..add(x0)..add(y0)..add(x1)..add(y1)..add(x2)..add(y2)
             ..add(x0)..add(y0)..add(x2)..add(y2)..add(x3)..add(y3);
-          waterUV
+          waterUVB[bkt]
             ..add(u0)..add(v0)..add(u1)..add(v1)..add(u2)..add(v2)
             ..add(u0)..add(v0)..add(u2)..add(v2)..add(u3)..add(v3);
-          waterCol..add(c)..add(c)..add(c)..add(c)..add(c)..add(c);
+          waterColB[bkt]..addAll(cols);
+          waterDepthB[bkt].add(depth);
         } else {
-          texPos
+          texPosB[bkt]
             ..add(x0)..add(y0)..add(x1)..add(y1)..add(x2)..add(y2)
             ..add(x0)..add(y0)..add(x2)..add(y2)..add(x3)..add(y3);
-          texUV
+          texUVB[bkt]
             ..add(u0)..add(v0)..add(u1)..add(v1)..add(u2)..add(v2)
             ..add(u0)..add(v0)..add(u2)..add(v2)..add(u3)..add(v3);
-          texCol..add(c)..add(c)..add(c)..add(c)..add(c)..add(c);
+          texColB[bkt]..addAll(cols);
+          texDepthB[bkt].add(depth);
         }
       } else {
-        plainPos
+        plainPosB[bkt]
           ..add(x0)..add(y0)..add(x1)..add(y1)..add(x2)..add(y2)
           ..add(x0)..add(y0)..add(x2)..add(y2)..add(x3)..add(y3);
-        plainCol..add(c)..add(c)..add(c)..add(c)..add(c)..add(c);
+        plainColB[bkt]..addAll(cols);
+        plainDepthB[bkt].add(depth);
       }
       // 描边：仅不透明面。每条边画成一条细长方块（2 三角形），
       // drawVertices 无 line 模式，故用细长方块近似（R25 描边诉求）。
@@ -454,13 +581,12 @@ abstract final class VoxelRenderer {
           (x2, y2),
           (x3, y3),
         ];
-        final List<double> ebp = edgePosB[(depth / camera.far * 8)
-            .floor()
-            .clamp(0, 7)];
-        final List<int> ebc = edgeColB[(depth / camera.far * 8)
-            .floor()
-            .clamp(0, 7)];
+        final List<double> ebp = edgePosB[bkt];
+        final List<int> ebc = edgeColB[bkt];
+        final List<double> ebd = edgeDepthB[bkt];
         for (int e = 0; e < 4; e++) {
+          // R26l：只描「我能看见的轮廓边」——内部边（两侧面都朝相机）跳过。
+          if (edgeMask != null && !edgeMask[e]) continue;
           final (double ax, double ay) = ec[e];
           final (double bx, double by) = ec[(e + 1) % 4];
           final double dx = bx - ax;
@@ -479,6 +605,7 @@ abstract final class VoxelRenderer {
           ebc
             ..add(kOutline)..add(kOutline)..add(kOutline)
             ..add(kOutline)..add(kOutline)..add(kOutline);
+          ebd.add(depth);
         }
       }
     }
@@ -501,15 +628,18 @@ abstract final class VoxelRenderer {
     final double halfFovX = camera.fullWidth
         ? camera.fov / 2
         : math.atan(math.tan(camera.fov / 2) * aspect);
-    final double cosLimit = math.cos(math.min(math.pi, halfFovX + 0.35));
+    // R26n：面级粗剔除阈值放宽——只剔「明显在身后」（cos < -0.5 ≈ 视角外 120°），
+    // 朝下/朝上俯视时侧面的面不再被误剔（用户「lz<0.1 太保守」反馈）。
+    final double cosLimit = math.cos(math.min(math.pi, halfFovX + 1.2));
     // 视线水平分量长度（恒为 1，保留原判定以防未来改用含俯仰的前向）。
     final double horizLen = math.sqrt(hFwdX * hFwdX + hFwdZ * hFwdZ);
     final bool cullAzimuth = horizLen >= 0.3;
 
-    // 雾距（fogStart = 40% 渲染距离）：远处在视距边缘 100% 融入天空雾色，
-    // 像基岩版那样把 LOD 接缝"化"进地平线雾里，消除硬切 popping。
-    final double fogStart = maxDist * 0.40;
-    final double fogSpan = math.max(1.0, maxDist - fogStart);
+    // 雾距：R26i 起雾点 = LOD 起始距离（lodStart），向外浓度递增（smoothstep）
+    // 融入天空雾色，把 LOD 接缝"化"进地平线雾里，消除硬切 popping。
+    // lodStart 在下方区块循环前才算出，故实际赋值见其下方。
+    late final double fogStart;
+    late final double fogSpan;
 
     // 复用缓冲：4 顶点 × (x, y, z)（投影时临时写入）。
     final Float64List corners = Float64List(12);
@@ -531,6 +661,11 @@ abstract final class VoxelRenderer {
     final int camChunkZ = (b.eyeZ / cs).floor();
     final double chunkVd = vd * cs.toDouble();
 
+    // R26i/R26r：起雾点。原取 LOD 起始距离；LOD 关闭后改为视距的 80%，
+    // 使雾与渲染距离挂钩、不再依赖 LOD 设置。
+    fogStart = math.max(1.0, chunkVd * 0.8);
+    fogSpan = math.max(1.0, maxDist - fogStart);
+
     // R23s 区块几何缓存：每个 (cx,cz,lod) 的"occlusion 可见面"集合是相机无关的，
     // 只与地形有关 → 缓存后跨帧 / 相机平移复用，每帧省掉百万级 world.get +
     // isFaceHidden（邻居查询嵌套）。每帧仅对缓存面做 backFaceCull（用缓存法线）
@@ -545,19 +680,69 @@ abstract final class VoxelRenderer {
         final double cdist = math.sqrt(ccx * ccx + ccz * ccz);
         if (cdist > chunkVd + cs * 0.75) continue;
 
-        // R26f：水平视锥剔除——chunk 中心相对相机的方位角超出
-        //（halfFovX + chunk 角余量）直接跳过整块。投影层只省"相机后方"面，
-        // 这里把侧面 60°~90° 外的整块 chunk 挡在收集/投影之前，顶点转换 -30~50%。
-        if (cullAzimuth) {
+        // R26n：视锥剔除——只剔除「完全在视角外」的区块（AABB 8 角视锥测试，
+        // 任一角落在视锥内即保留，含俯仰；比逐面/中心点判断更精确、不会漏掉
+        // 脚下与视角边缘的方块）。玩家所在区块永不剔除。俯瞰/2.5D 保持水平剔除。
+        // R26r：frustumCull 关闭时整段跳过（用户要求排查透视时全保留）。
+        if (cullAzimuth && config.frustumCull) {
+          if (camera.fullWidth) {
+            final double dot = (ccx * hFwdX + ccz * hFwdZ) / cdist;
+            final double chunkAng =
+                math.atan(cs * 0.75 / math.max(1.0, cdist));
+            if (dot < math.cos(halfFovX + chunkAng)) continue;
+          } else {
+            final bool camInChunk = b.eyeX >= cx0 &&
+                b.eyeX < cx0 + cs &&
+                b.eyeZ >= cz0 &&
+                b.eyeZ < cz0 + cs;
+            // R26p：相机紧邻 3×3 区块（含侧墙/顶棚/地板）永不视锥剔除——
+            // 狭小空间里贴脸的相邻区块 8 角常以极陡角度落于视锥外，原逻辑会整块
+            // 剔掉导致「剔穿墙」。半径 1 仅多保 8 个区块，开销可忽略。
+            final bool nearCam =
+                (cx - camChunkX).abs() <= 1 && (cz - camChunkZ).abs() <= 1;
+            if (!camInChunk &&
+                !nearCam &&
+                !_chunkInFrustum(b, proj, cx0, cz0, cs, world.maxY)) {
+              continue;
+            }
+          }
+        }
+
+        // R26i：按区块朝向减面（LOD 面数）。整个区块只算一次「视角→可见面」
+        // 规则，应用到本区块全部侧面（忽略顶/底面，地面不消失）；距相机 <
+        // lodStart 的近区块不裁剪（保留全部侧面，避免近处建筑"穿帮"）；俯瞰
+        // /2.5D 关闭（需全图）。bit: 0:+X 1:-X 2:+Z 3:-Z。
+        int allowMask = 0xF;
+        if (config.lodFaceCull && !camera.fullWidth && cdist > lodStart) {
+          // 视角前向水平分量 (hFwdX,hFwdZ) 与「指向区块中心」水平方向的点积
+          // = cos(夹角)：正对=1，正侧=0，身后<0。
           final double dot = (ccx * hFwdX + ccz * hFwdZ) / cdist;
-          final double chunkAng =
-              math.atan(cs * 0.75 / math.max(1.0, cdist));
-          if (dot < math.cos(halfFovX + chunkAng)) continue;
+          if (dot <= 0) {
+            allowMask = 0; // >90° 身后：0 个侧面（顶/底面仍保留）
+          } else {
+            // 主朝向面 = 指向玩家的水平面（=-dirToChunk 的主导轴）。
+            final double ux = ccx / cdist, uz = ccz / cdist;
+            final int mainAxis = ux.abs() >= uz.abs()
+                ? (ux >= 0 ? 1 : 0) // 区块在 +X → 我们看见 -X 面(bit1)
+                : (uz >= 0 ? 3 : 2); // 区块在 +Z → 看见 -Z 面(bit3)
+            // 侧边面 = 垂直于主面、且与视角偏转同向的那一侧。
+            final int sideAxis = ux.abs() >= uz.abs()
+                ? (hFwdZ >= 0 ? 2 : 3) // 主沿 X → 侧沿 Z，取视角偏 Z 向
+                : (hFwdX >= 0 ? 0 : 1); // 主沿 Z → 侧沿 X，取视角偏 X 向
+            if (dot < 0.5) {
+              allowMask = 1 << sideAxis; // 60~90°：只画侧边面
+            } else if (dot < 0.866) {
+              allowMask = (1 << mainAxis) | (1 << sideAxis); // 30~60°：主+侧
+            } else {
+              allowMask = 1 << mainAxis; // 0~30°：只画主面
+            }
+          }
         }
 
         // LOD 级别（相机相关：决定采样步长，故计入缓存 key）。
+        // R26r：lodEnabled 关闭 → 永远 0（满精度），不再随距离抽稀。
         int lod = 0;
-        if (cdist > lodStart) {
+        if (config.lodEnabled && cdist > lodStart) {
           lod = ((cdist - lodStart) / lodStep).floor().clamp(0, 3);
         }
         final int step = 1 << lod; // 1,2,4,8
@@ -597,14 +782,44 @@ abstract final class VoxelRenderer {
           // 方位粗剔除（每帧，相机相关）：只保留相机朝向半锥内的面，
           // 跳过侧后方 / 边缘面——否则这类面深度趋近近平面，投影坐标爆表
           // （数万）且永不入屏，纯属浪费。cf.bx/bz 即列中心，等价原列级剔除。
-          if (cullAzimuth) {
+          // R26r：frustumCull 关闭时跳过（全保留）。
+          if (cullAzimuth && config.frustumCull) {
             final double colX = cf.bx - b.eyeX;
             final double colZ = cf.bz - b.eyeZ;
-            final double d2 = colX * colX + colZ * colZ;
-            if (d2 > 4) {
-              final double d = math.sqrt(d2);
-              if ((colX * hFwdX + colZ * hFwdZ) / d < cosLimit) continue;
+            if (camera.fullWidth) {
+              final double d2 = colX * colX + colZ * colZ;
+              if (d2 > 4) {
+                final double d = math.sqrt(d2);
+                if ((colX * hFwdX + colZ * hFwdZ) / d < cosLimit) continue;
+              }
+            } else {
+              // 3D 视锥：用含俯仰的视线前向，避免看脚下时误剔近处下方块。
+              final double colY = cf.by - b.eyeY;
+              final double d2 = colX * colX + colY * colY + colZ * colZ;
+              if (d2 > 4) {
+                final double d = math.sqrt(d2);
+                final double dot3 =
+                    (colX * b.fwdX + colY * b.fwdY + colZ * b.fwdZ) / d;
+                if (dot3 < cosLimit) continue;
+              }
             }
+          }
+
+          // R26i：区块级 LOD 减面（allowMask 已按本区块算好，应用到各侧面）。
+          // 顶/底面（ny≠0）不在侧面规则内 → 永远保留；只按 nx/nz 判定 4 个
+          // 水平侧面的取舍。
+          if (allowMask != 0xF) {
+            int bit = -1;
+            if (cf.nx > 0.5) {
+              bit = 0;
+            } else if (cf.nx < -0.5) {
+              bit = 1;
+            } else if (cf.nz > 0.5) {
+              bit = 2;
+            } else if (cf.nz < -0.5) {
+              bit = 3;
+            }
+            if (bit >= 0 && (allowMask & (1 << bit)) == 0) continue;
           }
 
           corners.setRange(0, 12, cf.corners);
@@ -681,7 +896,14 @@ abstract final class VoxelRenderer {
           // 不透明地形正确遮挡（画家算法下透明面必须参与全局远→近排序）。
           allFaces.add(rf);
           // R25：同时拼入批量缓冲（画家一次性提交，GPU 加速）。
-          pushFace(xy, uv, argb, tint, cf.voxel.isTransparent, depth);
+          // R26j：逐顶点 AO × 斜度烘焙进颜色。
+          // R26l：不透明面按轮廓边掩码描边（内部边不描）。
+          final List<bool>? edgeMask =
+              (cf.voxel.isTransparent || depth >= kEdgeMaxDepth)
+                  ? null
+                  : _faceEdgeMask(world, cf, b);
+          pushFace(xy, uv, argb, tint, cf.voxel.isTransparent, depth,
+              cf.ao, cf.tilt, edgeMask);
         }
       }
     }
@@ -690,6 +912,18 @@ abstract final class VoxelRenderer {
     // R24c：实体面也并入同一全局桶（不再分 opaque/translucent 两 Pass），
     // 画家算法下所有面统一远→近排序，水/玻璃才能被正确遮挡。
     for (final VoxelEntity en in entities) {
+      // R26g：生物视锥剔除——第一/三人称下不在视角内的生物整只跳过
+      //（只不渲染、不删）；俯瞰模式全渲染。与地形共用 cosLimit 半锥。
+      if (!camera.fullWidth) {
+        final double ex = en.position.x - b.eyeX;
+        final double ey = (en.position.y + 1.0) - b.eyeY;
+        final double ez = en.position.z - b.eyeZ;
+        final double ed = math.sqrt(ex * ex + ey * ey + ez * ez);
+        if (ed > 1e-3) {
+          final double edot = (ex * b.fwdX + ey * b.fwdY + ez * b.fwdZ) / ed;
+          if (edot < cosLimit) continue;
+        }
+      }
       _emitEntity(
         allFaces,
         allFaces,
@@ -713,6 +947,7 @@ abstract final class VoxelRenderer {
       proj,
       camera.far,
       timePhase,
+      config.cloudViewDistanceChunks,
       pushFace,
     );
 
@@ -730,55 +965,90 @@ abstract final class VoxelRenderer {
     _trimFarthest(allFaces, faceBudget);
 
     // R25：把累积的批量缓冲固化为类型化数组（空则 null，画家回退逐面绘制）。
-    final VoxelMeshBatch? opaquePlain = plainPos.isEmpty
-        ? null
-        : VoxelMeshBatch(
-            positions: Float32List.fromList(plainPos),
-            colors: Int32List.fromList(plainCol),
-          );
-    final VoxelMeshBatch? opaqueTextured = texPos.isEmpty
-        ? null
-        : VoxelMeshBatch(
-            positions: Float32List.fromList(texPos),
-            colors: Int32List.fromList(texCol),
-            uv: Float32List.fromList(texUV),
-          );
-    final VoxelMeshBatch? waterBatch = waterPos.isEmpty
-        ? null
-        : VoxelMeshBatch(
-            positions: Float32List.fromList(waterPos),
-            colors: Int32List.fromList(waterCol),
-            uv: Float32List.fromList(waterUV),
-          );
-    final VoxelMeshBatch? edgesBatch = edgePos.isEmpty
-        ? null
-        : VoxelMeshBatch(
-            positions: Float32List.fromList(edgePos),
-            colors: Int32List.fromList(edgeCol),
-          );
+    // R26p-camera：地形面按深度 8 桶固化（远→近），与描边桶交错绘制。
+    // R26q：固化前先在桶内按深度远→近排序（见 `_sortFacesByDepth`），消除
+    // 「单桶内 chunk 迭代顺序错序」导致的滑窗内透视——画家算法正确性的关键。
+    // R26r2：固化前做地形面数预算——超预算从最远桶往前裁掉最远的面（这些面
+    // 全在雾区：雾起点=视距 80%，视觉不可见），近处永远满精度、无露洞，性能有上界。
+    List<VoxelMeshBatch?> buildBuckets(
+      List<List<double>> posB,
+      List<List<int>> colB, {
+      List<List<double>>? uvB,
+      required List<List<double>> depthB,
+      required int budget,
+    }) {
+      // Pass 1：每桶先做远→近排序。
+      for (int i = 0; i < 8; i++) {
+        if (posB[i].isEmpty) continue;
+        _sortFacesByDepth(
+          pos: posB[i],
+          col: colB[i],
+          uv: uvB != null ? uvB[i] : null,
+          depth: depthB[i],
+        );
+      }
+      // Pass 2：面数预算（排序后桶内 index 0 = 最远，从最远桶往前裁）。
+      int total = 0;
+      for (int i = 0; i < 8; i++) {
+        total += posB[i].length ~/ 12;
+      }
+      if (total > budget) {
+        for (int i = 7; i >= 0 && total > budget; i--) {
+          final int n = posB[i].length ~/ 12;
+          if (n == 0) continue;
+          final int drop = math.min(n, total - budget);
+          final int start = drop * 12;
+          posB[i].removeRange(0, start);
+          colB[i].removeRange(0, drop * 6);
+          if (uvB != null) uvB[i].removeRange(0, start);
+          total -= drop;
+        }
+      }
+      // Pass 3：固化。
+      final List<VoxelMeshBatch?> out = <VoxelMeshBatch?>[];
+      for (int i = 0; i < 8; i++) {
+        if (posB[i].isEmpty) continue;
+        out.add(VoxelMeshBatch(
+          positions: Float32List.fromList(posB[i]),
+          colors: Int32List.fromList(colB[i]),
+          uv: uvB != null && uvB[i].isNotEmpty
+              ? Float32List.fromList(uvB[i])
+              : null,
+        ));
+      }
+      return out;
+    }
+    final List<VoxelMeshBatch?> opaquePlainBuckets = buildBuckets(plainPosB,
+        plainColB,
+        depthB: plainDepthB, budget: faceBudget);
+    final List<VoxelMeshBatch?> opaqueTexturedBuckets = buildBuckets(texPosB,
+        texColB,
+        uvB: texUVB, depthB: texDepthB, budget: faceBudget);
+    final List<VoxelMeshBatch?> waterBuckets = buildBuckets(waterPosB,
+        waterColB,
+        uvB: waterUVB, depthB: waterDepthB, budget: faceBudget);
     // R26b：描边深度桶（远→近，绘制时正确遮挡，修「描边透视」）。
-    final List<VoxelMeshBatch> edgeBatches = <VoxelMeshBatch>[
-      for (int i = 0; i < 8; i++)
-        if (edgePosB[i].isNotEmpty)
-          VoxelMeshBatch(
-            positions: Float32List.fromList(edgePosB[i]),
-            colors: Int32List.fromList(edgeColB[i]),
-          ),
-    ];
+    final List<VoxelMeshBatch?> edgeBuckets = buildBuckets(edgePosB, edgeColB,
+        depthB: edgeDepthB, budget: faceBudget);
 
     return VoxelFrame(
       sky: sky,
       opaque: allFaces,
       translucent: const <RenderFace>[],
-      opaquePlain: opaquePlain,
-      opaqueTextured: opaqueTextured,
-      waterBatch: waterBatch,
-      edges: edgesBatch,
-      edgeBatches: edgeBatches,
+      opaquePlainBuckets: opaquePlainBuckets,
+      opaqueTexturedBuckets: opaqueTexturedBuckets,
+      waterBuckets: waterBuckets,
+      edgeBuckets: edgeBuckets,
       sunX: sd.x,
       sunY: sd.y,
       sunZ: sd.z,
       sunWeight: sunWeight,
+      sunSX: sunSX,
+      sunSY: sunSY,
+      sunVisible: sunVisible,
+      moonSX: moonSX,
+      moonSY: moonSY,
+      moonVisible: moonVisible,
       columnsVisited: columns,
       facesCollected: collected,
       chunkHits: chunkHits,
@@ -852,6 +1122,46 @@ abstract final class VoxelRenderer {
     }
   }
 
+  /// 单桶内逐面深度排序（R26q）：把同一深度桶里的面按相机深度从远到近排序，
+  /// 消除「桶内 chunk 迭代顺序错序」导致的滑窗内透视。画家算法下，桶已按
+  /// 远→近顺序绘制（见 `_drawBatched`），桶内再保证远面先画、近面后画即正确。
+  ///
+  /// [pos] 每面 12 个 double（6 顶点）；[col] 每面 6 个 int（与 pos 等顶点数）；
+  /// [uv] 每面 12 个 double（贴图批次，可空）；[depth] 每面 1 个 double。
+  /// 就地重排 [pos]/[col]/[uv]，不新建列表交给调用方。
+  static void _sortFacesByDepth({
+    required List<double> pos,
+    required List<int> col,
+    List<double>? uv,
+    required List<double> depth,
+  }) {
+    final int n = depth.length; // 面数
+    if (n < 2) return;
+    final List<int> order = List<int>.generate(n, (int i) => i);
+    // 远（depth 大）在前 → 先画；近（depth 小）在后 → 后画覆盖。
+    order.sort((int a, int b) => depth[b].compareTo(depth[a]));
+    final Float32List np = Float32List(pos.length);
+    final Int32List nc = Int32List(col.length);
+    final Float32List? nu = uv == null ? null : Float32List(uv.length);
+    for (int k = 0; k < n; k++) {
+      final int s = order[k];
+      np.setRange(k * 12, k * 12 + 12, pos, s * 12);
+      nc.setRange(k * 6, k * 6 + 6, col, s * 6);
+      if (nu != null) nu.setRange(k * 12, k * 12 + 12, uv!, s * 12);
+    }
+    pos
+      ..clear()
+      ..addAll(np);
+    col
+      ..clear()
+      ..addAll(nc);
+    if (nu != null) {
+      uv!
+        ..clear()
+        ..addAll(nu);
+    }
+  }
+
   /// 面法线（单位向量，供方向光点乘）。
   static (double, double, double) normalOf(BlockFace f) => switch (f) {
         BlockFace.top => (0.0, 1.0, 0.0),
@@ -861,6 +1171,17 @@ abstract final class VoxelRenderer {
         BlockFace.west => (-1.0, 0.0, 0.0),
         BlockFace.east => (1.0, 0.0, 0.0),
       };
+
+  /// R26j：把颜色 RGB 乘系数 [k]（保留 alpha）。用于顶点烘焙 AO（角落 ×0.33）
+  /// 与斜度着色（陡坡 ×0.8 / 平地 ×1.1，允许 >1 提亮）。
+  static int _modulate(int argb, double k) {
+    final double f = k.clamp(0.0, 1.25);
+    final int a = (argb >> 24) & 0xFF;
+    final int r = ((((argb >> 16) & 0xFF) * f).round()).clamp(0, 255);
+    final int g = ((((argb >> 8) & 0xFF) * f).round()).clamp(0, 255);
+    final int b = (((argb & 0xFF) * f).round()).clamp(0, 255);
+    return (a << 24) | (r << 16) | (g << 8) | b;
+  }
 
   /// R23v 光照合成：天光分面亮度 × 方向光 + 自发光 + 方块点光。
   ///
@@ -1059,13 +1380,13 @@ abstract final class VoxelRenderer {
         _ => 0,
       };
 
-  // ── 云（世界空间方块云，R26b）─────────────────────────────
-
-  /// 生成一帧的世界空间方块云，并入统一批次/深度排序。
-  ///
-  /// 用户反馈旧云是「屏幕上固定的半透明椭圆」→ 重做为：**不透明方块云、
-  /// 自北向南（+Z）漂移、在天上飘**（随相机位置铺开，昼夜时相驱动漂移）。
-  /// 云层高 = 地形之上 12 格；云朵以相机为中心确定性排布，避免帧间跳变。
+  // ── 云（水平云面，R26i）─────────────────────────────────
+  //
+  // 用户诉求：云是**平行于水平面**、高度固定 64 格的云面；**无限刷新**（贴图
+  // 无缝拼接天空盒）——相机移动时云场以相机为中心重定心、永远铺满视野；随昼夜
+  // 自北向南（+Z）漂移。实现：在 y=64 处铺一层「云胞」网格，每胞用连续值噪声
+  // 决定密度（>阈值成云、留空为天），密度驱动亮度 → 蓬松无缝；每帧重定心 +
+  // 时间漂移 = 无限且无接缝。
   static void _emitClouds(
     List<RenderFace> out,
     VoxelWorld world,
@@ -1073,90 +1394,121 @@ abstract final class VoxelRenderer {
     ProjectionParams proj,
     double far,
     double timePhase,
+    int cloudChunks,
     void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
   ) {
-    final double cloudY = world.maxY + 12;
-    const double radius = 46.0;
-    // 自北向南漂移：一个昼夜（timePhase 0→1，10 分钟）移动约 480 格。
-    final double drift = timePhase * 480.0;
-    final double cx = b.eyeX;
-    final double cz = b.eyeZ;
-    const int n = 10;
-    for (int i = 0; i < n; i++) {
-      // 黄金角排布 + 确定性半径（与 i 无关的状态 → 每帧稳定，只有漂移在动）。
-      final double ang = i * 2.399963229728653;
-      final double r = 7.0 + (i * 37.7) % (radius * 0.85);
-      final double wx = cx + math.cos(ang) * r;
-      final double wz = cz + math.sin(ang) * r + drift;
-      // 主块 + 错落子块（固定 pattern，构出蓬松轮廓）。
-      _cloudBlock(out, wx - 5, cloudY, wz - 2, wx + 5, cloudY + 1.5, wz + 2,
-          b, proj, far, pushFace);
-      _cloudBlock(out, wx - 2, cloudY, wz - 6, wx + 2, cloudY + 1.5, wz - 2, b,
-          proj, far, pushFace);
-      _cloudBlock(out, wx + 2, cloudY, wz + 1, wx + 7, cloudY + 1.5, wz + 4, b,
-          proj, far, pushFace);
-      _cloudBlock(out, wx - 8, cloudY, wz + 3, wx - 3, cloudY + 1.5, wz + 6, b,
-          proj, far, pushFace);
-      _cloudBlock(out, wx - 1, cloudY + 1.5, wz - 3, wx + 4, cloudY + 2.5, wz +
-          1, b, proj, far, pushFace);
+    const double cloudY = 64.0; // 水平云面高度（用户指定 64 格）
+    // R26p2：覆盖半径由云层区块视距驱动（区块数 × 16 格），默认 3 = 48 格；
+    // 重定心→无限（相机移动时云场始终以玩家为中心、铺满视野）。
+    final double half = cloudChunks * 16.0;
+    const double cell = 7.0; // 云胞间距（密度/性能平衡点）
+    // R26n：相机在云层上（或云层高度）→ 不渲染云（避免从上方看/朝上看时
+    // 云面糊成白/黄滤镜）。
+    if (b.eyeY >= cloudY - 1.0) return;
+    // 自北向南（+Z）漂移：一个昼夜（timePhase 0→1）移动约 120 格。
+    final double drift = timePhase * 120.0;
+    // 重定心：网格原点对齐到相机所在 cell，使云场始终以玩家为中心（无缝无限）。
+    final double ox = (b.eyeX / cell).floor() * cell;
+    final double oz = (b.eyeZ / cell).floor() * cell;
+    for (double gx = -half; gx <= half; gx += cell) {
+      for (double gz = -half; gz <= half; gz += cell) {
+        final double wx = ox + gx;
+        final double wz = oz + gz + drift;
+        final double n = _cloudNoise(wx, wz); // 连续值噪声（无缝、无突跳）
+        if (n < 0.52) continue; // 留空 → 天空
+        final double bright = (0.74 + 0.26 * n).clamp(0.0, 1.0);
+        // R26n：云改为**半透明**（α≈0.62，摄像机可透过）单顶面（非方块）。
+        final int argb = Color.fromRGBO(
+          (244 * bright).round(),
+          (247 * bright).round(),
+          (255 * bright).round(),
+          0.62,
+        ).toARGB32();
+        _cloudQuad(
+          out,
+          wx - cell * 0.46,
+          cloudY,
+          wz - cell * 0.46,
+          wx + cell * 0.46,
+          wz + cell * 0.46,
+          b,
+          proj,
+          far,
+          pushFace,
+          argb,
+        );
+      }
     }
   }
 
-  /// 投影一个不透明白色方块（云），并入批次与深度排序。
-  static void _cloudBlock(
+  /// 连续值噪声（两层 hash 双线性插值）：确定性、无缝、无帧间突跳。
+  static double _cloudNoise(double x, double z) {
+    final double fx = x * 0.11, fz = z * 0.11;
+    final int xi = fx.floor(), zi = fz.floor();
+    final double tx = fx - xi, tz = fz - zi;
+    final double Function(double) s = (double v) => v * v * (3 - 2 * v);
+    final double a = _hash2(xi, zi);
+    final double bb = _hash2(xi + 1, zi);
+    final double c = _hash2(xi, zi + 1);
+    final double d = _hash2(xi + 1, zi + 1);
+    final double top = a + (bb - a) * s(tx);
+    final double bot = c + (d - c) * s(tx);
+    return top + (bot - top) * s(tz);
+  }
+
+  /// 整数哈希 → [0,1)。
+  static double _hash2(int x, int z) {
+    int h = x * 374761393 + z * 668265263;
+    h = (h ^ (h >> 13)) * 1274126177;
+    h ^= h >> 16;
+    return (h & 0x7FFFFFFF) / 0x7FFFFFFF;
+  }
+
+  /// 投影一个半透明单顶面（云），并入批次与深度排序。
+  static void _cloudQuad(
     List<RenderFace> out,
     double x0,
-    double y0,
+    double y,
     double z0,
     double x1,
-    double y1,
     double z1,
     ViewBasis b,
     ProjectionParams proj,
     double far,
     void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
+    int argb,
   ) {
-    const int argb = 0xFFF6F9FF; // 云白（不透明）
-    final List<List<double>> quads = <List<double>>[
-      <double>[x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1], // top
-      <double>[x0, y0, z0, x0, y0, z1, x1, y0, z1, x1, y0, z0], // bottom
-      <double>[x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0], // north
-      <double>[x0, y0, z1, x0, y1, z1, x1, y1, z1, x1, y0, z1], // south
-      <double>[x0, y0, z0, x0, y1, z0, x0, y1, z1, x0, y0, z1], // west
-      <double>[x1, y0, z0, x1, y0, z1, x1, y1, z1, x1, y1, z0], // east
-    ];
-    for (final List<double> c in quads) {
-      final Float32List xy = Float32List(8);
-      double depthSum = 0;
-      bool clipped = false;
-      for (int i = 0; i < 4; i++) {
-        final ScreenPoint? sp = VoxelCamera.projectWith(
-          c[i * 3],
-          c[i * 3 + 1],
-          c[i * 3 + 2],
-          b,
-          proj,
-        );
-        if (sp == null) {
-          clipped = true;
-          break;
-        }
-        xy[i * 2] = sp.x;
-        xy[i * 2 + 1] = sp.y;
-        depthSum += sp.depth;
+    final List<double> c = <double>[x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1];
+    final Float32List xy = Float32List(8);
+    double depthSum = 0;
+    bool clipped = false;
+    for (int i = 0; i < 4; i++) {
+      final ScreenPoint? sp = VoxelCamera.projectWith(
+        c[i * 3],
+        c[i * 3 + 1],
+        c[i * 3 + 2],
+        b,
+        proj,
+      );
+      if (sp == null) {
+        clipped = true;
+        break;
       }
-      if (clipped) continue;
-      final double depth = depthSum / 4;
-      if (depth > far) continue;
-      pushFace(xy, null, argb, argb, false, depth);
-      out.add(RenderFace(
-        xy: xy,
-        argb: argb,
-        depth: depth,
-        voxel: Voxel.stone,
-        face: BlockFace.top,
-      ));
+      xy[i * 2] = sp.x;
+      xy[i * 2 + 1] = sp.y;
+      depthSum += sp.depth;
     }
+    if (clipped) return;
+    final double depth = depthSum / 4;
+    if (depth > far) return;
+    pushFace(xy, null, argb, argb, false, depth);
+    out.add(RenderFace(
+      xy: xy,
+      argb: argb,
+      depth: depth,
+      voxel: Voxel.stone,
+      face: BlockFace.top,
+    ));
   }
 
   /// 把一个实体（默认一个 6 盒的小人）拆成方块盒，并入对应 Pass。
@@ -1404,6 +1756,130 @@ abstract final class VoxelRenderer {
     return out;
   }
 
+  /// R26n：chunk AABB（8 角）是否与相机视锥相交。任一角的相机空间坐标
+  /// 落在近/远/左右/上下范围内即可见——**保守判定：只会多渲染、绝不漏渲染**
+  /// （用户要求「不剔除玩家所在区块，只剔除视角外区块」；含俯仰，看脚下/看天
+  /// 都正确）。8 角 × 每区块一次，量级可忽略。
+  static bool _chunkInFrustum(
+    ViewBasis b,
+    ProjectionParams p,
+    int x0,
+    int z0,
+    int cs,
+    int maxY,
+  ) {
+    // 由投影参数反推视锥半角正切：tanHalfX = halfW / scaleX，tanHalfY = halfH / scaleY。
+    final double tanX = p.halfW / p.scaleX;
+    final double tanY = p.halfH / p.scaleY;
+    for (int i = 0; i < 8; i++) {
+      final double wx = x0 + ((i & 1) == 0 ? 0.0 : cs.toDouble());
+      final double wy = (i & 2) == 0 ? 0.0 : maxY.toDouble();
+      final double wz = z0 + ((i & 4) == 0 ? 0.0 : cs.toDouble());
+      final double dx = wx - b.eyeX;
+      final double dy = wy - b.eyeY;
+      final double dz = wz - b.eyeZ;
+      final double vz = dx * b.fwdX + dy * b.fwdY + dz * b.fwdZ;
+      if (vz < 0.02 || vz > 8192) continue; // 近/远（远取宽松，距离上限已先行把关）
+      final double vx = dx * b.rightX + dy * b.rightY + dz * b.rightZ;
+      final double vy = dx * b.upX + dy * b.upY + dz * b.upZ;
+      if (vx.abs() <= vz * tanX && vy.abs() <= vz * tanY) return true;
+    }
+    return false;
+  }
+
+  /// R26j：烘焙 4 角环境光遮蔽（AO）。每角在**面平面内**查 2 个正交邻居
+  /// + 1 个对角邻居：被 3 面夹击 → 0.33（≈用户「×0.3 涂黑」），完全暴露 → 1.0。
+  /// 相机无关（只依赖世界遮挡），随 chunk 几何缓存复用。
+  static Float32List _cornerAO(
+    VoxelWorld w,
+    BlockFace f,
+    int x,
+    int y,
+    int z,
+    Float64List corners,
+  ) {
+    // 法线轴 + 两个切向轴（X=0, Y=1, Z=2）。
+    final int nax = (f == BlockFace.top || f == BlockFace.bottom)
+        ? 1
+        : (f == BlockFace.north || f == BlockFace.south ? 2 : 0);
+    final int t1 = nax == 0 ? 1 : 0;
+    final int t2 = 3 - nax - t1; // 0+1+2=3
+    // 正法线面（top/south/east）位于 block+1 层，负法线面位于 block 层。
+    final bool posN = f == BlockFace.top ||
+        f == BlockFace.south ||
+        f == BlockFace.east;
+    final int faceLevel = posN ? (nax == 0 ? x : (nax == 1 ? y : z)) + 1
+        : (nax == 0 ? x : (nax == 1 ? y : z));
+    final List<int> block = <int>[x, y, z];
+    final Float32List ao = Float32List(4);
+    for (int i = 0; i < 4; i++) {
+      final double c0 = corners[i * 3];
+      final double c1 = corners[i * 3 + 1];
+      final double c2 = corners[i * 3 + 2];
+      final List<double> cc = <double>[c0, c1, c2];
+      final int s1 = cc[t1] >= block[t1] + 0.5 ? 1 : -1;
+      final int s2 = cc[t2] >= block[t2] + 0.5 ? 1 : -1;
+      final List<int> n1 = <int>[x, y, z];
+      n1[t1] = block[t1] + s1;
+      n1[nax] = faceLevel;
+      final List<int> n2 = <int>[x, y, z];
+      n2[t2] = block[t2] + s2;
+      n2[nax] = faceLevel;
+      final List<int> nd = <int>[x, y, z];
+      nd[t1] = block[t1] + s1;
+      nd[t2] = block[t2] + s2;
+      nd[nax] = faceLevel;
+      final int o1 = w.get(n1[0], n1[1], n1[2]).isEmpty ? 0 : 1;
+      final int o2 = w.get(n2[0], n2[1], n2[2]).isEmpty ? 0 : 1;
+      final int od = w.get(nd[0], nd[1], nd[2]).isEmpty ? 0 : 1;
+      ao[i] = (3 - o1 - o2 - od) / 3.0;
+    }
+    return ao;
+  }
+
+  /// R26l：面 4 条边的可见性（「描边只描我能看见的轮廓」）。
+  ///
+  /// 边 [e] 连接角 [e] 与角 `(e+1)%4`。取边中点沿「面平面内、垂直该边」的
+  /// 外方向指向的邻块：邻块为空 → 轮廓边，描；邻块「同法线面」也朝相机
+  /// （共面相邻）→ 内部边，不描；邻面背向相机 → 轮廓边，描。
+  /// 结果与 `pushFace` 的边序一致（角序环绕）。每帧计算（相机相关），
+  /// 成本 = 4×`world.get` + 点积，远小于投影本身。
+  static List<bool> _faceEdgeMask(
+    VoxelWorld w,
+    CachedFace cf,
+    ViewBasis b,
+  ) {
+    final double ex = b.eyeX, ey = b.eyeY, ez = b.eyeZ;
+    final double nx = cf.nx, ny = cf.ny, nz = cf.nz;
+    final Float64List c = cf.corners;
+    final double cx = cf.bx, cy = cf.by, cz = cf.bz; // 块中心
+    final double fcX = cx + nx * 0.5, fcY = cy + ny * 0.5, fcZ = cz + nz * 0.5;
+    final int bx = cx.round(), by = cy.round(), bz = cz.round();
+    final List<bool> vis = List<bool>.filled(4, true);
+    for (int e = 0; e < 4; e++) {
+      final int i0 = e, i1 = (e + 1) % 4;
+      final double mx = (c[i0 * 3] + c[i1 * 3]) / 2;
+      final double my = (c[i0 * 3 + 1] + c[i1 * 3 + 1]) / 2;
+      final double mz = (c[i0 * 3 + 2] + c[i1 * 3 + 2]) / 2;
+      // 面平面内、垂直该边的外方向（= 面中心 → 边中点，取单位符号）。
+      int ox = 0, oy = 0, oz = 0;
+      final double ddx = mx - fcX, ddy = my - fcY, ddz = mz - fcZ;
+      if (ddx.abs() > 0.01) ox = ddx > 0 ? 1 : -1;
+      if (ddy.abs() > 0.01) oy = ddy > 0 ? 1 : -1;
+      if (ddz.abs() > 0.01) oz = ddz > 0 ? 1 : -1;
+      final int nbX = bx + ox, nbY = by + oy, nbZ = bz + oz;
+      // 邻块为空 → 轮廓边，保留描边。
+      if (w.get(nbX, nbY, nbZ).isEmpty) continue;
+      // 邻块同法线面是否朝相机：邻面中心 = 邻块中心 + 0.5·法线。
+      final double nfX = nbX + 0.5 + nx * 0.5 - ex;
+      final double nfY = nbY + 0.5 + ny * 0.5 - ey;
+      final double nfZ = nbZ + 0.5 + nz * 0.5 - ez;
+      final double dot = nfX * nx + nfY * ny + nfZ * nz;
+      if (dot < 0) vis[e] = false; // 邻面朝相机 → 共面内部边，不描
+    }
+    return vis;
+  }
+
   /// 生成单个区块的**相机无关**几何（occlusion 剔除后的可见外壳面）。
   ///
   /// 只依赖地形（与相机朝向 / 位置无关），故可被 [VoxelChunkCache] 跨帧缓存。
@@ -1433,6 +1909,13 @@ abstract final class VoxelRenderer {
         }
         final int yStart = (hBase - 6).clamp(0, world.maxY - 1);
         final int yEnd = (hBase + 10).clamp(0, world.maxY - 1);
+        // R26j：斜度着色——由列高差判断陡坡（压暗 20%）/ 平地（提亮 10%）。
+        // 相机无关，随 chunk 缓存复用。
+        final int hC = world.terrainHeightAt(x, z);
+        final double dX = (world.terrainHeightAt(x + 1, z) - hC).toDouble();
+        final double dZ = (world.terrainHeightAt(x, z + 1) - hC).toDouble();
+        final double slope = math.sqrt(dX * dX + dZ * dZ);
+        final double tilt = slope > 2.0 ? 0.8 : (slope < 0.5 ? 1.1 : 1.0);
         for (int y = yStart; y <= yEnd; y++) {
           final Voxel v = world.get(x, y, z);
           if (v.isEmpty) continue;
@@ -1455,6 +1938,8 @@ abstract final class VoxelRenderer {
               x + 0.5,
               y + 0.5,
               z + 0.5,
+              _cornerAO(world, f, x, y, z, c),
+              tilt,
             ));
           }
         }
@@ -1476,6 +1961,8 @@ class CachedFace {
     this.bx,
     this.by,
     this.bz,
+    this.ao,
+    this.tilt,
   );
 
   /// 4 个世界顶点（12 个 double，按四边形环绕顺序）。
@@ -1489,6 +1976,13 @@ class CachedFace {
 
   /// 所属方块中心（世界坐标；backFaceCull 判定与水面波纹基准）。
   final double bx, by, bz;
+
+  /// R26j：4 角环境光遮蔽（1.0 亮 → 0.33 暗角），逐顶点烘焙进颜色。
+  /// 相机无关（只依赖世界遮挡），随 chunk 几何缓存复用。
+  final Float32List ao;
+
+  /// R26j：斜度着色系数（陡坡 0.8 / 平地 1.1 / 常态 1.0）。
+  final double tilt;
 }
 
 /// 一个区块的可见面集合（相机无关的几何体）。
