@@ -36,11 +36,11 @@ android {
         // light 插件（minSdk 21）已移除，光线传感器用自写 MethodChannel。
         minSdkVersion = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 38
+        versionCode = 39
         // R18/R19：安装/应用信息显示完整展示版本串（0.26.8.11_alpha_cl01），
         // 而非 pubspec 截断的 "0.26.8"（flutter.versionName 只取 x.y.z）。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion 同步更新！
-        versionName = "0.26.8.14_alpha_cl38"
+        versionName = "0.26.8.14_alpha_cl39"
         // 空间精简：只打 arm64（现代设备）+ armeabi-v7a 兼容旧机。
         // 注意：这条只管得住第三方 AAR 带进来的 .so，管不住 Flutter 引擎与
         // libapp.so（见文件末尾 androidComponents 块的说明），两者需配合使用。

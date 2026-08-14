@@ -708,13 +708,26 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       // #322：游戏内无音乐播放 → 启动 MC 主题背景音乐轮换。
       if (_bgMusic == null) {
         _bgMusic = VoxelMusicEngine();
-        unawaited(_bgMusic!.init().then((_) {
-          if (!mounted) return;
-          final bool playing =
-              ref.read(isPlayingProvider).valueOrNull ?? false;
-          _bgMusicActive = !playing;
-          unawaited(_bgMusic!.setActive(_bgMusicActive));
-        }));
+        // Bug④（#375）：安卓进世界崩溃根因。init() 是「未 await 的 Future」，
+        // 原 .then 没有 .catchError——一旦 init（或 .then 内 setActive）抛异常，
+        // 即成为主 isolate 的「未处理异步错误」，安卓 release 直接原生崩溃/ANR
+        // （桌面 debug 仅红屏）。与上方 WorldAudioEngine 路径（line 703 已
+        // catchError）对称，这里也必须兜底吞掉，失败静默（无素材 = 不播 BGM）。
+        unawaited(
+          _bgMusic!.init().then((_) {
+            if (!mounted) return;
+            try {
+              final bool playing =
+                  ref.read(isPlayingProvider).valueOrNull ?? false;
+              _bgMusicActive = !playing;
+              unawaited(_bgMusic!.setActive(_bgMusicActive));
+            } catch (_) {
+              // setActive 失败（audioplayers 在安卓初始化异常等）：静默放弃 BGM。
+            }
+          }).catchError((Object _, StackTrace __) {
+            // init 失败：保留 _bgMusic 实例但不再激活，避免重复尝试触发崩溃。
+          }),
+        );
       }
     } else if (!_audioEnabled && _audio != null) {
       _audio?.dispose();

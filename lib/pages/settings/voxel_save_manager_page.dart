@@ -320,7 +320,15 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
       _snack('存档损坏，无法恢复');
       return;
     }
-    await writeVoxelSave(data);
+    // Bug④（#375）：写自动存档失败（存储满 / 权限 / 文件损坏）不能再向上抛，
+    // 否则安卓「进入存档」即未捕获崩溃。降级为提示并仍允许进世界（世界自身
+    // 的 30s 周期存档会再尝试落盘，玩家可正常游玩）。
+    try {
+      await writeVoxelSave(data);
+    } catch (e) {
+      debugPrint('[voxel-save] 进入存档前写盘失败: $e');
+      _snack('存档写入失败，仍可进入（自动存档稍后重试）');
+    }
     final dynamic wj = data['world'];
     final int seed = (wj is Map && wj['seed'] is int)
         ? wj['seed'] as int

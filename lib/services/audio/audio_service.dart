@@ -23,6 +23,19 @@ class ResolvedStream {
 /// 占位 uri → 真实地址的解析器。返回 null 表示无需解析（走默认本地路径逻辑）。
 typedef StreamResolver = Future<ResolvedStream?> Function(Track track);
 
+/// 判断 uri 是否为真实本地文件路径（可用 openPath 打开）。
+///
+/// - `http(s)` → 远程（openUrl）；
+/// - `file://` → 本地文件（剥离 scheme 后 openPath）；
+/// - 其它 scheme（netease:///bili:// 等占位符）→ 非本地文件，
+///   解析失败时必须判加载失败，绝不能以文件路径打开（原生层会崩）。
+bool _isLocalFilePath(String uri) {
+  if (uri.startsWith('http')) return false;
+  if (uri.startsWith('file://')) return true;
+  if (uri.contains('://')) return false;
+  return true;
+}
+
 /// 播放地址解析失败（消息已翻译为可直接展示的中文，如「网易云登录已失效」）。
 class StreamResolveException implements Exception {
   const StreamResolveException(this.message);
@@ -366,11 +379,19 @@ class AudioService {
     Map<String, String> headers = const <String, String>{};
     if (_streamResolver != null && !track.uri.startsWith('http')) {
       try {
-        final ResolvedStream? r = await _streamResolver!(track);
+        final ResolvedStream? r = await _streamResolver!(track)
+            .timeout(const Duration(seconds: 20));
         if (r != null && r.url.startsWith('http')) {
           resolvedUrl = r.url;
           headers = r.headers;
         }
+      } on TimeoutException {
+        // 解析超时（网络/接口卡住）：判加载失败，不进播放器、不回落 openPath，
+        // 避免 UI 长时间卡在 loading（用户反馈「播放容易卡死」）。
+        _currentTrack = null;
+        _playErrorCtrl.add('播放地址解析超时，请稍后重试');
+        LogService.instance.e('audio', '解析播放地址超时: ${track.title}');
+        return;
       } on StreamResolveException catch (e) {
         // 解析失败（未登录/无版权/会员/网络）：推可展示提示，不进播放器。
         _currentTrack = null;
@@ -400,8 +421,19 @@ class AudioService {
             tag: 'openUri');
       } else if (track.isRemote) {
         await _safe(() => _music.openUrl(track.uri), tag: 'openUrl');
+      } else if (_isLocalFilePath(track.uri)) {
+        // 真实本地文件路径（含 file://）：剥离 scheme 后正常打开。
+        final String path = track.uri.startsWith('file://')
+            ? Uri.parse(track.uri).toFilePath()
+            : track.uri;
+        await _safe(() => _music.openPath(path), tag: 'openPath');
       } else {
-        await _safe(() => _music.openPath(track.uri), tag: 'openPath');
+        // 占位符（netease:///bili:// 等）解析失败却落到这里：绝不以文件路径
+        // 打开非法 URI（原生层不可捕获崩溃）。判加载失败，回落 idle。
+        LogService.instance.e('audio',
+            '占位符解析失败，未打开: ${track.title} uri=${_redact(track.uri)}');
+        _currentTrack = null;
+        return;
       }
       if (_disposed) return;
       _currentTrack = track;

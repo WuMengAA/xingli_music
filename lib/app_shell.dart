@@ -141,6 +141,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.watch(settingsSyncProvider);
     // R4：EQ 播放开始补应用（唯一触发点）
     ref.watch(eqReapplyOnPlayProvider);
+    // 歌名/曲名真源桥接：把引擎实际加载的曲目镜像进 nowPlayingProvider
+    // （消除「选曲即写」与「加载成功才写」错位，修复曲名对不上）。
+    ref.watch(nowPlayingBridgeProvider);
 
     return Scaffold(
       // R16：跟随全局明暗主题（不再是固定浅色 bgPage）

@@ -101,8 +101,9 @@ StreamResolver buildStreamResolver(ProviderReader read) {
         throw StreamResolveException(e.message);
       } on BilibiliResolveException catch (e) {
         throw StreamResolveException(e.message);
-      } catch (_) {
-        return null;
+      } catch (e) {
+        // 未知异常也转成可展示错误，避免回落 openPath('netease://') 触发原生崩溃
+        throw StreamResolveException('播放地址解析失败，请稍后重试（$e）');
       }
       return null;
     }
@@ -191,6 +192,26 @@ final effectiveMusicLibraryProvider = FutureProvider<List<Track>>((ref) async {
 /// 当前播放曲目
 final nowPlayingProvider = StateProvider<Track?>((ref) => null);
 
+/// 引擎真源（AudioService 加载成功后才更新的当前曲目流）。
+///
+/// 用于把「选曲即写」与「加载成功才写」两真源合一，消除歌名/曲名对不上的错位。
+final currentTrackProvider = StreamProvider<Track?>((ref) {
+  return ref.watch(audioServiceProvider).trackStream;
+});
+
+/// 把引擎真源桥接进 [nowPlayingProvider]：加载成功 → 写入真实曲目；
+/// 加载失败 → 保持上一首/置空，绝不显示「没播出来的那首」。
+///
+/// 在 [AppShell] 根部 `ref.watch` 一次即可常驻（详见 app_shell.dart）。
+final nowPlayingBridgeProvider = Provider<void>((ref) {
+  ref.listen<AsyncValue<Track?>>(currentTrackProvider, (_, AsyncValue<Track?> next) {
+    final Track? t = next.valueOrNull;
+    if (ref.read(nowPlayingProvider) != t) {
+      ref.read(nowPlayingProvider.notifier).state = t;
+    }
+  });
+});
+
 /// 是否播放中（由 just_audio 真实状态流驱动，永远与引擎一致）
 final isPlayingProvider = StreamProvider<bool>((ref) {
   return ref.watch(audioServiceProvider).playingStream;
@@ -220,14 +241,12 @@ final playbackControllerProvider = Provider<PlaybackController>((ref) {
       final Track? current = ref.read(nowPlayingProvider);
       final PlayMode mode = ref.read(playModeProvider);
       final Track? t = nextTrackInLibrary(lib, current, mode, dir);
-      if (t != null) ref.read(nowPlayingProvider.notifier).state = t;
       return t;
     },
     first: () async {
       final List<Track> lib = await ref.read(effectiveMusicLibraryProvider.future);
       final PlayMode mode = ref.read(playModeProvider);
       final Track? t = nextTrackInLibrary(lib, null, mode, 1);
-      if (t != null) ref.read(nowPlayingProvider.notifier).state = t;
       return t;
     },
   );

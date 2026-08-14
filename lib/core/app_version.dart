@@ -69,7 +69,15 @@ abstract final class AppVersion {
   /// z 锁 0-255/x±32767) 改为 chunk 分桶(cx,cz)+局部编码(任意坐标/负坐标/
   /// 大范围生效，序列化 schema:2、旧档安全跳过)；玩家生存状态抽离为
   /// playerVitalsProvider 单例真相源(Riverpod)，跨系统共享、避免双重 dispose。
-  static const int buildCount = 38;
+  /// cl39：安卓运行时 4 连崩修复——①播放易卡死（占位符解析无超时→加 20s
+  /// 超时，loading 不再无限期挂起）；②歌名/曲名对不上（选曲即写 nowPlaying
+  /// 与引擎加载成功才写双真源错位→新增 currentTrackProvider+nowPlayingBridge
+  /// 桥接统一到引擎真源）；③播网易云源崩溃（resolver 兜底 catch(_) 回落
+  /// openPath 打开非法 URI 原生崩→改抛 StreamResolveException，并在 open 分支
+  /// 加本地文件护栏，占位符失败绝不 openPath）；④进世界/进存档卡死崩溃
+  /// （VoxelMusicEngine().init().then 缺 .catchError→未处理异步错误安卓原生
+  /// 崩，与 WorldAudioEngine 路径对称加兜底；_enter 写盘无保护→加 try/catch）。
+  static const int buildCount = 39;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
