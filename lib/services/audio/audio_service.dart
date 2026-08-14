@@ -364,6 +364,10 @@ class AudioService {
 
     // 若处于静音状态，淡入到 0（保持静音），否则淡入到当前音量
     final double target = _musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol;
+    // 作废在途旧曲淡出：playMusic 直接 setVolume 不走 _fadeMusic，旧淡出不会因
+    // _fadeSeq 被取代而退出，必须显式作废，否则其末步 setVolume(0) 会在 ~1.5s 后
+    // 把刚起播的新曲静音（用户反馈"播 1 秒后静音，须拖主音量恢复"，cl41 修复）。
+    _cancelFades();
     // 直接落到目标音量再播放：规避部分 Android 解码器「先设 0 再 play」会锁死
     // 静音、必须手动拖一下音量才有声的问题（用户反馈「须拖动主音量才有声」）。
     await _safe(() => _music.setVolume(target), tag: 'setVolume');
@@ -466,6 +470,7 @@ class AudioService {
         break;
       case PlaybackState.paused:
         // 先恢复目标音量再 play（防止残留淡出把音量压成 0）。
+        _cancelFades();
         await _safe(
           () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
           tag: '音量恢复',
@@ -495,6 +500,7 @@ class AudioService {
   Future<void> resume() async {
     if (_state == PlaybackState.paused) {
       // 先恢复目标音量（防止残留淡出静音，R20）。
+      _cancelFades();
       await _safe(
         () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: '音量恢复',
@@ -870,6 +876,13 @@ class AudioService {
       await Future<void>.delayed(step);
     }
   }
+
+  /// 作废所有在途淡变：让任何正在循环的 [_fadeMusic] 下一次 `seq != _fadeSeq`
+  /// 检查即退出。playMusic / 续播 / resume 在直接 setVolume 前务必调用，否则
+  /// 旧曲淡出（line 350，操作同一个共享 _music、末步 setVolume(0)）会在后台把刚
+  /// 起播的新曲音量压成 0 → "播 1 秒后静音，须拖主音量恢复"（R20 的 _fadeSeq
+  /// 守卫因新曲路径不走 _fadeMusic 而从未被触发，故需显式作废）。
+  void _cancelFades() => _fadeSeq++;
 
   Future<void> _fadeSoundscape(ap.AudioPlayer p, double from, double to, Duration duration) async {
     const int steps = 16;

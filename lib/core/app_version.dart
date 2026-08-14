@@ -84,7 +84,12 @@ abstract final class AppVersion {
   /// Positioned(child: IgnorePointer(AnimatedBuilder(...))) 修复。另 release 资源压缩
   /// (shrinkResources) 把仅 Dart 引用的 drawable/ic_notification 剥除致通知栏崩溃，
   /// 新增 res/raw/keep.xml 强制保留。
-  static const int buildCount = 40;
+  /// cl41：修复「播 1 秒后静音、须拖主音量条才恢复」。根因=切歌时 playMusic 在
+  /// line 350 启动旧曲淡出（_fadeMusic 操作共享 _music 播放器、末步 setVolume(0)），
+  /// 但新曲路径（line 369）直接 setVolume 不走 _fadeMusic，_fadeSeq 守卫从未被触发，
+  /// 旧淡出在 ~1.5s 后台跑完把新曲音量压成 0。新增 _cancelFades() 在
+  /// playMusic/续播/resume 直接 setVolume 前显式作废在途淡出修复。
+  static const int buildCount = 41;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
