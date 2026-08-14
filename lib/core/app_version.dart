@@ -89,7 +89,19 @@ abstract final class AppVersion {
   /// 但新曲路径（line 369）直接 setVolume 不走 _fadeMusic，_fadeSeq 守卫从未被触发，
   /// 旧淡出在 ~1.5s 后台跑完把新曲音量压成 0。新增 _cancelFades() 在
   /// playMusic/续播/resume 直接 setVolume 前显式作废在途淡出修复。
-  static const int buildCount = 41;
+  /// cl42：体素渲染/UX 大修（10 项用户反馈 #382-#391）。①LOD 默认开启
+  /// （lodQualityProvider off→balanced，tiers 非空才采样减面）+ 裙边裂口修复
+  /// （-0.5 死区→0.0 闭合微缝）；③④⑤云视距/太阳无极过渡+泛光/向下平行面剔除
+  /// 复核；⑥背包物品改为居中 3×9 表格；⑦退出按钮移到背包/合成标签左侧；
+  /// ⑧搜索+音质并入底部音乐卡片；⑨游戏内顶部居中液态玻璃播放器（删
+  /// _WorldMusicConsole、封存纯色全屏 NowPlayingPage）；⑩音源搜索改弹出式
+  /// 底部卡片（全局可调、无风险）。
+  /// cl43：②描边视距严重不符根因修复——原硬编码 kEdgeMaxDepth=15.0 二值截断，
+  /// 描边在 15 格一刀切、且不论视距 2/4/6/8 都纹丝不动（用户反馈「环绕自身 5 格
+  /// 立方圆」）。改为随 camera.far*0.5 派生（夹 [16,72] 面数护栏）+ 末段 30%
+  /// 距离 alpha 线性淡出，硬边界环变察觉不到的渐隐；⑨顶部播放器改为顶栏 Column
+  /// 子项（防窄屏折行 chips 重叠，旧固定 top:92 同型坑）+ 清孤儿 import。
+  static const int buildCount = 43;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
