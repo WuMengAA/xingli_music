@@ -1771,9 +1771,14 @@ abstract final class VoxelRenderer {
     // 重定心→无限（相机移动时云场始终以玩家为中心、铺满视野）。
     final double half = cloudChunks * 16.0;
     const double cell = 7.0; // 云胞间距（密度/性能平衡点）
-    // R26n：相机在云层上（或云层高度）→ 不渲染云（避免从上方看/朝上看时
-    // 云面糊成白/黄滤镜）。
-    if (b.eyeY >= cloudBaseY - 1.0) return;
+    // ③：原硬剔除（eyeY >= cloudBaseY-1 直接 return）→ 创造模式飞行越过云层高度
+    // 时整片云消失（「云视距也消失了」根因）。改为「越过云层后随高度平滑淡出
+    // （无极过渡）」，贴着云层 / 仰视仍可见；远高于云层（>8 格）才彻底不画
+    // （避免俯瞰把云面糊成白/黄滤镜）。
+    final double aboveClouds = b.eyeY - cloudBaseY;
+    if (aboveClouds > 8.0) return;
+    final double cloudFade =
+        aboveClouds > 0 ? (1.0 - aboveClouds / 8.0).clamp(0.0, 1.0) : 1.0;
     // 自北向南（+Z）漂移：一个昼夜（timePhase 0→1）移动约 120 格。
     final double drift = timePhase * 120.0;
     // 重定心：网格原点对齐到相机所在 cell，使云场始终以玩家为中心（无缝无限）。
@@ -1786,12 +1791,14 @@ abstract final class VoxelRenderer {
         final double n = _cloudNoise(wx, wz); // 连续值噪声（无缝、无突跳）
         if (n < 0.52) continue; // 留空 → 天空
         final double bright = (0.74 + 0.26 * n).clamp(0.0, 1.0);
-        // R26n：云改为**半透明**（α≈0.62，摄像机可透过）单顶面（非方块）。
+        // R26n：云改为**半透明**（α≈0.62，摄像机可透过）单顶面（非方块）；
+        // ③：α 再乘 cloudFade——越过云层高度后随高度平滑淡出（无极过渡）。
+        final double a = 0.62 * cloudFade;
         final int argb = Color.fromRGBO(
           (244 * bright).round(),
           (247 * bright).round(),
           (255 * bright).round(),
-          0.62,
+          a,
         ).toARGB32();
         // G2：云高随下方地形起伏（微小 ±1 格），打破水平云面呆板感。
         final int th = world.terrainHeightAt(wx.floor(), wz.floor());
@@ -2858,6 +2865,18 @@ abstract final class VoxelRenderer {
             continue;
           }
         }
+        // ⑤：向下看平行面剔除——相机俯视（fwdY 明显朝下）时，剔除远处「脚下地面」
+        // 粗格（中心远低于视线且距相机较远），降低俯视时的远景面数（开放世界方案）。
+        // 近处 / 紧贴相机保留，避免脚下出现空洞。概率生效、不伤正确性。
+        if (b.fwdY < -0.6) {
+          final double tH = world
+              .terrainHeightAt(
+                (gx0 + T.cell / 2).round(),
+                (gz0 + T.cell / 2).round(),
+              )
+              .toDouble();
+          if ((b.eyeY - tH) > 20 && cdist > 48) continue;
+        }
         _LodCell? cell = cache?.lodCellGet(tier, gci, gcj);
         if (cell == null) {
           if (built >= budget) continue; // 本帧预算用完 → 下帧补建
@@ -2932,25 +2951,25 @@ abstract final class VoxelRenderer {
         final double et = cell.hPad[(i + 1) * gp + g + 1];
         if (et > eTop) eTop = et;
       }
-      if (nTop < yT - 0.5) {
+      if (nTop < yT) {
         _emitLodQuad(allFaces, Float64List.fromList(<double>[
           x0, nTop, z0, x1, nTop, z0, x1, yT, z0, x0, yT, z0,
         ]), 0, 0, -1, cell.majority, BlockFace.north, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (sTop < yT - 0.5) {
+      if (sTop < yT) {
         _emitLodQuad(allFaces, Float64List.fromList(<double>[
           x0, sTop, z1, x0, yT, z1, x1, yT, z1, x1, sTop, z1,
         ]), 0, 0, 1, cell.majority, BlockFace.south, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (wTop < yT - 0.5) {
+      if (wTop < yT) {
         _emitLodQuad(allFaces, Float64List.fromList(<double>[
           x0, wTop, z0, x0, yT, z0, x0, yT, z1, x0, wTop, z1,
         ]), -1, 0, 0, cell.majority, BlockFace.west, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (eTop < yT - 0.5) {
+      if (eTop < yT) {
         _emitLodQuad(allFaces, Float64List.fromList(<double>[
           x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
         ]), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
@@ -3000,7 +3019,7 @@ abstract final class VoxelRenderer {
           final double ccx2 = ccx + step;
           // 西（邻列 i-1）
           final double hw = cell.hPad[(j + 1) * gp + ci];
-          if (hw < h - 0.5) {
+          if (hw < h) {
             _emitLodQuad(allFaces, Float64List.fromList(<double>[
               ccx, hw, cz, ccx, h, cz, ccx, h, cz2, ccx, hw, cz2,
             ]), -1, 0, 0, vSide, BlockFace.west, b, proj, sky, config,
@@ -3008,7 +3027,7 @@ abstract final class VoxelRenderer {
           }
           // 东（邻列 i+1）
           final double he = cell.hPad[(j + 1) * gp + ci + 2];
-          if (he < h - 0.5) {
+          if (he < h) {
             _emitLodQuad(allFaces, Float64List.fromList(<double>[
               ccx2, he, cz, ccx2, he, cz2, ccx2, h, cz2, ccx2, h, cz,
             ]), 1, 0, 0, vSide, BlockFace.east, b, proj, sky, config,
@@ -3016,7 +3035,7 @@ abstract final class VoxelRenderer {
           }
           // 北（邻行 j-1）
           final double hn = cell.hPad[j * gp + ci + 1];
-          if (hn < h - 0.5) {
+          if (hn < h) {
             _emitLodQuad(allFaces, Float64List.fromList(<double>[
               ccx, hn, cz, ccx2, hn, cz, ccx2, h, cz, ccx, h, cz,
             ]), 0, 0, -1, vSide, BlockFace.north, b, proj, sky, config,
@@ -3024,7 +3043,7 @@ abstract final class VoxelRenderer {
           }
           // 南（邻行 j+1）
           final double hs = cell.hPad[(j + 2) * gp + ci + 1];
-          if (hs < h - 0.5) {
+          if (hs < h) {
             _emitLodQuad(allFaces, Float64List.fromList(<double>[
               ccx, hs, cz2, ccx, h, cz2, ccx2, h, cz2, ccx2, hs, cz2,
             ]), 0, 0, 1, vSide, BlockFace.south, b, proj, sky, config,

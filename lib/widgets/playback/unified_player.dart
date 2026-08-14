@@ -7,6 +7,7 @@ import '../../core/layout/responsive_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
+import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../services/audio/audio_service.dart';
@@ -15,6 +16,7 @@ import '../common/playback_feedback.dart';
 import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
+import '../sources/music_quality_sheet.dart';
 import 'equalizer_panel.dart';
 import 'playback_controls.dart';
 
@@ -219,6 +221,8 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                                 setState(() => _volOpen = !_volOpen),
                           ),
                           _buildVolumePanel(ref, _volOpen),
+                          // ⑧：搜索 + 音质入口下沉到音乐卡片底部（全局液态玻璃卡片）。
+                          _buildBottomActions(context, ref),
                         ],
                       ),
               ),
@@ -520,6 +524,33 @@ Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
   );
 }
 
+/// ⑧⑩：音乐卡片底部操作行——搜索（弹出式底部卡片）+ 音质 / 清晰度。
+Widget _buildBottomActions(BuildContext context, WidgetRef ref) {
+  final AppThemeColors colors = context.appColors;
+  return Padding(
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        TextButton.icon(
+          onPressed: () => unawaited(showAggregateSearchSheet(context)),
+          icon: Icon(Icons.search_rounded, size: 18, color: colors.accent),
+          label: Text('搜索', style: context.appText.caption),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+        ),
+        const SizedBox(width: 14),
+        TextButton.icon(
+          onPressed: () => unawaited(showMusicQualitySheet(context)),
+          icon:
+              Icon(Icons.high_quality_rounded, size: 18, color: colors.accent),
+          label: Text('音质', style: context.appText.caption),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+        ),
+      ],
+    ),
+  );
+}
+
 /// 白噪音来源切换（#167）：跟随场景 ⇄ 全局播放。
 ///
 /// 「跟随场景」= 每个场景各自记忆白噪音开关与音量，换场景自动切换；
@@ -607,7 +638,7 @@ class _FullscreenPlaybackOverlay extends ConsumerStatefulWidget {
 class _FullscreenPlaybackOverlayState
     extends ConsumerState<_FullscreenPlaybackOverlay> {
   bool _visible = false;
-  bool _volOpen = true; // R23j：全屏卡片音量面板默认展开
+  bool _volOpen = false; // 全局液态玻璃卡片：默认展开的音量面板关闭
   bool _seeking = false;
   double? _seekMs;
 
@@ -883,6 +914,26 @@ class _FullscreenPlaybackOverlayState
           const SizedBox(height: 8),
           widget.lyricsSlot!,
         ],
+        const SizedBox(height: 8),
+        // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）。
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            PlaybackIconButton(
+              icon: Icons.search_rounded,
+              size: AppSize.iconSm,
+              tooltip: '搜索',
+              onTap: () => unawaited(showAggregateSearchSheet(context)),
+            ),
+            const SizedBox(width: 16),
+            PlaybackIconButton(
+              icon: Icons.high_quality_rounded,
+              size: AppSize.iconSm,
+              tooltip: '音质',
+              onTap: () => unawaited(showMusicQualitySheet(context)),
+            ),
+          ],
+        ),
       ],
     );
   }

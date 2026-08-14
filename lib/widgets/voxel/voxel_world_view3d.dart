@@ -38,9 +38,8 @@ import '../../pages/settings/settings_page.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
-import '../../widgets/common/playback_feedback.dart';
-import '../../widgets/common/track_cover.dart';
-import '../../pages/now_playing/now_playing_page.dart';
+import '../../widgets/playback/unified_player.dart';
+import '../../widgets/lyrics/lyrics_view.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/scene/scene_custom_providers.dart';
 import '../../providers/scene/voxel_scene_providers.dart';
@@ -3804,6 +3803,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       ),
     );
 
+    // ⑨：游戏内顶部居中液态玻璃播放器——下拉展开、点信息区进沉浸卡片
+    // （带歌词，搜索/音质已并入卡片）。仅游戏开始后出现，不挡顶栏。
+    if (_started)
+      controls.add(
+        Positioned(
+          top: 92,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            top: false,
+            bottom: false,
+            child: UnifiedPlayer(lyricsSlot: const LyricsView()),
+          ),
+        ),
+      );
+
     // R26h：折叠面板（坐标 / 模式 / 自动跳 / 画质 / 沉浸），开合时显示在顶栏下方。
     // P2（用户确认）：改用可拖拽 _HudWrap——固定 top:66 在窄屏顶栏折行时会
     // 压住第二行 chips（UI 重叠）。拖拽 HUD 位置持久化，任何屏宽都不重叠。
@@ -4466,27 +4481,56 @@ class _VoxelFramePainter extends CustomPainter {
   /// 转视角时随世界移动，不是屏幕固定）；落在相机后方/地平线下时
   /// [VoxelFrame.sunVisible]/[VoxelFrame.moonVisible]=false，不绘制。
   void _drawSkyDecor(Canvas canvas, Size size) {
-    // 太阳（白天）。
+    // 太阳（白天）。④：无极过渡（sw 平滑驱动透明度）+ 泛光（bloom）+ 镜头炫光
+    // （lens flare），全部用 plus 叠加，低成本、无额外 pass。
     if (frame.sunVisible && frame.sunWeight > 0.04) {
       final double sx = frame.sunSX;
       final double sy = frame.sunSY;
-      if (sy > -80 && sy < size.height + 80) {
-        final double sw = frame.sunWeight;
-        final double r = 22 + sw * 16;
+      if (sy > -140 && sy < size.height + 140) {
+        final double sw = frame.sunWeight.clamp(0.0, 1.0);
+        final double a = sw.clamp(0.25, 1.0);
+        final Offset c = Offset(sx, sy);
+        final double r = 20 + sw * 16;
+        // 泛光（bloom）：半径递增、透明度递减的多层光晕（plus 叠加）。
+        const List<double> halos = <double>[1.8, 3.2, 5.5];
+        const List<double> haloA = <double>[0.20, 0.10, 0.05];
+        for (int i = 0; i < halos.length; i++) {
+          canvas.drawCircle(
+            c,
+            r * halos[i],
+            Paint()
+              ..color = Color.fromARGB(
+                  (255 * haloA[i] * a).round(), 255, 240, 200)
+              ..blendMode = ui.BlendMode.plus,
+          );
+        }
+        // 核心。
         canvas.drawCircle(
-          Offset(sx, sy),
+          c,
           r,
           Paint()
             ..color = Color.fromARGB(
-              (255 * sw.clamp(0.25, 1)).round(), 255, (200 * sw).round() + 40, 120),
+              (255 * a).round(), 255, (200 * sw).round() + 40, 120),
         );
-        canvas.drawCircle(
-          Offset(sx, sy),
-          r * 2.4,
-          Paint()
-            ..color = Color.fromARGB((70 * sw).round(), 255, 235, 160)
-            ..blendMode = ui.BlendMode.screen,
-        );
+        // 镜头炫光（lens flare）：沿「太阳 → 屏幕中心」铺一组低透明光斑。
+        final Offset sc = Offset(size.width / 2, size.height / 2);
+        final double dx = sc.dx - sx, dy = sc.dy - sy;
+        const List<double> tF = <double>[0.15, 0.4, 0.62, 0.85, 1.15];
+        const List<double> fr = <double>[1.2, 0.5, 1.6, 0.35, 0.9];
+        const List<double> fa = <double>[0.10, 0.14, 0.07, 0.16, 0.05];
+        for (int i = 0; i < tF.length; i++) {
+          final Offset p = Offset(sx + dx * tF[i], sy + dy * tF[i]);
+          if (p.dx < -90 || p.dx > size.width + 90 ||
+              p.dy < -90 || p.dy > size.height + 90) continue;
+          canvas.drawCircle(
+            p,
+            r * fr[i],
+            Paint()
+              ..color = Color.fromARGB(
+                  (255 * fa[i] * a).round(), 255, 235, 190)
+              ..blendMode = ui.BlendMode.plus,
+          );
+        }
       }
     }
     // 月亮（夜里，sunWeight 低时）。投影取 -sunDir，故夜间月亮在天顶附近。
@@ -5350,9 +5394,6 @@ class _FoldPanel extends StatelessWidget {
             ],
           ),
           sep,
-          // R26r21：游戏内音乐控制台（播放/暂停 + 上一首/下一首 + 当前曲目）。
-          const _WorldMusicConsole(),
-          sep,
           _ToggleChip(
             icon: Icons.place,
             label: '坐标',
@@ -5432,89 +5473,6 @@ class _FoldPanel extends StatelessWidget {
             label: '场景拍摄',
             active: false,
             onTap: onCaptureScene,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 游戏内音乐控制台（R26r21，R26skel-b4 优化）：样式对齐主页场景播放器
-/// 折叠态——默认只显示封面 + 播放/暂停 + 下一首；点封面弹全屏播放器面板
-/// （[NowPlayingPage]，与主页一致的完整控制）。
-class _WorldMusicConsole extends ConsumerWidget {
-  const _WorldMusicConsole();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final Track? track = ref.watch(nowPlayingProvider);
-    final bool playing = ref.watch(isPlayingProvider).valueOrNull ?? false;
-    final PlaybackActions actions = ref.read(playbackActionsProvider);
-    const Color ink = Color(0xFFF2F5FA);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-      decoration: BoxDecoration(
-        color: const Color(0x66101824),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x30FFFFFF)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 3)),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          // 封面：点按弹出全屏播放器面板。
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NowPlayingPage(),
-              ),
-            ),
-            child: TrackCover(track: track, size: 44, radius: 10),
-          ),
-          const SizedBox(width: 10),
-          // 曲名 + 歌手（单行省略）。
-          GestureDetector(
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NowPlayingPage(),
-              ),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 110),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    track?.title ?? '未在播放',
-                    style: const TextStyle(fontSize: 12, color: ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (track != null && track.artist.isNotEmpty)
-                    Text(
-                      track.artist,
-                      style: const TextStyle(fontSize: 10, color: Color(0xAAFFFFFF)),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // 播放/暂停。
-          _GlassCircleButton(
-            icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            onTap: () => runPlaybackAction(context, actions.toggle),
-          ),
-          const SizedBox(width: 6),
-          // 下一首。
-          _GlassCircleButton(
-            icon: Icons.skip_next_rounded,
-            onTap: () => runPlaybackAction(context, () => actions.next()),
           ),
         ],
       ),

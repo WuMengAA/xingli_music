@@ -15,9 +15,13 @@ import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/sources/music_quality_sheet.dart';
 
+/// ⚠️ 封存归档（R26 第 9 项反馈）：纯色大底全屏播放器入口已封存、等待删除。
+/// 游戏内与主页的音乐 UI 已由顶部居中的液态玻璃播放器 [UnifiedPlayer] 取代；
+/// 本页不再有任何 `Navigator.push` 入口（app_shell 与 voxel_world_view3d 均已切断）。
+///
 /// 完整播放页（架构 §5 T05 / PRD P1-04、P1-05、P1-10、P1-12）
 ///
-/// 由 `MiniPlayer` 左胶囊点击打开（`AppShell` 中接入 `Navigator.push`）。
+/// 原由 `MiniPlayer` 左胶囊点击打开（`AppShell` 中接入 `Navigator.push`），现已封存。
 /// 浅色扁平化页面，取色一律走 [AppColors] / [AppTextStyles]，
 /// 禁止任何颜色十六进制字面量与暗色画布资产（门禁 C1 / V2）。
 ///
@@ -31,6 +35,9 @@ import '../../widgets/sources/music_quality_sheet.dart';
 ///
 /// 窄屏兜底（P1-10）：整页放在 [SingleChildScrollView] 内，任意高度 / 320dp
 /// 窄屏都不会溢出；封面尺寸由 [LayoutBuilder] 按可用宽度派生。
+@Deprecated(
+  '封存归档、等待删除：音乐 UI 已统一迁移至 UnifiedPlayer（顶部居中液态玻璃播放器）',
+)
 class NowPlayingPage extends ConsumerWidget {
   const NowPlayingPage({super.key});
 

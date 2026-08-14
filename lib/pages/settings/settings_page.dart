@@ -377,9 +377,17 @@ class _LayoutDrivenBody extends ConsumerWidget {
                 const SizedBox(height: AppSpace.sm),
                 for (final SettingGroup g in selected.groups) ...<Widget>[
                   if (g.name.isNotEmpty) ...<Widget>[
-                    Text(g.name,
-                        style: Theme.of(context).textTheme.labelMedium),
-                    const SizedBox(height: 4),
+                    // cl42·⑦：分组标题放大（原 labelMedium ~12px 偏小）。
+                    // 用 titleSmall + 加粗，与集合名(titleMedium)形成清晰层级。
+                    Text(
+                      g.name,
+                      style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700) ??
+                          context.appText.subtitle,
+                    ),
+                    const SizedBox(height: 6),
                   ],
                   for (final SettingItem item in g.items) ...<Widget>[
                     buildSettingItem(context, ref, item.id),

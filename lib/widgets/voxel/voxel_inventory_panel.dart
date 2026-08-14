@@ -535,14 +535,17 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       ),
       child: Row(
         children: <Widget>[
+          // ⑦：退出按钮移到「背包 / 合成」标签左侧，避免与右侧操作冲突。
+          IconButton(
+            onPressed: widget.onClose,
+            icon: const Icon(Icons.close_rounded, color: Color(0xFFEFF3FA)),
+            tooltip: '关闭',
+          ),
+          const SizedBox(width: 4),
           _tab('背包', !_crafting, () => setState(() => _crafting = false)),
           const SizedBox(width: 8),
           _tab('合成', _crafting, () => setState(() => _crafting = true)),
           const Spacer(),
-          IconButton(
-            onPressed: widget.onClose,
-            icon: const Icon(Icons.close_rounded, color: Color(0xFFEFF3FA)),
-          ),
         ],
       ),
     );
@@ -595,12 +598,31 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
     );
   }
 
+  /// ⑥：背包改为居中的固定 9 列表格（3×9 / 1×9 类似样式），不再随宽度自由换行。
   Widget _grid(int from, int to) {
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+    final int count = math.max(0, to - from);
+    const int columns = 9;
+    if (count == 0) return const SizedBox.shrink();
+    final List<Widget> rows = <Widget>[];
+    for (int r = 0; r < count; r += columns) {
+      final int end = math.min(r + columns, count);
+      final List<Widget> cells = <Widget>[];
+      for (int i = r; i < end; i++) {
+        cells.add(_slotTile(from + i));
+      }
+      rows.add(Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: cells,
+      ));
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        for (int i = from; i < to; i++) _slotTile(i),
+        for (int i = 0; i < rows.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(height: 6),
+          rows[i],
+        ],
       ],
     );
   }

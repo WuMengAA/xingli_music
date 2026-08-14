@@ -629,3 +629,52 @@ class _CoverFallback extends StatelessWidget {
     );
   }
 }
+
+/// ⑩：音源搜索改为弹出式底部卡片，全局可调用、无风险。
+///
+/// 任意页面（音乐卡片 / 游戏内液态玻璃播放器 / 全屏卡片）都能拉起，
+/// 内部仍是 [AggregateSearchPage]（网易云 / B站 / 本地三源合一），
+/// 退出即回弹，不接管路由，亦不残留页面栈。
+Future<void> showAggregateSearchSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (BuildContext ctx) => const _AggregateSearchSheet(),
+  );
+}
+
+class _AggregateSearchSheet extends StatelessWidget {
+  const _AggregateSearchSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final double h = MediaQuery.of(context).size.height;
+    return Container(
+      height: h * 0.86,
+      decoration: BoxDecoration(
+        color: context.appColors.bgSurface,
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      child: Column(
+        children: <Widget>[
+          // 拖拽条（提示可下拉关闭）。
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: context.appColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          Expanded(child: AggregateSearchPage()),
+        ],
+      ),
+    );
+  }
+}

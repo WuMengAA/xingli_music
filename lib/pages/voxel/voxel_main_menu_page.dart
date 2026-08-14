@@ -17,10 +17,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../pages/settings/settings_page.dart';
+import '../../pages/settings/voxel_game_settings_page.dart';
 import '../../pages/settings/voxel_save_manager_page.dart';
 import '../../providers/settings/notification_providers.dart';
-import '../../providers/settings/settings_layout_provider.dart';
 
 /// 星璃世界游戏主菜单页。
 class VoxelMainMenuPage extends ConsumerWidget {
@@ -120,14 +119,12 @@ class VoxelMainMenuPage extends ConsumerWidget {
                       label: '游戏设置',
                       accent: accent,
                       ink: ink,
-                      // R26skel：游戏设置 = 全局设置页「游戏」合集（与游戏内
-                      // 暂停菜单一致，不再用独立 GameGraphicsPage）。
+                      // cl42·⑥：游戏设置 = 独立「包厢」页（只渲染 game 合集），
+                      // 不再跳全局设置页，避免与其它合集互相套娃。
                       onTap: () {
-                        ref.read(layoutSelectedCollectionProvider.notifier).state =
-                            'game';
                         Navigator.of(context).push(
                           MaterialPageRoute<void>(
-                            builder: (_) => const SettingsPage(),
+                            builder: (_) => const VoxelGameSettingsPage(),
                           ),
                         );
                       },

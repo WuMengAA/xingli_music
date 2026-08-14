@@ -247,10 +247,11 @@ final lodStartChunksProvider = StateProvider<int>((ref) => 2);
 final lodStepChunksProvider = StateProvider<int>((ref) => 1);
 
 /// P6·R26r18：LOD 质量档位（off=全满精度方阵 / balanced=原 2 档 / high=P1 多档细）。
-/// R26r33：默认 off——high 的多档渐进 LOD 在弱 GPU(1050) 上表现为「LOD 乱闪 /
-/// 区块渐进出现 / 高大物体侧面缺失」；off 即全距离满精度方阵，渲染稳定正确，
-/// 面数仍受 maxFaces 预算收敛，性能中性偏优。需要远山渐变时用户可手动开 high。
-final lodQualityProvider = StateProvider<LodQuality>((ref) => LodQuality.off);
+/// 用户明确要求「LOD 要能减少远处面数」（①）——故默认改为 balanced（原 2 档
+/// 马赛克），远景大方块正常发射、远山渐变可见、面数由 LOD 预算收敛。
+/// 弱 GPU 上若仍见 progressive 闪烁，用户可在「游戏画面」手动切回 off；
+/// 默认开 balanced 以满足「拉满视距也要减面」的诉求。
+final lodQualityProvider = StateProvider<LodQuality>((ref) => LodQuality.balanced);
 
 /// P3·R26r18：LOD 通道区块级视锥剔除开关（默认开，FP/TP 下远景面数约减半）。
 final lodFrustumCullProvider = StateProvider<bool>((ref) => true);

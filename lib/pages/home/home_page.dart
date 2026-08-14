@@ -10,6 +10,8 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/track_cover.dart';
+import '../../widgets/scene/voxel_scene_background.dart';
+import '../../widgets/voxel/voxel_capture_models.dart';
 
 /// 首页 · 场景大媒体卡片 + 当前播放卡（v2 M1 接入 PageScaffold，P0-C4：无搜索栏）。
 ///
@@ -85,6 +87,7 @@ class _SceneHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final VoxelSceneCapture? capture = scene.voxelCapture;
     final List<Color> colors = scene.visual.gradientColors.isNotEmpty
         ? scene.visual.gradientColors
         : const <Color>[Color(0xFF0B1220), Color(0xFF1B2A4A)];
@@ -99,31 +102,51 @@ class _SceneHeroCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          // 渐变封面。
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: colors.length >= 2
-                    ? <Color>[colors[0], colors[1]]
-                    : <Color>[colors[0], colors[0]],
-                stops: scene.visual.stops,
+          // cl42·④：有取景快照 → 显示存档图片（静态单帧，剥离空间音效，
+          // 不另起音效引擎；与场景页背景同源，首页也能「跳出存档的图片」）。
+          if (capture != null)
+            Positioned.fill(
+              child: VoxelSceneBackground(
+                key: ValueKey(capture),
+                capture: capture.withSounds(const <VoxelSoundscapeSource>[]),
+                forceLive: false,
               ),
             ),
-          ),
-          // 大 glyph（半透明装饰）。
-          Positioned(
-            right: -14,
-            bottom: -24,
-            child: Text(
-              scene.visual.glyph,
-              style: TextStyle(
-                fontSize: 150,
-                color: Colors.white.withValues(alpha: 0.16),
+          // 取景图上压暗，保证文字可读。
+          if (capture != null)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.42),
+                ),
               ),
             ),
-          ),
+          // 无取景 → 回退渐变封面 + 大 glyph。
+          if (capture == null) ...<Widget>[
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: colors.length >= 2
+                      ? <Color>[colors[0], colors[1]]
+                      : <Color>[colors[0], colors[0]],
+                  stops: scene.visual.stops,
+                ),
+              ),
+            ),
+            Positioned(
+              right: -14,
+              bottom: -24,
+              child: Text(
+                scene.visual.glyph,
+                style: TextStyle(
+                  fontSize: 150,
+                  color: Colors.white.withValues(alpha: 0.16),
+                ),
+              ),
+            ),
+          ],
           // 场景信息。
           Positioned(
             left: 18,

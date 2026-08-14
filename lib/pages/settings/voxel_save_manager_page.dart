@@ -411,17 +411,33 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     );
   }
 
-  /// cl29·③：选场景截图 PNG 当存档背景；'__clear__' 清除；返回 null 取消。
-  Future<void> _pickBackground(VoxelManualSaveMeta s) async {
+  /// cl42·⑤：列出可作为「存档背景 / 缩略图」的取景照片。
+  ///
+  /// 只收 `captures/` 下**同名 .json 快照（seed+机位）存在的** PNG——
+  /// 即体素世界拍照取景生成的场景照片，排除其它杂项 PNG，避免入口混入
+  /// 无关截图。新→旧排序。
+  Future<List<File>> _listScenePhotos() async {
     final Directory dir = await getApplicationSupportDirectory();
     final Directory capDir = Directory('${dir.path}/captures');
     final List<File> files = <File>[];
     if (await capDir.exists()) {
       await for (final FileSystemEntity e in capDir.list()) {
-        if (e is File && e.path.toLowerCase().endsWith('.png')) files.add(e);
+        if (e is! File) continue;
+        final String p = e.path;
+        if (!p.toLowerCase().endsWith('.png')) continue;
+        // 仅保留带配对快照的场景照片，过滤掉非取景 PNG。
+        final String jsonPath =
+            p.replaceFirst(RegExp(r'\.png$', caseSensitive: false), '.json');
+        if (await File(jsonPath).exists()) files.add(e as File);
       }
     }
     files.sort((File a, File b) => b.path.compareTo(a.path)); // 新→旧
+    return files;
+  }
+
+  /// cl29·③：选场景截图 PNG 当存档背景；'__clear__' 清除；返回 null 取消。
+  Future<void> _pickBackground(VoxelManualSaveMeta s) async {
+    final List<File> files = await _listScenePhotos();
     final String? picked = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: context.appColors.bgSurface,
@@ -441,15 +457,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   /// R26skel：选场景截图 PNG 当存档缩略图（1:1 128×128 前置显示）；
   /// '__clear__' 清除；返回 null 取消。
   Future<void> _pickThumbnail(VoxelManualSaveMeta s) async {
-    final Directory dir = await getApplicationSupportDirectory();
-    final Directory capDir = Directory('${dir.path}/captures');
-    final List<File> files = <File>[];
-    if (await capDir.exists()) {
-      await for (final FileSystemEntity e in capDir.list()) {
-        if (e is File && e.path.toLowerCase().endsWith('.png')) files.add(e);
-      }
-    }
-    files.sort((File a, File b) => b.path.compareTo(a.path)); // 新→旧
+    final List<File> files = await _listScenePhotos();
     final String? picked = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: context.appColors.bgSurface,
