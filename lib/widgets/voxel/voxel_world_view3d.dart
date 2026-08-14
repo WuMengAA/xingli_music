@@ -29,15 +29,12 @@ import 'package:cross_file/cross_file.dart';
 
 import '../../models/companion_action.dart';
 import '../../models/companion_models.dart';
-import '../../models/track.dart';
-import '../../models/voxel.dart';
 import '../../providers/companion/companion_providers.dart';
 import '../../pages/canvas/photo_gallery_page.dart';
 import '../../pages/canvas/voxel_canvas_page.dart';
 import '../../pages/settings/settings_page.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../providers/audio/audio_providers.dart';
-import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/playback/unified_player.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
 import '../../providers/scene/scene_providers.dart';
@@ -68,8 +65,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../providers/settings/performance_providers.dart';
-import '../../services/audio/minecraft_sfx_service.dart';
 import '../../services/voxel/voxel_music_engine.dart';
 import '../../services/voxel/voxel_audio_bundle.dart';
 import 'voxel_camera.dart';
@@ -3796,28 +3791,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                       ),
                     ],
                   ),
+                  // ⑨：游戏内顶部居中液态玻璃播放器。
+                  // 关键：作为顶栏 Column 的子项而非固定 top——顶栏 chips 在窄屏
+                  // 会折行（见 P2 注释：固定 top:66 曾压住第二行 chips），放进
+                  // Column 后播放器随折行自然下移，任何屏宽都不可能重叠；
+                  // crossAxisAlignment.center 天然居中，maxWidth 560 由播放器自带。
+                  // 交互：下拉箭头展开/收起，点信息区进沉浸卡片（带歌词，
+                  // 搜索/音质已并入卡片，默认音量收起）。
+                  if (_started) ...<Widget>[
+                    const SizedBox(height: 6),
+                    UnifiedPlayer(lyricsSlot: const LyricsView()),
+                  ],
                 ],
               ),
           ),
         ),
       ),
     );
-
-    // ⑨：游戏内顶部居中液态玻璃播放器——下拉展开、点信息区进沉浸卡片
-    // （带歌词，搜索/音质已并入卡片）。仅游戏开始后出现，不挡顶栏。
-    if (_started)
-      controls.add(
-        Positioned(
-          top: 92,
-          left: 0,
-          right: 0,
-          child: SafeArea(
-            top: false,
-            bottom: false,
-            child: UnifiedPlayer(lyricsSlot: const LyricsView()),
-          ),
-        ),
-      );
 
     // R26h：折叠面板（坐标 / 模式 / 自动跳 / 画质 / 沉浸），开合时显示在顶栏下方。
     // P2（用户确认）：改用可拖拽 _HudWrap——固定 top:66 在窄屏顶栏折行时会

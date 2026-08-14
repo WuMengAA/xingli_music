@@ -597,8 +597,18 @@ abstract final class VoxelRenderer {
     final List<List<double>> texDepthB = newBuckets();
     final List<List<double>> waterDepthB = newBuckets();
     const int kOutline = 0x4D000000; // 描边色：~30% 黑，ARGB
-    // R26f：描边最大深度（世界格）。超过则不生成描边（远处不可见 + 省面数）。
-    const double kEdgeMaxDepth = 15.0;
+    const int kOutlineA = 0x4D; // 描边基础 alpha（淡出时按比例缩放）
+    // R27②：描边距离「跟随视距 + 末段淡出」。
+    // 原实现是硬编码 `kEdgeMaxDepth = 15.0` 的二值截断：描边在离玩家 15 格处
+    // 整齐地一刀切消失，玩家于是看到一圈环绕自身的「近似立方圆」边界，且无论
+    // 视距设 2/4/6/8 chunks 都纹丝不动（用户反馈「描边视距严重不符」）。
+    // 修复 A：上限由 camera.far（= 视距，世界格）派生，与视距档位联动；夹到
+    //         [16,72]——每面描边要额外生成 8 个三角形，是面数黑洞，用户也认可
+    //         「再往上意义不大而且很卡」，故保留上限护栏。
+    // 修复 B：末段 30% 距离把 alpha 线性淡到 0，硬边界环变成察觉不到的渐隐。
+    final double kEdgeMaxDepth = (camera.far * 0.5).clamp(16.0, 72.0);
+    final double kEdgeFadeStart = kEdgeMaxDepth * 0.7;
+    final double kEdgeFadeSpan = kEdgeMaxDepth - kEdgeFadeStart;
 
     // 把一面拼进对应批次（贴图 / 纯色 / 水 / 描边）。
     // [depth]：面中心相机深度（0~far），描边按其落入深度桶，绘制时远→近，
@@ -671,6 +681,16 @@ abstract final class VoxelRenderer {
       // 但每面要生成 8 个三角形，是面数黑洞，近距画、远距省）。
       if (!translucentFace && depth < kEdgeMaxDepth) {
         const double hw = 1.1; // 描边半宽（px）
+        // R27②：末段淡出——alpha 随深度线性衰减到 0，消除硬截断的可见边界环。
+        int outlineCol = kOutline;
+        if (depth > kEdgeFadeStart) {
+          final double f =
+              (1.0 - (depth - kEdgeFadeStart) / kEdgeFadeSpan).clamp(0.0, 1.0);
+          final int a = (kOutlineA * f).round().clamp(0, 255);
+          // 已淡到不可见：直接跳过，省掉 8 个无效三角形（面数护栏）。
+          if (a <= 1) return;
+          outlineCol = a << 24;
+        }
         // R26r8：描边并入地形面批次（plain）一起按深度排序——描边深度取面深度
         // −ε，保证「描边画在自己的面上、被更近的面盖住」，根治「远描边盖近面
         // = 描到看不见的方块 / 描边 X-ray」（原独立 edge 桶同桶内后画导致）。
@@ -698,8 +718,8 @@ abstract final class VoxelRenderer {
             ..add(bx - nx)..add(by - ny)
             ..add(ax - nx)..add(ay - ny);
           ebc
-            ..add(kOutline)..add(kOutline)..add(kOutline)
-            ..add(kOutline)..add(kOutline)..add(kOutline);
+            ..add(outlineCol)..add(outlineCol)..add(outlineCol)
+            ..add(outlineCol)..add(outlineCol)..add(outlineCol);
           plainDepthB[bkt].add(eDepth);
         }
       }
