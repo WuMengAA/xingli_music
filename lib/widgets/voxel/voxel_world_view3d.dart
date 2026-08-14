@@ -82,6 +82,7 @@ import 'voxel_items.dart';
 import 'voxel_mobs.dart';
 import 'voxel_renderer.dart';
 import 'voxel_survival.dart';
+import 'player_controller.dart';
 import 'voxel_world.dart';
 import 'voxel_save.dart';
 import 'view_mode_button.dart';
@@ -443,8 +444,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 36 格背包（前 9 格 = 快捷栏）。
   final VoxelInventory _inv = VoxelInventory();
 
-  /// 生命 / 饥饿 / 经验。
-  final PlayerVitals _vitals = PlayerVitals();
+  /// 生命 / 饥饿 / 经验（cl38 P1：改由 [playerVitalsProvider] 单例真相源提供，
+  /// 供开放世界多系统共享；外部 13 处 _vitals.xxx() 引用保持不变）。
+  /// late final：在 initState 从 provider 注入（dispose 后仍可用，不依赖 ref）。
+  late final PlayerVitals _vitals;
 
   /// 僵尸 + 掉落物世界。
   late final MobWorld _mobs = MobWorld(world: widget.world);
@@ -527,6 +530,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   @override
   void initState() {
     super.initState();
+    // cl38 P1：玩家生存状态单一真相源（开放世界多系统共享）。
+    _vitals = ref.read(playerVitalsProvider);
     // cl29·②：场景页「拍照取景」入口透传——进入即开相机取景面板。
     if (widget.initialCameraMode) _cameraMode = true;
     // R26m：初始相机 = 世界中心地表第一人称（去掉俯视 overview 预览）。
@@ -800,7 +805,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _crackNotifier.dispose();
     _coordsText.dispose();
     _inv.dispose();
-    _vitals.dispose();
+    // cl38 P1：_vitals 生命周期由 playerVitalsProvider 管理（ref.onDispose 清理），
+    // 此处不再 dispose，避免与 provider 双重 dispose。
     _mobs.clear();
     super.dispose();
   }

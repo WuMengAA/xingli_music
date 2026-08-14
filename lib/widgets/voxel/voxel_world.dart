@@ -90,9 +90,14 @@ class VoxelWorld {
   /// 出生大陆预生成数组。
   final List<Voxel> _blocks;
 
-  /// 编辑覆盖层：key = x*65536 + z*256 + y（任意坐标，含大陆外）。
-  /// get 优先查它 → 破坏/放置在任何位置都即时生效。
-  final Map<int, Voxel> _edits = <int, Voxel>{};
+  /// 编辑覆盖层：按 chunk 分桶。外层 key = (cx,cz)，内层 key = chunk 内
+  /// 局部编码 (lx | ly<<4 | lz<<11)，任意坐标（含大陆外、负坐标、大范围）
+  /// 都即时生效。get 优先查它 → 破坏/放置即时可见。
+  /// cl38（开放世界）：原为 Map<int,Voxel>（_editKey=x*65536+z*256+y，z 锁
+  /// 0-255、x±32767）→ 改为 chunk 分桶，(cx,cz) 独立 int 不再受限，且天然
+  /// 支撑 P2 流式加载 / P4 分块存档（每 chunk 独立读写）。
+  final Map<(int, int), Map<int, Voxel>> _edits =
+      <(int, int), Map<int, Voxel>>{};
 
   /// 大陆外列生成缓存：key = x*65521 + z，值为整列方块。
   /// 上限 [maxGenColumns] 列，超出删一半（R23o 不再整体清空）。
@@ -111,16 +116,36 @@ class VoxelWorld {
 
   int _idx(int x, int y, int z) => x + sizeX * (z + sizeZ * y);
 
-  static int _editKey(int x, int y, int z) =>
-      x * 65536 + z * 256 + y.clamp(0, 255);
+  /// chunk 边长（列）。世界按 16×16 列分块；y 方向不分块（整列 maxY 高）。
+  static const int kChunkSize = 16;
+
+  /// (x,z) → chunk 坐标（record (cx,cz)）。Dart ~/ 向负无穷取整 → 负坐标
+  /// 也正确分桶，cx/cz 为独立 int，范围 ±很大（不再受限）。
+  static (int, int) _chunkOf(int x, int z) =>
+      (x ~/ kChunkSize, z ~/ kChunkSize);
+
+  /// chunk 内局部编码：lx(bit0-3) | ly(bit4-10) | lz(bit11-14)。
+  /// 负坐标用 %+size 修正回 [0,size)，保证 key 唯一且可逆。
+  static int _localKey(int x, int y, int z) {
+    final int lx = ((x % kChunkSize) + kChunkSize) % kChunkSize;
+    final int lz = ((z % kChunkSize) + kChunkSize) % kChunkSize;
+    return lx | (y << 4) | (lz << 11);
+  }
+
+  /// 由局部 key 反解 (lx,ly,lz)（toJson/loadJson 往返用）。
+  static (int, int, int) _unpackLocal(int k) =>
+      (k & 15, (k >> 4) & 127, (k >> 11) & 15);
 
   /// 取方块（任意坐标；大陆外即时确定性生成，越界高度返回空气）。
   Voxel get(int x, int y, int z) {
     if (y < 0 || y >= maxY) return Voxel.air;
     // R23o：edits 为空时跳过 Map 查找（渲染热路径，每帧数万次 get）。
     if (_edits.isNotEmpty) {
-      final Voxel? edit = _edits[_editKey(x, y, z)];
-      if (edit != null) return edit;
+      final Map<int, Voxel>? chunk = _edits[_chunkOf(x, z)];
+      if (chunk != null) {
+        final Voxel? edit = chunk[_localKey(x, y, z)];
+        if (edit != null) return edit;
+      }
     }
     if (x >= 0 && z >= 0 && x < sizeX && z < sizeZ) {
       return _blocks[_idx(x, y, z)];
@@ -152,7 +177,8 @@ class VoxelWorld {
   /// 公开修改方块（MC 玩法：破坏/放置）。任意坐标，越界也生效。
   void setVoxel(int x, int y, int z, Voxel v) {
     if (y < 0 || y >= maxY) return;
-    _edits[_editKey(x, y, z)] = v;
+    (_edits.putIfAbsent(_chunkOf(x, z), () => <int, Voxel>{}))
+        [_localKey(x, y, z)] = v;
     _dirtyColumn(x, z);
     _syncLight(x, y, z, v);
   }
@@ -835,12 +861,17 @@ class VoxelWorld {
   /// 序列化为可持久化的 JSON。地形由 [seed] 确定性复现，仅保存玩家编辑层
   /// （破坏 / 放置的方块）与发光方块——"存档存进所有东西"的方块侧全部在此。
   Map<String, dynamic> toJson() {
-    // 编辑层 key 是 [x*65536 + z*256 + y] 的打包整数（含负数坐标）；
-    // 负数下 Dart 的 ~/ 向零截断，无法可靠反解 x/y/z，故直接存原始 key。
-    final List<List<int>> edits = <List<int>>[
-      for (final MapEntry<int, Voxel> e in _edits.entries)
-        <int>[e.key, Voxel.values.indexOf(e.value)],
-    ];
+    // cl38（开放世界 chunk 化）：edits 按 chunk 分桶序列化，每项
+    // [cx, cz, lx, ly, lz, voxelIndex] —— 字段明确、可逆，不再依赖打包 key。
+    final List<List<int>> edits = <List<int>>[];
+    for (final MapEntry<(int, int), Map<int, Voxel>> ce in _edits.entries) {
+      final int cx = ce.key.$1;
+      final int cz = ce.key.$2;
+      for (final MapEntry<int, Voxel> e in ce.value.entries) {
+        final (int lx, int ly, int lz) = _unpackLocal(e.key);
+        edits.add(<int>[cx, cz, lx, ly, lz, Voxel.values.indexOf(e.value)]);
+      }
+    }
     final List<List<int>> lights = <List<int>>[
       for (final MapEntry<(int, int, int), Voxel> e in _lights.entries)
         <int>[
@@ -851,6 +882,7 @@ class VoxelWorld {
         ],
     ];
     return <String, dynamic>{
+      'schema': 2, // cl38 起：chunk 化 edits 格式
       'seed': seed,
       'maxY': maxY,
       'sizeX': sizeX,
@@ -867,13 +899,26 @@ class VoxelWorld {
   /// 调用方应先校验 [seed] 一致（地形不同则编辑坐标无意义），不一致时跳过。
   void loadJson(Map<String, dynamic> json) {
     _edits.clear();
+    final int schema = (json['schema'] as int?) ?? 1;
     for (final dynamic e in (json['edits'] as List<dynamic>? ?? <dynamic>[])) {
       final List<dynamic> a = e as List<dynamic>;
-      final int key = a[0] as int;
-      final int vi = a[1] as int;
-      if (vi >= 0 && vi < Voxel.values.length) {
-        _edits[key] = Voxel.values[vi];
+      if (schema >= 2 && a.length >= 6) {
+        // 新格式 [cx, cz, lx, ly, lz, vi]
+        final int cx = a[0] as int;
+        final int cz = a[1] as int;
+        final int lx = a[2] as int;
+        final int ly = a[3] as int;
+        final int lz = a[4] as int;
+        final int vi = a[5] as int;
+        if (vi >= 0 && vi < Voxel.values.length) {
+          final int x = cx * kChunkSize + lx;
+          final int z = cz * kChunkSize + lz;
+          (_edits.putIfAbsent((cx, cz), () => <int, Voxel>{}))
+              [_localKey(x, ly, z)] = Voxel.values[vi];
+        }
       }
+      // 旧格式 [key, vi]（cl37 及以前）：打包 key 不可靠反解 → 安全跳过，
+      // 世界靠 seed 重建；玩家历史编辑在 cl38 后由新格式写入。
     }
     _lights.clear();
     for (final dynamic e

@@ -65,7 +65,11 @@ abstract final class AppVersion {
   /// cl37：生存模式 bug 修复——新建/读档作弊关强制生存(禁创造)、
   /// 饥饿衰减提速至分钟级、进生存保留存档数值(不再 respawn 覆盖)、
   /// 新建存档作弊/浮空岛默认关。
-  static const int buildCount = 37;
+  /// cl38：开放世界地基 P0+P1——编辑层坐标从打包 key(x*65536+z*256+y，
+  /// z 锁 0-255/x±32767) 改为 chunk 分桶(cx,cz)+局部编码(任意坐标/负坐标/
+  /// 大范围生效，序列化 schema:2、旧档安全跳过)；玩家生存状态抽离为
+  /// playerVitalsProvider 单例真相源(Riverpod)，跨系统共享、避免双重 dispose。
+  static const int buildCount = 38;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
