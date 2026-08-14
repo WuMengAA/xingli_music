@@ -1,13 +1,15 @@
-/// R23u 生物群系 + 垂直世界（GDD §2.1/§2.3）：验证 4 群系地表、水域、256 垂直高度。
+/// R23u 生物群系 + 垂直世界（GDD §2.1/§2.3）：验证 4 群系地表、水域、垂直高度。
+/// G6：世界高度重排 maxY=128、海平面=32。
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import '../lib/widgets/voxel/voxel_world.dart';
 import '../lib/widgets/voxel/voxel_world_types.dart';
 
 void main() {
-  test('R23u 垂直世界 maxY=256 且地形在合理范围', () {
+  test('G6 垂直世界 maxY=128 且地形在合理范围', () {
     final VoxelWorld world = VoxelWorld();
-    expect(world.maxY, 256);
+    expect(world.maxY, 128);
+    expect(world.waterLevel, 32);
     int minH = 9999;
     int maxH = 0;
     for (int x = -100; x <= 100; x += 5) {

@@ -75,6 +75,12 @@ abstract class MusicBackend {
   /// 设置音量（0~1）。
   Future<void> setVolume(double volume);
 
+  /// I（均衡器）：应用一条音频滤镜链（mpv `af` 语法；空串=清除）。
+  ///
+  /// 仅 [MediaKitBackend]（libmpv）在原生平台支持；just_audio 等其余
+  /// 后端返回 false（不支持）。Windows 真 DSP 走 mpv `af=equalizer`。
+  Future<bool> setEqualizerFilter(String afFilter) async => false;
+
   /// 释放资源。
   Future<void> dispose();
 }

@@ -17,6 +17,7 @@ import '../../providers/audio/source_health_providers.dart';
 import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
 import '../../widgets/common/state_chip.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 音源管理页（v2 M4 · P0-M4-1 ~ P0-M4-3 瘦身重写）。
 ///
@@ -214,9 +215,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     if (picked == null || !sheetContext.mounted) return; // 用户取消
     final String path = _toRealPath(picked);
     if (path.isEmpty) {
-      ScaffoldMessenger.of(sheetContext).showSnackBar(
-        const SnackBar(content: Text('该目录无法转换为本地路径，请手动输入')),
-      );
+      appNotify(sheetContext, '该目录无法转换为本地路径，请手动输入');
       return;
     }
     _dirCtrl.text = path;

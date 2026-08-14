@@ -9,9 +9,7 @@ import '../../pages/explore/experiments/companion_page.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/mood_analysis_page.dart';
 import '../../pages/explore/experiments/recommend_page.dart';
-import '../../pages/explore/experiments/search_page.dart';
 import '../../pages/explore/experiments/sensor_page.dart';
-import '../../pages/explore/experiments/voxel_minigame_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
 
@@ -84,28 +82,12 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             builder: () => const RecommendPage(),
           ),
           ExperimentItem(
-            id: 'search',
-            name: '跨源搜索',
-            description: '跨源 / 模糊搜索增强',
-            icon: Icons.search_rounded,
-            status: ExperimentStatus.stable,
-            builder: () => const SearchExperimentPage(),
-          ),
-          ExperimentItem(
             id: 'equalizer',
             name: '音效均衡器',
             description: '低中高频三档 + 4 组预设',
             icon: Icons.equalizer_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const EqualizerPage(),
-          ),
-          ExperimentItem(
-            id: 'voxel_game',
-            name: '2.5D 小游戏',
-            description: '类我的世界：移动 / 收集 / 计分',
-            icon: Icons.videogame_asset_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const VoxelMinigamePage(),
           ),
           ExperimentItem(
             id: 'mood',

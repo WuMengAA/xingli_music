@@ -16,16 +16,28 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/settings/performance_providers.dart';
+import '../../providers/audio/audio_providers.dart';
 import '../voxel/voxel_camera.dart';
 import '../voxel/voxel_capture_models.dart';
 import '../voxel/voxel_renderer.dart';
 import '../voxel/voxel_world.dart';
+import '../voxel/world_audio_engine.dart';
 
 /// 场景背景：体素世界取景快照实时重绘层。
+///
+/// H2：若快照携带 16×16 音效源（[VoxelSceneCapture.sounds]），同时用
+/// [WorldAudioEngine] 原样重放（同 seed 世界 + 同机位 → 听感一致）。
 class VoxelSceneBackground extends ConsumerStatefulWidget {
-  const VoxelSceneBackground({super.key, required this.capture});
+  const VoxelSceneBackground({
+    super.key,
+    required this.capture,
+    this.forceLive = false,
+  });
 
   final VoxelSceneCapture capture;
+
+  /// H2：强制实时渲染（长按背景开关开启；省电/性能档也不退化静态帧）。
+  final bool forceLive;
 
   @override
   ConsumerState<VoxelSceneBackground> createState() =>
@@ -36,6 +48,7 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
     with SingleTickerProviderStateMixin {
   late VoxelWorld _world;
   late VoxelCamera _camera;
+  WorldAudioEngine? _audio;
   final ValueNotifier<VoxelFrame> _frame =
       ValueNotifier<VoxelFrame>(VoxelFrame.empty);
   late final Ticker _ticker;
@@ -53,6 +66,7 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
   void initState() {
     super.initState();
     _rebuild(widget.capture);
+    _initAudio();
     _ticker = createTicker(_onTick)..start();
   }
 
@@ -64,20 +78,56 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
     _dirty = true;
   }
 
+  /// H2：快照携带 16×16 音效源时，用同 seed 世界 + 同机位原样重放。
+  void _initAudio() {
+    _audio?.dispose();
+    _audio = null;
+    final List<VoxelSoundscapeSource> sounds = widget.capture.sounds;
+    if (sounds.isEmpty) return;
+    final List<WorldAudioSource> sources = sounds
+        .map((VoxelSoundscapeSource s) => WorldAudioSource(
+              id: '${s.kind}_${s.x.toStringAsFixed(0)}_${s.y.toStringAsFixed(0)}_${s.z.toStringAsFixed(0)}',
+              kind: WorldSfx.values.firstWhere(
+                (WorldSfx k) => k.name == s.kind,
+                orElse: () => WorldSfx.wind,
+              ),
+              x: s.x,
+              y: s.y,
+              z: s.z,
+              strength: s.strength,
+            ))
+        .toList();
+    _audio = WorldAudioEngine(_world, presetSources: sources)
+      ..setGlobalVolume(_scVolume)
+      ..onCamera(_camera);
+  }
+
+  double get _scVolume {
+    final bool muted = ref.read(soundscapeMutedProvider);
+    final double vol = ref.read(soundscapeVolumeProvider);
+    return muted ? 0 : vol.clamp(0.0, 1.0);
+  }
+
   @override
   void didUpdateWidget(covariant VoxelSceneBackground old) {
     super.didUpdateWidget(old);
-    if (old.capture != widget.capture) _rebuild(widget.capture);
+    if (old.capture != widget.capture) {
+      _rebuild(widget.capture);
+      _initAudio();
+    }
   }
 
   @override
   void dispose() {
     _ticker.dispose();
     _frame.dispose();
+    _audio?.dispose();
     super.dispose();
   }
 
   void _onTick(Duration elapsed) {
+    // H2：每 tick 把固定机位喂给音效引擎（内部 400ms 节流），保持空间声像。
+    _audio?.onCamera(_camera);
     if (_lastTick != Duration.zero && elapsed - _lastTick < _interval) return;
     final double dt = _lastTick == Duration.zero
         ? 1 / 60
@@ -118,17 +168,29 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
 
   @override
   Widget build(BuildContext context) {
-    // R21：两档（性能/质量）+ 全局帧率限制 + 背景动画独立开关。
-    // R20 期间 Windows 强制静态帧的降级已随无障碍桥崩溃根治而还原，
-    // 动画/渐变完全跟随档位与开关。
-    final PerformanceMode mode = ref.watch(performanceModeProvider);
-    _config = _configFor(mode);
-    _interval = Duration(
-      milliseconds: 1000 ~/ ref.watch(fpsLimitProvider).value,
+    // R26skel-b4：场景背景画质**独立于游戏画质**——改用场景专用 provider
+    // （画质档/帧率/雾/水波/天空/动画），游戏怎么调都不影响背景；反之亦然。
+    // 原实现跟随 performanceModeProvider/fpsLimitProvider/bgAnimationEnabledProvider
+    // （游戏画质预设会连带背景），现彻底解耦。
+    _config = _configFor(
+      ref.watch(sceneBgQualityProvider),
+      fog: ref.watch(sceneBgFogProvider),
+      water: ref.watch(sceneBgWaterProvider),
+      sky: ref.watch(sceneBgSkyProvider),
     );
-    // 背景动画开关：质量档默认开，性能档默认关；可手动覆盖。
-    _static = !ref.watch(bgAnimationEnabledProvider) ||
-        mode == PerformanceMode.performance;
+    _interval = Duration(
+      milliseconds:
+          (1000 ~/ ref.watch(sceneBgFpsProvider)).clamp(16, 1000).toInt(),
+    );
+    // H2：音量变化实时下发到背景音效引擎（含静音）。
+    ref.listen<double>(soundscapeVolumeProvider,
+        (double? _, double v) => _audio?.setGlobalVolume(v));
+    ref.listen<bool>(soundscapeMutedProvider, (bool? _, bool m) {
+      _audio?.setGlobalVolume(
+          m ? 0 : ref.read(soundscapeVolumeProvider).clamp(0.0, 1.0));
+    });
+    // 动画开关：场景背景独立开关（false = 静态单帧省电）；forceLive 强制实时。
+    _static = widget.forceLive ? false : !ref.watch(sceneBgAnimProvider);
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints c) {
@@ -150,20 +212,19 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
     );
   }
 
-  static RenderConfig _configFor(PerformanceMode m) => switch (m) {
-    // 性能：近距离 + 低面数 + 关雾 / 关天空细节 / 关水波
-    PerformanceMode.performance => const RenderConfig(
-        renderDistance: 18,
-        maxFaces: 1200,
-        fogEnabled: false,
-        waterAnimation: false,
-        skyGradient: false,
-      ),
-    PerformanceMode.quality => const RenderConfig(
-        renderDistance: 40,
-        maxFaces: 5000,
-      ),
-  };
+  static RenderConfig _configFor(
+    SceneBgQuality q, {
+    required bool fog,
+    required bool water,
+    required bool sky,
+  }) =>
+      RenderConfig(
+        renderDistance: q.renderDistance.toDouble(),
+        maxFaces: q.maxFaces,
+        fogEnabled: fog,
+        waterAnimation: water,
+        skyGradient: sky,
+      );
 }
 
 /// 把一帧 [VoxelFrame] 画到画布：天空渐变 → 不透明面 → 半透明面。

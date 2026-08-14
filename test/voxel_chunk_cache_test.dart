@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import '../lib/widgets/voxel/voxel_camera.dart';
-import '../lib/widgets/voxel/voxel_renderer.dart';
-import '../lib/widgets/voxel/voxel_world.dart';
+import 'package:xingli_music/widgets/voxel/voxel_camera.dart';
+import 'package:xingli_music/widgets/voxel/voxel_renderer.dart';
+import 'package:xingli_music/widgets/voxel/voxel_world.dart';
 
 void main() {
   group('VoxelChunkCache 直接语义', () {
     test('put / get / clear / invalidate', () {
       final VoxelChunkCache cache = VoxelChunkCache();
-      final ChunkMesh m = ChunkMesh(<CachedFace>[], 7);
+      final ChunkMesh m = ChunkMesh(<CachedFace>[], 7, const ChunkVisibility(0, 0));
       cache.put(3, 5, 0, m);
       expect(cache.get(3, 5, 0), same(m));
       expect(cache.get(3, 5, 1), isNull); // 不同 lod → 未命中
@@ -23,7 +23,7 @@ void main() {
 
     test('LRU 容量上限：超额淘汰最老', () {
       final VoxelChunkCache cache = VoxelChunkCache(maxChunks: 4);
-      final ChunkMesh m = ChunkMesh(<CachedFace>[], 1);
+      final ChunkMesh m = ChunkMesh(<CachedFace>[], 1, const ChunkVisibility(0, 0));
       for (int i = 0; i < 6; i++) {
         cache.put(i, 0, 0, m);
       }
@@ -44,43 +44,57 @@ void main() {
         viewport: const Size(800, 500),
         cache: null,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
       expect(f.chunkHits, 0);
       expect(f.chunkMisses, 0);
       expect(f.faceCount, greaterThan(0));
     });
 
-    test('同相机两帧：第二帧命中且面数与首帧一致（缓存等价）', () {
+    test('同相机两帧：第二帧命中且暖缓存帧间几何稳定（缓存等价）', () {
       final VoxelWorld world = VoxelWorld();
       final VoxelCamera camera = VoxelCamera.overview(world);
       final VoxelChunkCache cache = VoxelChunkCache();
 
+      // 首帧冷构建（全未命中），仅用于暖缓存；其面数作基准。
       final VoxelFrame f1 = VoxelRenderer.buildFrame(
         world: world,
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
+      // 第二、三帧均为暖缓存：S2 连通 flood-fill 可见集仅在暖态启用，
+      // 冷→暖首帧存在极小 warmup 瞬态（遮挡剔除收敛），故比对暖帧间等价。
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
         world: world,
         camera: camera,
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
+      );
+      final VoxelFrame f3 = VoxelRenderer.buildFrame(
+        world: world,
+        camera: camera,
+        viewport: const Size(800, 500),
+        cache: cache,
+        // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
 
-      // 首帧全未命中、第二帧有命中。
+      // 首帧全未命中、暖帧有命中。
       expect(f1.chunkHits, 0);
       expect(f1.chunkMisses, greaterThan(0));
       expect(f2.chunkHits, greaterThan(0));
 
-      // 缓存几何与首帧输出等价：面数一致。
-      expect(f2.faceCount, f1.faceCount);
-      expect(f2.columnsVisited, f1.columnsVisited);
+      // 暖缓存帧间几何严格等价（缓存复用，无逐帧抖动）。
+      expect(f3.faceCount, f2.faceCount);
+      expect(f3.columnsVisited, f2.columnsVisited);
+      // 暖缓存相对冷构建的面数偏差应极小（<2%，S2 遮挡剔除收敛所允许）。
+      final double delta = (f2.faceCount - f1.faceCount).abs() / f1.faceCount;
+      expect(delta, lessThan(0.02));
     });
 
     test('clear 后下一次构建重新未命中（至少部分重建）', () {
@@ -94,7 +108,7 @@ void main() {
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
       cache.clear();
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
@@ -103,7 +117,7 @@ void main() {
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
       // 清空后第二帧至少重新生成了部分区块（未命中 > 0）。
       expect(f2.chunkMisses, greaterThan(0));
@@ -123,7 +137,7 @@ void main() {
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
       final VoxelFrame f2 = VoxelRenderer.buildFrame(
         world: world,
@@ -131,7 +145,7 @@ void main() {
         viewport: const Size(800, 500),
         cache: cache,
         // R26f：测试锁缓存语义，分帧预算给极大值（生产默认 4 由配置控制）
-        config: const RenderConfig(maxChunkBuildsPerFrame: 9999),
+        config: const RenderConfig(lodQuality: LodQuality.off, maxChunkBuildsPerFrame: 9999),
       );
       // 仅窗口边缘少量 chunk 因进入视野变化而重建，大部分命中。
       expect(f2.chunkHits, greaterThan(f2.chunkMisses));

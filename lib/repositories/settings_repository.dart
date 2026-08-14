@@ -4,6 +4,8 @@ import 'dart:io' show Platform;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widgets/voxel/voxel_renderer.dart' show LodQuality;
+
 /// ════════════════════════════════════════════════════════════════════════
 /// 全局设置仓库（R10/R11）
 /// ════════════════════════════════════════════════════════════════════════
@@ -52,12 +54,32 @@ class SettingsRepository {
   static const String kGraphicsQuality = 'settings.voxel.graphicsQuality';
   static const String kLodStartChunks = 'settings.voxel.lodStartChunks';
   static const String kLodStepChunks = 'settings.voxel.lodStepChunks';
+  static const String kLodQuality = 'settings.voxel.lodQuality';
+  static const String kLodFrustumCull = 'settings.voxel.lodFrustumCull';
+  static const String kFaceCull = 'settings.voxel.faceCull';
+  static const String kOcclusionCull = 'settings.voxel.occlusionCull';
+  static const String kBackFaceCull = 'settings.voxel.backFaceCull';
+  static const String kFrustumCull = 'settings.voxel.frustumCull';
+  static const String kUnderwaterFilter = 'settings.voxel.underwaterFilter';
+  static const String kWaterFlow = 'settings.voxel.waterFlow';
+  static const String kFlashlight = 'settings.voxel.flashlight';
+  static const String kLodEnabled = 'settings.voxel.lodEnabled';
+  static const String kLodStepBlocks = 'settings.voxel.lodStepBlocks';
+  static const String kLodSampleBase = 'settings.voxel.lodSampleBase';
+  static const String kLodMaxChunks = 'settings.voxel.lodMaxChunks';
+  static const String kShadowRender = 'settings.voxel.shadowRender';
+  static const String kAoEnabled = 'settings.voxel.aoEnabled';
+  static const String kRenderScale = 'settings.voxel.renderScale';
+  static const String kRenderRatio = 'settings.voxel.renderRatio';
+  static const String kRenderPrecision = 'settings.voxel.renderPrecision';
+  static const String kOobeDone = 'settings.oobeDone';
   static const String kEngineBackend = 'settings.engineBackend';
   static const String kNoiseOverride = 'settings.effects.noise';
   static const String kGlassBlurOverride = 'settings.effects.glassBlur';
   static const String kBgAnimationOverride = 'settings.effects.bgAnimation';
   static const String kLiquidGlassOverride = 'settings.effects.liquidGlass';
   static const String kUiDensity = 'settings.uiDensity';
+  static const String kUiScale = 'settings.uiScale';
   static const String kMusicEngine = 'settings.musicEngine';
   static const String kLastTrackUri = 'settings.lastTrackUri';
   static const String kLastTrackTitle = 'settings.lastTrackTitle';
@@ -172,7 +194,7 @@ class SettingsRepository {
   Future<void> setViewDistanceChunks(int v) =>
       _prefs.setInt(kViewDistanceChunks, v);
 
-  /// R26m：3D 画质档索引（0=流畅 1=标准 2=高清；默认 1）。
+  /// R26m：3D 画质档索引（GraphicsQuality.values 序：0=性能 1=流畅 2=标准 3=高清；默认 1=流畅）。
   int get graphicsQuality => _prefs.getInt(kGraphicsQuality) ?? 1;
   Future<void> setGraphicsQuality(int v) =>
       _prefs.setInt(kGraphicsQuality, v);
@@ -184,6 +206,17 @@ class SettingsRepository {
   int get lodStepChunks => _prefs.getInt(kLodStepChunks) ?? 1;
   Future<void> setLodStepChunks(int v) =>
       _prefs.setInt(kLodStepChunks, v);
+
+  /// P6·R26r18：LOD 质量档位（int 索引持久化；R26r33 默认 off，见性能 provider）。
+  LodQuality get lodQuality =>
+      LodQuality.values[_prefs.getInt(kLodQuality) ?? LodQuality.off.index];
+  Future<void> setLodQuality(LodQuality v) =>
+      _prefs.setInt(kLodQuality, v.index);
+
+  /// P3·R26r18：LOD 通道区块级视锥剔除开关（默认开）。
+  bool get lodFrustumCull => _prefs.getBool(kLodFrustumCull) ?? true;
+  Future<void> setLodFrustumCull(bool v) =>
+      _prefs.setBool(kLodFrustumCull, v);
 
   /// 图形渲染后端（auto / skiaOpengl / impellerD3D11 / impellerVulkan / software）。
   /// 默认：Windows = impellerD3D11（DX11，用户定版），其余 = auto（OpenGL/Impeller）。
@@ -198,6 +231,75 @@ class SettingsRepository {
   Future<void> setNoiseOverride(bool? v) => v == null
       ? _prefs.remove(kNoiseOverride)
       : _prefs.setBool(kNoiseOverride, v);
+
+  bool? get faceCull => _prefs.getBool(kFaceCull);
+  Future<void> setFaceCull(bool? v) => v == null
+      ? _prefs.remove(kFaceCull)
+      : _prefs.setBool(kFaceCull, v);
+  bool? get occlusionCull => _prefs.getBool(kOcclusionCull);
+  Future<void> setOcclusionCull(bool? v) => v == null
+      ? _prefs.remove(kOcclusionCull)
+      : _prefs.setBool(kOcclusionCull, v);
+  bool? get backFaceCull => _prefs.getBool(kBackFaceCull);
+  Future<void> setBackFaceCull(bool? v) => v == null
+      ? _prefs.remove(kBackFaceCull)
+      : _prefs.setBool(kBackFaceCull, v);
+  bool? get frustumCull => _prefs.getBool(kFrustumCull);
+  Future<void> setFrustumCull(bool? v) => v == null
+      ? _prefs.remove(kFrustumCull)
+      : _prefs.setBool(kFrustumCull, v);
+  bool? get underwaterFilter => _prefs.getBool(kUnderwaterFilter);
+  Future<void> setUnderwaterFilter(bool? v) => v == null
+      ? _prefs.remove(kUnderwaterFilter)
+      : _prefs.setBool(kUnderwaterFilter, v);
+  bool? get waterFlow => _prefs.getBool(kWaterFlow);
+  Future<void> setWaterFlow(bool? v) => v == null
+      ? _prefs.remove(kWaterFlow)
+      : _prefs.setBool(kWaterFlow, v);
+  bool? get flashlight => _prefs.getBool(kFlashlight);
+  Future<void> setFlashlight(bool? v) => v == null
+      ? _prefs.remove(kFlashlight)
+      : _prefs.setBool(kFlashlight, v);
+  bool? get lodEnabled => _prefs.getBool(kLodEnabled);
+  Future<void> setLodEnabled(bool? v) => v == null
+      ? _prefs.remove(kLodEnabled)
+      : _prefs.setBool(kLodEnabled, v);
+  int? get lodStepBlocks => _prefs.getInt(kLodStepBlocks);
+  Future<void> setLodStepBlocks(int? v) => v == null
+      ? _prefs.remove(kLodStepBlocks)
+      : _prefs.setInt(kLodStepBlocks, v);
+  int? get lodSampleBase => _prefs.getInt(kLodSampleBase);
+  Future<void> setLodSampleBase(int? v) => v == null
+      ? _prefs.remove(kLodSampleBase)
+      : _prefs.setInt(kLodSampleBase, v);
+  int? get lodMaxChunks => _prefs.getInt(kLodMaxChunks);
+  Future<void> setLodMaxChunks(int? v) => v == null
+      ? _prefs.remove(kLodMaxChunks)
+      : _prefs.setInt(kLodMaxChunks, v);
+  bool? get shadowRender => _prefs.getBool(kShadowRender);
+  Future<void> setShadowRender(bool? v) => v == null
+      ? _prefs.remove(kShadowRender)
+      : _prefs.setBool(kShadowRender, v);
+  bool? get aoEnabled => _prefs.getBool(kAoEnabled);
+  Future<void> setAoEnabled(bool? v) => v == null
+      ? _prefs.remove(kAoEnabled)
+      : _prefs.setBool(kAoEnabled, v);
+  double? get renderScale => _prefs.getDouble(kRenderScale);
+  Future<void> setRenderScale(double? v) => v == null
+      ? _prefs.remove(kRenderScale)
+      : _prefs.setDouble(kRenderScale, v);
+  double? get renderRatio => _prefs.getDouble(kRenderRatio);
+  Future<void> setRenderRatio(double? v) => v == null
+      ? _prefs.remove(kRenderRatio)
+      : _prefs.setDouble(kRenderRatio, v);
+  double? get renderPrecision => _prefs.getDouble(kRenderPrecision);
+  Future<void> setRenderPrecision(double? v) => v == null
+      ? _prefs.remove(kRenderPrecision)
+      : _prefs.setDouble(kRenderPrecision, v);
+  bool? get oobeDone => _prefs.getBool(kOobeDone);
+  Future<void> setOobeDone(bool? v) => v == null
+      ? _prefs.remove(kOobeDone)
+      : _prefs.setBool(kOobeDone, v);
 
   double? get glassBlurOverride => _prefs.getDouble(kGlassBlurOverride);
   Future<void> setGlassBlurOverride(double? v) => v == null
@@ -217,6 +319,11 @@ class SettingsRepository {
   /// 界面密度（compact / standard）。
   String get uiDensity => _prefs.getString(kUiDensity) ?? 'standard';
   Future<void> setUiDensity(String v) => _prefs.setString(kUiDensity, v);
+
+  /// 全局 UI 大小（0.8~1.2；缺省 1.0）。
+  double get uiScale => _prefs.getDouble(kUiScale) ?? 1.0;
+  Future<void> setUiScale(double v) =>
+      _prefs.setDouble(kUiScale, v.clamp(0.8, 1.2));
 
   /// 播放引擎（justAudio / mediaKit，S2）。
   /// 未显式设置过（空串）时，由 [musicEngineProvider] 按平台给默认值

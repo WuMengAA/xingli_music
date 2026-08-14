@@ -15,6 +15,7 @@ import '../common/playback_feedback.dart';
 import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
+import 'equalizer_panel.dart';
 import 'playback_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -223,8 +224,10 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
               ),
             ],
           ),
-          // 紧凑面板：背景透明（坐在实色容器上），仅边缘毛玻璃模糊
+          // 紧凑面板：背景+背景的背景全透明（仅毛玻璃模糊，无盒感）
           transparent: true,
+          glassTint: Colors.transparent,
+          glassBorder: Colors.transparent,
         ),
       ),
     );
@@ -249,14 +252,17 @@ Widget _frostedPanel(
   double radius = 24,
   EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(16, 12, 16, 12),
   bool transparent = false,
+  // R26r21：透明模式可进一步指定 tint/描边（默认极淡白），传透明色=纯模糊无盒感。
+  Color? glassTint,
+  Color? glassBorder,
 }) {
   if (transparent) {
     return LiquidGlass(
       radius: radius,
       style: GlassStyle.frosted,
       // blur 跟随全局性能模式（省电=0 关闭模糊）
-      tint: const Color(0x0AFFFFFF),
-      borderColor: const Color(0x26FFFFFF),
+      tint: glassTint ?? const Color(0x0AFFFFFF),
+      borderColor: glassBorder ?? const Color(0x26FFFFFF),
       padding: padding,
       child: content,
     );
@@ -639,45 +645,52 @@ class _FullscreenPlaybackOverlayState
     final Track? now = ref.watch(nowPlayingProvider);
     // #167：白噪音状态取「生效来源」（跟随场景 / 全局）
     final bool whiteNoise = ref.watch(effectiveWhiteNoiseProvider).on;
-    return Stack(
-      children: <Widget>[
-        // 遮罩：点击关闭
-        AnimatedOpacity(
-          opacity: _visible ? 1 : 0,
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          child: GestureDetector(
-            onTap: _requestClose,
-            child: Container(color: context.appColors.scrim),
-          ),
-        ),
-        // 面板：缩放 + 淡入，宽度可拖拽调整（R23j）
-        Center(
-          child: AnimatedScale(
-            scale: _visible ? 1.0 : 0.9,
+    return Material(
+      // R26r21：Overlay 条目无 Material 祖先 → 面板内 Slider/IconButton/InkWell
+      // 崩溃「No Material widget found」；透明包一层即可。
+      color: Colors.transparent,
+      child: Stack(
+        children: <Widget>[
+          // 遮罩：点击关闭。R26r21：透明遮罩（两侧透明，露出底层应用）。
+          AnimatedOpacity(
+            opacity: _visible ? 1 : 0,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
-            child: AnimatedOpacity(
-              opacity: _visible ? 1 : 0,
+            child: GestureDetector(
+              onTap: _requestClose,
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          // 面板：缩放 + 淡入，宽度可拖拽调整（R23j）
+          Center(
+            child: AnimatedScale(
+              scale: _visible ? 1.0 : 0.9,
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeOutCubic,
-              child: SizedBox(
-                width: screen.width * _scale,
-                child: Stack(
-                  children: <Widget>[
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxHeight: screen.height - 96,
-                      ),
-                      child: _frostedPanel(
-                        context,
-                        SingleChildScrollView(
-                          child: _buildContent(now, whiteNoise),
+              child: AnimatedOpacity(
+                opacity: _visible ? 1 : 0,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                child: SizedBox(
+                  width: screen.width * _scale,
+                  child: Stack(
+                    children: <Widget>[
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: screen.height - 96,
                         ),
-                        radius: 32,
-                        padding: const EdgeInsets.all(24),
+                        child: _frostedPanel(
+                          context,
+                          SingleChildScrollView(
+                            child: _buildContent(now, whiteNoise),
+                          ),
+                          radius: 32,
+                          padding: const EdgeInsets.all(24),
+                          // R26r21：面板背景透明（仅 frosted 半透明 + 细描边），
+                          // 配合透明遮罩 → 音乐菜单两侧与背景都透明。
+                          transparent: true,
+                        ),
                       ),
-                    ),
                     // 右下角拖拽手柄：等比调面板大小
                     Positioned(
                       right: 4,
@@ -715,14 +728,56 @@ class _FullscreenPlaybackOverlayState
           ),
         ),
       ],
+      ),
+    );
+  }
+
+  /// I：播放菜单内打开均衡器（复用 [EqualizerPanel]，弹层展示）。
+  void _openEqualizer(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.appColors.bgSurface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (BuildContext sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text('均衡器', style: context.appText.subtitle),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: '关闭',
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.sm),
+              const Flexible(child: EqualizerPanel()),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildContent(Track? now, bool whiteNoise) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Row(
+      children: <Widget>[        Row(
           children: <Widget>[
             TrackCover(track: now, size: 72, radius: 16),
             const SizedBox(width: 16),
@@ -745,6 +800,13 @@ class _FullscreenPlaybackOverlayState
                   ),
                 ],
               ),
+            ),
+            // I：均衡器（Windows mpv 滤镜真 DSP / Android 真 EQ / 其余模拟层）
+            PlaybackIconButton(
+              icon: Icons.equalizer_rounded,
+              size: AppSize.iconSm,
+              tooltip: '均衡器',
+              onTap: () => _openEqualizer(context),
             ),
             PlaybackIconButton(
               icon: Icons.fullscreen_exit,

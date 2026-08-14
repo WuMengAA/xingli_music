@@ -1,0 +1,4 @@
+Flutter assets will be downloaded from https://mirrors.cloud.tencent.com/flutter. Make sure you trust this source!
+Building Windows application...                                    36.0s
+√ Built build\windows\x64\runner\Debug\xingli_music.exe
+WIN_BUILD_EXIT=0

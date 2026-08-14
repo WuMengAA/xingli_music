@@ -30,7 +30,22 @@ class ItemStack {
 
   /// 单格最大堆叠数（食物 / 稀有物少一些，贴近 MC 手感）。
   int get maxStack => switch (item) {
-        Voxel.apple || Voxel.bread => 16,
+        Voxel.apple ||
+        Voxel.bread ||
+        Voxel.beef ||
+        Voxel.cookedBeef ||
+        Voxel.porkchop ||
+        Voxel.cookedPorkchop ||
+        Voxel.carrot ||
+        Voxel.potato ||
+        Voxel.bakedPotato ||
+        Voxel.chicken ||
+        Voxel.cookedChicken ||
+        Voxel.melonSlice ||
+        Voxel.cookie ||
+        Voxel.fish ||
+        Voxel.cookedFish =>
+          16,
         Voxel.diamond || Voxel.gold => 32,
         _ => 64,
       };
@@ -156,7 +171,22 @@ int harvestLevelOf(Voxel v) => switch (v) {
 double blockHardness(Voxel v) => switch (v) {
       Voxel.air || Voxel.water => -1,
       Voxel.torch => 0.05,
-      Voxel.apple || Voxel.bread => 0.05,
+      Voxel.apple ||
+          Voxel.bread ||
+          Voxel.beef ||
+          Voxel.cookedBeef ||
+          Voxel.porkchop ||
+          Voxel.cookedPorkchop ||
+          Voxel.carrot ||
+          Voxel.potato ||
+          Voxel.bakedPotato ||
+          Voxel.chicken ||
+          Voxel.cookedChicken ||
+          Voxel.melonSlice ||
+          Voxel.cookie ||
+          Voxel.fish ||
+          Voxel.cookedFish =>
+        0.05,
       Voxel.leaves => 0.25,
       Voxel.snow => 0.35,
       Voxel.sand => 0.6,
@@ -211,6 +241,19 @@ List<ItemStack> dropsOf(Voxel v) => switch (v) {
 int foodValue(Voxel v) => switch (v) {
       Voxel.apple => 4,
       Voxel.bread => 5,
+      Voxel.beef => 3,
+      Voxel.cookedBeef => 8,
+      Voxel.porkchop => 3,
+      Voxel.cookedPorkchop => 8,
+      Voxel.carrot => 3,
+      Voxel.potato => 1,
+      Voxel.bakedPotato => 5,
+      Voxel.chicken => 2,
+      Voxel.cookedChicken => 6,
+      Voxel.melonSlice => 2,
+      Voxel.cookie => 2,
+      Voxel.fish => 2,
+      Voxel.cookedFish => 5,
       _ => 0,
     };
 

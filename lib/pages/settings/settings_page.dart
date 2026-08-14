@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_version.dart';
+import '../../core/settings_layout.dart';
+import '../../core/settings_item_registry.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
@@ -17,8 +19,10 @@ import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/settings/settings_ui_providers.dart';
+import '../../providers/settings/settings_layout_provider.dart';
 import '../../providers/shell/shell_providers.dart';
 import '../../providers/sources/netease_provider.dart';
+import '../../widgets/sources/netease_login_sheet.dart';
 import '../../providers/theme/theme_providers.dart';
 import '../../services/audio/audio_service.dart';
 import '../../services/permission_service.dart';
@@ -28,15 +32,13 @@ import '../../widgets/notification/notification_center.dart';
 import '../../widgets/shell/app_search_bar.dart';
 import '../../widgets/settings/llm_settings_sheet.dart';
 import '../../widgets/settings/log_upload_sheet.dart';
-import '../../widgets/sources/netease_login_sheet.dart';
-import '../../widgets/voxel/voxel_world_view3d.dart';
 import 'scene_editor_page.dart';
 import '../scene/custom_scene_list_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
-import 'game_graphics_page.dart';
-import 'voxel_save_manager_page.dart';
-import '../sources/netease_search_page.dart';
+import '../voxel/voxel_main_menu_page.dart';
 import 'server_settings_page.dart';
+import 'settings_organizer_page.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 设置页 · Master-Detail（v2 M1 接入 PageScaffold；M4/M6/M2 分类更新）。
 ///
@@ -59,6 +61,9 @@ class SettingsPage extends ConsumerWidget {
     final List<SettingsSection> matches = ref.watch(
       settingsSectionMatchesProvider,
     );
+    // 布局驱动：整理器自定义过布局（或打包了资产）→ 用用户布局渲染。
+    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
+    final bool layoutDriven = layout.collections.isNotEmpty;
 
     return PageScaffold(
       title: '设置',
@@ -68,28 +73,42 @@ class SettingsPage extends ConsumerWidget {
         onChanged: (String v) =>
             ref.read(searchQueryProvider(ShellPage.settings).notifier).state = v,
       ),
+      // 布局整理器入口（开发者自定义分类/组/排序，导出资产随包分发）。
+      actions: <Widget>[
+        IconButton(
+          tooltip: '整理设置布局',
+          icon: const Icon(Icons.dashboard_customize_outlined),
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const SettingsOrganizerPage(),
+            ),
+          ),
+        ),
+      ],
       body: Container(
         decoration: BoxDecoration(
-          // R16：容器底色跟随主题
-          color: context.appColors.bgSurfaceSunken,
+          // R26r21：与外层毛玻璃面板同效果——透明，透出外层 frosted。
+          color: Colors.transparent,
           borderRadius: AppRadius.brLg,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            // ── Master：左侧竖向分类导航栏 ─────────────
-            _CategoryRail(
-              selected: section,
-              matches: matches,
-              onSelect: (SettingsSection s) =>
-                  ref.read(settingsSectionProvider.notifier).state = s,
-            ),
+        child: layoutDriven
+            ? const _LayoutDrivenBody()
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  // ── Master：左侧竖向分类导航栏 ─────────────
+                  _CategoryRail(
+                    selected: section,
+                    matches: matches,
+                    onSelect: (SettingsSection s) =>
+                        ref.read(settingsSectionProvider.notifier).state = s,
+                  ),
 
-            // ── Detail：右侧详情区 ─────────────────────
-            Expanded(child: _SectionDetail(section: section)),
-          ],
-        ),
+                  // ── Detail：右侧详情区 ─────────────────────
+                  Expanded(child: _SectionDetail(section: section)),
+                ],
+              ),
       ),
     );
   }
@@ -115,8 +134,16 @@ class _CategoryRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: AppSize.rail,
-      // R16：左侧分类栏底色跟随主题
-      color: context.appColors.bgSurfaceSunken,
+      // R26r21c：透明透出外层全屏玻璃，右侧细描边分隔 Master/Detail。
+      // Container 不能同时传 `color:` + `decoration:`（断言报错），只在
+      // decoration 里画右边线即可，背景由透明默认承担。
+      decoration: BoxDecoration(
+        border: Border(
+          right: BorderSide(
+            color: context.appColors.border.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
       padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
       child: ListView(
         padding: EdgeInsets.zero,
@@ -216,8 +243,10 @@ class _CategoryTile extends StatelessWidget {
             duration: AppMotion.tab,
             curve: AppMotion.ease,
             decoration: BoxDecoration(
-              // R16：选中紫/未选中底色跟随主题
-              color: selected ? context.appColors.accent : context.appColors.bgSurfaceSunken,
+              // R26r21：选中紫 / 未选中半透明白（与外层毛玻璃同质感）
+              color: selected
+                  ? context.appColors.accent
+                  : const Color(0x0DFFFFFF),
               borderRadius: AppRadius.brMd,
               border: Border.all(
                 color: selected ? context.appColors.accent : context.appColors.border,
@@ -270,6 +299,103 @@ class _SectionDetail extends StatelessWidget {
   }
 }
 
+/// 布局驱动详情（用户通过整理器自定义后启用）：
+/// 左侧 = 合集列表，右侧 = 该合集下所有组的设置项（按注册表渲染）。
+class _LayoutDrivenBody extends ConsumerWidget {
+  const _LayoutDrivenBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
+    if (layout.collections.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final String selectedId = ref.watch(
+      layoutSelectedCollectionProvider,
+    );
+    // 选中合集（找不到则首个）。
+    SettingCollection selected = layout.collections.first;
+    for (final SettingCollection c in layout.collections) {
+      if (c.id == selectedId) {
+        selected = c;
+        break;
+      }
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // 左侧：合集列表。
+        SizedBox(
+          width: 96,
+          child: ListView(
+            children: <Widget>[
+              for (final SettingCollection c in layout.collections)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    onTap: () => ref
+                        .read(layoutSelectedCollectionProvider.notifier)
+                        .state = c.id,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: c.id == selected.id
+                            ? Theme.of(context)
+                                .colorScheme
+                                .primaryContainer
+                                .withValues(alpha: 0.5)
+                            : null,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        c.name,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: c.id == selected.id
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        // 右侧：选中合集下的组 + 设置项。
+        Expanded(
+          child: Material(
+            color: Colors.transparent,
+            child: ListView(
+              padding: const EdgeInsets.all(AppSpace.md),
+              children: <Widget>[
+                Text(selected.name,
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: AppSpace.sm),
+                for (final SettingGroup g in selected.groups) ...<Widget>[
+                  if (g.name.isNotEmpty) ...<Widget>[
+                    Text(g.name,
+                        style: Theme.of(context).textTheme.labelMedium),
+                    const SizedBox(height: 4),
+                  ],
+                  for (final SettingItem item in g.items) ...<Widget>[
+                    buildSettingItem(context, ref, item.id),
+                    const Divider(height: 1),
+                  ],
+                  const SizedBox(height: AppSpace.md),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// 详情区标题 + 列表通用骨架。
 class _DetailScaffold extends StatelessWidget {
   const _DetailScaffold({required this.title, required this.children});
@@ -301,20 +427,8 @@ class _AudioDetail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final double volume = ref.watch(musicVolumeProvider);
-    final bool muted = ref.watch(musicMutedProvider);
-    final double sVolume = ref.watch(soundscapeVolumeProvider);
-    final bool sMuted = ref.watch(soundscapeMutedProvider);
     final double master = ref.watch(masterVolumeProvider);
-    final double sfx = ref.watch(sfxVolumeProvider);
-    // #167：白噪音取「生效来源」（跟随场景 / 全局播放）
-    final WhiteNoiseState wnState = ref.watch(effectiveWhiteNoiseProvider);
-    final bool wnFollows = ref.watch(whiteNoiseFollowsSceneProvider);
-    final double world = ref.watch(worldSfxVolumeProvider);
-    final double uiCue = ref.watch(uiCueVolumeProvider);
-    final PlayMode mode = ref.watch(playModeProvider);
     final BalanceMode balance = ref.watch(balanceModeProvider);
-    final NeteaseAuthState netease = ref.watch(neteaseAuthProvider);
 
     return _DetailScaffold(
       title: SettingsSection.audio.title,
@@ -329,135 +443,8 @@ class _AudioDetail extends ConsumerWidget {
             unawaited(ref.read(audioServiceProvider).setMasterVolume(v));
           },
         ),
-        // ── 音乐（#170：规范分类名）──
-        _SliderRow(
-          label: AudioCategory.music.label,
-          concept: AudioCategory.music.concept,
-          value: volume,
-          onChanged: (double v) {
-            ref.read(musicVolumeProvider.notifier).state = v;
-            unawaited(ref.read(audioServiceProvider).setMusicVolume(v));
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.music));
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('静音', style: context.appText.body),
-          subtitle: Text('暂停音乐输出', style: context.appText.artist),
-          value: muted,
-          onChanged: (bool v) {
-            ref.read(musicMutedProvider.notifier).state = v;
-            unawaited(ref.read(audioServiceProvider).setMusicMuted(v));
-          },
-        ),
-        _PlayModeRow(mode: mode),
-        _SliderRow(
-          label: AudioCategory.soundscape.label,
-          concept: AudioCategory.soundscape.concept,
-          value: sVolume,
-          onChanged: (double v) {
-            ref.read(soundscapeVolumeProvider.notifier).state = v;
-            unawaited(ref.read(audioServiceProvider).setSoundscapeVolume(v));
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.soundscape));
-          },
-        ),
-        // R23i：音效（SFX）通道音量
-        _SliderRow(
-          label: AudioCategory.sfx.label,
-          concept: AudioCategory.sfx.concept,
-          value: sfx,
-          onChanged: (double v) {
-            ref.read(sfxVolumeProvider.notifier).state = v;
-            unawaited(ref.read(audioServiceProvider).setSfxVolume(v));
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.sfx));
-          },
-        ),
-        // #170：世界空间音效通道音量
-        _SliderRow(
-          label: AudioCategory.worldSpatial.label,
-          concept: AudioCategory.worldSpatial.concept,
-          value: world,
-          onChanged: (double v) {
-            ref.read(worldSfxVolumeProvider.notifier).state = v;
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.worldSpatial));
-          },
-        ),
-        // #170：提示音通道音量
-        _SliderRow(
-          label: AudioCategory.uiCue.label,
-          concept: AudioCategory.uiCue.concept,
-          value: uiCue,
-          onChanged: (double v) {
-            ref.read(uiCueVolumeProvider.notifier).state = v;
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.uiCue));
-          },
-        ),
-        // #167：白噪音——独立通道，来源可选「跟随场景 / 全局播放」
-        _SliderRow(
-          label: AudioCategory.whiteNoise.label,
-          concept: AudioCategory.whiteNoise.concept,
-          value: wnState.volume,
-          onChanged: (double v) {
-            if (wnFollows) {
-              unawaited(saveSceneWhiteNoise(ref, volume: v));
-            } else {
-              ref.read(whiteNoiseVolumeProvider.notifier).state = v;
-            }
-            unawaited(ref
-                .read(audioServiceProvider)
-                .playCategoryCue(AudioCategory.whiteNoise));
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('白噪音跟随场景', style: context.appText.body),
-          subtitle: Text(
-            wnFollows
-                ? '每个场景独立记忆白噪音开关与音量，换场景自动切换'
-                : '全局播放：忽略场景设置，所有场景共用同一份白噪音',
-            style: context.appText.artist,
-          ),
-          value: wnFollows,
-          onChanged: (bool v) {
-            ref.read(whiteNoiseFollowsSceneProvider.notifier).state = v;
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('白噪音', style: context.appText.body),
-          subtitle: Text(
-            wnFollows ? '开关写入当前场景' : '独立白噪音通道，叠加在音乐/背景声之上',
-            style: context.appText.artist,
-          ),
-          value: wnState.on,
-          onChanged: (bool v) {
-            if (wnFollows) {
-              unawaited(saveSceneWhiteNoise(ref, on: v));
-            } else {
-              ref.read(whiteNoiseEnabledProvider.notifier).state = v;
-            }
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('背景声静音', style: context.appText.body),
-          subtitle: Text('暂停场景背景声（音景）输出', style: context.appText.artist),
-          value: sMuted,
-          onChanged: (bool v) {
-            ref.read(soundscapeMutedProvider.notifier).state = v;
-            unawaited(ref.read(audioServiceProvider).setSoundscapeMuted(v));
-          },
-        ),
+        // ── 其他音量（R26r21：折叠；主音量外置在上方）──
+        const _OtherVolumesFold(),
         // R15：音量均衡（高保真 / 普通）
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
@@ -524,6 +511,9 @@ class _AudioDetail extends ConsumerWidget {
             ),
           ),
         ),
+        const SizedBox(height: AppSpace.sm),
+        // R26r28：#279 设置整合 —— 网易云登录态直接在设置页管理。
+        const _NeteaseSourceTile(),
         const SizedBox(height: AppSpace.lg),
 
         // ── 播放引擎（R26c：从「画面 → 性能与质量」移入「音频」区）──
@@ -692,26 +682,14 @@ class _VisualDetail extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpace.sm),
-        // R26p：游戏画面专属设置（与游戏内共享 provider）。
-        _EntryRow(
-          icon: Icons.tune_rounded,
-          title: '游戏画面',
-          subtitle: '画质档 / 视距 / LOD / 帧率 · 与游戏内共享',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const GameGraphicsPage(),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        // R26p：世界存档管理器（新建 / 恢复多备份 / 导出 / 重命名 / 删除）。
+        // R26skel：世界存档唯一入口 = 游戏主菜单（避免绕过主菜单新建/恢复存档）。
         _EntryRow(
           icon: Icons.save_outlined,
           title: '世界存档',
-          subtitle: '新建 / 恢复（多备份）/ 导出分享 / 重命名 / 删除',
+          subtitle: '经游戏主菜单进入：新建 / 恢复 / 导出 / 重命名 / 删除',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => const VoxelSaveManagerPage(),
+              builder: (_) => const VoxelMainMenuPage(),
             ),
           ),
         ),
@@ -893,11 +871,7 @@ class _NotificationDetail extends ConsumerWidget {
           onTap: () async {
             final bool ok = await PermissionService.requestAll();
             if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(ok ? '权限已全部授予' : '部分权限未授予，已打开系统设置'),
-              ),
-            );
+            appNotify(context, ok ? '权限已全部授予' : '部分权限未授予，已打开系统设置');
           },
         ),
         const SizedBox(height: AppSpace.sm),
@@ -961,8 +935,8 @@ class _AboutDetail extends StatelessWidget {
         _InfoRow(label: '版本号', value: AppVersion.display),
         _InfoRow(label: '版本代号', value: AppVersion.brand),
         _InfoRow(
-          label: '构建次数',
-          value: '今日第 ${AppVersion.buildCount} 次（cl${AppVersion.buildCount.toString().padLeft(2, '0')}）',
+          label: '今日累计构建',
+          value: '${AppVersion.buildCount} 次 · ${AppVersion.display}',
         ),
         _InfoRow(label: '阶段', value: AppVersion.stage.label),
         _InfoRow(label: '语义版本', value: AppVersion.semver),
@@ -989,8 +963,6 @@ class _ExperimentDetail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ExperimentConsent consent = ref.watch(experimentConsentProvider);
     final List<ExperimentItem> items = ref.watch(experimentsProvider);
-    // R26p2：实验性功能分组需要网易云登录态（副标题展示账号）。
-    final NeteaseAuthState netease = ref.watch(neteaseAuthProvider);
 
     return _DetailScaffold(
       title: SettingsSection.experiment.title,
@@ -1024,9 +996,7 @@ class _ExperimentDetail extends ConsumerWidget {
               ? () async {
                   await ref.read(experimentConsentProvider.notifier).revoke();
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('已撤销同意，退出全部实验')),
-                    );
+                    appNotify(context, '已撤销同意，退出全部实验');
                   }
                 }
               : null,
@@ -1050,56 +1020,6 @@ class _ExperimentDetail extends ConsumerWidget {
                 .read(experimentConsentProvider.notifier)
                 .setEnabled(item.id, v),
           ),
-        // ═══ 实验性功能（R26p2：把仍在打磨的功能入口从主设置移入此处）═══
-        const SizedBox(height: AppSpace.lg),
-        Text('实验性功能', style: context.appText.subtitle),
-        const SizedBox(height: AppSpace.xs),
-        Text(
-          '体素世界 / 2.5D 音效 / 网易云音乐等仍在打磨的功能入口。',
-          style: context.appText.artist,
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.view_in_ar_rounded,
-          title: '3D 体素世界',
-          subtitle: '进入 3D 视图 · 世界内空间音效 · AI 体素小人',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VoxelWorld3DPage(),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.grid_view_rounded,
-          title: '2.5D 音效编辑器',
-          subtitle: '类我的世界：摆放音效块，试听并保存独立音效层',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VoxelSoundEditorPage(),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.cloud_outlined,
-          title: '网易云音乐',
-          subtitle: netease.isLoggedIn
-              ? '已登录：${netease.account?.nickname ?? '网易云用户'}'
-              : '未登录 · 应用内登录 / 粘贴 Cookie',
-          onTap: () => showNeteaseLoginSheet(context),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _EntryRow(
-          icon: Icons.search_rounded,
-          title: '网易云搜索',
-          subtitle: '登录后搜索并在线播放网易云曲库',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const NeteaseSearchPage(),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -1157,9 +1077,7 @@ class _SliderRow extends StatelessWidget {
 
 /// 详情区：播放模式选择器（顺序 / 倒序 / 随机 / 单曲循环）。
 class _PlayModeRow extends ConsumerWidget {
-  const _PlayModeRow({required this.mode});
-
-  final PlayMode mode;
+  const _PlayModeRow();
 
   static const List<PlayMode> _order = <PlayMode>[
     PlayMode.order,
@@ -1177,6 +1095,7 @@ class _PlayModeRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final PlayMode mode = ref.watch(playModeProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
       child: Column(
@@ -1219,8 +1138,8 @@ class _EntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      // R16：入口行卡片底色跟随主题
-      color: context.appColors.bgCard,
+      // R26r21：半透明白玻璃（与外层毛玻璃同质感），不再实色 bgCard。
+      color: const Color(0x0DFFFFFF),
       borderRadius: AppRadius.brMd,
       child: InkWell(
         onTap: onTap,
@@ -1246,6 +1165,83 @@ class _EntryRow extends StatelessWidget {
                 size: AppSize.iconSm,
                 color: context.appColors.iconInactive,
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 设置页「音源」分组里的网易云入口（R26r28：#279 设置整合）。
+///
+/// 未登录 → 点按打开登录面板；已登录 → 显示昵称并提供「退登」。
+class _NeteaseSourceTile extends ConsumerWidget {
+  const _NeteaseSourceTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final NeteaseAuthState na = ref.watch(neteaseAuthProvider);
+    return Material(
+      color: const Color(0x0DFFFFFF),
+      borderRadius: AppRadius.brMd,
+      child: InkWell(
+        borderRadius: AppRadius.brMd,
+        onTap: () async {
+          if (na.isLoggedIn) {
+            final bool? confirm = await showDialog<bool>(
+              context: context,
+              builder: (BuildContext d) => AlertDialog(
+                title: const Text('退出网易云登录'),
+                content: const Text('退出后无法在搜索页在线播放网易云歌曲。'),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.pop(d),
+                    child: const Text('取消'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(d, true),
+                    child: const Text('退登'),
+                  ),
+                ],
+              ),
+            );
+            if (confirm == true) {
+              await ref.read(neteaseAuthProvider.notifier).logout();
+            }
+          } else {
+            await showNeteaseLoginSheet(context);
+          }
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpace.md),
+          child: Row(
+            children: <Widget>[
+              Icon(Icons.cloud_outlined,
+                  size: AppSize.iconSm, color: context.appColors.iconPrimary),
+              const SizedBox(width: AppSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('网易云音乐', style: context.appText.body),
+                    const SizedBox(height: 2),
+                    Text(
+                      na.isLoggedIn
+                          ? '已登录：${na.account?.nickname ?? '网易云用户'}'
+                          : '未登录，点此登录后可在搜索页在线播放',
+                      style: context.appText.artist,
+                    ),
+                  ],
+                ),
+              ),
+              if (na.isLoggedIn)
+                TextButton(
+                  onPressed: () async {
+                    await ref.read(neteaseAuthProvider.notifier).logout();
+                  },
+                  child: const Text('退登'),
+                ),
             ],
           ),
         ),
@@ -1349,6 +1345,220 @@ class _ChunkStepperRow extends StatelessWidget {
           Text(hint, style: context.appText.artist),
         ],
       ),
+    );
+  }
+}
+
+/// R26r21：音频区「其他音量」折叠组（主音量外置；其余 5 通道 + 静音/播放模式/
+/// 白噪音/背景声静音收进此组，点标题展开/收起，默认收起）。
+class _OtherVolumesFold extends ConsumerStatefulWidget {
+  const _OtherVolumesFold();
+
+  @override
+  ConsumerState<_OtherVolumesFold> createState() => _OtherVolumesFoldState();
+}
+
+class _OtherVolumesFoldState extends ConsumerState<_OtherVolumesFold> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double volume = ref.watch(musicVolumeProvider);
+    final bool muted = ref.watch(musicMutedProvider);
+    final double sVolume = ref.watch(soundscapeVolumeProvider);
+    final double sfx = ref.watch(sfxVolumeProvider);
+    final double world = ref.watch(worldSfxVolumeProvider);
+    final double uiCue = ref.watch(uiCueVolumeProvider);
+    final WhiteNoiseState wnState = ref.watch(effectiveWhiteNoiseProvider);
+    final bool wnFollows = ref.watch(whiteNoiseFollowsSceneProvider);
+    final bool sMuted = ref.watch(soundscapeMutedProvider);
+    final double master = ref.watch(masterVolumeProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  _expanded
+                      ? Icons.expand_less_rounded
+                      : Icons.expand_more_rounded,
+                  size: AppSize.iconSm,
+                  color: context.appColors.iconInactive,
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Text('其他音量', style: context.appText.subtitle),
+                const SizedBox(width: AppSpace.sm),
+                Text(
+                  '${(master * 100).round()}%',
+                  style: context.appText.caption.copyWith(
+                    color: context.appColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+          child: ClipRect(
+            child: Align(
+              alignment: Alignment.topCenter,
+              heightFactor: _expanded ? 1.0 : 0.0,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const SizedBox(height: AppSpace.xs),
+                  _SliderRow(
+                    label: AudioCategory.music.label,
+                    concept: AudioCategory.music.concept,
+                    value: volume,
+                    onChanged: (double v) {
+                      ref.read(musicVolumeProvider.notifier).state = v;
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .setMusicVolume(v));
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.music));
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('静音', style: context.appText.body),
+                    subtitle:
+                        Text('暂停音乐输出', style: context.appText.artist),
+                    value: muted,
+                    onChanged: (bool v) {
+                      ref.read(musicMutedProvider.notifier).state = v;
+                      unawaited(
+                          ref.read(audioServiceProvider).setMusicMuted(v));
+                    },
+                  ),
+                  const _PlayModeRow(),
+                  _SliderRow(
+                    label: AudioCategory.soundscape.label,
+                    concept: AudioCategory.soundscape.concept,
+                    value: sVolume,
+                    onChanged: (double v) {
+                      ref.read(soundscapeVolumeProvider.notifier).state = v;
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .setSoundscapeVolume(v));
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.soundscape));
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('背景声静音', style: context.appText.body),
+                    subtitle: Text('暂停场景背景声（音景）输出',
+                        style: context.appText.artist),
+                    value: sMuted,
+                    onChanged: (bool v) {
+                      ref.read(soundscapeMutedProvider.notifier).state = v;
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .setSoundscapeMuted(v));
+                    },
+                  ),
+                  _SliderRow(
+                    label: AudioCategory.sfx.label,
+                    concept: AudioCategory.sfx.concept,
+                    value: sfx,
+                    onChanged: (double v) {
+                      ref.read(sfxVolumeProvider.notifier).state = v;
+                      unawaited(
+                          ref.read(audioServiceProvider).setSfxVolume(v));
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.sfx));
+                    },
+                  ),
+                  _SliderRow(
+                    label: AudioCategory.worldSpatial.label,
+                    concept: AudioCategory.worldSpatial.concept,
+                    value: world,
+                    onChanged: (double v) {
+                      ref.read(worldSfxVolumeProvider.notifier).state = v;
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.worldSpatial));
+                    },
+                  ),
+                  _SliderRow(
+                    label: AudioCategory.uiCue.label,
+                    concept: AudioCategory.uiCue.concept,
+                    value: uiCue,
+                    onChanged: (double v) {
+                      ref.read(uiCueVolumeProvider.notifier).state = v;
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.uiCue));
+                    },
+                  ),
+                  _SliderRow(
+                    label: AudioCategory.whiteNoise.label,
+                    concept: AudioCategory.whiteNoise.concept,
+                    value: wnState.volume,
+                    onChanged: (double v) {
+                      if (wnFollows) {
+                        unawaited(saveSceneWhiteNoise(ref, volume: v));
+                      } else {
+                        ref.read(whiteNoiseVolumeProvider.notifier).state = v;
+                      }
+                      unawaited(ref
+                          .read(audioServiceProvider)
+                          .playCategoryCue(AudioCategory.whiteNoise));
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('白噪音跟随场景',
+                        style: context.appText.body),
+                    subtitle: Text(
+                      wnFollows
+                          ? '每个场景独立记忆白噪音开关与音量，换场景自动切换'
+                          : '全局播放：忽略场景设置，所有场景共用同一份白噪音',
+                      style: context.appText.artist,
+                    ),
+                    value: wnFollows,
+                    onChanged: (bool v) {
+                      ref
+                          .read(whiteNoiseFollowsSceneProvider.notifier)
+                          .state = v;
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text('白噪音', style: context.appText.body),
+                    subtitle: Text(
+                      wnFollows ? '开关写入当前场景' : '独立白噪音通道，叠加在音乐/背景声之上',
+                      style: context.appText.artist,
+                    ),
+                    value: wnState.on,
+                    onChanged: (bool v) {
+                      if (wnFollows) {
+                        unawaited(saveSceneWhiteNoise(ref, on: v));
+                      } else {
+                        ref.read(whiteNoiseEnabledProvider.notifier).state =
+                            v;
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

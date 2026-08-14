@@ -9,6 +9,7 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/scene/scene_custom_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 自定义场景编辑（v2 M5-3 · P0-M5-3）。
 ///
@@ -73,9 +74,7 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
   Future<void> _save() async {
     final String name = _name.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写场景名称')),
-      );
+      appNotify(context, '请填写场景名称');
       return;
     }
     final Scene base = widget.scene ??
@@ -115,9 +114,7 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
 
     await ref.read(customScenesProvider.notifier).save(updated);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已保存')),
-    );
+    appNotify(context, '已保存');
     Navigator.of(context).pop();
   }
 

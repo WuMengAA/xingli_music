@@ -10,6 +10,7 @@ import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_chip.dart';
 import '../../widgets/voxel/voxel_canvas_controller.dart';
 import '../../widgets/voxel/voxel_canvas_view.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 2.5D 类我的世界音效编辑器（v2 M5-1 · P0-M5-1）。
 ///
@@ -84,9 +85,7 @@ class _VoxelSoundEditorPageState extends ConsumerState<VoxelSoundEditorPage> {
     final VoxelSoundScene scene = _controller.toScene(id, name);
     await ref.read(voxelSoundScenesProvider.notifier).save(scene);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已保存 2.5D 音效场景「$name」')),
-    );
+    appNotify(context, '已保存 2.5D 音效场景「$name」');
   }
 
   @override

@@ -1,19 +1,27 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/voxel.dart';
 import '../../providers/audio/audio_providers.dart';
+import '../../providers/audio/envelope_providers.dart';
 import '../../providers/scene/voxel_scene_providers.dart';
 import '../../services/audio/sound_block_mixer.dart';
+import '../../services/audio/visualizer_service.dart';
+import '../../services/voxel/voxel_scene_io.dart';
+import '../../widgets/voxel/voxel_spectrum_bar.dart';
 import '../../widgets/noise_texture.dart';
 import '../../widgets/voxel/voxel_canvas_controller.dart';
 import '../../widgets/voxel/voxel_canvas_view.dart';
-import '../../widgets/voxel/voxel_world_view3d.dart';
+import '../../pages/voxel/voxel_main_menu_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 新版沉浸画布（V3）：2.5D 场景编辑后的可互动场景
@@ -23,14 +31,21 @@ import '../scene/voxel_sound_editor_page.dart';
 ///
 /// - **数据源**：用户在 2.5D 音效编辑器（[VoxelSoundEditorPage]）里保存的
 ///   [VoxelSoundScene] 列表（`voxelSoundScenesProvider`），非写死场景。
+///   也可由 3D 世界「转化为 2.5D」直接带入（[initialScene]）。
 /// - **渲染**：共享 [VoxelCanvasView] 等距方块画布（纯 CustomPaint），
 ///   背景沿用 AppShell 玻璃层语言（accent 0.10→bgPage 渐变 + 噪点）。
 /// - **互动**：点击方块 → 播放该类型音效一次（[SoundBlockMixer.playType]）；
 ///   底部「播放音景」→ 按方块数量/位置混合整场循环播放；再点停止。
+/// - **音乐可视化（Module "MusicViz-2.5D"）**：播放中若有真实离线包络
+///   （[envelopeSamplerProvider]），方块随节拍脉冲、高度随频段能量起伏；
+///   无离线分析时降级到合成 [VisualizerService]（提示"合成数据"），不崩溃。
 /// - **多场景**：顶部横向 chips 切换已保存场景；无场景时空态引导去编辑器。
 /// - **沉浸**：全屏路由（脱离 Dock 与迷你播放器），左上角返回。
 class VoxelCanvasPage extends ConsumerStatefulWidget {
-  const VoxelCanvasPage({super.key});
+  const VoxelCanvasPage({super.key, this.initialScene});
+
+  /// 由 3D 世界「转化为 2.5D」带入的场景（优先载入）。
+  final VoxelSoundScene? initialScene;
 
   @override
   ConsumerState<VoxelCanvasPage> createState() => _VoxelCanvasPageState();
@@ -42,19 +57,88 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
   String? _currentId;
   bool _previewing = false;
 
+  // ── Module "MusicViz-2.5D"：播放进度 → 方块可视化帧 ──
+  EnvelopePlaybackSampler? _sampler;
+  VisualizerService? _fallback;
+  StreamSubscription<List<double>>? _bandsSub;
+  StreamSubscription<double>? _beatSub;
+  bool _usingFallback = false;
+
   @override
   void initState() {
     super.initState();
-    // 默认载入第一个已保存场景（若有）。
-    final List<VoxelSoundScene> scenes = ref.read(voxelSoundScenesProvider);
-    if (scenes.isNotEmpty) {
-      _controller.load(scenes.first);
-      _currentId = scenes.first.id;
+    if (widget.initialScene != null) {
+      // 3D 世界提取带入：优先载入该场景（含 heights）。
+      _controller.load(widget.initialScene!);
+      _currentId = widget.initialScene!.id;
+    } else {
+      // 默认载入第一个已保存场景（若有）。
+      final List<VoxelSoundScene> scenes =
+          ref.read(voxelSoundScenesProvider);
+      if (scenes.isNotEmpty) {
+        _controller.load(scenes.first);
+        _currentId = scenes.first.id;
+      }
     }
+  }
+
+  /// 绑定可视化数据源：优先真实离线包络；无则降级合成源。
+  ///
+  /// 在 build 内调用（随 [envelopeSamplerProvider] 变化重建），按 identity 比对
+  /// 决定是否重建订阅，避免每帧重复订阅。
+  void _syncViz(EnvelopePlaybackSampler? sampler) {
+    if (sampler != null) {
+      if (!_usingFallback && sampler == _sampler) return;
+      _teardownFallback();
+      _sampler = sampler;
+      _usingFallback = false;
+      _bandsSub = sampler.bands.listen(
+        (List<double> b) => _controller.applyEnvelope(b, _controller.vizBeat),
+      );
+      _beatSub = sampler.beat.listen(
+        (double b) => _controller.applyEnvelope(
+          _controller.vizBands ?? const <double>[],
+          b,
+        ),
+      );
+    } else {
+      // 无真实包络 → 合成源（仅一次）。
+      if (_usingFallback && _fallback != null) return;
+      _teardownSampler();
+      final VisualizerService fb =
+          VisualizerService(ref.read(audioServiceProvider));
+      fb.start();
+      _fallback = fb;
+      _usingFallback = true;
+      // 合成源只暴露 level / bands：用低频段能量近似节拍脉冲。
+      _bandsSub = fb.bands.listen((List<double> b) {
+        final double beat = b.isEmpty
+            ? 0.0
+            : (b[0] * 0.6 + (b.length > 1 ? b[1] : 0.0) * 0.4).clamp(0.0, 1.0);
+        _controller.applyEnvelope(b, beat);
+      });
+      _beatSub = null;
+    }
+  }
+
+  void _teardownSampler() {
+    _bandsSub?.cancel();
+    _beatSub?.cancel();
+    _bandsSub = null;
+    _beatSub = null;
+    _sampler = null;
+  }
+
+  void _teardownFallback() {
+    _teardownSampler();
+    _fallback?.dispose();
+    _fallback = null;
+    _usingFallback = false;
   }
 
   @override
   void dispose() {
+    _teardownFallback();
     _controller.dispose();
     _mixer?.dispose();
     super.dispose();
@@ -92,6 +176,10 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
   @override
   Widget build(BuildContext context) {
     final List<VoxelSoundScene> scenes = ref.watch(voxelSoundScenesProvider);
+    // 绑定音乐可视化源（真实离线包络优先，否则合成降级）。
+    final EnvelopePlaybackSampler? sampler =
+        ref.watch(envelopeSamplerProvider);
+    _syncViz(sampler);
     final VoxelSoundScene? active = _activeOf(scenes);
 
     return Scaffold(
@@ -142,6 +230,8 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
   Widget _buildBody(List<VoxelSoundScene> scenes, VoxelSoundScene active) {
     final double width = MediaQuery.sizeOf(context).width;
     final bool landscape = width >= AppSize.landscapeBreakpoint;
+    // 合成降级提示（无离线包络时可视化非真实数据）。
+    final bool vizSynthetic = ref.watch(envelopeSamplerProvider) == null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,6 +259,27 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
                 selected: false,
                 onSelected: (_) => _open3DWorld(),
                 visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: AppSpace.xs),
+              // 场景分享 / 导入（Phase 2：让 Phase 1 的产出可留存、可交换）。
+              IconButton(
+                icon: const Icon(Icons.download_rounded, size: 18),
+                tooltip: '导入场景',
+                visualDensity: VisualDensity.compact,
+                onPressed: _importScene,
+              ),
+              IconButton(
+                icon: const Icon(Icons.share_rounded, size: 18),
+                tooltip: '分享场景',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => unawaited(_shareScene(active)),
+              ),
+              // 可视化可调参数（Phase 2：viz 编辑态持久化）。
+              IconButton(
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                tooltip: '可视化设置',
+                visualDensity: VisualDensity.compact,
+                onPressed: _openVizSettings,
               ),
             ],
           ),
@@ -208,6 +319,17 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
           ),
         const SizedBox(height: AppSpace.sm),
 
+        if (vizSynthetic)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+            child: Text(
+              '可视化使用合成数据（当前曲目无离线分析）',
+              style: AppTextStyles.caption.copyWith(
+                color: context.appColors.textTertiary,
+              ),
+            ),
+          ),
+
         // ── 中央：等距方块画布（可互动）──────────────
         Expanded(
           child: ListenableBuilder(
@@ -222,6 +344,29 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
                 onTapBlock: (int col, int row) => unawaited(_tapBlock(col, row)),
               );
             },
+          ),
+        ),
+
+        // ── Phase 2：实时频谱条（当前帧频段能量可视化）────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.md,
+            AppSpace.xs,
+            AppSpace.md,
+            0,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                '实时频谱',
+                style: AppTextStyles.caption.copyWith(
+                  color: context.appColors.textTertiary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              VoxelSpectrumBar(controller: _controller, height: 52),
+            ],
           ),
         ),
 
@@ -291,13 +436,165 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
 
   /// 打开 3D 体素世界预览页（Phase 1）。播放中的音景先停，避免两层环境音糊在一起。
   void _open3DWorld() {
+    // R26fix→R26skel：进入 3D 世界统一走「游戏主菜单」——游戏唯一入口，
+    // 存档经主菜单「世界存档」进入，避免绕过存档管理直接进全新世界。
     unawaited(_stopPreview());
     unawaited(
       Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const VoxelWorld3DPage()),
+        MaterialPageRoute<void>(
+          builder: (_) => const VoxelMainMenuPage(),
+        ),
       ),
     );
   }
+
+  /// 分享当前场景：序列化为临时 JSON 文件并调起系统分享。
+  Future<void> _shareScene(VoxelSoundScene scene) async {
+    try {
+      final XFile x = await sceneToTempXFile(scene);
+      await Share.shareXFiles(
+        <XFile>[x],
+        subject: scene.name,
+        text: '星璃音乐 2.5D 音效场景：${scene.name}',
+      );
+    } catch (e) {
+      if (mounted) _toast('分享失败：$e');
+    }
+  }
+
+  /// 从外部 JSON 文件导入场景：解析 → 分配新 id → 存入场景列表并载入。
+  Future<void> _importScene() async {
+    try {
+      final FilePickerResult? result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: <String>['json'],
+        allowMultiple: false,
+      );
+      final String? path = result?.files.single.path;
+      if (path == null) return; // 用户取消
+      final String content = await File(path).readAsString();
+      final VoxelSoundScene parsed = decodeSceneFile(content);
+      final VoxelSoundScene imported = parsed.copyWith(
+        id: newSceneId(),
+        name: '${parsed.name}（导入）',
+      );
+      await ref.read(voxelSoundScenesProvider.notifier).save(imported);
+      if (mounted) {
+        _controller.load(imported);
+        _currentId = imported.id;
+        setState(() {});
+        _toast('已导入场景：${imported.name}');
+      }
+    } on SceneFileFormatException catch (e) {
+      if (mounted) _toast(e.message);
+    } catch (e) {
+      if (mounted) _toast('导入失败：$e');
+    }
+  }
+
+  void _toast(String msg) {
+    appNotify(context, msg);
+  }
+
+  /// 打开可视化设置面板：3 个滑块（振幅 / 涟漪位置权重 / 节拍脉冲）+ 重置。
+  /// 改动即时写入控制器并随场景持久化（见 [VoxelCanvasController.setVizSettings]）。
+  void _openVizSettings() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setSt) {
+          final VoxelVizSettings s = _controller.vizSettings;
+          return AlertDialog(
+            title: const Text('可视化设置'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _vizSlider(
+                  setSt,
+                  '起伏振幅',
+                  s.amplitude,
+                  0,
+                  1.5,
+                  (double v) => _controller.setVizSettings(
+                    s.copyWith(amplitude: v),
+                  ),
+                ),
+                _vizSlider(
+                  setSt,
+                  '涟漪位置权重',
+                  s.ripplePosWeight,
+                  0,
+                  1,
+                  (double v) => _controller.setVizSettings(
+                    s.copyWith(ripplePosWeight: v),
+                  ),
+                ),
+                _vizSlider(
+                  setSt,
+                  '节拍脉冲',
+                  s.beatPulse,
+                  0,
+                  0.4,
+                  (double v) => _controller.setVizSettings(
+                    s.copyWith(beatPulse: v),
+                  ),
+                ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  _controller.setVizSettings(const VoxelVizSettings());
+                  setSt(() {});
+                },
+                child: const Text('重置'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('完成'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// 单个可视化滑块：标签 + 实时数值 + [Slider]，拖动即写控制器。
+  Widget _vizSlider(
+    StateSetter setSt,
+    String label,
+    double value,
+    double min,
+    double max,
+    ValueChanged<double> onChanged,
+  ) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Text(label, style: AppTextStyles.body),
+              const Spacer(),
+              Text(
+                value.toStringAsFixed(2),
+                style: AppTextStyles.caption.copyWith(
+                  color: context.appColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          Slider(
+            value: value,
+            min: min,
+            max: max,
+            onChanged: (double v) {
+              onChanged(v);
+              setSt(() {});
+            },
+          ),
+        ],
+      );
 }
 
 /// 左上角返回按钮（40dp 半透明圆，同旧画布语言；不可返回时隐藏）。

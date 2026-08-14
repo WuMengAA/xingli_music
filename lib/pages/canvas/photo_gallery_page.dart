@@ -19,6 +19,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 一张已保存的照片（PNG + 场景快照）。
 class _Photo {
@@ -118,9 +119,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
           .toList());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('删除失败: $e')),
-      );
+      appNotify(context, '删除失败: $e');
     }
   }
 
@@ -284,6 +283,10 @@ class PhotoScenePage extends StatelessWidget {
       body: VoxelWorldView3D(
         world: capture.toWorld(),
         initialCamera: capture.toCamera(),
+        // R26skel：只读预览——不恢复/不写存档，避免叠加游戏/叠加存档；
+        // 真实游戏只能从「游戏主菜单 → 世界存档」进入。
+        readOnly: true,
+        autoStart: false,
       ),
     );
   }

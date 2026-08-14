@@ -59,11 +59,13 @@ void main() {
         overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
         child: const MaterialApp(
           debugShowCheckedModeBanner: false,
-          home: VoxelWorld3DPage(),
+          // H1r2：autoStart 直入生存（主菜单已独立成页，世界内不再有模式菜单）。
+          home: VoxelWorld3DPage(autoStart: true, survival: true),
         ),
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     final dynamic viewState = tester.state(find.byType(VoxelWorldView3D));
     final double pitchBefore = viewState.debugCameraPitch as double;
@@ -72,7 +74,6 @@ void main() {
     expect(pitchBefore, closeTo(-0.15, 0.01),
         reason: '初始应为第一人称水平略俯视（R26m 去 overview）');
 
-    await tester.tap(find.text('生存'));
     await tester.pump(const Duration(milliseconds: 100));
 
     final double pitchAfter = viewState.debugCameraPitch as double;

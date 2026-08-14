@@ -1,0 +1,41 @@
+Flutter assets will be downloaded from https://mirrors.cloud.tencent.com/flutter. Make sure you trust this source!
+Running Gradle task 'assembleRelease'...                        
+Warning: Flutter support for your project's Gradle version (8.10.2) will soon be dropped. Please upgrade your Gradle version to a version of at least 8.14.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's gradle version is typically defined in the gradle wrapper file. By default, this can be found at D:\Stellara\Music\xingli_music\android/gradle/wrapper/gradle-wrapper.properties. 
+For more information, see https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+
+Warning: Flutter support for your project's Android Gradle Plugin version (Android Gradle Plugin version 8.7.3) will soon be dropped. Please upgrade your Android Gradle Plugin version to a version of at least Android Gradle Plugin version 8.11.1 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's AGP version is typically defined in the plugins block of the `settings.gradle` file (D:\Stellara\Music\xingli_music\android/settings.gradle), by a plugin with the id of com.android.application. 
+If you don't see a plugins block, your project was likely created with an older template version. In this case it is most likely defined in the top-level build.gradle file (D:\Stellara\Music\xingli_music\android/build.gradle) by the following line in the dependencies block of the buildscript: "classpath 'com.android.tools.build:gradle:<version>'".
+
+Warning: Flutter support for your project's Kotlin version (2.1.0) will soon be dropped. Please upgrade your Kotlin version to a version of at least 2.2.20 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (D:\Stellara\Music\xingli_music\android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (D:\Stellara\Music\xingli_music\android/build.gradle) by the ext.kotlin_version property.
+
+Downloading file from: https://github.com/media-kit/libmpv-android-video-build/releases/download/v1.1.7/default-arm64-v8a.jar
+
+FAILURE: Build failed with an exception.
+
+* Where:
+Build file 'C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\media_kit_libs_android_video-1.3.8\android\build.gradle' line: 89
+
+* What went wrong:
+A problem occurred evaluating project ':media_kit_libs_android_video'.
+> PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 29s
+Running Gradle task 'assembleRelease'...                           29.8s
+Gradle task assembleRelease failed with exit code 1
+APK_BUILD_EXIT=1

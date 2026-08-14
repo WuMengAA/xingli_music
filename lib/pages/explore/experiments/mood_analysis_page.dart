@@ -9,6 +9,7 @@ import '../../../providers/scene/scene_providers.dart';
 import '../../../providers/session/session_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
+import '../../../widgets/notification/app_notify.dart';
 
 /// 实验 E · 心情分析（v2 M2 · P0-M2-3）。
 ///
@@ -127,11 +128,6 @@ class _MoodAnalysisPageState extends ConsumerState<MoodAnalysisPage> {
     await ref.read(audioServiceProvider).switchSoundscape(best);
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('根据你的心情，切换到场景「${best.name}」'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    appNotify(context, '根据你的心情，切换到场景「${best.name}」');
   }
 }

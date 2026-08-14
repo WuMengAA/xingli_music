@@ -64,7 +64,7 @@ class VoxelTextureAtlas {
   ///
   /// [skinBytes] 为可选 MC 2× 皮肤 PNG；非空则解码后烘焙到图集下方 128×128 区域，
   /// 实体面经 [skinRectFor] 取该区域 UV 采样。解码失败安全回退（无皮肤）。
-  static Future<ui.Image> build({Uint8List? skinBytes}) async {
+  static Future<ui.Image?> build({Uint8List? skinBytes}) async {
     final ui.PictureRecorder rec = ui.PictureRecorder();
     final ui.Canvas canvas = ui.Canvas(rec);
     _hasSkin = false;
@@ -96,8 +96,80 @@ class VoxelTextureAtlas {
       }
     }
     final ui.Picture pic = rec.endRecording();
-    final ui.Image img = await pic.toImage(width, height);
-    return img;
+    final ui.Image raw = await pic.toImage(width, height);
+    // R26x：经原始 RGBA 像素重新解码，得到跨渲染后端（含 Impeller/D3D11）
+    // 可靠采样的位图。直接以 PictureRecorder 图像作 ImageShader 源在 Impeller
+    // 下会整批采样为黑（用户反馈「默认画质全黑方块」），重解码后修复。
+    final ByteData? rgba =
+        await raw.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (rgba == null) {
+      raw.dispose();
+      return null; // 极端回退：视图回落纯色
+    }
+    raw.dispose();
+    // R26r34：跨后端可靠采样——把 RGBA 像素手编为 32 位 BMP，再经
+    // [ui.instantiateImageCodec] 解码（与皮肤图同路径）。直接以 PictureRecorder 图
+    // 或 [ui.decodeImageFromPixels] 的 GPU 图作 ImageShader 源在 Impeller/D3D11 下
+    // 会整批采样为黑（用户报「高清档方块黑」）；codec 解码图 Impeller 可正常采样。
+    // 手编 BMP 避开额外依赖与平台编解码差异，逻辑完全自控。
+    try {
+      final Uint8List src =
+          rgba.buffer.asUint8List(rgba.offsetInBytes, rgba.lengthInBytes);
+      final int stride = width * 4;
+      final int pixelBytes = stride * height;
+      final int fileSize = 54 + pixelBytes;
+      final ByteData bmp = ByteData(fileSize);
+      int o = 0;
+      // ── BITMAPFILEHEADER（14B）──
+      bmp.setUint8(o++, 0x42); // 'B'
+      bmp.setUint8(o++, 0x4D); // 'M'
+      bmp.setUint32(o, fileSize, Endian.little);
+      o += 4;
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // reserved
+      bmp.setUint32(o, 54, Endian.little);
+      o += 4; // pixel data offset
+      // ── BITMAPINFOHEADER（40B, BI_RGB）──
+      bmp.setUint32(o, 40, Endian.little);
+      o += 4; // header size
+      bmp.setUint32(o, width, Endian.little);
+      o += 4;
+      bmp.setUint32(o, height, Endian.little);
+      o += 4; // 正高 = 自下而上
+      bmp.setUint16(o, 1, Endian.little);
+      o += 2; // planes
+      bmp.setUint16(o, 32, Endian.little);
+      o += 2; // bpp
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // compression = 0
+      bmp.setUint32(o, pixelBytes, Endian.little);
+      o += 4; // image size
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // xppm
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // yppm
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // colors used
+      bmp.setUint32(o, 0, Endian.little);
+      o += 4; // colors important
+      // ── 像素：自下而上、BGR(A) ──
+      for (int y = height - 1; y >= 0; y--) {
+        int s = y * stride;
+        for (int x = 0; x < width; x++) {
+          bmp.setUint8(o++, src[s + 2]); // B
+          bmp.setUint8(o++, src[s + 1]); // G
+          bmp.setUint8(o++, src[s + 0]); // R
+          bmp.setUint8(o++, src[s + 3]); // A
+          s += 4;
+        }
+      }
+      final ui.Codec codec =
+          await ui.instantiateImageCodec(bmp.buffer.asUint8List(0, fileSize));
+      final ui.Image decoded = (await codec.getNextFrame()).image;
+      return decoded;
+    } catch (_) {
+      return null; // 解码失败回落纯色（无害、无黑块）
+    }
   }
 
   /// MC 2× 皮肤各部位 6 面在 64×64 基准图中的像素矩形 [x,y,w,h]。
@@ -130,12 +202,14 @@ class VoxelTextureAtlas {
       4: <double>[52, 20, 4, 12],
     },
     'armR': <int, List<double>>{
-      0: <double>[44, 16, 4, 4],
-      1: <double>[48, 16, 4, 4],
-      3: <double>[44, 20, 4, 12],
-      2: <double>[48, 20, 4, 12],
-      5: <double>[40, 20, 4, 12],
-      4: <double>[52, 20, 4, 12],
+      // R26r12：armR = 左臂（+X）→ 用 64×64 新版「左臂」区域 (32,48)…；
+      // 此前误用右臂区 (44,16)…，贴图错位/镜像。
+      0: <double>[32, 48, 4, 4],
+      1: <double>[36, 48, 4, 4],
+      3: <double>[36, 52, 4, 12],
+      2: <double>[44, 52, 4, 12],
+      5: <double>[32, 52, 4, 12],
+      4: <double>[40, 52, 4, 12],
     },
     'legL': <int, List<double>>{
       0: <double>[4, 16, 4, 4],
@@ -146,8 +220,9 @@ class VoxelTextureAtlas {
       4: <double>[8, 20, 4, 12],
     },
     'legR': <int, List<double>>{
-      0: <double>[20, 48, 4, 4],
-      1: <double>[24, 48, 4, 4],
+      // R26r12：顶/底修正为 64×64 左腿区 (16,48)/(20,48)（此前偏移 4px）。
+      0: <double>[16, 48, 4, 4],
+      1: <double>[20, 48, 4, 4],
       3: <double>[20, 52, 4, 12],
       2: <double>[28, 52, 4, 12],
       5: <double>[16, 52, 4, 12],

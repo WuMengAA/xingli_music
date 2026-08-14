@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/scene.dart';
 import '../../providers/scene/scene_custom_providers.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 配色个性面板（v2 M5-4 · P0-M5-4，经场景页右上角微光圆点进入）。
 ///
@@ -165,9 +166,7 @@ class _SceneColorPanelState extends ConsumerState<SceneColorPanel> {
     await ref.read(customScenesProvider.notifier).save(updated);
     if (!mounted) return;
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已应用到当前场景并持久化')),
-    );
+    appNotify(context, '已应用到当前场景并持久化');
   }
 }
 

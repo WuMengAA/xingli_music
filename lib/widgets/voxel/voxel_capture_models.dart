@@ -14,6 +14,46 @@ library;
 import 'voxel_camera.dart';
 import 'voxel_world.dart';
 
+/// 一张取景快照里的一个空间音效源（H2：玩家中心 16×16 的音效原封不动复用）。
+///
+/// 由 `WorldAudioEngine.scanSources` 扫描世界得到（水/叶/鸟/风/篝火簇），
+/// 只存 类型 + 位置 + 响度；主页背景用同 seed 世界 + 同机位重放 → 听感一致。
+class VoxelSoundscapeSource {
+  const VoxelSoundscapeSource({
+    required this.kind,
+    required this.x,
+    required this.y,
+    required this.z,
+    this.strength = 1.0,
+  });
+
+  /// 音效类型名（WorldSfx.name：water/leaves/birds/wind/campfire）。
+  final String kind;
+
+  /// 发声点世界坐标（方块单位，簇质心）。
+  final double x, y, z;
+
+  /// 簇规模折算的响度系数（0~1）。
+  final double strength;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'kind': kind,
+        'x': x,
+        'y': y,
+        'z': z,
+        'strength': strength,
+      };
+
+  factory VoxelSoundscapeSource.fromJson(Map<String, dynamic> json) =>
+      VoxelSoundscapeSource(
+        kind: json['kind'] as String? ?? 'wind',
+        x: (json['x'] as num?)?.toDouble() ?? 0,
+        y: (json['y'] as num?)?.toDouble() ?? 0,
+        z: (json['z'] as num?)?.toDouble() ?? 0,
+        strength: (json['strength'] as num?)?.toDouble() ?? 1.0,
+      );
+}
+
 /// 一张体素世界取景快照。
 class VoxelSceneCapture {
   const VoxelSceneCapture({
@@ -26,6 +66,7 @@ class VoxelSceneCapture {
     required this.fov,
     this.aspect = 1.0,
     this.timePhase = 0.25,
+    this.sounds = const <VoxelSoundscapeSource>[],
   });
 
   /// 世界种子（决定地形）。
@@ -43,12 +84,16 @@ class VoxelSceneCapture {
   /// 时相 [0,1)：0 黎明 / 0.25 正午 / 0.5 黄昏 / 0.75 夜。
   final double timePhase;
 
+  /// H2：取景时玩家中心 16×16 内的空间音效源（主页背景重放）。
+  final List<VoxelSoundscapeSource> sounds;
+
   /// 由当前世界 + 相机生成快照。
   factory VoxelSceneCapture.fromCamera(
     VoxelWorld world,
     VoxelCamera camera, {
     double aspect = 1.0,
     double timePhase = 0.25,
+    List<VoxelSoundscapeSource> sounds = const <VoxelSoundscapeSource>[],
   }) =>
       VoxelSceneCapture(
         seed: world.seed,
@@ -60,6 +105,22 @@ class VoxelSceneCapture {
         fov: camera.fov,
         aspect: aspect,
         timePhase: timePhase,
+        sounds: sounds,
+      );
+
+  /// H2：带音效副本（不改原快照）。
+  VoxelSceneCapture withSounds(List<VoxelSoundscapeSource> sounds) =>
+      VoxelSceneCapture(
+        seed: seed,
+        cameraX: cameraX,
+        cameraY: cameraY,
+        cameraZ: cameraZ,
+        yaw: yaw,
+        pitch: pitch,
+        fov: fov,
+        aspect: aspect,
+        timePhase: timePhase,
+        sounds: sounds,
       );
 
   /// 重建相机（按记录的机位）。
@@ -83,6 +144,7 @@ class VoxelSceneCapture {
         'fov': fov,
         'aspect': aspect,
         'timePhase': timePhase,
+        'sounds': sounds.map((VoxelSoundscapeSource s) => s.toJson()).toList(),
       };
 
   factory VoxelSceneCapture.fromJson(Map<String, dynamic> json) =>
@@ -96,5 +158,9 @@ class VoxelSceneCapture {
         fov: (json['fov'] as num?)?.toDouble() ?? 1.0472,
         aspect: (json['aspect'] as num?)?.toDouble() ?? 1.0,
         timePhase: (json['timePhase'] as num?)?.toDouble() ?? 0.25,
+        sounds: (json['sounds'] as List<dynamic>? ?? const <dynamic>[])
+            .map((dynamic e) =>
+                VoxelSoundscapeSource.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }

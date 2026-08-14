@@ -250,8 +250,8 @@ void main() {
           isNight: false,
           survival: true,
           onHitPlayer: (int _) {},
-          onPickup: (ItemStack _) => true,
         );
+        m.tickItemsOnly(1 / 60, Vec3(200, g, 200), (ItemStack _) => true);
       }
       expect(m.items.first.pos.y, lessThan(y0));
       expect(m.items.first.pos.y, greaterThanOrEqualTo(0));
@@ -272,7 +272,11 @@ void main() {
           isNight: false,
           survival: true,
           onHitPlayer: (int _) {},
-          onPickup: (ItemStack s) {
+        );
+        m.tickItemsOnly(
+          1 / 60,
+          Vec3(8.5, g, 8.5),
+          (ItemStack s) {
             got.add(s);
             return true;
           },
@@ -293,7 +297,6 @@ void main() {
           isNight: false,
           survival: true,
           onHitPlayer: (int _) {},
-          onPickup: (ItemStack _) => true,
         );
       }
       expect(day.zombies, isEmpty);
@@ -306,7 +309,6 @@ void main() {
           isNight: true,
           survival: true,
           onHitPlayer: (int _) {},
-          onPickup: (ItemStack _) => true,
         );
       }
       expect(night.zombies, isNotEmpty);
@@ -323,7 +325,6 @@ void main() {
           isNight: true,
           survival: false,
           onHitPlayer: (int _) {},
-          onPickup: (ItemStack _) => true,
         );
       }
       expect(m.zombies, isEmpty);

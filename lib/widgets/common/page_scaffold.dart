@@ -103,35 +103,46 @@ class PageScaffold extends StatelessWidget {
     );
 
     // ── 横屏：左栏（≤360dp）+ 右侧内容区 ──────────────────
-    if (landscape && leadingPanel != null) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 360),
-            child: SizedBox(
-              width: (width * 0.34).clamp(240.0, 360.0),
-              child: leadingPanel,
-            ),
-          ),
-          const SizedBox(width: AppSpace.lg),
-          Expanded(child: rightColumn),
-        ],
-      );
-    }
+    final Widget content = landscape && leadingPanel != null
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: SizedBox(
+                  width: (width * 0.34).clamp(240.0, 360.0),
+                  child: leadingPanel,
+                ),
+              ),
+              const SizedBox(width: AppSpace.lg),
+              Expanded(child: rightColumn),
+            ],
+          )
+        // ── 竖屏（默认）：标题 → 搜索 → 内容 ──────────────────
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              header,
+              if (search != null) ...<Widget>[
+                const SizedBox(height: AppSpace.md),
+                search!,
+              ],
+              const SizedBox(height: AppSpace.md),
+              Expanded(child: body),
+            ],
+          );
 
-    // ── 竖屏（默认）：标题 → 搜索 → 内容 ──────────────────
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        header,
-        if (search != null) ...<Widget>[
-          const SizedBox(height: AppSpace.md),
-          search!,
-        ],
-        const SizedBox(height: AppSpace.md),
-        Expanded(child: body),
-      ],
+    // R26r21：整页包一层 Material——TextField / IconButton / InkWell 都需要
+    // Material 祖先；此前缺这一层，含输入框的页面（如聚合搜索）直接崩溃
+    // 「No Material widget found」。
+    // R26r21c：**根路由页（canPop=false，即 Shell 5 页）底色改透明**——
+    // 外层 ContentContainer 已提供全屏圆角毛玻璃表面，实色 bgPage 会把它
+    // 盖住（其他主页页因此不显全屏玻璃）；透明后所有主页统一浮在玻璃上。
+    // 压栈路由页（canPop=true）保留实色 bgPage 兜底（它们没有玻璃可透）。
+    final bool isRoot = !Navigator.of(context).canPop();
+    return Material(
+      color: isRoot ? Colors.transparent : context.appColors.bgPage,
+      child: content,
     );
   }
 }

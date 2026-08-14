@@ -124,6 +124,9 @@ class AudioService {
   /// 音乐播放后端（S2：just_audio / media_kit 抽象）。
   final MusicBackend _music;
 
+  /// I（均衡器）：暴露当前音乐后端（Windows 分支按类型选 mpv 滤镜引擎）。
+  MusicBackend get backend => _music;
+
   /// 一次性事件音效播放器（「我的世界」主题音效调度用）
   final AudioPlayer _sfx = AudioPlayer();
 

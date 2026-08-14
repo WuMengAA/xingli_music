@@ -228,6 +228,9 @@ class SecureBox {
   /// 网易云 cookie 的约定 key（供未来 provider 复用，避免各处硬编码字符串）。
   static const String kNeteaseCookie = 'netease.cookie';
 
+  /// 哔哩哔哩 cookie（SESSDATA 等）的约定 key。
+  static const String kBilibiliCookie = 'bilibili.cookie';
+
   /// 第三方大模型 API Key 的约定 key（用户自配，AES-256 加密落盘）。
   static const String kLlmApiKey = 'llm.apiKey';
 }

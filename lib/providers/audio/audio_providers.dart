@@ -13,11 +13,14 @@ import '../../providers/scene/scene_custom_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/netease_provider.dart';
+import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
 import '../../services/audio/media_kit_backend.dart';
+import 'audio_scheme.dart';
 import '../../services/audio/minecraft_sfx_service.dart';
 import '../../services/audio/playback_controller.dart';
 import '../../services/audio/sources/netease/netease_source.dart';
+import '../../services/audio/sources/bilibili/bilibili_source.dart';
 import '../../services/log_service.dart';
 import '../../services/music_sources/demo_source.dart';
 import '../../services/music_sources/local_dir_music_source.dart';
@@ -96,6 +99,8 @@ StreamResolver buildStreamResolver(ProviderReader read) {
         }
       } on NeteaseResolveException catch (e) {
         throw StreamResolveException(e.message);
+      } on BilibiliResolveException catch (e) {
+        throw StreamResolveException(e.message);
       } catch (_) {
         return null;
       }
@@ -132,6 +137,8 @@ final activeSourcesProvider = Provider<List<MusicSource>>((ref) {
   // 网易云：enabled 随登录态变化；getTracks() 当前返回空（歌单后续接入），
   // 仅承担「搜索 + 懒解析播放」，加入集合不污染曲库聚合。
   sources.add(ref.watch(neteaseSourceProvider));
+  // B站视频源：同网易云——搜索驱动 + 懒解析音频流，未登录 enabled=false。
+  sources.add(ref.watch(bilibiliSourceProvider));
   return sources;
 });
 
@@ -240,17 +247,17 @@ final musicDurationProvider = StreamProvider<Duration?>((ref) {
   return ref.watch(audioServiceProvider).durationStream;
 });
 
-/// 音乐声音量（0.0~1.0，R12 初始 0.7 = 70%）
-final musicVolumeProvider = StateProvider<double>((ref) => 0.7);
+/// 音乐声音量（R26skel-b5：音乐分类默认 50%）
+final musicVolumeProvider = StateProvider<double>((ref) => 0.5);
 
-/// 主音量（Master，R23i：全局整体音量，所有通道 × master，默认 1.0 = 100%）
-final masterVolumeProvider = StateProvider<double>((ref) => 1.0);
+/// 主音量（Master：全局整体音量，所有通道 × master；R26skel-b5 默认 50%）
+final masterVolumeProvider = StateProvider<double>((ref) => 0.5);
 
-/// 音效（SFX）通道音量（R23i：独立于音乐/背景/白噪，默认 0.5）
+/// 音效（SFX）通道音量（世界内音效/按钮音效/提示音；默认 50%）
 final sfxVolumeProvider = StateProvider<double>((ref) => 0.5);
 
-/// 背景声（音景）音量（默认 0.12 = 12%，R23n 源响度降半后默认也降半）
-final soundscapeVolumeProvider = StateProvider<double>((ref) => 0.12);
+/// 背景声（音景/世界内背景音乐与背景声）音量（R26skel-b5 默认 25%）
+final soundscapeVolumeProvider = StateProvider<double>((ref) => 0.25);
 
 /// 音乐声是否静音
 final musicMutedProvider = StateProvider<bool>((ref) => false);
@@ -262,17 +269,30 @@ final soundscapeMutedProvider = StateProvider<bool>((ref) => false);
 /// 默认开启：用户反馈希望默认就有环境白噪底噪。
 final whiteNoiseEnabledProvider = StateProvider<bool>((ref) => true);
 
-/// 白噪音音量（R4，0.0~1.0，默认 0.15 = 15%，R23n 源响度降半后默认也降半）
-final whiteNoiseVolumeProvider = StateProvider<double>((ref) => 0.15);
+/// 白噪音音量（R26skel-b5：**全局**模式默认 10%；局部/场景模式见
+/// `Scene.whiteNoiseVolume` 默认 25%）
+final whiteNoiseVolumeProvider = StateProvider<double>((ref) => 0.10);
 
-/// 世界空间音效通道音量（#170，0.0~1.0，默认 0.6）。
+/// 世界空间音效通道音量（R26skel-b5：归入「音效」分类，默认 50%）。
 ///
 /// 由体素 3D 视图下发到 `WorldAudioEngine.setGlobalVolume`（引擎实例随视图
 /// 创建/销毁，故不经 AudioService 直接持有）。
-final worldSfxVolumeProvider = StateProvider<double>((ref) => 0.6);
+final worldSfxVolumeProvider = StateProvider<double>((ref) => 0.5);
 
-/// 提示音通道音量（#170，0.0~1.0，默认 0.5）。
+/// 提示音通道音量（R26skel-b5：归入「音效」分类，默认 50%）。
 final uiCueVolumeProvider = StateProvider<double>((ref) => 0.5);
+
+// ── R26skel-b5：设备自适应通道方案 ─────────────────────
+
+/// 自动检测到的设备类别（桌面 / 移动 / 紧凑）。
+final audioDeviceClassProvider = Provider<AudioDeviceClass>((ref) {
+  return detectAudioDeviceClass();
+});
+
+/// 当前设备的最佳通道方案（音乐/背景/音效/白噪音的音轨与声道预算）。
+final channelSchemeProvider = Provider<ChannelScheme>((ref) {
+  return schemeFor(ref.watch(audioDeviceClassProvider));
+});
 
 // ── #167：白噪音跟随场景 / 全局播放 ───────────────────
 

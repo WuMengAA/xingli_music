@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../log_service.dart';
 import '../../widgets/voxel/voxel_world_types.dart';
+import '../../services/voxel/voxel_audio_bundle.dart';
 import 'audio_service.dart';
 
 /// 「我的世界」主题音效调度器。
@@ -129,10 +130,28 @@ class MinecraftSfxService {
     final List<String>? samples = cat == null ? null : _blockCats[cat];
     if (samples == null || samples.isEmpty) return;
     final String pick = samples[_rng.nextInt(samples.length)];
-    // 破坏略响、放置略轻（随机 ±10% 幅度，避免重复感）。
-    final double base = place ? 0.26 : 0.34;
-    final double vol = (base + _rng.nextDouble() * 0.08).clamp(0.1, 0.5);
+    // R29：破坏明显比放置响（用户「方块破坏音效需要增大」）。放置保持轻量，
+    // 破坏提到 ~0.5~0.62，随机 ±10% 幅度避免重复感；上限放宽到 0.7。
+    final double base = place ? 0.28 : 0.52;
+    final double vol = (base + _rng.nextDouble() * 0.10).clamp(0.1, 0.7);
     await _audio.playSfx(pick, volume: vol);
+  }
+
+  /// 玩家动作音效（进食 / 脚步 / 入水等），按 [kVoxelSfxFiles] 的相对路径落盘到
+  /// 「我的世界」资源根目录（与 SFX 池同根）。素材缺失 = 安全 no-op。
+  ///
+  /// R29：进食音效走这里——[kVoxelSfxFiles] 是 `assets/voxel_audio/sfx/eat.m4a`，
+  /// 去掉 `assets/` 前缀后落到 `<根>/voxel_audio/sfx/eat.m4a`，与背景音乐
+  /// `<根>/voxel_audio/music/track_xx.m4a` 同约定。
+  Future<void> playActionSfx(VoxelActionSfx type) async {
+    final String? base = await _baseDir();
+    if (base == null) return;
+    final String? rel = kVoxelSfxFiles[type]; // 例：assets/voxel_audio/sfx/eat.m4a
+    if (rel == null) return;
+    final String sub = rel.startsWith('assets/') ? rel.substring(7) : rel;
+    final File f = File('$base/$sub');
+    if (!await f.exists()) return;
+    await _audio.playSfx(f.path, volume: 0.5);
   }
 
   /// 惰性扫描 step 目录，按材质类别缓存样本（一次）。

@@ -117,17 +117,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   // ⚠️ impellerVulkan：Flutter Windows 引擎 Impeller 仅实现 D3D11，
   // enable-impeller-vulkan 不被识别 → 显式回退 DX11（R22 实测切换无效）。
   const wchar_t *engineBackend = ReadEngineBackendFromPrefs();
+  // R27：默认图形后端改为 Skia/ANGLE（skiaOpengl）。体素世界依赖 ImageShader 贴图，
+  // Impeller/D3D11 下解码图作 ImageShader 源整批采样为黑（用户报「高清档方块黑、
+  // 天/云不黑」——天/云走纯色/形状绘制没问题，唯有贴图图集走 ImageShader 黑）；
+  // Skia 路径解码图采样正常。显式选 impellerD3D11 / impellerVulkan 仍走 Impeller
+  // （Vulkan 不支持 → 回退 DX11）。设置页「图形后端」可切回。
   const bool wantVulkan = engineBackend != nullptr &&
                           wcscmp(engineBackend, L"impellerVulkan") == 0;
-  const bool isDefaultDx11 = engineBackend == nullptr ||
-                             wcscmp(engineBackend, L"auto") == 0 ||
-                             wcscmp(engineBackend, L"impellerD3D11") == 0 ||
-                             wantVulkan;  // Vulkan 不支持 → 回退 DX11
-  const bool wantSkia = engineBackend != nullptr &&
+  const bool wantSkia = engineBackend == nullptr ||
+                        wcscmp(engineBackend, L"auto") == 0 ||
                         wcscmp(engineBackend, L"skiaOpengl") == 0;
+  const bool isDefaultDx11 = engineBackend != nullptr &&
+                             (wcscmp(engineBackend, L"impellerD3D11") == 0 ||
+                              wantVulkan);  // Vulkan 不支持 → 回退 DX11
   const bool wantSoftware = engineBackend != nullptr &&
                             wcscmp(engineBackend, L"software") == 0;
-  const char *activeBackend = "impellerD3D11";  // 默认/DX11/回退
+  const char *activeBackend = "skiaOpengl";  // 默认 Skia/ANGLE（贴图可靠）
   if (isDefaultDx11 && !wantSkia) {
     SetEnvironmentVariable(L"FLUTTER_ENGINE_SWITCHES", L"1");
     SetEnvironmentVariable(L"FLUTTER_ENGINE_SWITCH_1", L"enable-impeller");

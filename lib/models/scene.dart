@@ -142,7 +142,7 @@ class Scene {
     this.sourceShareId,
     this.voxelCapture,
     this.whiteNoise = true,
-    this.whiteNoiseVolume = 0.15,
+    this.whiteNoiseVolume = 0.25,
   });
 
   /// 是否为用户自定义场景（内置场景 id 无前缀，自定义以 'custom_' 开头）

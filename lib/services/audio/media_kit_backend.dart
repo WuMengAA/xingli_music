@@ -41,6 +41,7 @@ class MediaKitBackend implements MusicBackend {
   StreamSubscription<bool>? _playingSub;
   StreamSubscription<bool>? _bufferingSub;
   StreamSubscription<bool>? _completedSub;
+  StreamSubscription<String>? _errorSub;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerLog>? _logSub;
@@ -64,9 +65,25 @@ class MediaKitBackend implements MusicBackend {
     // info 级 mpv 日志（含音频输出 ao 初始化）转发到 app.log——
     // R23c 双端无声（playing=true/volume=0.29/pos 走但仍听不到）
     // 需要看 libmpv 的 ao 初始化是否失败。
-    final Player p = Player(
-      configuration: PlayerConfiguration(logLevel: MPVLogLevel.info),
-    );
+    //
+    // R26skel-b3：音频专用配置——`vo: null` 关闭视频输出管线。
+    // 原因：星璃是纯音频 App，Player 默认会初始化视频输出（EGL/Surface），
+    // 在部分 Android 设备（尤其无 GPU 加速/省电模式）上这是闪退与无声的
+    // 头号来源；`vo: null` 让 libmpv 完全跳过视频解码/渲染，只留音频。
+    // 同时 `Player()` 构造包 try/catch：原生构造失败不再直接崩（无保护
+    // 的原生崩溃会闪退整个 App），转成可展示的中文错误由 AudioService 兜住。
+    Player p;
+    try {
+      p = Player(
+        configuration: PlayerConfiguration(
+          logLevel: MPVLogLevel.info,
+          vo: null, // 纯音频：关视频输出（Android 闪退/无声防御）
+        ),
+      );
+    } catch (e) {
+      _initError = 'media_kit 解码器创建失败: $e';
+      _throwInitError();
+    }
     _player = p;
     _attachStreams(p);
     // Player 创建前的 setVolume 是 no-op（_player == null）——把缓存的
@@ -116,6 +133,11 @@ class MediaKitBackend implements MusicBackend {
     _logSub = p.stream.log.listen((PlayerLog l) {
       LogService.instance.d('mpv', l.toString());
     });
+    // R26skel-b3：解码/输出错误（如 CDN 403、流损坏）→ 错误级日志 + 状态流
+    // 暴露。此前错误只出现在 mpv info 日志里，UI 无感知；现统一记录。
+    _errorSub = p.stream.error.listen((String msg) {
+      LogService.instance.e('mpv', 'media_kit 播放错误: $msg');
+    });
     // 初始快照
     emit();
   }
@@ -141,10 +163,52 @@ class MediaKitBackend implements MusicBackend {
   @override
   Stream<Duration?> get durationStream => _durationCtrl!.stream;
 
+  /// 销毁当前 Player（open 失败后调用：坏状态不再复用，下次 open 重建）。
+  ///
+  /// R26skel-b3：media_kit 一个 Player 在 open 失败（403/流损坏/解码错）后
+  /// 会残留坏状态，后续 open 也失败甚至崩；重置后每次失败都从干净状态重试。
+  Future<void> _resetPlayer() async {
+    await _playingSub?.cancel();
+    await _bufferingSub?.cancel();
+    await _completedSub?.cancel();
+    await _errorSub?.cancel();
+    await _positionSub?.cancel();
+    await _durationSub?.cancel();
+    await _logSub?.cancel();
+    _playingSub = null;
+    _bufferingSub = null;
+    _completedSub = null;
+    _errorSub = null;
+    _positionSub = null;
+    _durationSub = null;
+    _logSub = null;
+    _streamsReady = false;
+    final Player? p = _player;
+    _player = null;
+    if (p != null) {
+      try {
+        await p.dispose();
+      } catch (_) {
+        // 引擎已坏时 dispose 也可能抛，忽略
+      }
+    }
+    _playing = false;
+    _buffering = false;
+    _completed = false;
+    _stateCtrl?.add(MusicEngineState(
+        processing: MusicProcess.idle, playing: false));
+  }
+
   @override
   Future<void> openUri(Uri uri, {Map<String, String>? headers}) async {
     final Player p = _ensurePlayer();
-    await p.open(Media(uri.toString(), httpHeaders: headers));
+    try {
+      await p.open(Media(uri.toString(), httpHeaders: headers));
+    } catch (e) {
+      LogService.instance.e('audio', 'media_kit open 失败: $e');
+      await _resetPlayer();
+      rethrow; // AudioService 兜住 → playErrorStream 中文提示
+    }
     LogService.instance
         .i('audio', 'media_kit open: ${_redactUri(uri.toString())}');
   }
@@ -152,7 +216,13 @@ class MediaKitBackend implements MusicBackend {
   @override
   Future<void> openUrl(String url, {Map<String, String>? headers}) async {
     final Player p = _ensurePlayer();
-    await p.open(Media(url, httpHeaders: headers));
+    try {
+      await p.open(Media(url, httpHeaders: headers));
+    } catch (e) {
+      LogService.instance.e('audio', 'media_kit open 失败: $e');
+      await _resetPlayer();
+      rethrow;
+    }
     LogService.instance.i('audio', 'media_kit open: ${_redactUri(url)}');
   }
 
@@ -166,7 +236,13 @@ class MediaKitBackend implements MusicBackend {
             path.startsWith('https://')
         ? path
         : Uri.file(path).toString();
-    await p.open(Media(uri));
+    try {
+      await p.open(Media(uri));
+    } catch (e) {
+      LogService.instance.e('audio', 'media_kit open 失败: $e');
+      await _resetPlayer();
+      rethrow;
+    }
     LogService.instance.i('audio', 'media_kit open: ${_redactUri(uri)}');
   }
 
@@ -212,11 +288,31 @@ class MediaKitBackend implements MusicBackend {
     if (p != null) await p.setVolume(volume);
   }
 
+  /// I（均衡器）：Windows 真 DSP——mpv `af` 滤镜链。
+  ///
+  /// media_kit 的 `Player.platform` 是公开的原生 `PlatformPlayer`，其
+  /// `setProperty(property, value)` 直接走 libmpv `mpv_set_property_string`。
+  /// 有 Player 且平台为原生 → 设 `af`；否则返回 false（回退模拟层）。
+  @override
+  Future<bool> setEqualizerFilter(String afFilter) async {
+    final Player? p = _player;
+    final PlatformPlayer? pp = p?.platform;
+    if (pp == null) return false;
+    try {
+      final dynamic native = pp; // NativePlayer.setProperty（各平台原生实现）
+      await native.setProperty('af', afFilter);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Future<void> dispose() async {
     await _playingSub?.cancel();
     await _bufferingSub?.cancel();
     await _completedSub?.cancel();
+    await _errorSub?.cancel();
     await _positionSub?.cancel();
     await _durationSub?.cancel();
     await _logSub?.cancel();

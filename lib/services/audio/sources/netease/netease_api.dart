@@ -147,11 +147,21 @@ class SongUrl {
 
 /// 账号信息（用于校验 cookie 是否仍然有效）。
 class NeteaseAccount {
-  const NeteaseAccount({required this.uid, required this.nickname, this.avatarUrl});
+  const NeteaseAccount({
+    required this.uid,
+    required this.nickname,
+    this.avatarUrl,
+    this.vipType = 0,
+  });
 
   final int uid;
   final String nickname;
   final String? avatarUrl;
+
+  /// 会员类型：0=无；>0=有会员（1 普通 / 11 黑胶等）。>0 视为 VIP。
+  final int vipType;
+
+  bool get isVip => vipType > 0;
 }
 
 /// 二维码轮询状态码：800 过期 / 801 待扫描 / 802 待确认 / 803 成功。
@@ -168,6 +178,17 @@ class NeteaseQrStatus {
   bool get waitingScan => code == 801;
   bool get waitingConfirm => code == 802;
   bool get authorized => code == 803;
+}
+
+/// 歌词结果：主歌词 + 可选译文（翻译 / 罗马音）。
+class LyricResult {
+  const LyricResult({required this.lrc, this.translation});
+
+  /// 主歌词 `.lrc` 文本。
+  final String lrc;
+
+  /// 译文（网易云 `tlyric` 的翻译 / 罗马音歌词）；无则 null。
+  final String? translation;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -190,6 +211,10 @@ class NeteaseApi {
   static const Duration _timeout = Duration(seconds: 10);
 
   final Map<String, String> _cookies = <String, String>{};
+
+  /// 歌词内存缓存（songId -> 歌词结果；无词/失败存 null）。
+  /// 避免切歌回放时反复打接口，也减轻风控压力。
+  final Map<int, LyricResult?> _lyricCache = <int, LyricResult?>{};
 
   Future<void> _gate = Future<void>.value();
   DateTime _lastAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -219,7 +244,10 @@ class NeteaseApi {
   }
 
   /// 清空会话（登出）。
-  void clearCookie() => _cookies.clear();
+  void clearCookie() {
+    _cookies.clear();
+    _lyricCache.clear();
+  }
 
   /// 播放 CDN 需要的请求头（§3.3：交给 just_audio 的 AudioSource.uri）。
   Map<String, String> get playbackHeaders => <String, String>{
@@ -302,6 +330,51 @@ class NeteaseApi {
         .toList(growable: false);
   }
 
+  /// 取歌词（主歌词 + 可选译文）。
+  ///
+  /// 网易云歌词对绝大多数曲目即使未登录也能取到；返回 `null` 表示：
+  /// 纯音乐无词 / 接口异常 / 风控拒绝。歌词界面会据此优雅降级为「暂无歌词」。
+  ///
+  /// [songId] 来自 [NeteaseSource.songIdOf]。结果按 songId 做内存缓存。
+  Future<LyricResult?> getLyrics(int songId) async {
+    if (_lyricCache.containsKey(songId)) return _lyricCache[songId];
+    LyricResult? result;
+    try {
+      final Map<String, dynamic> res = await _post(
+        '/weapi/song/lyric?_nmclfl=1',
+        <String, dynamic>{
+          'id': songId,
+          'lv': -1,
+          'kv': -1,
+          'tv': -1,
+        },
+        allowBusinessError: true,
+      );
+      final int code = (res['code'] as num?)?.toInt() ?? 200;
+      if (code == 200) {
+        // 主歌词优先；纯音乐往往 lrc 为空，回退罗马音歌词（仍有内容时）。
+        final String? main = (res['lrc'] as Map<String, dynamic>?)?['lyric'] as String?;
+        final String? roman =
+            (res['romalrc'] as Map<String, dynamic>?)?['lyric'] as String?;
+        final String? trans =
+            (res['tlyric'] as Map<String, dynamic>?)?['lyric'] as String?;
+        final String? lrc = (main?.trim().isNotEmpty == true)
+            ? main
+            : (roman?.trim().isNotEmpty == true ? roman : null);
+        if (lrc != null) {
+          result = LyricResult(
+            lrc: lrc,
+            translation: trans?.trim().isNotEmpty == true ? trans : null,
+          );
+        }
+      }
+    } on NeteaseApiException {
+      result = null;
+    }
+    _lyricCache[songId] = result;
+    return result;
+  }
+
   // ── 登录 ──────────────────────────────────────────
 
   /// 申请二维码 key。
@@ -340,6 +413,7 @@ class NeteaseApi {
   /// 会立刻打一次账号接口校验；无效时抛 [NeteaseApiException] 且不保留 cookie。
   Future<NeteaseAccount> loginWithCookie(String raw) async {
     final Map<String, String> backup = Map<String, String>.of(_cookies);
+    _lyricCache.clear();
     applyCookie(raw);
     try {
       return await account();
@@ -363,6 +437,7 @@ class NeteaseApi {
       uid: (profile['userId'] as num?)?.toInt() ?? 0,
       nickname: (profile['nickname'] as String?) ?? '网易云用户',
       avatarUrl: profile['avatarUrl'] as String?,
+      vipType: (profile['vipType'] as num?)?.toInt() ?? 0,
     );
   }
 

@@ -21,6 +21,8 @@ import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../services/audio/sources/netease/netease_api.dart';
 import '../../services/audio/sources/netease/netease_webview_login.dart';
+import 'dart:async';
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// 打开网易云登录弹层；返回 `true` 表示登录成功。
 Future<bool?> showNeteaseLoginSheet(BuildContext context) {
@@ -37,7 +39,7 @@ Future<bool?> showNeteaseLoginSheet(BuildContext context) {
   );
 }
 
-enum _LoginTab { web, cookie }
+enum _LoginTab { qr, web, cookie }
 
 class _NeteaseLoginSheet extends ConsumerStatefulWidget {
   const _NeteaseLoginSheet();
@@ -47,13 +49,18 @@ class _NeteaseLoginSheet extends ConsumerStatefulWidget {
 }
 
 class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
-  _LoginTab _tab = _LoginTab.web;
+  _LoginTab _tab = _LoginTab.qr;
   final TextEditingController _cookieCtrl = TextEditingController();
+  // C1（用户确认）：Cookie 分开填——MUSIC_U 与 __csrf 两个输入框，自动拼头。
+  final TextEditingController _musicUCtrl = TextEditingController();
+  final TextEditingController _csrfCtrl = TextEditingController();
   String _status = '';
 
   @override
   void dispose() {
     _cookieCtrl.dispose();
+    _musicUCtrl.dispose();
+    _csrfCtrl.dispose();
     super.dispose();
   }
 
@@ -105,10 +112,22 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
   }
 
   Future<void> _loginCookie() async {
+    // C1：分开填的 MUSIC_U / __csrf 自动拼成标准 Cookie 头（无需手动写
+    // "MUSIC_U=..."）；若用户仍用整段粘贴则原样兼容。
+    String raw = _musicUCtrl.text.trim();
+    if (raw.isNotEmpty && !raw.contains('=')) {
+      raw = 'MUSIC_U=$raw';
+    }
+    final String csrf = _csrfCtrl.text.trim();
+    if (csrf.isNotEmpty) {
+      final String csrfPart = csrf.contains('=')
+          ? csrf
+          : '__csrf=$csrf';
+      raw = raw.isEmpty ? csrfPart : '$raw; $csrfPart';
+    }
+    if (raw.isEmpty) raw = _cookieCtrl.text.trim(); // 整段粘贴兼容
     final bool ok =
-        await ref.read(neteaseAuthProvider.notifier).loginWithCookie(
-              _cookieCtrl.text,
-            );
+        await ref.read(neteaseAuthProvider.notifier).loginWithCookie(raw);
     if (ok && mounted) Navigator.of(context).pop(true);
   }
 
@@ -161,6 +180,13 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                 Row(
                   children: <Widget>[
                     ChoiceChip(
+                      label: const Text('扫码登录'),
+                      selected: _tab == _LoginTab.qr,
+                      onSelected: (_) => setState(() => _tab = _LoginTab.qr),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: AppSpace.sm),
+                    ChoiceChip(
                       label: const Text('应用内登录'),
                       selected: _tab == _LoginTab.web,
                       onSelected: (_) => setState(() => _tab = _LoginTab.web),
@@ -178,17 +204,23 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                 const SizedBox(height: AppSpace.md),
                 AnimatedSwitcher(
                   duration: AppMotion.tab,
-                  child: _tab == _LoginTab.web
-                      ? _WebLoginPanel(
+                  child: _tab == _LoginTab.qr
+                      ? _QrLoginPanel(
                           busy: auth.busy,
-                          status: _status,
-                          onLogin: _webLogin,
+                          onSuccess: () => Navigator.of(context).pop(true),
                         )
-                      : _CookiePanel(
-                          controller: _cookieCtrl,
-                          busy: auth.busy,
-                          onLogin: _loginCookie,
-                        ),
+                      : _tab == _LoginTab.web
+                          ? _WebLoginPanel(
+                              busy: auth.busy,
+                              status: _status,
+                              onLogin: _webLogin,
+                            )
+                          : _CookiePanel(
+                              musicUCtrl: _musicUCtrl,
+                              csrfCtrl: _csrfCtrl,
+                              busy: auth.busy,
+                              onLogin: _loginCookie,
+                            ),
                 ),
                 if (auth.error != null) ...<Widget>[
                   const SizedBox(height: AppSpace.sm),
@@ -302,15 +334,17 @@ class _WebLoginPanel extends StatelessWidget {
   }
 }
 
-/// Cookie 路径：粘贴 `MUSIC_U=...; __csrf=...` 直接登录。
+/// Cookie 路径：MUSIC_U / __csrf 分开填（自动拼 Cookie 头），或整段粘贴兼容。
 class _CookiePanel extends StatelessWidget {
   const _CookiePanel({
-    required this.controller,
+    required this.musicUCtrl,
+    required this.csrfCtrl,
     required this.busy,
     required this.onLogin,
   });
 
-  final TextEditingController controller;
+  final TextEditingController musicUCtrl;
+  final TextEditingController csrfCtrl;
   final bool busy;
   final VoidCallback onLogin;
 
@@ -320,12 +354,31 @@ class _CookiePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         TextField(
-          controller: controller,
-          maxLines: 3,
-          keyboardType: TextInputType.multiline,
+          controller: musicUCtrl,
           style: context.appText.body,
           decoration: InputDecoration(
-            hintText: 'MUSIC_U=xxxxxxxx; __csrf=xxxxxxxx',
+            labelText: 'MUSIC_U（必填）',
+            hintText: '粘贴 MUSIC_U 的值',
+            hintStyle: context.appText.artist,
+            filled: true,
+            fillColor: context.appColors.bgCard,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        TextField(
+          controller: csrfCtrl,
+          style: context.appText.body,
+          decoration: InputDecoration(
+            labelText: '__csrf（可选）',
+            hintText: '粘贴 __csrf 的值',
             hintStyle: context.appText.artist,
             filled: true,
             fillColor: context.appColors.bgCard,
@@ -342,7 +395,7 @@ class _CookiePanel extends StatelessWidget {
         const SizedBox(height: AppSpace.sm),
         Text(
           '如何获取：电脑浏览器登录 music.163.com，F12 → 应用/Application → Cookies，'
-          '复制 MUSIC_U 与 __csrf 的值。',
+          '分别复制 MUSIC_U 与 __csrf 的值填入即可（头部自动拼好，无需手动写）。',
           style: context.appText.caption,
         ),
         const SizedBox(height: AppSpace.md),
@@ -356,6 +409,121 @@ class _CookiePanel extends StatelessWidget {
                 )
               : const Text('登录'),
         ),
+      ],
+    );
+  }
+}
+
+/// 扫码登录：本地渲染网易云登录二维码，官方 App 扫码并在手机上确认后自动登录。
+///
+/// xingli_music 自身不需要相机权限——二维码内容（`state.qrUrl`）由官方
+/// 网易云 App 扫描，本面板只负责渲染 + 轮询 [NeteaseAuthNotifier.pollQrLogin]。
+class _QrLoginPanel extends ConsumerStatefulWidget {
+  const _QrLoginPanel({required this.busy, required this.onSuccess});
+
+  final bool busy;
+  final VoidCallback onSuccess;
+
+  @override
+  ConsumerState<_QrLoginPanel> createState() => _QrLoginPanelState();
+}
+
+class _QrLoginPanelState extends ConsumerState<_QrLoginPanel> {
+  Timer? _timer;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 挂载即申请二维码并开始轮询。
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(neteaseAuthProvider.notifier).startQrLogin();
+      _startPolling();
+    });
+  }
+
+  void _startPolling() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted || _done) return;
+      final NeteaseQrStatus? st =
+          await ref.read(neteaseAuthProvider.notifier).pollQrLogin();
+      if (st?.authorized == true && mounted && !_done) {
+        _done = true;
+        widget.onSuccess();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          '用网易云音乐 App 扫描下方二维码，在手机上确认即可登录。',
+          style: context.appText.artist,
+        ),
+        const SizedBox(height: AppSpace.md),
+        if (auth.qrUrl != null)
+          Center(
+            child: QrImageView(
+              data: auth.qrUrl!,
+              version: QrVersions.auto,
+              size: 220,
+              backgroundColor: Colors.white,
+              padding: const EdgeInsets.all(AppSpace.md),
+            ),
+          )
+        else if (widget.busy || auth.busy)
+          const Center(
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        else
+          const SizedBox.shrink(),
+        const SizedBox(height: AppSpace.sm),
+        if (auth.error != null) ...<Widget>[
+          Text(
+            auth.error!,
+            style: context.appText.artist.copyWith(color: context.appColors.danger),
+          ),
+          const SizedBox(height: AppSpace.sm),
+          FilledButton.icon(
+            onPressed: () {
+              _done = false;
+              ref.read(neteaseAuthProvider.notifier).startQrLogin();
+              _startPolling();
+            },
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('刷新二维码'),
+          ),
+        ] else if (auth.qrMessage != null) ...<Widget>[
+          // C1：扫码进行中提示（802 已确认 → 明确「正在完成」，不再无反应）。
+          Text(
+            auth.qrMessage!,
+            style: context.appText.artist.copyWith(
+                color: context.appColors.accent),
+            textAlign: TextAlign.center,
+          ),
+        ] else
+          Text(
+            '二维码有效期约 2 分钟，过期后点「刷新二维码」。',
+            style: context.appText.caption,
+            textAlign: TextAlign.center,
+          ),
       ],
     );
   }

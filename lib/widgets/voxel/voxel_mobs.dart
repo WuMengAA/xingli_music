@@ -103,20 +103,19 @@ class MobWorld {
   /// 拾取半径。
   static const double pickupRange = 1.6;
 
-  /// 推进一帧。
+  /// 推进一帧（R26r10：只推进僵尸/刷怪——掉落物改由高频 [tickItemsOnly] 独立
+  /// 驱动，下落/拾取更跟手，不再被 8Hz 拖慢）。
   ///
   /// [playerPos] 玩家脚底；[isNight] 夜间；[survival] 只有生存模式才刷怪。
-  /// [onHitPlayer] 僵尸攻击到玩家时回调伤害；[onPickup] 拾取回调（返回是否装下）。
+  /// [onHitPlayer] 僵尸攻击到玩家时回调伤害。
   void tick(
     double dt, {
     required Vec3 playerPos,
     required bool isNight,
     required bool survival,
     required void Function(int damage) onHitPlayer,
-    required bool Function(ItemStack stack) onPickup,
   }) {
     if (dt <= 0) return;
-    _tickItems(dt, playerPos, onPickup);
     if (!survival) {
       // 创造模式清场，免得切回来一堆怪。
       if (zombies.isNotEmpty) zombies.clear();
@@ -124,6 +123,17 @@ class MobWorld {
     }
     _tickZombies(dt, playerPos, isNight, onHitPlayer);
     _trySpawn(dt, playerPos, isNight);
+  }
+
+  /// R26r10：只推进掉落物（轻量：重力 + 落地 + 拾取）。高频调用让掉落物
+  /// 下落 / 浮动 / 拾取跟手；僵尸仍走低频 [tick]。
+  void tickItemsOnly(
+    double dt,
+    Vec3 playerPos,
+    bool Function(ItemStack stack) onPickup,
+  ) {
+    if (dt <= 0) return;
+    _tickItems(dt, playerPos, onPickup);
   }
 
   // ── 掉落物 ────────────────────────────────────────────

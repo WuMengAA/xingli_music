@@ -52,13 +52,16 @@ abstract final class AppVersion {
   static const int month = 8;
 
   /// 日期。
-  static const int day = 12;
+  /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
+  static const int day = 14;
 
   /// 阶段。
   static const AppStage stage = AppStage.alpha;
 
-  /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增）。
-  static const int buildCount = 9;
+  /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
+  /// cl35：R26skel-b6——聚合搜索源徽标(音乐/视频源)+入口(卡片/面板)、
+  /// 音量默认折叠、音质选择(VIP/大会员自动识别)、遗漏检查+git提交。
+  static const int buildCount = 35;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

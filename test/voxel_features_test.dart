@@ -4,25 +4,33 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/widgets/voxel/voxel_world.dart';
-import '../lib/widgets/voxel/voxel_world_types.dart';
+import 'package:xingli_music/widgets/voxel/voxel_world.dart';
+import 'package:xingli_music/widgets/voxel/voxel_world_types.dart';
 
 void main() {
   group('VoxelWorld 分层特效', () {
-    test('默认世界含洞穴（stone 层内出现空气空洞）', () {
+    test('地下近全实心（R26r13：仅极少数小气穴）', () {
       final VoxelWorld w = VoxelWorld();
-      int caves = 0;
+      int airUnderground = 0;
+      int solidUnderground = 0;
       for (int x = 0; x < w.sizeX; x++) {
         for (int z = 0; z < w.sizeZ; z++) {
           final int h = w.terrainHeightAt(x, z);
-          for (int y = 2; y < h - 1; y++) {
-            if (w.get(x, y, z) == Voxel.air) caves++;
+          for (int y = 5; y < h - 1; y++) {
+            if (w.get(x, y, z) == Voxel.air) {
+              airUnderground++;
+            } else {
+              solidUnderground++;
+            }
           }
         }
       }
       // ignore: avoid_print
-      print('洞穴 air 格数: $caves');
-      expect(caves, greaterThan(0), reason: '洞穴层应生成空气空洞');
+      print('地下气穴格数: $airUnderground / 实心格数: $solidUnderground');
+      // R26r13 把洞穴阈值从 0.15 抬到 0.62 → 地下近全实心，气穴占比应极低（<1%）。
+      final double ratio =
+          airUnderground / (airUnderground + solidUnderground);
+      expect(ratio, lessThan(0.01), reason: 'R26r13 后地下应近全实心（气穴 <1%）');
     });
 
     test('含浮空岛（y>50 高处出现草块）', () {

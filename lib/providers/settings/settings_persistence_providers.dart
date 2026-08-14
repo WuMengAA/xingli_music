@@ -20,6 +20,7 @@ import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import 'log_upload_providers.dart';
 import 'llm_providers.dart';
 import 'performance_providers.dart';
+import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
 
 /// 全局设置仓库（R10/R11 收口）。
 final settingsRepositoryProvider = Provider<SettingsRepository>(
@@ -96,6 +97,9 @@ Future<void> restoreSettings(WidgetRef ref) async {
       repo.lodStartChunks.clamp(0, 6);
   ref.read(lodStepChunksProvider.notifier).state =
       repo.lodStepChunks.clamp(1, 4);
+  // R26r18·P6/P3：LOD 质量档位 + 视锥剔除开关持久化恢复
+  ref.read(lodQualityProvider.notifier).state = repo.lodQuality;
+  ref.read(lodFrustumCullProvider.notifier).state = repo.lodFrustumCull;
   // R26m：3D 画质档（流畅/标准/高清）持久化恢复
   ref.read(graphicsQualityProvider.notifier).state = GraphicsQuality.values[
       repo.graphicsQuality.clamp(0, GraphicsQuality.values.length - 1)];
@@ -110,6 +114,39 @@ Future<void> restoreSettings(WidgetRef ref) async {
   }
   ref.read(engineBackendProvider.notifier).state = backend;
   ref.read(noiseOverrideProvider.notifier).state = repo.noiseOverride;
+  ref.read(faceCullEnabledProvider.notifier).state =
+      repo.faceCull ?? ref.read(faceCullEnabledProvider);
+  ref.read(occlusionCullEnabledProvider.notifier).state =
+      repo.occlusionCull ?? ref.read(occlusionCullEnabledProvider);
+  ref.read(backFaceCullEnabledProvider.notifier).state =
+      repo.backFaceCull ?? ref.read(backFaceCullEnabledProvider);
+  ref.read(frustumCullEnabledProvider.notifier).state =
+      repo.frustumCull ?? ref.read(frustumCullEnabledProvider);
+  ref.read(underwaterFilterEnabledProvider.notifier).state =
+      repo.underwaterFilter ?? ref.read(underwaterFilterEnabledProvider);
+  ref.read(waterFlowEnabledProvider.notifier).state =
+      repo.waterFlow ?? ref.read(waterFlowEnabledProvider);
+  ref.read(flashlightEnabledProvider.notifier).state =
+      repo.flashlight ?? ref.read(flashlightEnabledProvider);
+  ref.read(lodEnabledProvider.notifier).state =
+      repo.lodEnabled ?? ref.read(lodEnabledProvider);
+  ref.read(lodStepBlocksProvider.notifier).state =
+      repo.lodStepBlocks?.clamp(1, 24) ?? ref.read(lodStepBlocksProvider);
+  ref.read(lodSampleBaseProvider.notifier).state =
+      repo.lodSampleBase?.clamp(1, 8) ?? ref.read(lodSampleBaseProvider);
+  ref.read(lodMaxChunksProvider.notifier).state =
+      repo.lodMaxChunks?.clamp(1, 64) ?? ref.read(lodMaxChunksProvider);
+  ref.read(shadowRenderProvider.notifier).state =
+      repo.shadowRender ?? ref.read(shadowRenderProvider);
+  ref.read(aoEnabledProvider.notifier).state =
+      repo.aoEnabled ?? ref.read(aoEnabledProvider);
+  ref.read(renderScaleProvider.notifier).state =
+      repo.renderScale?.clamp(0.25, 2.0) ?? ref.read(renderScaleProvider);
+  ref.read(renderRatioProvider.notifier).state =
+      repo.renderRatio?.clamp(0.5, 1.0) ?? ref.read(renderRatioProvider);
+  ref.read(renderPrecisionProvider.notifier).state =
+      repo.renderPrecision?.clamp(0.5, 2.0) ?? ref.read(renderPrecisionProvider);
+  ref.read(oobeDoneProvider.notifier).state = repo.oobeDone ?? false;
   ref.read(glassBlurOverrideProvider.notifier).state = repo.glassBlurOverride;
   ref.read(bgAnimationOverrideProvider.notifier).state =
       repo.bgAnimationOverride;
@@ -120,6 +157,9 @@ Future<void> restoreSettings(WidgetRef ref) async {
     (UiDensity d) => d.name == repo.uiDensity,
     orElse: () => UiDensity.standard,
   );
+  // R26skel-b3：全局 UI 大小恢复（越界夹紧）。
+  ref.read(uiScaleProvider.notifier).state =
+      repo.uiScale.clamp(kUiScaleMin, kUiScaleMax);
   // 引擎：仅当用户显式选过才覆盖；否则沿用 [musicEngineProvider] 的平台默认值
   // （Android 默认 media_kit，规避 ExoPlayer 切歌崩溃）。
   final String engineName = repo.musicEngine;
@@ -258,11 +298,34 @@ final settingsSyncProvider = Provider<void>((ref) {
   ref.listen<int>(lodStepChunksProvider, (_, v) {
     repo.setLodStepChunks(v);
   });
+  ref.listen<LodQuality>(lodQualityProvider, (_, v) {
+    repo.setLodQuality(v);
+  });
+  ref.listen<bool>(lodFrustumCullProvider, (_, v) {
+    repo.setLodFrustumCull(v);
+  });
   ref.listen<EngineBackend>(engineBackendProvider, (_, v) {
     repo.setEngineBackend(v.name);
     // Windows 渲染后端重启生效：main.cpp 启动时读取（见 settings_repository 注释）
   });
   ref.listen<bool?>(noiseOverrideProvider, (_, v) => repo.setNoiseOverride(v));
+  ref.listen<bool>(faceCullEnabledProvider, (_, v) => repo.setFaceCull(v));
+  ref.listen<bool>(occlusionCullEnabledProvider, (_, v) => repo.setOcclusionCull(v));
+  ref.listen<bool>(backFaceCullEnabledProvider, (_, v) => repo.setBackFaceCull(v));
+  ref.listen<bool>(frustumCullEnabledProvider, (_, v) => repo.setFrustumCull(v));
+  ref.listen<bool>(underwaterFilterEnabledProvider, (_, v) => repo.setUnderwaterFilter(v));
+  ref.listen<bool>(waterFlowEnabledProvider, (_, v) => repo.setWaterFlow(v));
+  ref.listen<bool>(flashlightEnabledProvider, (_, v) => repo.setFlashlight(v));
+  ref.listen<bool>(lodEnabledProvider, (_, v) => repo.setLodEnabled(v));
+  ref.listen<int>(lodStepBlocksProvider, (_, v) => repo.setLodStepBlocks(v));
+  ref.listen<int>(lodSampleBaseProvider, (_, v) => repo.setLodSampleBase(v));
+  ref.listen<int>(lodMaxChunksProvider, (_, v) => repo.setLodMaxChunks(v));
+  ref.listen<bool>(shadowRenderProvider, (_, v) => repo.setShadowRender(v));
+  ref.listen<bool>(aoEnabledProvider, (_, v) => repo.setAoEnabled(v));
+  ref.listen<double>(renderScaleProvider, (_, v) => repo.setRenderScale(v));
+  ref.listen<double>(renderRatioProvider, (_, v) => repo.setRenderRatio(v));
+  ref.listen<double>(renderPrecisionProvider, (_, v) => repo.setRenderPrecision(v));
+  ref.listen<bool>(oobeDoneProvider, (_, v) => repo.setOobeDone(v));
   ref.listen<double?>(
       glassBlurOverrideProvider, (_, v) => repo.setGlassBlurOverride(v));
   ref.listen<bool?>(
@@ -270,6 +333,7 @@ final settingsSyncProvider = Provider<void>((ref) {
   ref.listen<bool?>(
       liquidGlassOverrideProvider, (_, v) => repo.setLiquidGlassOverride(v));
   ref.listen<UiDensity>(uiDensityProvider, (_, v) => repo.setUiDensity(v.name));
+  ref.listen<double>(uiScaleProvider, (_, v) => repo.setUiScale(v));
   ref.listen<MusicEngine>(musicEngineProvider, (_, v) {
     repo.setMusicEngine(v.name);
     // 引擎切换需重建 AudioService（provider 已 watch musicEngineProvider，

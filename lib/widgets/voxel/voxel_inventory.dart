@@ -46,6 +46,117 @@ class VoxelInventory extends ChangeNotifier {
 
   ItemStack at(int i) => (i < 0 || i >= _slots.length) ? ItemStack.empty : _slots[i];
 
+  /// 光标 / 手持物品（点选拾取后临时拿在手上、跟随鼠标 / 显示在面板顶部的物品）。
+  ///
+  /// Cl29_hotfix：引入 MC 式「鼠标拾取」交互模型，替代旧拖拽换位。
+  ItemStack _cursor = ItemStack.empty;
+
+  /// 光标上的物品（空 = 未手持）。
+  ItemStack get cursor => _cursor;
+
+  /// 是否正手持物品（点选后）。
+  bool get carrying => !_cursor.isEmpty;
+
+  /// 左键点击某格：
+  /// - 未手持 → 整堆拾取到光标（原格清空）。
+  /// - 手持 → 落位（空格整堆放、同类填满、不同类交换）。
+  void clickSlot(int index) {
+    if (index < 0 || index >= _slots.length) return;
+    if (_cursor.isEmpty) {
+      final ItemStack s = _slots[index];
+      if (s.isEmpty) return;
+      _cursor = s;
+      _slots[index] = ItemStack.empty;
+    } else {
+      _dropInto(index);
+    }
+    notifyListeners();
+  }
+
+  /// 右键 / 长按：
+  /// - 未手持 → 拾取一半（仅 1 个则整堆拾取）。
+  /// - 手持 → 向该格放 1 个（空或同类未满）；不同类或已满不操作。
+  void rightSlot(int index) {
+    if (index < 0 || index >= _slots.length) return;
+    if (_cursor.isEmpty) {
+      final ItemStack s = _slots[index];
+      if (s.isEmpty) return;
+      final int half = s.count ~/ 2;
+      if (half <= 0) {
+        _cursor = s;
+        _slots[index] = ItemStack.empty;
+      } else {
+        _cursor = ItemStack(s.item, half);
+        _slots[index] = s.plus(-half);
+      }
+    } else {
+      final ItemStack t = _slots[index];
+      if (!t.isEmpty && t.item != _cursor.item) return; // 不同类不操作
+      // 以「光标物品」的堆叠上限判满——空目标(t.count=0、maxStack=air 的 0)
+      // 不能用 t.maxStack（会 0>=0 误判为已满而拒绝放置）。
+      if (t.count >= _cursor.maxStack) return; // 已满不操作
+      // 空格目标须用光标物品起堆：t.plus(1) 会沿用空格的 air 物品 → 错。
+      _slots[index] = t.isEmpty ? ItemStack(_cursor.item, 1) : t.plus(1);
+      _cursor = _cursor.plus(-1);
+    }
+    notifyListeners();
+  }
+
+  /// 落位逻辑（左键 / 数字键手持时调用）。
+  void _dropInto(int index) {
+    final ItemStack t = _slots[index];
+    if (t.isEmpty) {
+      _slots[index] = _cursor;
+      _cursor = ItemStack.empty;
+      return;
+    }
+    if (t.item == _cursor.item) {
+      final int room = t.maxStack - t.count;
+      if (room > 0) {
+        final int move = _cursor.count < room ? _cursor.count : room;
+        _slots[index] = t.plus(move);
+        _cursor = _cursor.plus(-move);
+      }
+      return; // 满则不动
+    }
+    // 不同类 → 交换
+    _slots[index] = _cursor;
+    _cursor = t;
+  }
+
+  /// 数字键 1-9：把光标物品迁移到对应快捷栏槽位（落位逻辑同左键）。
+  void cursorToHotbar(int n) {
+    if (!carrying || n < 1 || n > hotbarSize) return;
+    _dropInto(n - 1);
+    notifyListeners();
+  }
+
+  /// 关闭面板时把光标物品归还背包（避免悬空导致世界手持错乱）。
+  void returnCursor() {
+    if (_cursor.isEmpty) return;
+    final int left = add(_cursor);
+    if (left == 0) {
+      _cursor = ItemStack.empty;
+    } else {
+      // 背包真满（全异类且无空格）兜底：原地放回首个空格；仍无则保留光标。
+      for (int i = 0; i < _slots.length; i++) {
+        if (_slots[i].isEmpty) {
+          _slots[i] = _cursor;
+          _cursor = ItemStack.empty;
+          break;
+        }
+      }
+    }
+    notifyListeners();
+  }
+
+  /// 强制清空光标（切世界 / 重置时）。
+  void clearCursor() {
+    if (_cursor.isEmpty) return;
+    _cursor = ItemStack.empty;
+    notifyListeners();
+  }
+
   /// 直接写入某格（拖拽落位用）。
   void set(int i, ItemStack s) {
     if (i < 0 || i >= _slots.length) return;
@@ -138,6 +249,7 @@ class VoxelInventory extends ChangeNotifier {
     for (int i = 0; i < _slots.length; i++) {
       _slots[i] = ItemStack.empty;
     }
+    _cursor = ItemStack.empty;
     notifyListeners();
   }
 
@@ -153,6 +265,7 @@ class VoxelInventory extends ChangeNotifier {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'selected': _selected,
+        'cursor': _cursor.toJson(),
         'slots': <Map<String, dynamic>>[
           for (final ItemStack s in _slots) s.toJson(),
         ],
@@ -165,6 +278,9 @@ class VoxelInventory extends ChangeNotifier {
           ? ItemStack.fromJson(Map<String, dynamic>.from(raw[i] as Map))
           : ItemStack.empty;
     }
+    final Map<String, dynamic>? cur =
+        j['cursor'] as Map<String, dynamic>?;
+    _cursor = cur == null ? ItemStack.empty : ItemStack.fromJson(cur);
     _selected = ((j['selected'] as num?)?.toInt() ?? 0) % hotbarSize;
     notifyListeners();
   }

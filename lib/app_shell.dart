@@ -8,6 +8,7 @@ import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
 import 'models/track.dart';
 import 'pages/explore/explore_page.dart';
+import 'pages/oobe/oobe_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
 import 'pages/scene/scene_page.dart';
@@ -18,6 +19,7 @@ import 'providers/scene/scene_providers.dart';
 import 'providers/settings/notification_providers.dart';
 import 'providers/settings/performance_providers.dart';
 import 'providers/settings/settings_persistence_providers.dart';
+import 'providers/settings/settings_layout_provider.dart';
 import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
 import 'widgets/lyrics/lyrics_view.dart';
@@ -25,6 +27,7 @@ import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
 import 'widgets/playback/unified_player.dart';
+import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/noise_texture.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -95,11 +98,17 @@ class _AppShellState extends ConsumerState<AppShell> {
       unawaited(ref.read(audioServiceProvider).switchSoundscape(scene));
       // R10：冷启动恢复用户设置（音量/主题/EQ/场景/上次曲目等）
       unawaited(restoreSettings(ref));
+      // 布局整理：尝试读 assets/settings_layout.json 覆盖默认布局（随包分发）。
+      unawaited(loadSettingsLayoutAsset(ref));
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // R26fx：OOBE 首次启动引导——未完成时覆盖全屏，完成后进入主界面。
+    if (!ref.watch(oobeDoneProvider)) {
+      return const OobePage();
+    }
     // 「我的世界」主题音效调度：场景切换时自动启停（同样是全局副作用）
     ref.listen<Scene>(activeSceneProvider, (Scene? previous, Scene next) {
       unawaited(ref.read(minecraftSfxServiceProvider).ensureScene(next.id));
@@ -247,6 +256,8 @@ class _AppShellState extends ConsumerState<AppShell> {
           // Column 给 child 的是无界高度，而 FAB 内部是 Stack，
           // 会触发 "A Stack requires bounded constraints" 断言。
           const Positioned.fill(child: CompanionGlobalFab()),
+          // ── 全局通知 toast（右上角 3s 滑入/上浮/滑出）──
+          const GlobalNotificationToast(),
         ],
       ),
       ),

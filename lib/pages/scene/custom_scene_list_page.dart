@@ -9,6 +9,7 @@ import '../../providers/scene/scene_providers.dart';
 import '../../scenes/scene_api.dart';
 import '../../widgets/common/page_scaffold.dart';
 import 'custom_scene_edit_page.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 自定义场景列表（v2 M5-2 · P0-M5-2）。
 ///
@@ -180,8 +181,6 @@ class _SceneTile extends ConsumerWidget {
     final String pack = Scenes.encodePack(scene);
     await Clipboard.setData(ClipboardData(text: pack));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已导出「${scene.name}」场景包并复制到剪贴板')),
-    );
+    appNotify(context, '已导出「${scene.name}」场景包并复制到剪贴板');
   }
 }

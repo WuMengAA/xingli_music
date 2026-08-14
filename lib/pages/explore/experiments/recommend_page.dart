@@ -12,6 +12,7 @@ import '../../../widgets/common/info_row.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
 import '../../../widgets/common/state_views.dart';
+import '../../../widgets/notification/app_notify.dart';
 
 /// 实验 A · 智能推荐（v2 M2 · P0-M2-3）。
 ///
@@ -68,9 +69,7 @@ class RecommendPage extends ConsumerWidget {
                                 .read(playbackActionsProvider)
                                 .playTrack(t);
                             if (msg.isNotEmpty && context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(msg)),
-                              );
+                              appNotify(context, msg);
                             }
                           },
                         );

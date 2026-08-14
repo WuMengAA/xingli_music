@@ -75,6 +75,34 @@ enum Voxel {
   /// 面包（麦色）。
   bread,
 
+  // ── R29 新增食物（可右键 / 使用进食，进食有音效）──
+  /// 生牛肉。
+  beef,
+  /// 熟牛肉。
+  cookedBeef,
+  /// 生猪排。
+  porkchop,
+  /// 熟猪排。
+  cookedPorkchop,
+  /// 胡萝卜。
+  carrot,
+  /// 土豆。
+  potato,
+  /// 烤土豆。
+  bakedPotato,
+  /// 生鸡肉。
+  chicken,
+  /// 熟鸡肉。
+  cookedChicken,
+  /// 西瓜片。
+  melonSlice,
+  /// 曲奇。
+  cookie,
+  /// 生鱼。
+  fish,
+  /// 熟鱼。
+  cookedFish,
+
   /// 金锭（金色反光）。
   gold,
 
@@ -144,6 +172,7 @@ class VoxelSpec {
   const VoxelSpec({
     required this.id,
     required this.base,
+    required this.displayName,
     this.top,
     this.transparent = false,
     this.solid = true,
@@ -154,6 +183,13 @@ class VoxelSpec {
 
   /// 主体色（侧面 / 顶面默认）。
   final Color base;
+
+  /// 物品 / 方块中文显示名（HUD / 背包 / 准星 / 提示统一来源——单一事实源）。
+  ///
+  /// R29：原为 `itemNameOf` 里一份独立 `switch`，新增方块极易漏改（用户
+  /// 「写死 4 次」的根因）。改为随规格定义，新增 [Voxel] 时构造 [VoxelSpec]
+  /// 强制填名，命名与渲染一处维护，杜绝漏改。
+  final String displayName;
 
   /// 顶面色（草 / 雪用，比 base 更亮）。
   final Color? top;
@@ -175,120 +211,225 @@ class VoxelSpec {
 /// 颜色一律写满 8 位（含 alpha）：6 位写法的 alpha 会被当成 0x00（全透明），
 /// 半透明由 [VoxelSpec.transparent] + 渲染层的 alpha 参数控制，不靠基色带透明度。
 const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
-  Voxel.air: VoxelSpec(id: Voxel.air, base: Color(0x00000000), solid: false),
+  Voxel.air: VoxelSpec(
+    id: Voxel.air,
+    base: Color(0x00000000),
+    solid: false,
+    displayName: '空',
+  ),
   Voxel.grass: VoxelSpec(
     id: Voxel.grass,
     base: Color(0xFF6E8B3D),
     top: Color(0xFF7CC85A),
+    displayName: '草方块',
   ),
-  Voxel.dirt: VoxelSpec(id: Voxel.dirt, base: Color(0xFF8A6240)),
-  Voxel.stone: VoxelSpec(id: Voxel.stone, base: Color(0xFF8C8C92)),
+  Voxel.dirt: VoxelSpec(
+    id: Voxel.dirt,
+    base: Color(0xFF8A6240),
+    displayName: '泥土',
+  ),
+  Voxel.stone: VoxelSpec(
+    id: Voxel.stone,
+    base: Color(0xFF8C8C92),
+    displayName: '石头',
+  ),
   Voxel.sand: VoxelSpec(
     id: Voxel.sand,
     base: Color(0xFFE2D2A0),
     pattern: VoxelPattern.sandDots,
+    displayName: '沙子',
   ),
   Voxel.water: VoxelSpec(
     id: Voxel.water,
     base: Color(0xFF3A78C2),
     transparent: true,
+    displayName: '水',
   ),
-  Voxel.wood: VoxelSpec(id: Voxel.wood, base: Color(0xFF6E4B2A)),
+  Voxel.wood: VoxelSpec(
+    id: Voxel.wood,
+    base: Color(0xFF6E4B2A),
+    displayName: '原木',
+  ),
   Voxel.leaves: VoxelSpec(
     id: Voxel.leaves,
     base: Color(0xFF4F9A3A),
-    // R26n：树叶设透明 → occludes=false → 可穿过、不被 groundHeightAt 当
-    // 地面（修复「走平地被顶到树顶空中悬浮」）；视觉更接近 MC 可透树冠。
-    transparent: true,
+    // R26r6：树叶 = 实体方块（不透明、遮挡、可站立/可破坏），不再半透明。
+    // 「走平地被顶到树冠」已由 groundHeightAt 加 startY（从脚底往下扫）根治，
+    // 不再需要靠透明来绕。
+    displayName: '树叶',
   ),
   Voxel.snow: VoxelSpec(
     id: Voxel.snow,
     base: Color(0xFFF2F6FB),
     top: Color(0xFFFFFFFC),
+    displayName: '雪',
   ),
   // ── R23k 新增（自绘材质）──────────────────────────
   Voxel.planks: VoxelSpec(
     id: Voxel.planks,
     base: Color(0xFFB08954),
     pattern: VoxelPattern.planks,
+    displayName: '木板',
   ),
   Voxel.brick: VoxelSpec(
     id: Voxel.brick,
     base: Color(0xFF9C4F4A),
     pattern: VoxelPattern.brick,
+    displayName: '红砖',
   ),
   Voxel.cobble: VoxelSpec(
     id: Voxel.cobble,
     base: Color(0xFF7A7E85),
     pattern: VoxelPattern.cobble,
+    displayName: '圆石',
   ),
   Voxel.glass: VoxelSpec(
     id: Voxel.glass,
     base: Color(0xFF9EDBE8),
     transparent: true,
     pattern: VoxelPattern.glassShine,
+    displayName: '玻璃',
   ),
   Voxel.slab: VoxelSpec(
     id: Voxel.slab,
     base: Color(0xFF8A8A8E),
     pattern: VoxelPattern.slabSplit,
+    displayName: '半砖',
   ),
   Voxel.stairs: VoxelSpec(
     id: Voxel.stairs,
     base: Color(0xFF8A8A8E),
     pattern: VoxelPattern.stairsSteps,
+    displayName: '楼梯',
   ),
   Voxel.fence: VoxelSpec(
     id: Voxel.fence,
     base: Color(0xFF7A5230),
     pattern: VoxelPattern.fenceBars,
+    displayName: '栅栏',
   ),
   Voxel.furnace: VoxelSpec(
     id: Voxel.furnace,
     base: Color(0xFF6A6E75),
     pattern: VoxelPattern.furnaceFace,
+    displayName: '熔炉',
   ),
   Voxel.campfire: VoxelSpec(
     id: Voxel.campfire,
     base: Color(0xFF5C4027),
     pattern: VoxelPattern.campfireGlow,
+    displayName: '篝火',
   ),
   Voxel.torch: VoxelSpec(
     id: Voxel.torch,
     base: Color(0xFF8A6A3F),
     pattern: VoxelPattern.torchGlow,
+    displayName: '火把',
   ),
   Voxel.chest: VoxelSpec(
     id: Voxel.chest,
     base: Color(0xFF9C6B2E),
     pattern: VoxelPattern.chestFace,
+    displayName: '箱子',
   ),
   Voxel.apple: VoxelSpec(
     id: Voxel.apple,
     base: Color(0xFFD63A3A),
     pattern: VoxelPattern.appleShine,
+    displayName: '苹果',
   ),
   Voxel.bread: VoxelSpec(
     id: Voxel.bread,
     base: Color(0xFFE0B46A),
+    displayName: '面包',
+  ),
+  // ── R29 新增食物（单一事实源 displayName，背包 / 准星 / HUD 统一显示）──
+  Voxel.beef: VoxelSpec(
+    id: Voxel.beef,
+    base: Color(0xFF9C5A3C),
+    displayName: '生牛肉',
+  ),
+  Voxel.cookedBeef: VoxelSpec(
+    id: Voxel.cookedBeef,
+    base: Color(0xFF7E4326),
+    displayName: '熟牛肉',
+  ),
+  Voxel.porkchop: VoxelSpec(
+    id: Voxel.porkchop,
+    base: Color(0xFFC98B6B),
+    displayName: '生猪排',
+  ),
+  Voxel.cookedPorkchop: VoxelSpec(
+    id: Voxel.cookedPorkchop,
+    base: Color(0xFF9C6B45),
+    displayName: '熟猪排',
+  ),
+  Voxel.carrot: VoxelSpec(
+    id: Voxel.carrot,
+    base: Color(0xFFE8832C),
+    displayName: '胡萝卜',
+  ),
+  Voxel.potato: VoxelSpec(
+    id: Voxel.potato,
+    base: Color(0xFFD9C27A),
+    displayName: '土豆',
+  ),
+  Voxel.bakedPotato: VoxelSpec(
+    id: Voxel.bakedPotato,
+    base: Color(0xFFB98E4A),
+    displayName: '烤土豆',
+  ),
+  Voxel.chicken: VoxelSpec(
+    id: Voxel.chicken,
+    base: Color(0xFFD9B38C),
+    displayName: '生鸡肉',
+  ),
+  Voxel.cookedChicken: VoxelSpec(
+    id: Voxel.cookedChicken,
+    base: Color(0xFFA9763F),
+    displayName: '熟鸡肉',
+  ),
+  Voxel.melonSlice: VoxelSpec(
+    id: Voxel.melonSlice,
+    base: Color(0xFFE84D4D),
+    displayName: '西瓜片',
+  ),
+  Voxel.cookie: VoxelSpec(
+    id: Voxel.cookie,
+    base: Color(0xFFB07A3C),
+    displayName: '曲奇',
+  ),
+  Voxel.fish: VoxelSpec(
+    id: Voxel.fish,
+    base: Color(0xFF9FB0B0),
+    displayName: '生鱼',
+  ),
+  Voxel.cookedFish: VoxelSpec(
+    id: Voxel.cookedFish,
+    base: Color(0xFFC9B27A),
+    displayName: '熟鱼',
   ),
   Voxel.gold: VoxelSpec(
     id: Voxel.gold,
     base: Color(0xFFF2C94C),
     pattern: VoxelPattern.goldShine,
+    displayName: '金锭',
   ),
   Voxel.diamond: VoxelSpec(
     id: Voxel.diamond,
     base: Color(0xFF5EE6D8),
     pattern: VoxelPattern.diamondShine,
+    displayName: '钻石',
   ),
   Voxel.ironOre: VoxelSpec(
     id: Voxel.ironOre,
     base: Color(0xFFB08968),
+    displayName: '铁矿石',
   ),
   Voxel.coalOre: VoxelSpec(
     id: Voxel.coalOre,
     base: Color(0xFF3B3B3B),
+    displayName: '煤矿石',
   ),
 };
 
@@ -321,17 +462,26 @@ extension VoxelX on Voxel {
 
 /// 生物群系类型（GDD §2.3）。
 enum Biome {
-  /// 平原：草地表、少量树、平坦开阔。
+  /// 平原：草地表、少量树、平缓起伏。
   plains,
 
-  /// 森林：草地表、大量树、起伏较小。
+  /// 森林：草地表、大量树、丘陵起伏。
   forest,
 
-  /// 沙漠：沙地表、无树、平坦有沙丘。
+  /// 沙漠：沙地表、无树、沙丘。
   desert,
 
-  /// 山地：石头/雪顶、少量松树、高度落差大。
+  /// 高山：石头、少树、落差大、仅极顶积雪。
   mountain,
+
+  /// 雪山：石头、雪顶覆盖、最高耸。
+  snowMountain,
+
+  /// 河流：浅水通道（低于水平面，沙质河床）。
+  river,
+
+  /// 海洋：深水盆地（低于水平面，沙质海床）。
+  ocean,
 }
 
 /// 生物群系规格（地形/植被参数）。
@@ -378,25 +528,31 @@ class BiomeSpec {
 
 /// 生物群系规格表（GDD §2.3 参数）。
 ///
-/// 基准高度整体抬到水面之上（[VoxelWorld.waterLevel]=30），低洼处自然成水。
+/// 基准高度整体抬到水面之上（[VoxelWorld.waterLevel]=32），低洼处自然成水。
+/// G6：海平面=32、世界最高=128。陆地群系基准落在 32–43 蓄水带附近（低处概率
+/// 成塘/湖）；山体从 40 起拔高到 43–64（高山流水/瀑布带）乃至雪峰。
 const Map<Biome, BiomeSpec> kBiomes = <Biome, BiomeSpec>{
   Biome.plains: BiomeSpec(
     surface: Voxel.grass,
     subsurface: Voxel.dirt,
-    treeDensity: 0.02,
+    treeDensity: 0.03,
     minTrunk: 3,
-    maxTrunk: 4,
-    baseHeight: 44,
-    amplitude: 5,
+    maxTrunk: 5,
+    baseHeight: 40,
+    // 用户确认（地表不平整）：振幅 10 → 7，平原更平缓（保留微起伏）。
+    amplitude: 12,
   ),
   Biome.forest: BiomeSpec(
     surface: Voxel.grass,
     subsurface: Voxel.dirt,
-    treeDensity: 0.12,
+    // 用户确认（性能优化）：森林面数太多 → 树密度 0.14 → 0.09（约 -35%），
+    // 保留森林观感但显著降树冠面数（树叶是面数大头）。
+    treeDensity: 0.09,
     minTrunk: 4,
-    maxTrunk: 6,
-    baseHeight: 48,
-    amplitude: 10,
+    maxTrunk: 7,
+    baseHeight: 44,
+    // 用户确认（地表不平整）：振幅 14 → 11，森林丘陵更缓。
+    amplitude: 8,
   ),
   Biome.desert: BiomeSpec(
     surface: Voxel.sand,
@@ -404,19 +560,49 @@ const Map<Biome, BiomeSpec> kBiomes = <Biome, BiomeSpec>{
     treeDensity: 0.0,
     minTrunk: 0,
     maxTrunk: 0,
-    baseHeight: 42,
-    amplitude: 8,
+    baseHeight: 38,
+    // 用户确认（地表不平整）：振幅 12 → 9，沙漠更平坦。
+    amplitude: 6,
   ),
   Biome.mountain: BiomeSpec(
     surface: Voxel.stone,
     subsurface: Voxel.stone,
-    treeDensity: 0.04,
+    treeDensity: 0.05,
     minTrunk: 3,
     maxTrunk: 5,
-    baseHeight: 72,
-    amplitude: 60,
+    baseHeight: 58,
+    amplitude: 48,
     snowy: true,
-    snowLine: 0.35,
+    snowLine: 0.82,
+  ),
+  Biome.snowMountain: BiomeSpec(
+    surface: Voxel.stone,
+    subsurface: Voxel.stone,
+    treeDensity: 0.03,
+    minTrunk: 3,
+    maxTrunk: 5,
+    baseHeight: 68,
+    amplitude: 52,
+    snowy: true,
+    snowLine: 0.25,
+  ),
+  Biome.river: BiomeSpec(
+    surface: Voxel.sand,
+    subsurface: Voxel.sand,
+    treeDensity: 0.0,
+    minTrunk: 0,
+    maxTrunk: 0,
+    baseHeight: 35,
+    amplitude: 4,
+  ),
+  Biome.ocean: BiomeSpec(
+    surface: Voxel.sand,
+    subsurface: Voxel.sand,
+    treeDensity: 0.0,
+    minTrunk: 0,
+    maxTrunk: 0,
+    baseHeight: 24,
+    amplitude: 5,
   ),
 };
 

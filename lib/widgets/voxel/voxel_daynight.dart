@@ -52,12 +52,13 @@ enum DayNightMode {
 class DayNightCycle {
   DayNightCycle({
     double phase = 0.25,
-    this.dayLength = 600,
+    this.dayLength = 1200,
     DayNightMode mode = DayNightMode.flowing,
   })  : _phase = _wrap(phase),
         _mode = mode;
 
-  /// 一整天的真实秒数（默认 600 s = 10 分钟一昼夜；MC 是 20 分钟）。
+  /// 一整天的真实秒数（默认 1200 s = 20 分钟一昼夜，对齐我的世界；
+  /// 1 秒 = 20 ticks → 24000 ticks 一整天 = MC 标准）。
   final double dayLength;
 
   double _phase;

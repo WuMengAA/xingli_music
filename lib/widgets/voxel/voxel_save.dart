@@ -76,13 +76,117 @@ Future<File> _voxelSavePath() async {
 }
 
 /// 写入完整存档（失败静默，不影响游玩）。
+///
+/// H3·r21e：同时向「自动备份历史」推一份滚动快照（`voxel_auto_<ts>.json`，
+/// 最多 [kMaxAutoBackups]=20 份，超出裁最旧）——游戏菜单「恢复存档」可从
+/// 自动/手动备份中任选恢复。
 Future<void> writeVoxelSave(Map<String, dynamic> data) async {
   try {
     final File f = await _voxelSavePath();
     await f.writeAsString(const JsonEncoder().convert(data));
+    await _pushAutoBackup(data);
   } catch (_) {
     // 磁盘不可写 / 权限不足等：静默放弃本次存档
   }
+}
+
+// ─────────────────────────────────────────────────────────────
+// H3·r21e 自动备份历史：`voxel_auto_<ts>.json`，滚动保留最近 20 份。
+// ─────────────────────────────────────────────────────────────
+const String _kAutoPrefix = 'voxel_auto_';
+const String _kAutoSuffix = '.json';
+
+/// 自动备份最大保留份数。
+const int kMaxAutoBackups = 20;
+
+/// 自动备份元数据（恢复选择列表展示）。
+class VoxelAutoBackupMeta {
+  const VoxelAutoBackupMeta({required this.ts, required this.createdAt});
+
+  /// 文件名时间戳段（radix36 毫秒）。
+  final String ts;
+
+  final DateTime createdAt;
+}
+
+/// 推一份自动备份快照，并裁剪到最多 [kMaxAutoBackups] 份。
+Future<void> _pushAutoBackup(Map<String, dynamic> data) async {
+  try {
+    final Directory d = await _appDataDir();
+    final String ts = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    final Map<String, dynamic> copy = Map<String, dynamic>.from(data);
+    copy['_meta'] = <String, dynamic>{
+      'name': '自动备份',
+      'createdAt': DateTime.now().toIso8601String(),
+      'kind': 'auto',
+    };
+    await File('${d.path}${Platform.pathSeparator}$_kAutoPrefix$ts$_kAutoSuffix')
+        .writeAsString(const JsonEncoder().convert(copy));
+    // 裁剪：ts 为 radix36 毫秒 → 字典序即时间序，删最旧。
+    final List<File> autos = <File>[];
+    await for (final FileSystemEntity e in d.list()) {
+      final String n = e.path.split(Platform.pathSeparator).last;
+      if (n.startsWith(_kAutoPrefix) && n.endsWith(_kAutoSuffix)) {
+        autos.add(File(e.path));
+      }
+    }
+    autos.sort((File a, File b) => a.path.compareTo(b.path));
+    while (autos.length > kMaxAutoBackups) {
+      await autos.removeAt(0).delete();
+    }
+  } catch (_) {
+    // 历史失败静默，不影响主存档
+  }
+}
+
+/// 列出自动备份（按时间倒序，最多 [kMaxAutoBackups] 份）；损坏跳过。
+Future<List<VoxelAutoBackupMeta>> listAutoBackups() async {
+  final Directory d = await _appDataDir();
+  if (!await d.exists()) return <VoxelAutoBackupMeta>[];
+  final List<VoxelAutoBackupMeta> metas = <VoxelAutoBackupMeta>[];
+  await for (final FileSystemEntity e in d.list()) {
+    final String n = e.path.split(Platform.pathSeparator).last;
+    if (!n.startsWith(_kAutoPrefix) || !n.endsWith(_kAutoSuffix)) continue;
+    final String ts = n.substring(
+      _kAutoPrefix.length,
+      n.length - _kAutoSuffix.length,
+    );
+    try {
+      final dynamic parsed =
+          const JsonDecoder().convert(await File(e.path).readAsString());
+      if (parsed is! Map<String, dynamic>) continue;
+      final dynamic m = parsed['_meta'];
+      final DateTime createdAt =
+          (m is Map && m['createdAt'] is String &&
+                  DateTime.tryParse(m['createdAt'] as String) != null)
+              ? DateTime.parse(m['createdAt'] as String)
+              : DateTime.fromMillisecondsSinceEpoch(
+                  int.tryParse(ts, radix: 36) ?? 0,
+                );
+      metas.add(VoxelAutoBackupMeta(ts: ts, createdAt: createdAt));
+    } catch (_) {
+      // 损坏跳过
+    }
+  }
+  metas.sort((VoxelAutoBackupMeta a, VoxelAutoBackupMeta b) =>
+      b.createdAt.compareTo(a.createdAt));
+  return metas;
+}
+
+/// 读取指定自动备份；不存在 / 损坏返回 null。
+Future<Map<String, dynamic>?> readAutoBackup(String ts) async {
+  try {
+    final Directory d = await _appDataDir();
+    final File f = File(
+      '${d.path}${Platform.pathSeparator}$_kAutoPrefix$ts$_kAutoSuffix',
+    );
+    if (!await f.exists()) return null;
+    final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+    if (parsed is Map<String, dynamic>) return parsed;
+  } catch (_) {
+    // 损坏忽略
+  }
+  return null;
 }
 
 /// 读取完整存档；无存档或文件损坏返回 null。
@@ -123,6 +227,8 @@ class VoxelManualSaveMeta {
     required this.id,
     required this.name,
     required this.createdAt,
+    this.background,
+    this.thumbnail,
   });
 
   /// 存档标识（文件名 voxel_save_<id>.json）。
@@ -132,6 +238,14 @@ class VoxelManualSaveMeta {
   final String name;
 
   final DateTime createdAt;
+
+  /// cl29·③：存档背景图（场景截图 PNG 的绝对路径，见 captures/ 目录）。
+  /// 非空时存档卡用该图作背景；null = 用默认表面色。
+  final String? background;
+
+  /// R26skel：存档缩略图（1:1 128×128 PNG 的绝对路径，见 captures/ 目录）。
+  /// 非空时存档卡前置显示缩略图；null = 用图标占位。
+  final String? thumbnail;
 }
 
 Future<Directory> _voxelDir() async => _appDataDir();
@@ -182,10 +296,16 @@ Future<List<VoxelManualSaveMeta>> listManualSaves() async {
               : DateTime.fromMillisecondsSinceEpoch(
                   int.parse(id.split('_').first, radix: 36),
                 );
+      final String? background =
+          (m is Map && m['background'] is String) ? m['background'] as String : null;
+      final String? thumbnail =
+          (m is Map && m['thumbnail'] is String) ? m['thumbnail'] as String : null;
       metas.add(VoxelManualSaveMeta(
         id: id,
         name: name,
         createdAt: createdAt,
+        background: background,
+        thumbnail: thumbnail,
       ));
     } catch (_) {
       // 损坏存档跳过
@@ -232,6 +352,54 @@ Future<void> renameManualSave(String id, String name) async {
     } else {
       parsed['_meta'] = <String, dynamic>{'name': name};
     }
+    await f.writeAsString(const JsonEncoder().convert(parsed));
+  } catch (_) {
+    // 忽略
+  }
+}
+
+/// cl29·③：设置 / 清除某存档的背景图路径（写入 `_meta.background` 并回写）。
+/// [path] 为 null 时清除背景。
+Future<void> setSaveBackground(String id, String? path) async {
+  try {
+    final File f = File(await _manualPath(id));
+    if (!await f.exists()) return;
+    final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+    if (parsed is! Map<String, dynamic>) return;
+    final dynamic m = parsed['_meta'];
+    final Map<String, dynamic> meta = m is Map<String, dynamic>
+        ? Map<String, dynamic>.from(m)
+        : <String, dynamic>{};
+    if (path == null) {
+      meta.remove('background');
+    } else {
+      meta['background'] = path;
+    }
+    parsed['_meta'] = meta;
+    await f.writeAsString(const JsonEncoder().convert(parsed));
+  } catch (_) {
+    // 忽略
+  }
+}
+
+/// R26skel：设置 / 清除某存档的缩略图路径（写入 `_meta.thumbnail` 并回写）。
+/// [path] 为 null 时清除缩略图。缩略图为 1:1 128×128 PNG 的绝对路径。
+Future<void> setSaveThumbnail(String id, String? path) async {
+  try {
+    final File f = File(await _manualPath(id));
+    if (!await f.exists()) return;
+    final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+    if (parsed is! Map<String, dynamic>) return;
+    final dynamic m = parsed['_meta'];
+    final Map<String, dynamic> meta = m is Map<String, dynamic>
+        ? Map<String, dynamic>.from(m)
+        : <String, dynamic>{};
+    if (path == null) {
+      meta.remove('thumbnail');
+    } else {
+      meta['thumbnail'] = path;
+    }
+    parsed['_meta'] = meta;
     await f.writeAsString(const JsonEncoder().convert(parsed));
   } catch (_) {
     // 忽略
@@ -388,8 +556,9 @@ Future<String?> importSave(File source) async {
 
 /// 生成一份全新的空白世界存档数据（仅含种子化地形，生存/背包/机位走默认值）。
 /// 用于「新建空白世界」：管理器无活动世界实例，直接由模型构造最小合法存档。
-Map<String, dynamic> freshWorldSave(int seed) {
-  final VoxelWorld w = VoxelWorld(seed: seed);
+/// [options] 为 cl29 新增的「新建世界选项」（作弊 / 结构 / 浮空岛等）。
+Map<String, dynamic> freshWorldSave(int seed, [WorldOptions? options]) {
+  final VoxelWorld w = VoxelWorld(seed: seed, options: options ?? const WorldOptions());
   return <String, dynamic>{
     'v': 1,
     'savedAt': DateTime.now().millisecondsSinceEpoch,

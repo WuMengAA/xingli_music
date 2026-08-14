@@ -11,3 +11,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// 世界内空间音效是否启用（默认开）。
 final StateProvider<bool> worldAudioEnabledProvider =
     StateProvider<bool>((Ref ref) => true);
+
+/// H2：主页「游戏背景」开关——叠加体素取景背景（默认开）；关掉则回退
+/// 到场景原有深色渐变背景。
+final StateProvider<bool> voxelBgEnabledProvider =
+    StateProvider<bool>((Ref ref) => true);
+
+/// H2：主页游戏背景「实时渲染」强制开关（默认 false = 跟随全局性能模式）；
+/// 长按背景开关开启后，即使省电/性能档也实时渲染（不再退化静态帧）。
+final StateProvider<bool> voxelBgLiveProvider =
+    StateProvider<bool>((Ref ref) => false);

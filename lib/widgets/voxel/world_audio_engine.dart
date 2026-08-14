@@ -113,6 +113,7 @@ class WorldAudioSource {
     required this.y,
     required this.z,
     this.strength = 1.0,
+    this.chance,
   });
 
   final String id;
@@ -123,6 +124,9 @@ class WorldAudioSource {
 
   /// 簇规模折算的响度系数（0~1）。
   final double strength;
+
+  /// 触发概率（鸟鸣：每片自然叶 0.01% 概率；null = 必然触发）。
+  final double? chance;
 
   SfxSpec get spec => _kSfxSpecs[kind]!;
 
@@ -186,7 +190,9 @@ class WorldAudioEngine {
     SpatialMixer? mixer,
     this.maxSources = 4,
     this.updateInterval = const Duration(milliseconds: 400),
-  }) : _mixer = mixer ?? SpatialMixer();
+    List<WorldAudioSource>? presetSources,
+  })  : _mixer = mixer ?? SpatialMixer(),
+        _sources = presetSources ?? const <WorldAudioSource>[];
 
   final VoxelWorld world;
   final SpatialMixer _mixer;
@@ -202,6 +208,9 @@ class WorldAudioEngine {
   DateTime _lastUpdate = DateTime.fromMillisecondsSinceEpoch(0);
   bool _busy = false;
   bool _disposed = false;
+
+  /// 随机源（鸟鸣概率触发用）。
+  final math.Random _rng = math.Random();
 
   /// 全局音量因子（R23i：主界面「主音量 × 背景声」同步进来，游戏与全局共享）。
   double _globalVol = 1.0;
@@ -221,8 +230,11 @@ class WorldAudioEngine {
   Set<String> get playingIds => Set<String>.unmodifiable(_playing);
 
   /// 扫描世界并准备音源（不起播，起播交给首次 [onCamera]）。
+  ///
+  /// H2：若构造时已注入 `presetSources`（主页背景重放 16×16 音效），
+  /// 则直接使用注入源、不重新扫描。
   void prepare() {
-    _sources = scanSources(world);
+    if (_sources.isEmpty) _sources = scanSources(world);
   }
 
   /// 扫描 + 按初始机位起播。
@@ -254,11 +266,15 @@ class WorldAudioEngine {
             ) =>
             b.$2.gain.compareTo(a.$2.gain));
 
-      final List<(WorldAudioSource, SourceDynamics)> keep =
-          ranked.take(maxSources).where((
-        (WorldAudioSource, SourceDynamics) e,
-      ) =>
-              e.$2.gain > 0.02).toList();
+      final List<(WorldAudioSource, SourceDynamics)> keep = ranked
+          .take(maxSources)
+          .where(((WorldAudioSource, SourceDynamics) e) {
+        // R29：鸟鸣按概率触发（每片自然叶 0.01%），不触发则该 tick 静音。
+        if (e.$1.chance != null && _rng.nextDouble() >= e.$1.chance!) {
+          return false;
+        }
+        return e.$2.gain > 0.02;
+      }).toList();
       final Set<String> keepIds =
           keep.map(((WorldAudioSource, SourceDynamics) e) => e.$1.id).toSet();
 
@@ -366,7 +382,7 @@ class WorldAudioEngine {
         x: c.cx,
         y: c.cy,
         z: c.cz,
-        strength: _strength(c.count, full: 60),
+        strength: waterStrengthFor(c.count),
       ));
     });
 
@@ -389,6 +405,8 @@ class WorldAudioEngine {
         y: c.cy + 2,
         z: c.cz,
         strength: st * 0.8,
+        // R29：每片自然叶 0.01% 概率生存鸟鸣（按簇内叶数折算）。
+        chance: birdChanceFor(c.count),
       ));
     });
 
@@ -454,6 +472,21 @@ class WorldAudioEngine {
     final double t = (count / full).clamp(0.0, 1.0);
     return (0.35 + 0.65 * math.sqrt(t)).clamp(0.0, 1.0);
   }
+
+  /// 水边音效增益：按水量从 10% 增长到 75%（R29 用户要求）。
+  ///
+  /// 既有管线 effective = baseVolume × strength²（strength 在两处各用一次），
+  /// 这里反解 strength 使 effective ≈ target，从而精确落在 0.10~0.75 区间。
+  static double waterStrengthFor(int count, {int full = 80}) {
+    final double frac = (count / full).clamp(0.0, 1.0);
+    final double target = 0.10 + 0.65 * frac;
+    final double bv = _kSfxSpecs[WorldSfx.water]!.baseVolume;
+    return math.sqrt((target / bv).clamp(0.0, 1.0));
+  }
+
+  /// 鸟鸣触发概率：每片自然叶 0.01%（封顶 0.95）。
+  static double birdChanceFor(int leafCount) =>
+      (leafCount * 0.0001).clamp(0.0, 0.95);
 
   static (int, int, int) _highestPoint(VoxelWorld world) {
     int bx = 0, by = 0, bz = 0;

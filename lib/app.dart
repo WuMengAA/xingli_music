@@ -128,9 +128,9 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
     // 深色主题由 buildDarkTheme(皮肤主色) 构建；themeMode 跟随 provider。
     final ThemeMode themeMode = ref.watch(themeModeProvider);
     final Color skinPrimary = ref.watch(themeSkinColorProvider);
-    // R22：紧凑密度（全局缩放，四边 + 内容一起缩，逻辑像素缩放天然兼容 DPI）
-    final bool compactUi =
-        ref.watch(uiDensityProvider) == UiDensity.compact;
+    // R26skel-b3：全局 UI 大小（整体界面缩放，0.8~1.2 滑杆；替代旧
+    // 「紧凑密度」的写死 0.88——uiDensity 现在只管 Dock 紧凑）。
+    final double uiScale = ref.watch(uiScaleProvider);
 
     return ExcludeSemantics(
       // Windows 稳定性（R20 根治）：Flutter Windows 引擎 accessibility_bridge
@@ -143,9 +143,8 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       title: '星璃 · 无限音乐空间',
       debugShowCheckedModeBanner: false,
       navigatorKey: _navKey,
-      // 桌面端按 Esc 关闭当前页（弹层/全屏路由都可退）。
-      // R22：紧凑密度 → 全局 MediaQuery 缩放（布局尺寸 + 文字 + 四边安全区
-      // 一起按系数缩小，腾出有效空间；基于逻辑像素，DPI 自适应）。
+      // R22：全局 UI 大小 → 全局 MediaQuery 缩放（布局尺寸 + 文字 + 四边
+      // 安全区一起按系数缩放，腾出有效空间；基于逻辑像素，DPI 自适应）。
       builder: (BuildContext context, Widget? child) {
         Widget base = CallbackShortcuts(
           bindings: <ShortcutActivator, VoidCallback>{
@@ -155,8 +154,8 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
           },
           child: child ?? const SizedBox.shrink(),
         );
-        if (compactUi) {
-          const double k = 0.88; // 紧凑缩放系数
+        final double k = uiScale; // 全局 UI 缩放系数（1.0 = 原尺寸）
+        if (k != 1.0) {
           final MediaQueryData mq = MediaQuery.of(context);
           EdgeInsets scaleEdge(EdgeInsets e) => EdgeInsets.fromLTRB(
                 e.left * k, e.top * k, e.right * k, e.bottom * k);

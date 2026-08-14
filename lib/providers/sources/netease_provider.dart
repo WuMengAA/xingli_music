@@ -7,6 +7,8 @@
 /// cookie 一律经既有的 [SecureBox] 加密落盘，绝不进明文 SharedPreferences。
 library;
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/track.dart';
@@ -41,6 +43,7 @@ class NeteaseAuthState {
     this.qrKey,
     this.qrUrl,
     this.error,
+    this.qrMessage,
   });
 
   /// 冷启动读取密文 cookie 中。
@@ -58,6 +61,9 @@ class NeteaseAuthState {
   /// 可直接展示的失败原因。
   final String? error;
 
+  /// 扫码流程的进行中提示（如「已在手机确认登录，正在完成…」）。
+  final String? qrMessage;
+
   bool get isLoggedIn => account != null;
 
   NeteaseAuthState copyWith({
@@ -67,6 +73,7 @@ class NeteaseAuthState {
     String? qrKey,
     String? qrUrl,
     String? error,
+    String? qrMessage,
     bool clearAccount = false,
     bool clearQr = false,
     bool clearError = false,
@@ -78,6 +85,7 @@ class NeteaseAuthState {
         qrKey: clearQr ? null : (qrKey ?? this.qrKey),
         qrUrl: clearQr ? null : (qrUrl ?? this.qrUrl),
         error: clearError ? null : (error ?? this.error),
+        qrMessage: qrMessage,
       );
 }
 
@@ -163,16 +171,34 @@ class NeteaseAuthNotifier extends StateNotifier<NeteaseAuthState> {
     try {
       final NeteaseQrStatus st = await _api.checkQrLogin(key);
       if (st.authorized) {
+        // C1 修复：803 时先把 cookie 落盘 + 清 QR 状态——即便后续 account()
+        // 失败（风控/网络抖动）也绝不吞掉「扫码成功」信号，UI 立即进入已登录。
+        // account() 改为异步降级：成功则补全昵称头像，失败保留已登录态。
         await _box.writeSecret(SecureBox.kNeteaseCookie, _api.cookie);
-        final NeteaseAccount acc = await _api.account();
-        state = state.copyWith(account: acc, clearQr: true, clearError: true);
+        state = state.copyWith(clearQr: true, clearError: true);
+        unawaited(_refreshAccountAfterQr());
       } else if (st.expired) {
         state = state.copyWith(clearQr: true, error: '二维码已过期，请重新获取');
+      } else if (st.waitingConfirm) {
+        // 802：手机已扫码待确认——给用户明确提示，避免「扫码后没反应」。
+        state = state.copyWith(
+            qrMessage: '已在手机确认登录，正在完成…',
+            clearError: true);
       }
       return st;
     } catch (_) {
       state = state.copyWith(error: '扫码状态查询失败');
       return null;
+    }
+  }
+
+  /// 扫码成功后的账号补全（异步降级：失败不影响已登录态）。
+  Future<void> _refreshAccountAfterQr() async {
+    try {
+      final NeteaseAccount acc = await _api.account();
+      state = state.copyWith(account: acc);
+    } catch (_) {
+      // 账号接口暂不可用：保留登录态（cookie 已落盘），下次搜索会自动校验。
     }
   }
 
@@ -195,3 +221,26 @@ final AutoDisposeFutureProviderFamily<List<Track>, String> neteaseSearchProvider
   if (!auth.isLoggedIn || keyword.trim().isEmpty) return const <Track>[];
   return ref.watch(neteaseSourceProvider).search(keyword.trim());
 });
+
+/// #279 搜索加固：把搜索/接口异常转成用户可读文案。
+///
+/// 优先级：登录失效 → 引导重新登录；风控(-462)/限流(-405) → 友好提示；
+/// 网络类 → 网络异常；其余 → 带业务码的通用提示。
+String neteaseErrorText(Object e) {
+  if (e is NeteaseApiException) {
+    if (e.isAuthFailure) return '网易云登录态已失效，请重新登录';
+    if (e.code == -462) return '操作过于频繁，请稍候重试';
+    if (e.code == -405) return '请求被限制，请稍后重试';
+    return '网易云接口异常（${e.code}）';
+  }
+  if (e is TimeoutException) return '网络超时，请检查连接后重试';
+  final String msg = e.toString();
+  if (msg.contains('SocketException') || msg.toLowerCase().contains('network')) {
+    return '网络异常，请检查网络连接';
+  }
+  return '搜索失败，请稍后重试';
+}
+
+/// 是否登录失效类错误（可引导去登录而非单纯重试）。
+bool neteaseIsAuthFailure(Object e) =>
+    e is NeteaseApiException && e.isAuthFailure;

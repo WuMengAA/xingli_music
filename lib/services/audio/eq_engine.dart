@@ -10,6 +10,8 @@ library;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+
+import 'music_backend.dart';
 import 'package:just_audio/just_audio.dart';
 
 /// 10 段标准频率（Hz），供 UI 与映射使用。
@@ -107,6 +109,9 @@ abstract class EqEngine {
   /// 平台不支持时的说明文案。
   String get unsupportedNote;
 
+  /// 平台标签（UI 副题：Android 真 EQ / Windows mpv 滤镜 / 模拟层）。
+  String get label;
+
   /// Android：应用真 EQ 到当前音频管线。
   Future<void> apply(EqPreset preset);
 
@@ -114,7 +119,7 @@ abstract class EqEngine {
   void applySimulation(EqPreset preset);
 }
 
-/// 模拟层（iOS / 桌面）。
+/// 模拟层（iOS / 桌面 / 无原生 EQ 的后端）。
 class SimulatedEqEngine implements EqEngine {
   SimulatedEqEngine();
 
@@ -122,9 +127,12 @@ class SimulatedEqEngine implements EqEngine {
   bool get supported => false;
 
   @override
+  String get label => '模拟层（仅状态 + UI）';
+
+  @override
   String get unsupportedNote =>
-      '当前平台不支持真实 EQ（仅 Android 支持）。已保存预设状态，'
-      '可在 Android 设备上体验真实均衡器效果。';
+      '当前平台不支持真实 EQ（仅 Android / Windows media_kit 支持）。'
+      '已保存预设状态，可在支持的设备上体验真实均衡器效果。';
 
   @override
   Future<void> apply(EqPreset preset) async {
@@ -137,6 +145,43 @@ class SimulatedEqEngine implements EqEngine {
   }
 }
 
+/// I：Windows + media_kit（libmpv）—— mpv `af=equalizer` 滤镜真 DSP。
+///
+/// 把 10 段增益拼成 mpv 滤镜链（`equalizer=f=<hz>:t=0.5:g=<dB>`，逗号串联），
+/// 交给 [MusicBackend.setEqualizerFilter]（仅 media_kit 后端支持）。
+class BackendEqEngine implements EqEngine {
+  BackendEqEngine(this._backend);
+
+  final MusicBackend _backend;
+
+  @override
+  bool get supported => true;
+
+  @override
+  String get label => 'Windows · mpv 滤镜 · 10 段';
+
+  @override
+  String get unsupportedNote => '';
+
+  @override
+  Future<void> apply(EqPreset preset) async {
+    final List<double> g = preset.gains.length == kEqFrequencies.length
+        ? preset.gains
+        : List<double>.filled(kEqFrequencies.length, 0);
+    final String chain = <String>[
+      for (int i = 0; i < kEqFrequencies.length; i++)
+        'equalizer=f=${kEqFrequencies[i].toStringAsFixed(0)}'
+            ':t=0.5:g=${g[i].toStringAsFixed(1)}',
+    ].join(',');
+    await _backend.setEqualizerFilter(chain);
+  }
+
+  @override
+  void applySimulation(EqPreset preset) {
+    // 真 DSP 引擎无需模拟；状态由 provider 维护。
+  }
+}
+
 /// Android：真实 EQ（just_audio `AndroidEqualizer`）。
 class AndroidEqEngine implements EqEngine {
   AndroidEqEngine(this._equalizer);
@@ -145,6 +190,9 @@ class AndroidEqEngine implements EqEngine {
 
   @override
   bool get supported => !kIsWeb && Platform.isAndroid;
+
+  @override
+  String get label => 'Android 真 EQ · 10 段';
 
   @override
   String get unsupportedNote => '';

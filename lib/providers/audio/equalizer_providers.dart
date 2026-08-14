@@ -1,13 +1,26 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../../services/audio/audio_service.dart';
 import '../../services/audio/eq_engine.dart';
+import '../../services/audio/media_kit_backend.dart';
 import '../audio/audio_providers.dart';
 
-/// 当前 EQ 引擎（Android 真 EQ / 其余平台模拟层）。
+/// 当前 EQ 引擎：
+/// - Android：真 EQ（`AndroidEqualizer`）；
+/// - Windows + media_kit：mpv `af=equalizer` 滤镜真 DSP（I 批）；
+/// - 其余：模拟层（仅状态 + UI）。
 final Provider<EqEngine> eqEngineProvider = Provider<EqEngine>((Ref ref) {
   final AndroidEqualizer? eq = ref.watch(androidEqualizerProvider);
-  return eq != null ? AndroidEqEngine(eq) : SimulatedEqEngine();
+  if (eq != null) return AndroidEqEngine(eq);
+  if (Platform.isWindows) {
+    final AudioService svc = ref.watch(audioServiceProvider);
+    final dynamic backend = svc.backend;
+    if (backend is MediaKitBackend) return BackendEqEngine(backend);
+  }
+  return SimulatedEqEngine();
 });
 
 /// 当前 EQ 预设（默认平坦；持久化到 prefs）。

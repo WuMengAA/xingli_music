@@ -4,7 +4,8 @@
 /// lodStartChunksProvider / lodStepChunksProvider / fpsLimitProvider），
 /// 改动即时生效、重启不丢（由 settings_persistence_providers 落盘）。
 ///
-/// 以「低画质纯色」为基础（R26o 定版）：不再有贴图高画质档，避免黑渲染。
+/// 以「低画质纯色」为基础；R26x 恢复「高清」贴图档（图集经原始 RGBA 重解码，
+/// 跨 Impeller/D3D11 可靠采样，不再黑渲染）。
 /// ════════════════════════════════════════════════════════════════════════
 library;
 
@@ -18,6 +19,7 @@ import '../../providers/voxel/graphics_quality_provider.dart';
 import '../../providers/voxel/view_distance_provider.dart';
 import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
+import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
 
 /// 游戏画面 · 专属设置页（从主页设置「游戏」段进入）。
 class GameGraphicsPage extends ConsumerWidget {
@@ -29,6 +31,8 @@ class GameGraphicsPage extends ConsumerWidget {
     final int vd = ref.watch(viewDistanceChunksProvider);
     final int lodStart = ref.watch(lodStartChunksProvider);
     final int lodStep = ref.watch(lodStepChunksProvider);
+    final LodQuality lodQuality = ref.watch(lodQualityProvider);
+    final bool lodFrustumCull = ref.watch(lodFrustumCullProvider);
     final FpsLimit fps = ref.watch(fpsLimitProvider);
 
     return Scaffold(
@@ -136,6 +140,38 @@ class GameGraphicsPage extends ConsumerWidget {
                   onChanged: (int v) =>
                       ref.read(lodStepChunksProvider.notifier).state = v,
                 ),
+                const SizedBox(height: AppSpace.sm),
+                Text('LOD 质量', style: context.appText.bodyMuted),
+                const SizedBox(height: AppSpace.xs),
+                Wrap(
+                  spacing: AppSpace.xs,
+                  children: <Widget>[
+                    for (final LodQuality lq in LodQuality.values)
+                      ChoiceChip(
+                        label: Text(_lodQualityLabel(lq)),
+                        selected: lodQuality == lq,
+                        onSelected: (_) =>
+                            ref.read(lodQualityProvider.notifier).state = lq,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpace.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        'LOD 视锥剔除（关闭远景后半球，省面）',
+                        style: context.appText.artist,
+                      ),
+                    ),
+                    Switch(
+                      value: lodFrustumCull,
+                      onChanged: (bool v) =>
+                          ref.read(lodFrustumCullProvider.notifier).state = v,
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -170,13 +206,25 @@ class GameGraphicsPage extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpace.lg),
           Text(
-            '说明：低画质纯色为基础，贴图高画质已弃用（目标平台黑渲染）。'
+            '说明：默认纯色平铺；选「高清」启用 16×16 程序化贴图（图集已修复黑渲染）。'
             '性能档以 0.5 倍分辨率渲染换取帧率。',
             style: context.appText.bodyMuted,
           ),
         ],
       ),
     );
+  }
+}
+
+/// P6·R26r18：LOD 质量档位的中文标签。
+String _lodQualityLabel(LodQuality lq) {
+  switch (lq) {
+    case LodQuality.off:
+      return '关（满精度）';
+    case LodQuality.balanced:
+      return '均衡（2 档）';
+    case LodQuality.high:
+      return '高（多档细）';
   }
 }
 

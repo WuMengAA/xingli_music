@@ -10,6 +10,8 @@
 /// 全部只读外部状态 + 回调，不持有业务逻辑。
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -46,6 +48,19 @@ const List<Voxel> kCreativeBlocks = <Voxel>[
   // 物品 / 食物
   Voxel.apple,
   Voxel.bread,
+  Voxel.beef,
+  Voxel.cookedBeef,
+  Voxel.porkchop,
+  Voxel.cookedPorkchop,
+  Voxel.carrot,
+  Voxel.potato,
+  Voxel.bakedPotato,
+  Voxel.chicken,
+  Voxel.cookedChicken,
+  Voxel.melonSlice,
+  Voxel.cookie,
+  Voxel.fish,
+  Voxel.cookedFish,
   Voxel.gold,
   Voxel.diamond,
 ];
@@ -56,56 +71,37 @@ Color itemColorOf(Voxel v) => v == Voxel.air
     : Color(v.spec.base.toARGB32() | 0xFF000000);
 
 /// 物品中文名（HUD / 提示用）。
-String itemNameOf(Voxel v) => switch (v) {
-      Voxel.air => '空',
-      Voxel.grass => '草方块',
-      Voxel.dirt => '泥土',
-      Voxel.stone => '石头',
-      Voxel.sand => '沙子',
-      Voxel.water => '水',
-      Voxel.wood => '原木',
-      Voxel.leaves => '树叶',
-      Voxel.snow => '雪',
-      Voxel.planks => '木板',
-      Voxel.brick => '红砖',
-      Voxel.cobble => '圆石',
-      Voxel.glass => '玻璃',
-      Voxel.slab => '半砖',
-      Voxel.stairs => '楼梯',
-      Voxel.fence => '栅栏',
-      Voxel.furnace => '熔炉',
-      Voxel.campfire => '篝火',
-      Voxel.torch => '火把',
-      Voxel.chest => '箱子',
-      Voxel.apple => '苹果',
-      Voxel.bread => '面包',
-      Voxel.gold => '金锭',
-      Voxel.diamond => '钻石',
-      Voxel.ironOre => '铁矿石',
-      Voxel.coalOre => '煤矿石',
-    };
+///
+/// R29：单一事实源 = [VoxelSpec.displayName]，不再维护独立 `switch`（原
+/// 写法新增方块易漏改——用户「写死 4 次」的根因）。新增 [Voxel] 时只需在
+/// [kVoxelSpecs] 填 `displayName` 即可，命名与渲染一处维护。
+String itemNameOf(Voxel v) => v.spec.displayName;
 
 /// 单个物品格。
 /// R25 斜正交（isometric）体素图标：把方块物品画成立体小方块，
 /// 顶部最亮、左面中、右面最暗，沿用 [itemColorOf] 基色，替代平面色块。
+/// G5（用户确认）：按 [VoxelSpec.pattern] 在三面叠加 MC 式材质——草=顶绿
+/// 侧褐、原木=侧竖纹、木板=横纹、砖=错缝、沙=细点、金/钻=反光棱等，
+/// 让物品视图与 MC 一致（不再纯色）。
 class _IsoVoxelIcon extends StatelessWidget {
-  const _IsoVoxelIcon({required this.color, this.size = 26});
-  final Color color;
+  const _IsoVoxelIcon({required this.voxel, this.size = 26});
+  final Voxel voxel;
   final double size;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
         size: Size(size, size),
-        painter: _IsoVoxelPainter(color),
+        painter: _IsoVoxelPainter(voxel.spec),
       );
 }
 
 class _IsoVoxelPainter extends CustomPainter {
-  _IsoVoxelPainter(this.base);
-  final Color base;
+  _IsoVoxelPainter(this.spec);
+  final VoxelSpec spec;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final Color base = spec.base;
     final double s = size.shortestSide;
     final double u = s * 0.42; // 菱形半宽
     final double v = s * 0.24; // 菱形半高
@@ -118,7 +114,8 @@ class _IsoVoxelPainter extends CustomPainter {
           c.dy + (x + z) * v - y * h,
         );
 
-    final Color top = Color.lerp(base, const Color(0xFFFFFFFF), 0.22)!;
+    final Color top = spec.top ??
+        Color.lerp(base, const Color(0xFFFFFFFF), 0.22)!;
     final Color left = Color.lerp(base, const Color(0xFF000000), 0.34)!;
     final Color right = Color.lerp(base, const Color(0xFF000000), 0.52)!;
     final Paint fill = Paint()..style = PaintingStyle.fill;
@@ -127,39 +124,139 @@ class _IsoVoxelPainter extends CustomPainter {
       ..color = const Color(0x55000000)
       ..strokeWidth = 1;
 
+    // 三个面的 Path（画纯色 + 材质线）。
     final Path leftFace = Path()
       ..moveTo(p(0, 0, 0).dx, p(0, 0, 0).dy)
       ..lineTo(p(0, 1, 0).dx, p(0, 1, 0).dy)
       ..lineTo(p(0, 1, 1).dx, p(0, 1, 1).dy)
       ..lineTo(p(0, 0, 1).dx, p(0, 0, 1).dy)
       ..close();
-    fill.color = left;
-    canvas.drawPath(leftFace, fill);
-    canvas.drawPath(leftFace, stroke);
-
     final Path rightFace = Path()
       ..moveTo(p(0, 0, 0).dx, p(0, 0, 0).dy)
       ..lineTo(p(1, 0, 0).dx, p(1, 0, 0).dy)
       ..lineTo(p(1, 0, 1).dx, p(1, 0, 1).dy)
       ..lineTo(p(0, 0, 1).dx, p(0, 0, 1).dy)
       ..close();
-    fill.color = right;
-    canvas.drawPath(rightFace, fill);
-    canvas.drawPath(rightFace, stroke);
-
     final Path topFace = Path()
       ..moveTo(p(0, 1, 0).dx, p(0, 1, 0).dy)
       ..lineTo(p(1, 1, 0).dx, p(1, 1, 0).dy)
       ..lineTo(p(1, 1, 1).dx, p(1, 1, 1).dy)
       ..lineTo(p(0, 1, 1).dx, p(0, 1, 1).dy)
       ..close();
+
+    // 纯色三面。
+    fill.color = left;
+    canvas.drawPath(leftFace, fill);
+    fill.color = right;
+    canvas.drawPath(rightFace, fill);
     fill.color = top;
     canvas.drawPath(topFace, fill);
+
+    // G5：按 pattern 叠材质线（顶面图案 + 侧面图案）。线条色 = 对应面加深。
+    // 草方块无 pattern（spec.pattern=none），但其侧壁应有土色条 → 特判草。
+    final Paint line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1, s * 0.045);
+    if (spec.id == Voxel.grass) {
+      line.color = Color.lerp(base, const Color(0xFF6A4A2B), 0.55)!;
+      canvas.drawLine(p(0, 0, 0.18), p(0, 1, 0.18), line); // 左面
+      canvas.drawLine(p(0, 0, 0.18), p(1, 0, 0.18), line); // 右面
+    }
+    switch (spec.pattern) {
+      case VoxelPattern.none:
+        break;
+      case VoxelPattern.planks:
+        // 侧面横纹 2 条。
+        line.color = Color.lerp(base, const Color(0xFF000000), 0.35)!;
+        for (int i = 1; i <= 2; i++) {
+          final double yy = 0.33 * i;
+          canvas.drawLine(p(0, 0, yy), p(0, 1, yy), line);
+          canvas.drawLine(p(0, 0, yy), p(1, 0, yy), line);
+        }
+        break;
+      case VoxelPattern.brick:
+        // 侧面横线 + 交错竖线（砖缝）。
+        line.color = Color.lerp(base, const Color(0xFF000000), 0.42)!;
+        canvas.drawLine(p(0, 0, 0.5), p(0, 1, 0.5), line);
+        canvas.drawLine(p(0, 0, 0.5), p(1, 0, 0.5), line);
+        canvas.drawLine(p(0, 0.5, 0), p(0, 0.5, 1), line);
+        canvas.drawLine(p(0.5, 0, 0), p(0.5, 0, 1), line);
+        break;
+      case VoxelPattern.cobble:
+        // 侧面少量暗点（圆石）。
+        final Paint dot = Paint()..color = Color.lerp(
+            base, const Color(0xFF000000), 0.4)!;
+        for (final Offset d in <Offset>[
+          Offset(0.25, 0.3), Offset(0.72, 0.62), Offset(0.45, 0.85),
+        ]) {
+          canvas.drawCircle(
+              p(0, d.dx, d.dy).translate(0, 0), s * 0.05, dot);
+          canvas.drawCircle(
+              p(d.dx, 0, d.dy).translate(0, 0), s * 0.05, dot);
+        }
+        break;
+      case VoxelPattern.sandDots:
+        final Paint dot = Paint()..color = Color.lerp(
+            base, const Color(0xFFFFFFFF), 0.25)!;
+        for (final Offset d in <Offset>[
+          Offset(0.3, 0.35), Offset(0.7, 0.7),
+        ]) {
+          canvas.drawCircle(
+              p(0, d.dx, d.dy).translate(0, 0), s * 0.035, dot);
+          canvas.drawCircle(
+              p(d.dx, 0, d.dy).translate(0, 0), s * 0.035, dot);
+        }
+        break;
+      case VoxelPattern.goldShine:
+        // 顶面斜向高光。
+        line.color = Color.lerp(base, const Color(0xFFFFFFFF), 0.5)!;
+        canvas.drawLine(p(0.2, 1, 1), p(0.8, 1, 1), line);
+        break;
+      case VoxelPattern.diamondShine:
+        // 顶面双棱反光。
+        line.color = Color.lerp(base, const Color(0xFFFFFFFF), 0.55)!;
+        canvas.drawLine(p(0.15, 0.85, 1), p(0.5, 1, 1), line);
+        canvas.drawLine(p(0.5, 1, 1), p(0.85, 0.85, 1), line);
+        break;
+      case VoxelPattern.glassShine:
+        line.color = Color.lerp(base, const Color(0xFFFFFFFF), 0.45)!;
+        canvas.drawLine(p(0.25, 0.75, 1), p(0.75, 1, 1), line);
+        break;
+      case VoxelPattern.slabSplit:
+      case VoxelPattern.stairsSteps:
+        line.color = Color.lerp(base, const Color(0xFF000000), 0.35)!;
+        canvas.drawLine(p(0, 0.5, 0), p(0, 0.5, 1), line);
+        canvas.drawLine(p(0.5, 0, 0), p(0.5, 0, 1), line);
+        break;
+      case VoxelPattern.fenceBars:
+        // 侧面竖条（栅栏）。
+        line.color = Color.lerp(base, const Color(0xFF000000), 0.35)!;
+        for (int i = 1; i <= 2; i++) {
+          final double xx = 0.33 * i;
+          canvas.drawLine(p(0, xx, 0), p(0, xx, 1), line);
+          canvas.drawLine(p(xx, 0, 0), p(xx, 0, 1), line);
+        }
+        break;
+      case VoxelPattern.furnaceFace:
+      case VoxelPattern.campfireGlow:
+      case VoxelPattern.torchGlow:
+      case VoxelPattern.chestFace:
+      case VoxelPattern.appleShine:
+        // 简单高光/口线，足够识别。
+        line.color = Color.lerp(base, const Color(0xFFFFFFFF), 0.35)!;
+        canvas.drawLine(p(0.3, 0.7, 1), p(0.7, 0.7, 1), line);
+        break;
+    }
+
+    // 轮廓描边（最后画，盖住材质线边缘）。
+    canvas.drawPath(leftFace, stroke);
+    canvas.drawPath(rightFace, stroke);
     canvas.drawPath(topFace, stroke);
   }
 
   @override
-  bool shouldRepaint(covariant _IsoVoxelPainter old) => old.base != base;
+  bool shouldRepaint(covariant _IsoVoxelPainter old) =>
+      old.spec.id != spec.id || old.spec.pattern != spec.pattern;
 }
 
 class _Slot extends StatelessWidget {
@@ -169,6 +266,8 @@ class _Slot extends StatelessWidget {
     this.size = 42,
     this.showName = false,
     this.onTap,
+    this.onSecondaryTap,
+    this.onLongPress,
   });
 
   final ItemStack stack;
@@ -180,10 +279,16 @@ class _Slot extends StatelessWidget {
 
   final VoidCallback? onTap;
 
+  /// Cl29_hotfix：右键（桌面）/ 长按（触屏）拾取一半或放 1 个。
+  final VoidCallback? onSecondaryTap;
+  final VoidCallback? onLongPress;
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onSecondaryTap: onSecondaryTap,
+      onLongPress: onLongPress,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -206,7 +311,7 @@ class _Slot extends StatelessWidget {
                     children: <Widget>[
                       Center(
                         child: _IsoVoxelIcon(
-                          color: itemColorOf(stack.item),
+                          voxel: stack.item,
                           size: size * 0.64,
                         ),
                       ),
@@ -297,6 +402,9 @@ class VoxelHotbar extends StatelessWidget {
                   child: _Slot(
                     stack: inventory.at(i),
                     selected: inventory.selected == i,
+                    // R29：快捷栏（物品栏一部分）也显示方块名，满足「物品栏标明
+                    // 各种物体 / 方块名称」；主仓原本就显示，合成页已显示。
+                    showName: true,
                     onTap: () => onSelect(i),
                   ),
                 ),
@@ -345,7 +453,6 @@ class VoxelInventoryPanel extends StatefulWidget {
     required this.hasTable,
     required this.onClose,
     required this.onCraft,
-    required this.onEat,
   });
 
   final VoxelInventory inventory;
@@ -358,15 +465,15 @@ class VoxelInventoryPanel extends StatefulWidget {
   /// 点击配方合成。
   final ValueChanged<CraftRecipe> onCraft;
 
-  /// 双击食物进食。
-  final ValueChanged<int> onEat;
-
   @override
   State<VoxelInventoryPanel> createState() => _VoxelInventoryPanelState();
 }
 
 class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
   bool _crafting = false;
+
+  /// Cl29_hotfix：悬浮光标（手持物品）跟随指针的位置（局部坐标）。
+  Offset _cursorPos = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -376,18 +483,40 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
         child: AnimatedBuilder(
           animation: widget.inventory,
           builder: (BuildContext context, Widget? _) {
-            return Column(
+            return Stack(
               children: <Widget>[
-                _header(),
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.md,
-                      vertical: AppSpace.sm,
-                    ),
-                    child: _crafting ? _craftBody() : _bagBody(),
+                Listener(
+                  onPointerDown: (PointerDownEvent e) =>
+                      setState(() => _cursorPos = e.localPosition),
+                  onPointerMove: (PointerMoveEvent e) =>
+                      setState(() => _cursorPos = e.localPosition),
+                  child: Column(
+                    children: <Widget>[
+                      _header(),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpace.md,
+                            vertical: AppSpace.sm,
+                          ),
+                          child: _crafting ? _craftBody() : _bagBody(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                // 悬浮光标：手持物品跟随鼠标（触屏显示在最后点击处）。
+                if (widget.inventory.carrying)
+                  Positioned(
+                    left: _cursorPos.dx - 23,
+                    top: _cursorPos.dy - 23,
+                    child: IgnorePointer(
+                      child: _Slot(
+                        stack: widget.inventory.cursor,
+                        size: 46,
+                      ),
+                    ),
+                  ),
               ],
             );
           },
@@ -450,15 +579,15 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         const Text(
-          '主仓（拖动交换位置，双击食物进食）',
-          style: TextStyle(color: Color(0x99EFF3FA), fontSize: 12),
+          '背包（3×9）：点选拾取整堆 · 右键/长按取一半 · 手持时点别的格转移/交换',
+          style: TextStyle(color: Color(0x99EFF3FA), fontSize: 11),
         ),
         const SizedBox(height: 8),
         _grid(VoxelInventory.hotbarSize, inv.size),
         const SizedBox(height: 14),
         const Text(
-          '快捷栏',
-          style: TextStyle(color: Color(0x99EFF3FA), fontSize: 12),
+          '物品栏（1×9）：手持物品后按数字键 1-9 移入对应格',
+          style: TextStyle(color: Color(0x99EFF3FA), fontSize: 11),
         ),
         const SizedBox(height: 8),
         _grid(0, VoxelInventory.hotbarSize),
@@ -471,48 +600,24 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       spacing: 6,
       runSpacing: 6,
       children: <Widget>[
-        for (int i = from; i < to; i++) _draggableSlot(i),
+        for (int i = from; i < to; i++) _slotTile(i),
       ],
     );
   }
 
-  Widget _draggableSlot(int index) {
-    final ItemStack s = widget.inventory.at(index);
-    final Widget slot = _Slot(
-      stack: s,
-      selected: index == widget.inventory.selected &&
-          index < VoxelInventory.hotbarSize,
-      // R26d：背包面板格子下方显示物品名（快捷栏格子不显示，避免拥挤）。
-      showName: index >= VoxelInventory.hotbarSize,
-      onTap: () {
-        if (index < VoxelInventory.hotbarSize) {
-          widget.inventory.selected = index;
-        }
-      },
-    );
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (DragTargetDetails<int> d) => d.data != index,
-      onAcceptWithDetails: (DragTargetDetails<int> d) =>
-          widget.inventory.swap(d.data, index),
-      builder: (BuildContext context, List<int?> cand, List<dynamic> rej) {
-        final Widget content = GestureDetector(
-          onDoubleTap: () => widget.onEat(index),
-          child: Opacity(
-            opacity: cand.isNotEmpty ? 0.6 : 1,
-            child: slot,
-          ),
-        );
-        if (s.isEmpty) return content;
-        return Draggable<int>(
-          data: index,
-          feedback: Material(
-            color: Colors.transparent,
-            child: _Slot(stack: s, size: 46),
-          ),
-          childWhenDragging: Opacity(opacity: 0.3, child: slot),
-          child: content,
-        );
-      },
+  /// Cl29_hotfix：单格交互改为 MC 式点选（不再拖拽）。
+  /// 左键 = 拾取/落位/交换；右键/长按 = 取半/放 1 个。
+  Widget _slotTile(int index) {
+    final VoxelInventory inv = widget.inventory;
+    final bool isHot = index < VoxelInventory.hotbarSize;
+    return _Slot(
+      stack: inv.at(index),
+      selected: isHot && index == inv.selected,
+      // 背包面板内全部显示物品名（用户要求「物品栏标明名称」）。
+      showName: true,
+      onTap: () => inv.clickSlot(index),
+      onSecondaryTap: () => inv.rightSlot(index),
+      onLongPress: () => inv.rightSlot(index),
     );
   }
 

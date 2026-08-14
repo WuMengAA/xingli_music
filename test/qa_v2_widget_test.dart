@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:xingli_music/providers/settings/performance_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:xingli_music/app.dart';
@@ -55,12 +56,14 @@ void main() {
   group('M2 · 探索同意 Gate（整 App 集成）', () {
     testWidgets('首次进入探索页出现 Gate，同意后进入实验列表', (tester) async {
       useRoomySurface(tester);
-      SharedPreferences.setMockInitialValues(<String, Object>{});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.oobeDone': true,
+      });
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
+          overrides: <Override>[prefsProvider.overrideWithValue(prefs), oobeDoneProvider.overrideWith((ref) => true)],
           child: const StelarithMusicApp(),
         ),
       );
@@ -79,24 +82,26 @@ void main() {
       await tester.tap(find.text('同意并进入'));
       await settle(tester);
 
-      expect(find.text('智能推荐'), findsOneWidget);
-      expect(find.text('跨源搜索'), findsOneWidget);
-      expect(find.text('音效均衡器'), findsOneWidget);
-      expect(find.text('2.5D 小游戏'), findsOneWidget);
-      expect(find.text('心情分析'), findsOneWidget);
-      expect(find.text('传感器'), findsOneWidget);
+      // 注：'智能推荐' 同时出现在常驻「功能模块」入口与实验卡片，故用 findsWidgets（≥1）。
+      expect(find.text('智能推荐'), findsWidgets);
+      expect(find.text('音效均衡器'), findsWidgets);
+      expect(find.text('心情分析'), findsWidgets);
+      expect(find.text('传感器'), findsWidgets);
+      expect(find.text('AI 陪伴（实验）'), findsWidgets);
     });
   });
 
   group('M6 · 通知中心（整 App 集成 · P0-M6-1/2）', () {
     testWidgets('设置 → 通知分类渲染三区块 + 事件日志', (tester) async {
       useRoomySurface(tester);
-      SharedPreferences.setMockInitialValues(<String, Object>{});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.oobeDone': true,
+      });
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
+          overrides: <Override>[prefsProvider.overrideWithValue(prefs), oobeDoneProvider.overrideWith((ref) => true)],
           child: const StelarithMusicApp(),
         ),
       );
@@ -131,12 +136,14 @@ void main() {
 
   group('M3 · 曲库三形态（整 App 集成）', () {
     testWidgets('曲库页含三态 SegmentedButton 与搜索栏', (tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.oobeDone': true,
+      });
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
+          overrides: <Override>[prefsProvider.overrideWithValue(prefs), oobeDoneProvider.overrideWith((ref) => true)],
           child: const StelarithMusicApp(),
         ),
       );
@@ -145,9 +152,11 @@ void main() {
       await tester.tap(find.text('曲库'));
       await settle(tester);
 
+      // R26fx：曲库分页后——「专辑」= Tab + 三形态 segment 各一；验证 Tab 与切换器。
       expect(find.text('卡片'), findsOneWidget);
       expect(find.text('文件夹'), findsOneWidget);
-      expect(find.text('专辑'), findsOneWidget);
+      expect(find.text('歌曲'), findsOneWidget); // 分页 Tab
+      expect(find.text('专辑'), findsNWidgets(2)); // Tab + segment
       // 搜索栏 hint
       expect(find.text('搜索歌曲、歌手、专辑'), findsOneWidget);
     });
@@ -212,12 +221,14 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      SharedPreferences.setMockInitialValues(<String, Object>{});
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'settings.oobeDone': true,
+      });
       final SharedPreferences prefs = await SharedPreferences.getInstance();
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: <Override>[prefsProvider.overrideWithValue(prefs)],
+          overrides: <Override>[prefsProvider.overrideWithValue(prefs), oobeDoneProvider.overrideWith((ref) => true)],
           child: const StelarithMusicApp(),
         ),
       );
@@ -231,10 +242,11 @@ void main() {
       await settle(tester);
       expect(find.text('卡片'), findsOneWidget);
 
-      // 设置页（R22：默认分类=音频）
+      // 设置页（布局驱动：默认合集=音频）
       await tester.tap(find.text('设置'));
       await settle(tester);
-      expect(find.text('音频 · 音量与音源'), findsOneWidget);
+      expect(find.text('音频'), findsWidgets);
+      expect(find.text('音量'), findsWidgets); // 音频合集下的「音量」组
     });
   });
 }

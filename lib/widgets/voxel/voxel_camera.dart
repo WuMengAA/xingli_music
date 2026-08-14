@@ -20,11 +20,13 @@
 /// depth   = viewZ                       // > near 才可见
 /// ```
 ///
-/// 近裁剪只做**整面丢弃**（任一顶点 `viewZ < near` 即丢），不做多边形裁剪；
-/// 由移动时的贴地 / 边界约束把相机挡在方块外，代价远低于 Sutherland–Hodgman。
+/// 近裁剪默认做**整面丢弃**（`projectWith`：任一顶点 `viewZ < near` 即丢，用于
+/// 天象 / 选区 / LOD 等远距离几何）；逐方块面改用 `projectFaceClipped` 做
+/// Sutherland–Hodgman 单平面**多边形裁剪**（S1：根治贴脸墙面的穿墙）。
 library;
 
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui' show Color, Offset, Size;
 
 import 'voxel_world.dart';
@@ -80,6 +82,19 @@ class ScreenPoint {
   @override
   String toString() =>
       'ScreenPoint(${x.toStringAsFixed(1)}, ${y.toStringAsFixed(1)}, d=${depth.toStringAsFixed(2)})';
+}
+
+/// S1：近平面裁剪后的面多边形结果（由 [VoxelCamera.projectFaceClipped] 返回）。
+///
+/// [xy] 长度 = `n * 2`（屏幕像素，顶点环绕序）；[uv] 同长（可空）；[n] ∈ {3,4,5}。
+/// [n]==4 时 [xy]/[uv] 为原四边形（快路径），[n]∈{3,5} 为裁剪薄片。
+class ClippedFace {
+  ClippedFace(this.xy, this.uv, this.n, this.depth);
+
+  final Float32List xy;
+  final Float32List? uv;
+  final int n;
+  final double depth;
 }
 
 /// 预计算的视图基（三角函数每帧只算一次，逐顶点复用）。
@@ -140,7 +155,7 @@ class VoxelCamera {
     this.yaw = 0.0,
     this.pitch = -0.35,
     this.fov = 1.0472, // 60°
-    this.near = 0.12,
+    this.near = 0.06,
     this.far = 64.0,
     this.fullWidth = false,
   });
@@ -230,11 +245,13 @@ class VoxelCamera {
   /// 眼高（walk/第一人称模式贴地时用；R23 用户定版：人物 1.6 米）。
   static const double eyeHeight = 1.6;
 
-  /// 第一人称跳跃高度（米，R24b：1.4 米，滞空足够跨上 1 格台阶）。
-  static const double jumpHeight = 1.4;
+  /// 第一人称跳跃高度（米，R26r5：1.25m 最高点，≈MC；配合 gravity=32
+  /// 滞空约 0.5s，可跨上 1 格台阶）。
+  static const double jumpHeight = 1.25;
 
-  /// 第一人称重力加速度（方块 / 秒²，近似 MC）。
-  static const double gravity = 22.0;
+  /// 第一人称重力加速度（方块 / 秒²，R26r5：32 ≈ MC 手感——2 格落不伤、
+  /// 3 格起摔伤）。
+  static const double gravity = 32.0;
 
   late final ViewBasis basis = _buildBasis();
 
@@ -336,6 +353,165 @@ class VoxelCamera {
     );
   }
 
+  /// S1：带近平面多边形裁剪的面投影。根治「小空间穿墙」——贴脸墙面常跨过眼
+  /// 平面，单个顶点 `viewZ < near` 时旧 `projectWith` 整面硬丢弃 → 看穿墙。
+  /// 改为 **Sutherland–Hodgman 单平面裁剪**（clip 非 clamp）：保留 `viewZ >= near`
+  /// 一侧，在眼平面处按 `t=(near−zi)/(zj−zi)` 世界空间插值生成新顶点，得 3~5 边形。
+  ///
+  /// 全 4 顶点 `viewZ >= near` → 走原 4 顶点快路径（零额外拓扑变化，沿用
+  /// `pushFace` 的逐角 AO / 描边）；全 `< near` → 返回 null（整面丢弃）；
+  /// 混合 → 裁剪出 3~5 边形薄片（路由到 `_pushPolygon`）。
+  ///
+  /// [corners]：12 个 double（4 顶点 × (x,y,z)，四边形环绕序）。
+  /// [uv]：8 个 double（4 顶点 × (u,v)，可空 → 无贴图不裁剪 uv）。
+  static ClippedFace? projectFaceClipped(
+    Float64List corners,
+    Float32List? uv,
+    ViewBasis b,
+    ProjectionParams p,
+  ) {
+    // 1) 4 顶点相机空间深度（viewZ = d·fwd）。
+    final double z0 = (corners[0] - b.eyeX) * b.fwdX +
+        (corners[1] - b.eyeY) * b.fwdY +
+        (corners[2] - b.eyeZ) * b.fwdZ;
+    final double z1 = (corners[3] - b.eyeX) * b.fwdX +
+        (corners[4] - b.eyeY) * b.fwdY +
+        (corners[5] - b.eyeZ) * b.fwdZ;
+    final double z2 = (corners[6] - b.eyeX) * b.fwdX +
+        (corners[7] - b.eyeY) * b.fwdY +
+        (corners[8] - b.eyeZ) * b.fwdZ;
+    final double z3 = (corners[9] - b.eyeX) * b.fwdX +
+        (corners[10] - b.eyeY) * b.fwdY +
+        (corners[11] - b.eyeZ) * b.fwdZ;
+    final bool a0 = z0 >= p.near;
+    final bool a1 = z1 >= p.near;
+    final bool a2 = z2 >= p.near;
+    final bool a3 = z3 >= p.near;
+    final int inCount =
+        (a0 ? 1 : 0) + (a1 ? 1 : 0) + (a2 ? 1 : 0) + (a3 ? 1 : 0);
+
+    if (inCount == 4) {
+      // 快路径：4 顶点全部在眼前 → 原投影（零裁剪成本，拓扑不变）。
+      final Float32List xy = Float32List(8);
+      double dsum = 0;
+      final List<double> zs = <double>[z0, z1, z2, z3];
+      for (int i = 0; i < 4; i++) {
+        final ScreenPoint sp = _projectWithZ(
+            corners[i * 3], corners[i * 3 + 1], corners[i * 3 + 2], zs[i], b, p);
+        xy[i * 2] = sp.x;
+        xy[i * 2 + 1] = sp.y;
+        dsum += sp.depth;
+      }
+      return ClippedFace(xy, uv, 4, dsum / 4);
+    }
+    if (inCount == 0) return null;
+
+    // 混合：Sutherland–Hodgman 单平面裁剪（保留 viewZ >= near 一侧）。
+    // 输出世界顶点（最多 5）+ uv（若传入）。
+    final Float64List ow = Float64List(15);
+    final Float32List ou = Float32List(10);
+    int on = 0;
+    final List<double> sx = <double>[corners[0], corners[3], corners[6], corners[9]];
+    final List<double> sy = <double>[corners[1], corners[4], corners[7], corners[10]];
+    final List<double> sz = <double>[corners[2], corners[5], corners[8], corners[11]];
+    final List<double> szz = <double>[z0, z1, z2, z3];
+    final List<bool> sa = <bool>[a0, a1, a2, a3];
+    final List<double> su = uv == null
+        ? const <double>[]
+        : <double>[uv[0], uv[2], uv[4], uv[6]];
+    final List<double> sv = uv == null
+        ? const <double>[]
+        : <double>[uv[1], uv[3], uv[5], uv[7]];
+    for (int i = 0; i < 4; i++) {
+      final int j = (i + 1) % 4;
+      if (sa[i]) {
+        ow[on * 3] = sx[i];
+        ow[on * 3 + 1] = sy[i];
+        ow[on * 3 + 2] = sz[i];
+        if (uv != null) {
+          ou[on * 2] = su[i];
+          ou[on * 2 + 1] = sv[i];
+        }
+        on++;
+      }
+      if (sa[i] != sa[j]) {
+        // 边跨越近平面 → 交点 t=(near−zi)/(zj−zi)，新顶点恰在 viewZ=near 上。
+        final double t = (p.near - szz[i]) / (szz[j] - szz[i]);
+        ow[on * 3] = sx[i] + (sx[j] - sx[i]) * t;
+        ow[on * 3 + 1] = sy[i] + (sy[j] - sy[i]) * t;
+        ow[on * 3 + 2] = sz[i] + (sz[j] - sz[i]) * t;
+        if (uv != null) {
+          ou[on * 2] = su[i] + (su[j] - su[i]) * t;
+          ou[on * 2 + 1] = sv[i] + (sv[j] - sv[i]) * t;
+        }
+        on++;
+      }
+    }
+    // 投影裁剪后多边形（所有顶点 viewZ >= near）。
+    final Float32List xy = Float32List(on * 2);
+    final Float32List? fuv = uv == null ? null : Float32List(on * 2);
+    double dsum = 0;
+    for (int k = 0; k < on; k++) {
+      final ScreenPoint sp =
+          _projectSafe(ow[k * 3], ow[k * 3 + 1], ow[k * 3 + 2], b, p);
+      xy[k * 2] = sp.x;
+      xy[k * 2 + 1] = sp.y;
+      dsum += sp.depth;
+      if (fuv != null) {
+        fuv[k * 2] = ou[k * 2];
+        fuv[k * 2 + 1] = ou[k * 2 + 1];
+      }
+    }
+    return ClippedFace(xy, fuv, on, dsum / on);
+  }
+
+  /// 已算好 viewZ 的快速投影（clip 快路径用；viewZ 已保证 >= near）。
+  static ScreenPoint _projectWithZ(
+    double wx,
+    double wy,
+    double wz,
+    double vz,
+    ViewBasis b,
+    ProjectionParams p,
+  ) {
+    final double z = vz < p.near ? p.near : vz; // 仅捕获 FP 边界
+    final double dx = wx - b.eyeX;
+    final double dy = wy - b.eyeY;
+    final double dz = wz - b.eyeZ;
+    final double vx = dx * b.rightX + dy * b.rightY + dz * b.rightZ;
+    final double vy = dx * b.upX + dy * b.upY + dz * b.upZ;
+    final double inv = 1 / z;
+    return ScreenPoint(
+      p.halfW + vx * p.scaleX * inv,
+      p.halfH - vy * p.scaleY * inv,
+      z,
+    );
+  }
+
+  /// 裁剪后顶点的安全投影：viewZ < near 时夹紧到 near（仅 FP 边界——几何
+  /// 已被裁剪到 >= near 一侧），避免 `projectWith` 返回 null 丢顶点。
+  static ScreenPoint _projectSafe(
+    double wx,
+    double wy,
+    double wz,
+    ViewBasis b,
+    ProjectionParams p,
+  ) {
+    final double dx = wx - b.eyeX;
+    final double dy = wy - b.eyeY;
+    final double dz = wz - b.eyeZ;
+    final double vz = dx * b.fwdX + dy * b.fwdY + dz * b.fwdZ;
+    final double z = vz < p.near ? p.near : vz;
+    final double vx = dx * b.rightX + dy * b.rightY + dz * b.rightZ;
+    final double vy = dx * b.upX + dy * b.upY + dz * b.upZ;
+    final double inv = 1 / z;
+    return ScreenPoint(
+      p.halfW + vx * p.scaleX * inv,
+      p.halfH - vy * p.scaleY * inv,
+      z,
+    );
+  }
+
   /// 世界点 → 相机空间（供视锥 / 音效方向复用）。
   Vec3 toView(Vec3 world) {
     final ViewBasis b = basis;
@@ -427,10 +603,19 @@ class VoxelCamera {
   /// 地面高度（最高 `occludes` 方块的顶面 y）。
   ///
   /// ⚠️ 不用 [VoxelWorld.surfaceHeight]：它基于 `solid`，会把水面当地表。
-  static double groundHeightAt(VoxelWorld world, double x, double z) {
+  ///
+  /// [startY]：从该高度**往下**扫（默认世界顶）。第一人称落地 / 边缘容差传
+  /// 脚底高度——树叶已实体化（R26r6），若不限起始高度，站在树下会被头顶的
+  /// 树冠误判成"脚下的地"（旧 R26n「被顶到树顶」的根因）；从脚底往下扫，
+  /// 脚下没支撑才往下找，树冠不影响地面判定。
+  static double groundHeightAt(VoxelWorld world, double x, double z,
+      [double? startY]) {
     final int xi = x.floor();
     final int zi = z.floor();
-    for (int y = world.maxY - 1; y >= 0; y--) {
+    final int topRaw = startY == null ? world.maxY - 1 : startY.floor();
+    final int top =
+        topRaw < 0 ? 0 : (topRaw > world.maxY - 1 ? world.maxY - 1 : topRaw);
+    for (int y = top; y >= 0; y--) {
       if (world.get(xi, y, zi).occludes) return y + 1.0;
     }
     return 0;
@@ -457,6 +642,9 @@ class VoxelEntity {
     this.scale = 1.0,
     this.glow = false,
     this.useSkin = false,
+    this.swing = 0, // R26r11：走路摇摆角（弧度，四肢绕肩/髋支点摆动，0=静止）
+    this.lookYaw = 0, // R26r14：模型绕垂直轴的朝向（弧度）；躯干+四肢随其旋转
+    this.lookPitch = 0, // R26r14：头部俯仰（弧度）；头部额外绕 X 轴倾斜跟随视线
   });
 
   /// 脚底中心（y 贴地）。
@@ -468,9 +656,21 @@ class VoxelEntity {
   /// 整体缩放（默认 1.0 ≈ 2.2 格高）。
   final double scale;
 
+  /// R26r11：走路摇摆角（弧度）。>0 表示四肢前后摆动（交叉步态），
+  /// 由 `_emitEntity` 应用于左右臂/腿绕肩/髋支点的旋转。
+  final double swing;
+
   /// 是否发光（主动发言时高亮，走半透明 Pass）。
   final bool glow;
 
   /// 是否使用玩家皮肤贴图（#169）：各面按 MC 2× 皮肤布局采样图集。
   final bool useSkin;
+
+  /// R26r14：模型整体绕垂直轴（Y）的朝向（弧度）。躯干+四肢随其旋转，
+  /// 使「身体跟随头部 / 头部跟随视线」——第三人称下玩家朝向跟随相机朝向。
+  final double lookYaw;
+
+  /// R26r14：头部俯仰（弧度）。头部在整体朝向基础上额外绕水平轴倾斜，
+  /// 跟随相机俯仰（视线上下），呈现「头部跟随视线」。
+  final double lookPitch;
 }

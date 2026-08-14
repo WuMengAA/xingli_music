@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../liquid_glass.dart';
 
 /// 内容容器（架构 §1.6 / PRD P0-B1）
 ///
-/// 由 `AppShell` **统一提供且仅提供一次**，包住 `IndexedStack`：
-/// `#F5F5F5` 底 / r36 / 水平外边距 14 / 内边距 18。
-///
-/// ⚠️ 5 个页面**自身不再画容器**，也不再写 `Padding(fromLTRB(*, 60, *, 140))`
-/// 之类的手工避让 —— 那是旧 Shell 的遗留，重构后一律由本组件负责。
+/// 由 `AppShell` **统一提供且仅提供一次**，包住 `IndexedStack`。
+/// R26r21b：**全屏圆角毛玻璃表面** —— 四边等距留白 + 全屏铺满的 frosted
+/// 面板（背景模糊 + 半透明 + 细描边 + 圆角），页面内容直接浮在这层玻璃上；
+/// 不再限 maxWidth（内容区全屏铺满），不再由各页自备表面。
 class ContentContainer extends StatelessWidget {
   const ContentContainer({super.key, required this.child});
 
@@ -18,24 +17,17 @@ class ContentContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: AppSize.contentMaxWidth,
-        ),
-        // 内容容器恢复**实色底**（页面内容必须清晰可读，不参与玻璃透底）。
-        child: Container(
-          margin: const EdgeInsets.symmetric(
-            horizontal: AppSpace.md,
-          ),
-          padding: const EdgeInsets.all(AppSpace.lg),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: context.appColors.bgSurface,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          child: child,
-        ),
+    return Padding(
+      // 四边等距外边距（露出圆角）。
+      padding: const EdgeInsets.all(AppSpace.md),
+      child: LiquidGlass(
+        radius: 28,
+        style: GlassStyle.frosted,
+        // 全屏铺满：去掉 maxWidth 限制，内容区占满可用宽度/高度。
+        // tint/描边取极淡值，毛玻璃质感主要由背景模糊提供。
+        tint: const Color(0x18FFFFFF),
+        borderColor: const Color(0x1FFFFFFF),
+        child: child,
       ),
     );
   }

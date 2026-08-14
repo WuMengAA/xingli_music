@@ -17,10 +17,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// HUD 布局持久化键（设置仓库同区）。
 const String kHudLayoutKey = 'voxel_hud_layout';
 
+/// HUD 缩放持久化键（摇杆 / 动作键整体放大倍率）。
+const String kHudScaleKey = 'voxel_hud_scale';
+
+/// HUD 缩放允许范围（0.8~1.4）。
+const double kHudScaleMin = 0.8;
+const double kHudScaleMax = 1.4;
+
 /// 当前 HUD 自定义位置表：elementId → 归一化位置（x,y ∈ 0~1）。
 /// 未在表内的元素用代码里的默认位置。
 final hudLayoutProvider =
     StateProvider<Map<String, Offset>>((ref) => <String, Offset>{});
+
+/// HUD 缩放倍率（摇杆 / 动作键整体大小；默认 1.0，允许 0.8~1.4）。
+final hudScaleProvider = StateProvider<double>((ref) => 1.0);
 
 /// HUD 布局编辑模式（开启后浮动元素显示边框、可拖动；关闭自动保存）。
 final hudEditProvider = StateProvider<bool>((ref) => false);
@@ -64,6 +74,21 @@ Map<String, Offset> readHudLayout(SharedPreferences prefs) {
   }
 }
 
+/// 把 HUD 缩放写回 prefs。
+Future<void> saveHudScale(SharedPreferences prefs, double scale) async {
+  await prefs.setDouble(
+    kHudScaleKey,
+    scale.clamp(kHudScaleMin, kHudScaleMax),
+  );
+}
+
+/// 从 prefs 读 HUD 缩放（缺省 1.0，越界夹紧到允许范围）。
+double readHudScale(SharedPreferences prefs) {
+  final double? v = prefs.getDouble(kHudScaleKey);
+  if (v == null) return 1.0;
+  return v.clamp(kHudScaleMin, kHudScaleMax);
+}
+
 /// HUD 元素 id 常量（避免散字符串）。
 abstract final class HudIds {
   /// 第一人称坐标 HUD（可拖动）。
@@ -73,5 +98,22 @@ abstract final class HudIds {
   static const String joystick = 'joystick';
 
   /// 右侧动作按钮（攻击/放置/跳，可拖动）。
+  /// R26skel-b3：动作键拆成 4 个独立元素（各自可拖拽调位），
+  /// 旧「actions」整体簇 id 保留仅供旧布局迁移读取，不再渲染。
   static const String actions = 'actions';
+
+  /// 动作键 · 攻击/挖掘（独立可拖动）。
+  static const String actBreak = 'actBreak';
+
+  /// 动作键 · 放置/使用（独立可拖动）。
+  static const String actPlace = 'actPlace';
+
+  /// 动作键 · 蹲/降（独立可拖动）。
+  static const String actDuck = 'actDuck';
+
+  /// 动作键 · 跳/升（独立可拖动）。
+  static const String actJump = 'actJump';
+
+  /// P2：折叠面板（坐标/模式等次级控制）——可拖拽防与顶栏重叠。
+  static const String foldPanel = 'foldPanel';
 }

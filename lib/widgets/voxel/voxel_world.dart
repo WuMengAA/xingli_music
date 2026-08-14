@@ -18,13 +18,48 @@ import 'voxel_daynight.dart';
 import 'voxel_world_types.dart';
 
 /// 体素世界：出生大陆 [sizeX]×[sizeZ]，最大高度 [maxY]，水平无限延伸。
+/// 新建世界的可选参数（cl29）：作弊 / 结构 / 浮空岛等「一堆」开关的单一真相源。
+/// 默认全开 = 与历史版本行为一致（旧存档 / 无 options 时回落到此默认值）。
+class WorldOptions {
+  const WorldOptions({
+    this.cheats = true,
+    this.structures = true,
+    this.floatingIslands = true,
+  });
+
+  /// 作弊：开启后游戏内可随时切换生存 / 创造模式（热栏「模式」按钮）。
+  final bool cheats;
+  /// 结构：沙漠沙堡等确定性后处理结构是否生成。
+  final bool structures;
+  /// 浮空岛：悬空草顶石核团块是否生成（R26e 设计特性）。
+  final bool floatingIslands;
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'cheats': cheats,
+        'structures': structures,
+        'floatingIslands': floatingIslands,
+      };
+
+  static WorldOptions fromJson(dynamic json) {
+    if (json is! Map) return const WorldOptions();
+    bool b(String k) => json[k] is bool ? json[k] as bool : true;
+    return WorldOptions(
+      cheats: b('cheats'),
+      structures: b('structures'),
+      floatingIslands: b('floatingIslands'),
+    );
+  }
+}
+
 class VoxelWorld {
   VoxelWorld({
     this.sizeX = 24,
     this.sizeZ = 24,
-    this.maxY = 256,
+    // G6（用户确认）：世界最高 y=128、最低 y=0（原 256）。海平面=32。
+    this.maxY = 128,
     this.seed = defaultSeed,
-    this.waterLevel = 43,
+    this.waterLevel = 32,
+    this.options = const WorldOptions(),
   }) : _blocks = List<Voxel>.filled(sizeX * sizeZ * maxY, Voxel.air) {
     _generate(seed);
   }
@@ -42,6 +77,9 @@ class VoxelWorld {
 
   /// 世界种子：同 seed ⇒ 逐格相同的世界（拍照复现的技术前提）。
   final int seed;
+
+  /// 新建世界可选参数（cl29：作弊 / 结构 / 浮空岛等开关）。
+  final WorldOptions options;
 
   /// 噪声采样偏移（由 [seed] 派生，基准种子时为 0）。
   late final double _shiftX = _noiseShift(seed, 1);
@@ -115,6 +153,64 @@ class VoxelWorld {
     _edits[_editKey(x, y, z)] = v;
     _dirtyColumn(x, z);
     _syncLight(x, y, z, v);
+  }
+
+  // ── G4：水流动（MC 式，1s=20tick 驱动）──────────────────
+  //
+  // 放置水源后，向 4 水平邻 + 下方扩散，最多 [kWaterSpread] 格（用户确认 9 格）。
+  // 每个扩散出的水格携带「剩余扩散距离」，每 tick 递减，到 0 停止 →
+  // 距离限制不会被新位置重置（防无限扩散）。流动水写进编辑层（与破坏/放置
+  // 同一持久化通道），渲染走既有 water 路径。
+
+  /// 水最大扩散距离（用户确认：四周 9 格范围）。
+  static const int kWaterSpread = 9;
+
+  /// 待扩散队列：位置 + 剩余扩散距离。放置水时加入；扩散到边界/无可流空间
+  /// 或距离耗尽后自然清空。
+  final List<(int, int, int, int)> _waterQueue = <(int, int, int, int)>[];
+
+  /// 登记一个水源（放置水时调用），触发扩散。
+  void addWaterSource(int x, int y, int z) {
+    if (y < 0 || y >= maxY) return;
+    _waterQueue.add((x, y, z, kWaterSpread));
+  }
+
+  /// 是否可被水占据（空气）。
+  bool _waterable(int x, int y, int z) {
+    if (y < 0 || y >= maxY) return false;
+    final Voxel v = get(x, y, z);
+    return v == Voxel.air;
+  }
+
+  /// 单步扩散（每 tick 调一次）：对队列中剩余距离 > 0 的水格，向 4 水平邻 +
+  /// 下方各扩散 1 格；扩散出的新水格带 remaining-1 入队。返回**本次新写入的
+  /// 水位置**（空表 = 无可流空间 / 距离耗尽，扩散自然结束）——调用方据此
+  /// 失效对应区块几何缓存并置脏。
+  List<(int, int, int)> spreadWater() {
+    if (_waterQueue.isEmpty) return const <(int, int, int)>[];
+    final List<(int, int, int)> wrote = <(int, int, int)>[];
+    final List<(int, int, int, int)> next = <(int, int, int, int)>[];
+    const List<(int, int, int)> dirs = <(int, int, int)>[
+      (1, 0, 0),
+      (-1, 0, 0),
+      (0, 0, 1),
+      (0, 0, -1),
+      (0, -1, 0), // 下
+    ];
+    for (final (int sx, int sy, int sz, int rem) in _waterQueue) {
+      if (rem <= 0) continue;
+      for (final (int dx, int dy, int dz) in dirs) {
+        final int nx = sx + dx, ny = sy + dy, nz = sz + dz;
+        if (!_waterable(nx, ny, nz)) continue;
+        setVoxel(nx, ny, nz, Voxel.water);
+        wrote.add((nx, ny, nz));
+        next.add((nx, ny, nz, rem - 1));
+      }
+    }
+    _waterQueue
+      ..clear()
+      ..addAll(next);
+    return wrote;
   }
 
   // ── R23v 方块光源登记 ────────────────────────────────────
@@ -244,10 +340,13 @@ class VoxelWorld {
     final (bool hasIsland, int islandBase) = _islandInfo(x, z);
     for (int y = 0; y <= h; y++) {
       // 洞穴：低于地表 2 格起、伪 3D 噪声 > 阈值 → 留空（洞内不产矿）。
-      // 阈值按实测值域标定（伪 3D 噪声实际 ±0.35，0.15 触发适度空洞）。
+      // R26r13：用户「地下没有方块，请延到 y=0」——原阈值 0.15 在 ±0.35
+      // 实用值域下掏空约 1/3~1/2 地下、连成大空洞，看着像空心。抬到 0.62
+      // 且仅浅层(y>4)可挖：地下近全实心到底(y=0)，只留极少数小气穴
+      //（保留挖矿趣味），矿脉（y<h-4 的 0.4 尺度噪声）不受影响。
       if (y < h - 1 &&
-          y > 1 &&
-          _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.16) > 0.15) {
+          y > 4 &&
+          _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.16) > 0.62) {
         continue;
       }
       Voxel v;
@@ -272,22 +371,84 @@ class VoxelWorld {
       }
       col[y] = v;
     }
-    // 浮空岛（独立悬浮层，与地面列无关；顶部草 + 内核石）
-    if (hasIsland) {
+    // 浮空岛（独立悬浮层，与地面列无关；顶部草 + 内核石）。
+    // cl29：受 options.floatingIslands 开关控制（默认开，保持历史行为）。
+    if (hasIsland && options.floatingIslands) {
       for (int y = islandBase; y <= islandBase + 2 && y < maxY; y++) {
         col[y] = y == islandBase + 2 ? Voxel.grass : Voxel.stone;
       }
     }
-    // 低洼注水
+    // 低洼注水 —— G6 分层 + G3 河流（用户确认）：
+    //   · 海平面（海洋）= y=32：h < 32 → 注满到 32。
+    //   · G3 河流：走廊噪声命中 → 注水到该列水表（下游 32、上游缓升≤43），
+    //     形成连续可流动河道（V 型河谷已有下切）。
+    //   · 陆地水 32–43（非河道）：池塘/湖泊蓄积地，**概率生成且不允许过多**——
+    //     仅当本列高度处于 32–43 的「蓄水带」且确定性噪声命中（概率约 1/4）
+    //     才注水到水表（32~43 之间），形成零星河/塘/湖，而非全陆地淹成海。
+    //   · 43–64 高山流水/瀑布：极少（概率 ~1/20），仅高山带(h≥43)偶尔注一薄层。
+    //   · 地下水 0–32：极少（概率 ~1/24），在地下深层留一条水脉。
     if (h < waterLevel) {
       for (int y = h + 1; y <= waterLevel; y++) {
         col[y] = Voxel.water;
       }
+    } else {
+      // F3（用户确认）：天坑/高处洼地自然积水——本列高度显著低于 4 邻
+      // （形成封闭凹坑）时，即使不在 32–43 蓄水带也注满坑底（水池不空心）。
+      final bool pit = h >= waterLevel &&
+          h < 64 &&
+          terrainHeightAt(x + 1, z) > h + 2 &&
+          terrainHeightAt(x - 1, z) > h + 2 &&
+          terrainHeightAt(x, z + 1) > h + 2 &&
+          terrainHeightAt(x, z - 1) > h + 2;
+      // G3 河流优先：与下切共用同一走廊判定（连续河道）。
+      final double rv = _riverNoise(x, z, _shiftX, _shiftZ);
+      if (rv < -0.22) {
+        final int waterTable = (32 + ((h - 40) * 0.5).round().clamp(0, 11))
+            .clamp(33, 43);
+        for (int y = h + 1; y <= waterTable && y < maxY; y++) {
+          col[y] = Voxel.water;
+        }
+      } else if (pit) {
+        // 天坑/洼地：填到坑底上方 1 格（保证有水的实感，不空心）。
+        for (int y = h + 1; y <= h + 1 && y < maxY; y++) {
+          col[y] = Voxel.water;
+        }
+      } else if (h < 43) {
+        // 陆地蓄水带（32–43）：概率约 1/4，避免整片陆地变湖泊。
+        // R26fx3：湖泊概率提高（0.5→0.35）且更分散（频率 0.05→0.07）。
+        final double lake = _noise3(x.toDouble(), z.toDouble(), 0.0, 0.07);
+        if (lake > 0.35) {
+          final int waterTable = (32 + ((lake - 0.35) * 22).round())
+              .clamp(33, 43);
+          for (int y = h + 1; y <= waterTable && y < maxY; y++) {
+            col[y] = Voxel.water;
+          }
+        }
+      } else if (h >= 43 && h < 64) {
+        // 高山流水/瀑布带（43–64）：极少（~1/20），只在陡坡处注一薄层。
+        final double fall = _noise3(x.toDouble(), z.toDouble(), 7.0, 0.08);
+        if (fall > 0.82) {
+          for (int y = h + 1; y <= h + 2 && y < maxY; y++) {
+            col[y] = Voxel.water;
+          }
+        }
+      }
+    }
+    // 地下水（0–32）：极少（~1/24），深埋一脉（挖矿时偶遇）。
+    if (h > 24) {
+      final double gw = _noise3(x.toDouble(), 3.0, z.toDouble(), 0.1);
+      if (gw > 0.84) {
+        final int gy = (8 + ((gw - 0.84) * 20).round()).clamp(2, 28);
+        if (gy < h) col[gy] = Voxel.water;
+      }
     }
     // 结构（沙漠沙堡）：确定性散列后处理，覆盖在列生成之上。
-    for (int y = h + 1; y <= h + 2 && y < maxY; y++) {
-      final Voxel? sv = _structureBlock(x, z, y, h);
-      if (sv != null) col[y] = sv;
+    // cl29：受 options.structures 开关控制（默认开）。
+    if (options.structures) {
+      for (int y = h + 1; y <= h + 2 && y < maxY; y++) {
+        final Voxel? sv = _structureBlock(x, z, y, h);
+        if (sv != null) col[y] = sv;
+      }
     }
     // 树：本列树干 + 树冠，以及 5×5 邻列树冠对本列的覆盖（缓存加速）。
     _applyTrees(col, x, z, h);
@@ -310,7 +471,15 @@ class VoxelWorld {
     final double bx = x * 0.012 + 5000 + shiftX * 0.01;
     final double bz = z * 0.012 + 5000 + shiftZ * 0.01;
     final double b = _perlin(bx, bz) + bShift;
-    if (b > 0.3) return Biome.mountain;
+    // R27 水域噪声（独立低频场）：低值 → 海洋 / 河流盆地；与陆群系正交，
+    // 山体可没入海（岛）、平原可裂河谷，地形更自然。频率更低 → 大水域。
+    final double wx = x * 0.006 + 9000 + shiftX * 0.008;
+    final double wz = z * 0.006 + 9000 + shiftZ * 0.008;
+    final double w = _perlin(wx, wz);
+    if (w < -0.30) return Biome.ocean;
+    if (w < -0.10) return Biome.river;
+    if (b > 0.42) return Biome.snowMountain;
+    if (b > 0.28) return Biome.mountain;
     if (b > 0.05) return Biome.forest;
     if (b < -0.15) return Biome.desert;
     return Biome.plains;
@@ -425,8 +594,17 @@ class VoxelWorld {
     int waterLevelV,
     int maxYV,
   ) {
-    final Biome biome = _biomeAtS(x, z, shiftX, shiftZ);
-    final BiomeSpec spec = kBiomes[biome]!;
+    // R26fx3：群系边界平滑——4 角群系 baseHeight/amplitude 等权混合，
+    // 消除硬边界「高低差」（森林/沙漠/山地交界不再悬崖式突变）。
+    double mixBase = 0, mixAmp = 0;
+    for (int dx = 0; dx <= 1; dx++) {
+      for (int dz = 0; dz <= 1; dz++) {
+        final BiomeSpec s2 =
+            kBiomes[_biomeAtS(x + dx, z + dz, shiftX, shiftZ)]!;
+        mixBase += s2.baseHeight * 0.25;
+        mixAmp += s2.amplitude * 0.25;
+      }
+    }
     // R26j：种子风格参数（由 shift 确定性派生，纯函数 → Isolate 与实例一致）。
     // 默认种子（shift=0）保持历史观感不变；换种子才派生风格：
     //   elev 海拔偏移 -3~+3（低海拔世界→更多海洋，高海拔→山地大陆）
@@ -454,13 +632,74 @@ class VoxelWorld {
             z * 0.004 + 7000 + shiftZ * 0.001,
           );
     // Perlin fbm 输出约 ±1 → 群系基准高度 ±振幅。
-    double h = spec.baseHeight + spec.amplitude * ampMul * n + cont * 20.0 + elev;
+    double h = mixBase + mixAmp * ampMul * n + cont * 20.0 + elev;
+    // R26r8：平滑地形——尖峰/悬崖放大从 ×14 降到 ×4、峡谷从 ×9 降到 ×2.5，
+    // 消除突兀峭壁与尖刺，保留缓坡起伏（不再是「陡峭崎岖」）。
     if (n > 0.15) {
-      h += math.pow(n - 0.15, 1.6).toDouble() * 14; // 正向隆起 → 尖峰/悬崖
+      h += math.pow(n - 0.15, 1.6).toDouble() * 4;
     } else if (n < -0.15) {
-      h -= math.pow(-(n + 0.15), 1.6).toDouble() * 9; // 负向加深 → 峡谷
+      h -= math.pow(-(n + 0.15), 1.6).toDouble() * 2.5;
     }
-    return h.round().clamp(8, maxYV - 6);
+    final int base = h.round().clamp(8, maxYV - 6);
+    // G3：河流下切（V 型河谷 + 冲积扇 + 地转偏向力）。仅陆地列（h ≥ 海平面）
+    // 参与，避免把海底/浅滩挖穿；下切后的河床高度与 Isolate 预热共用同一
+    // 纯函数 → 渲染/碰撞/遮挡一致。
+    final (int cut, int _) =
+        _riverInfo(x, z, shiftX, shiftZ, base, waterLevelV);
+    return (base - cut).clamp(2, maxYV - 6);
+  }
+
+  /// G3：河流走廊噪声（纯函数，确定性）。低频 Perlin + 地转偏向力侧偏。
+  /// 数值越低越靠河道中线。供 [_riverInfo]（下切）与 [_buildColumn]（注水）
+  /// 共用同一判定，保证河床与水面一致。
+  static double _riverNoise(
+    int x,
+    int z,
+    double shiftX,
+    double shiftZ,
+  ) {
+    // R26fx3：走廊频率降低 → 河道更宽更连贯（不再断断续续）。
+    final double fx = x * 0.006 + 300.0 + shiftX * 0.01;
+    final double fz = z * 0.006 + 700.0 + shiftZ * 0.01;
+    double r = _perlin(fx, fz);
+    // 地转偏向力简化：z>0 为北半球 → 河道向 +X（右）偏，z<0 南半球向 -X（左）偏。
+    // 叠加一个低频横向梯度，让同一河道的南北两侧深度不对称 → 凹凸岸。
+    final double coriolis = z >= 0 ? 1.0 : -1.0;
+    final double bank = _perlin(fx + 50.0, fz) * 0.25 * coriolis;
+    return r + bank;
+  }
+
+  /// G3：河流信息（纯函数，确定性，Isolate 一致）。
+  ///
+  /// 返回 `(下切量 cut, 水表 waterTable)`。低频「河流走廊」噪声 + 随机抖动
+  /// 定义河道中线，向两侧 V 型下切到水面下；下游（接近海平面）深度衰减 →
+  /// 冲积扇；地转偏向力按半球侧偏（z 轴正 = 北：北半球右偏、南半球左偏 →
+  /// 凹凸岸）。水表随上游缓升（高原河流水位略高），保证河道连续有水。
+  static (int, int) _riverInfo(
+    int x,
+    int z,
+    double shiftX,
+    double shiftZ,
+    int base,
+    int waterLevelV,
+  ) {
+    if (base < waterLevelV) return (0, waterLevelV); // 海洋/低洼：不挖
+    final double r = _riverNoise(x, z, shiftX, shiftZ);
+    // R26fx3：河道判定阈值放宽 -0.22 → 更多列入河、水流更连贯。
+    const double river = -0.22;
+    if (r >= river) return (0, waterLevelV);
+    // 水表：下游=海平面 32，上游随高度缓升（≤43 陆地水带上限）。
+    final int waterTable =
+        (waterLevelV + ((base - 40) * 0.5).round().clamp(0, 11))
+            .clamp(waterLevelV, 43);
+    // 下切：挖到水面下 3 格（V 型，两侧 base 高、中间深），保证连续有水。
+    final int cut = base - (waterTable - 3);
+    // 冲积扇：下游（高度接近海平面）深度衰减 → 河谷变浅、扇状展开。
+    final double downstream =
+        ((base - waterLevelV) / 14.0).clamp(0.0, 1.0); // 1=远上游 0=入海口
+    final int fanned = (cut * (0.25 + 0.75 * downstream)).round();
+    if (fanned < 1) return (0, waterLevelV);
+    return (fanned, waterTable);
   }
 
   /// R26e 伪 3D 噪声（确定性、零额外依赖）：三张 2D Perlin 在不同平面组合，
@@ -574,7 +813,8 @@ class VoxelWorld {
         (n01 * (1 - u) + n11 * u) * v;
   }
 
-  /// Perlin 分形（4 octaves）。
+  /// Perlin 分形（4 octaves，R26r8：persistence 0.5→0.4——压低高频局部粗糙，
+  /// 地形更平滑；仍保留山体/丘陵的整体起伏）。
   static double _fbm(double x, double z) {
     double amp = 1.0;
     double freq = 1.0;
@@ -583,7 +823,7 @@ class VoxelWorld {
     for (int o = 0; o < 4; o++) {
       sum += amp * _perlin(x * freq, z * freq);
       norm += amp;
-      amp *= 0.5;
+      amp *= 0.4;
       freq *= 2.0;
     }
     return sum / norm;
@@ -616,6 +856,7 @@ class VoxelWorld {
       'waterLevel': waterLevel,
       'edits': edits,
       'lights': lights,
+      'options': options.toJson(),
     };
   }
 
@@ -667,8 +908,9 @@ class VoxelWorld {
   ) {
     final double shiftX = _noiseShift(seed, 1);
     final double shiftZ = _noiseShift(seed, 2);
-    const int waterLevelV = 43; // 默认水位（与构造默认一致）
-    const int maxYV = 256; // 默认高度（与构造默认一致）
+    // G6：Isolate 静态默认与构造默认一致（海平面 32、最高 128）。
+    const int waterLevelV = 32; // 默认水位（与构造默认一致）
+    const int maxYV = 128; // 默认高度（与构造默认一致）
     final int span = radius * 2;
     final Int32List out = Int32List(span * span * 4);
     int i = 0;

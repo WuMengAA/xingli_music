@@ -4,10 +4,16 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
+import '../../providers/sources/netease_provider.dart';
+import '../../providers/storage/storage_providers.dart';
+import '../../services/audio/sources/netease/netease_api.dart';
+import '../../services/audio/sources/netease/netease_source.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 歌词模块（解析 + 数据源 + 展示）
@@ -136,16 +142,83 @@ abstract final class LrcParser {
 // 二、数据源：本地 .lrc（已实现） + 远程钩子（预留）
 // ════════════════════════════════════════════════════════════════════════
 
-/// 远程歌词获取钩子签名：曲目 -> `.lrc` 文本（无结果返回 null）。
-typedef RemoteLyricsFetcher = Future<String?> Function(Track track);
+/// 远程歌词获取钩子签名：曲目 -> 歌词结果（主词 + 可选译文；无结果返回 null）。
+typedef RemoteLyricsFetcher = Future<LyricResult?> Function(Track track);
 
-/// 远程歌词钩子（**预留**）。
+/// 歌词磁盘缓存：songId -> [LyricResult]，落盘 `<应用文档>/lyrics/<id>.json`，
+/// 跨会话复用，离线也能显示（首次联网拉取后长期有效）。
 ///
-/// 默认 `null` = 未接入任何在线歌词源。后续接网易云 API 时，只需在
-/// `ProviderScope.overrides` 或此处返回一个 [RemoteLyricsFetcher] 实现，
-/// 歌词界面无需任何改动。
+/// 网络/IO 异常一律静默吞掉（回退到内存或在线），不让取词链路崩溃。
+class LyricsCache {
+  LyricsCache(this._dir);
+  final Directory _dir;
+
+  File _fileFor(int id) => File('${_dir.path}/lyrics/$id.json');
+
+  Future<LyricResult?> get(int id) async {
+    try {
+      final File f = _fileFor(id);
+      if (!f.existsSync()) return null;
+      final Map<String, dynamic> j =
+          jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      final String? lrc = j['lrc'] as String?;
+      if (lrc == null || lrc.isEmpty) return null;
+      return LyricResult(lrc: lrc, translation: j['translation'] as String?);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> put(int id, LyricResult r) async {
+    try {
+      final File f = _fileFor(id);
+      await f.create(recursive: true);
+      await f.writeAsString(jsonEncode(<String, dynamic>{
+        'lrc': r.lrc,
+        'translation': r.translation,
+      }));
+    } catch (_) {
+      // 缓存写入失败不致命
+    }
+  }
+}
+
+/// 歌词缓存目录（应用文档目录；取不到时退化为系统临时目录，仅内存兜底）。
+final FutureProvider<LyricsCache> lyricsCacheProvider =
+    FutureProvider<LyricsCache>((Ref ref) async {
+  try {
+    final Directory docs = await getApplicationDocumentsDirectory();
+    return LyricsCache(docs);
+  } catch (_) {
+    return LyricsCache(Directory.systemTemp);
+  }
+});
+
+/// 远程歌词钩子（**预设网易云实现**）。
+///
+/// 默认只接网易云：曲目若是 `netease://song/<id>` 占位符（或其 `extras`
+/// 带 `songId`），就走 [NeteaseApi.getLyrics] 拉取；先查磁盘缓存，未命中再
+/// 联网并回写。其它源返回 null，由上游 [lyricsProvider] 降级为「暂无歌词」。
+/// 后续若要接其它在线源，可在 `ProviderScope.overrides` 覆盖本 provider，
+/// 歌词界面无需改动。
 final Provider<RemoteLyricsFetcher?> remoteLyricsFetcherProvider =
-    Provider<RemoteLyricsFetcher?>((Ref ref) => null);
+    Provider<RemoteLyricsFetcher?>((Ref ref) {
+  final NeteaseApi api = ref.watch(neteaseApiProvider);
+  return (Track track) async {
+    final int? songId = NeteaseSource.songIdOf(track);
+    if (songId == null) return null;
+    try {
+      final LyricsCache cache = await ref.read(lyricsCacheProvider.future);
+      final LyricResult? cached = await cache.get(songId);
+      if (cached != null) return cached;
+      final LyricResult? fetched = await api.getLyrics(songId);
+      if (fetched != null) await cache.put(songId, fetched);
+      return fetched;
+    } catch (_) {
+      return null;
+    }
+  };
+});
 
 /// 读取与曲目同目录、同名的 `.lrc` 文件。
 ///
@@ -153,10 +226,12 @@ final Provider<RemoteLyricsFetcher?> remoteLyricsFetcherProvider =
 Future<String?> loadLocalLrc(Track track) async {
   final String uri = track.uri;
   if (uri.isEmpty) return null;
-  // 非本地文件路径（http 流、Android 媒体库 content uri、asset）跳过
+  // 非本地文件路径（http 流、Android 媒体库 content uri、asset、
+  // 网易云 netease:// 占位符等）跳过，交给远程钩子处理
   if (uri.startsWith('http') ||
       uri.startsWith('content://') ||
-      uri.startsWith('asset')) {
+      uri.startsWith('asset') ||
+      uri.startsWith('netease://')) {
     return null;
   }
 
@@ -184,14 +259,16 @@ Future<String> _readText(File f) async {
   }
 }
 
-/// 歌词原文（`.lrc` 文本）：本地优先，远程钩子次选，都没有则 null。
+/// 歌词结果（主词 + 可选译文）：本地优先，远程钩子次选，都没有则 null。
 ///
 /// `autoDispose`：切歌后旧曲目的缓存自动释放。
-final AutoDisposeFutureProviderFamily<String?, Track> lyricsProvider =
+final AutoDisposeFutureProviderFamily<LyricResult?, Track> lyricsProvider =
     FutureProvider.autoDispose
-        .family<String?, Track>((Ref ref, Track track) async {
+        .family<LyricResult?, Track>((Ref ref, Track track) async {
   final String? local = await loadLocalLrc(track);
-  if (local != null && local.trim().isNotEmpty) return local;
+  if (local != null && local.trim().isNotEmpty) {
+    return LyricResult(lrc: local); // 本地 .lrc 无译文
+  }
 
   final RemoteLyricsFetcher? fetch = ref.watch(remoteLyricsFetcherProvider);
   if (fetch == null) return null;
@@ -202,14 +279,71 @@ final AutoDisposeFutureProviderFamily<String?, Track> lyricsProvider =
   }
 });
 
-/// 解析后的歌词行（供 [LyricsView] 直接消费）。
+/// 解析后的主歌词行（供 [LyricsView] 直接消费）。
 final AutoDisposeFutureProviderFamily<List<LyricLine>, Track>
     parsedLyricsProvider = FutureProvider.autoDispose
         .family<List<LyricLine>, Track>((Ref ref, Track track) async {
-  final String? raw = await ref.watch(lyricsProvider(track).future);
+  final LyricResult? raw = await ref.watch(lyricsProvider(track).future);
   if (raw == null) return const <LyricLine>[];
-  return LrcParser.parse(raw);
+  return LrcParser.parse(raw.lrc);
 });
+
+/// 译文（已解析为歌词行，供激活行下方展示）；无译文时为空列表。
+final AutoDisposeFutureProviderFamily<List<LyricLine>, Track>
+    lyricsTranslationProvider = FutureProvider.autoDispose
+        .family<List<LyricLine>, Track>((Ref ref, Track track) async {
+  final LyricResult? raw = await ref.watch(lyricsProvider(track).future);
+  if (raw?.translation == null || raw!.translation!.trim().isEmpty) {
+    return const <LyricLine>[];
+  }
+  return LrcParser.parse(raw.translation!);
+});
+
+/// 是否显示译文（持久化于 SharedPreferences 键 [kLyricsShowTranslation]）。
+final StateNotifierProvider<LyricsShowTranslation, bool>
+    lyricsShowTranslationProvider =
+    StateNotifierProvider<LyricsShowTranslation, bool>(
+  (Ref ref) => LyricsShowTranslation(ref.read(prefsProvider)),
+);
+
+class LyricsShowTranslation extends StateNotifier<bool> {
+  LyricsShowTranslation(this._prefs)
+      : super(_prefs.getBool(kLyricsShowTranslation) ?? false);
+  final SharedPreferences _prefs;
+
+  void toggle() {
+    state = !state;
+    _prefs.setBool(kLyricsShowTranslation, state);
+  }
+}
+
+/// 用户手动歌词时间偏移（毫秒，持久化于 [kLyricsOffsetMs]），用于校正歌词
+/// 整体快/慢几秒；正值 = 歌词延后显示（音频已唱、词还没到 → 调大）。
+final StateNotifierProvider<LyricsOffset, int> lyricsOffsetMsProvider =
+    StateNotifierProvider<LyricsOffset, int>(
+  (Ref ref) => LyricsOffset(ref.read(prefsProvider)),
+);
+
+class LyricsOffset extends StateNotifier<int> {
+  LyricsOffset(this._prefs) : super(_prefs.getInt(kLyricsOffsetMs) ?? 0);
+  final SharedPreferences _prefs;
+
+  static const int _step = 500;
+
+  /// 歌词延后 0.5s（词来晚了）。
+  void delay() => _set(state + _step);
+
+  /// 歌词提前 0.5s（词来早了）。
+  void advance() => _set(state - _step);
+
+  void _set(int v) {
+    state = v.clamp(-10000, 10000);
+    _prefs.setInt(kLyricsOffsetMs, state);
+  }
+}
+
+const String kLyricsShowTranslation = 'lyrics_show_translation';
+const String kLyricsOffsetMs = 'lyrics_offset_ms';
 
 // ════════════════════════════════════════════════════════════════════════
 // 三、展示
@@ -238,6 +372,9 @@ class LyricsView extends ConsumerWidget {
 
     final AsyncValue<List<LyricLine>> lyrics =
         ref.watch(parsedLyricsProvider(current));
+    final bool hasTranslation =
+        ref.watch(lyricsTranslationProvider(current)).valueOrNull?.isNotEmpty ??
+            false;
 
     // 保证至少能完整显示 2 行歌词（一行激活行 + 上下留白），避免「展开音量后
     // 歌词区被压扁、单行被纵向裁切」的问题（用户反馈）。
@@ -251,7 +388,20 @@ class LyricsView extends ConsumerWidget {
           ? _placeholder(context, height: h)
           : SizedBox(
               height: h,
-              child: _LyricsScroller(lines: lines, height: h),
+              child: Stack(
+                children: <Widget>[
+                  _LyricsScroller(
+                    lines: lines,
+                    height: h,
+                    track: current,
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: _LyricsControlsMenu(hasTranslation: hasTranslation),
+                  ),
+                ],
+              ),
             ),
     );
   }
@@ -272,15 +422,80 @@ class LyricsView extends ConsumerWidget {
   }
 }
 
+/// 歌词区右上角设置菜单：译文开关 + 时间偏移微调（±0.5s，持久化）。
+class _LyricsControlsMenu extends ConsumerWidget {
+  const _LyricsControlsMenu({required this.hasTranslation});
+  final bool hasTranslation;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppThemeColors colors = context.appColors;
+    final bool showTranslation = ref.watch(lyricsShowTranslationProvider);
+    final int offsetMs = ref.watch(lyricsOffsetMsProvider);
+
+    final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
+      if (hasTranslation)
+        PopupMenuItem<String>(
+          value: 'translation',
+          child: Row(
+            children: <Widget>[
+              Icon(showTranslation ? Icons.check : Icons.add, size: 16),
+              const SizedBox(width: 8),
+              const Text('显示译文', style: TextStyle(fontSize: 13)),
+            ],
+          ),
+        ),
+      PopupMenuItem<String>(
+        value: 'delay',
+        child: const Text('歌词延后 +0.5s', style: TextStyle(fontSize: 13)),
+      ),
+      PopupMenuItem<String>(
+        value: 'advance',
+        child: const Text('歌词提前 −0.5s', style: TextStyle(fontSize: 13)),
+      ),
+      if (offsetMs != 0)
+        PopupMenuItem<String>(
+          value: 'offset',
+          enabled: false,
+          child: Text(
+            '当前偏移 ${(offsetMs / 1000).toStringAsFixed(1)}s',
+            style: TextStyle(fontSize: 12, color: colors.textTertiary),
+          ),
+        ),
+    ];
+
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.tune, size: 18, color: colors.textTertiary),
+      padding: EdgeInsets.zero,
+      tooltip: '歌词设置',
+      onSelected: (String v) {
+        if (v == 'translation') {
+          ref.read(lyricsShowTranslationProvider.notifier).toggle();
+        } else if (v == 'delay') {
+          ref.read(lyricsOffsetMsProvider.notifier).delay();
+        } else if (v == 'advance') {
+          ref.read(lyricsOffsetMsProvider.notifier).advance();
+        }
+      },
+      itemBuilder: (_) => items,
+    );
+  }
+}
+
 /// 歌词滚动体：固定行高 + 二分定位当前行 + 居中动画。
 ///
 /// 固定 [_extent] 行高让「当前行居中」可纯数学求解，无需测量子项，
 /// 因此滚动不掉帧、也不依赖额外的第三方列表库。
 class _LyricsScroller extends ConsumerStatefulWidget {
-  const _LyricsScroller({required this.lines, required this.height});
+  const _LyricsScroller({
+    required this.lines,
+    required this.height,
+    required this.track,
+  });
 
   final List<LyricLine> lines;
   final double height;
+  final Track track;
 
   @override
   ConsumerState<_LyricsScroller> createState() => _LyricsScrollerState();
@@ -347,10 +562,18 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
 
   @override
   Widget build(BuildContext context) {
+    final bool showTranslation = ref.watch(lyricsShowTranslationProvider);
+    final int offsetMs = ref.watch(lyricsOffsetMsProvider);
+    final List<LyricLine> transLines =
+        ref.watch(lyricsTranslationProvider(widget.track)).valueOrNull ??
+            const <LyricLine>[];
+
     final Duration pos =
         ref.watch(musicPositionProvider).valueOrNull ?? Duration.zero;
+    // 用户手动时间偏移：歌词整体快/慢时校正。
+    final Duration effPos = pos + Duration(milliseconds: offsetMs);
 
-    final int index = _locate(pos);
+    final int index = _locate(effPos);
     if (index != _index) {
       _index = index;
       if (index >= 0) {
@@ -370,6 +593,9 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
       itemCount: widget.lines.length,
       itemBuilder: (BuildContext context, int i) {
         final bool active = i == index;
+        final String trans = (active && showTranslation)
+            ? _translationFor(transLines, widget.lines[i].$1)
+            : '';
         return Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -382,16 +608,54 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
                 fontWeight: active ? FontWeight.w600 : FontWeight.w400,
                 height: 1.25,
               ),
-              child: Text(
-                widget.lines[i].$2,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    widget.lines[i].$2,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (trans.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        trans,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.2,
+                          color: colors.textTertiary,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// 取激活行对应的译文（取时间不超过该句主词时间的最后一行）。
+  String _translationFor(List<LyricLine> trans, Duration mainTime) {
+    if (trans.isEmpty) return '';
+    int lo = 0;
+    int hi = trans.length - 1;
+    int found = -1;
+    while (lo <= hi) {
+      final int mid = (lo + hi) >> 1;
+      if (trans[mid].$1 <= mainTime) {
+        found = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    return found >= 0 ? trans[found].$2 : '';
   }
 }

@@ -5,6 +5,8 @@ import '../models/scene.dart';
 import '../core/motion/motion.dart';
 import '../models/track.dart';
 import '../providers/audio/audio_providers.dart';
+import '../pages/sources/aggregate_search_page.dart';
+import '../widgets/sources/music_quality_sheet.dart';
 import 'app_icon.dart';
 import 'liquid_glass.dart';
 
@@ -151,7 +153,7 @@ class _SceneCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 顶部：场景名 + 氛围词
+                        // 顶部：场景名 + 氛围词 + 聚合搜索入口
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -177,6 +179,29 @@ class _SceneCard extends StatelessWidget {
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
+                            ),
+                            const Spacer(),
+                            // R26skel-b6：音乐卡片上的聚合搜索入口。
+                            IconButton(
+                              icon: Icon(Icons.search_rounded,
+                                  size: 18,
+                                  color: lightText.withValues(alpha: 0.85)),
+                              visualDensity: VisualDensity.compact,
+                              tooltip: '聚合搜索',
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const AggregateSearchPage(),
+                                ),
+                              ),
+                            ),
+                            // R26skel-b6：音乐卡片上的音质/清晰度入口。
+                            IconButton(
+                              icon: Icon(Icons.high_quality_rounded,
+                                  size: 18,
+                                  color: lightText.withValues(alpha: 0.85)),
+                              visualDensity: VisualDensity.compact,
+                              tooltip: '音质与清晰度',
+                              onPressed: () => showMusicQualitySheet(context),
                             ),
                           ],
                         ),

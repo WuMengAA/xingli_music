@@ -72,6 +72,7 @@ class VoxelCanvasView extends StatelessWidget {
                 tileW: tileW,
                 tileH: tileH,
                 showGrid: showGrid,
+                repaint: controller,
               ),
             ),
           );
@@ -108,6 +109,9 @@ class _VoxelPainter extends CustomPainter {
     required this.tileW,
     required this.tileH,
     required this.showGrid,
+    // repaint: 控制器自身作为重绘信号源——applyEnvelope（每帧）与编辑
+    // （setBlock/load）都 notifyListeners → 自动重绘。
+    super.repaint,
   });
 
   final VoxelCanvasController controller;
@@ -149,7 +153,27 @@ class _VoxelPainter extends CustomPainter {
       )];
       if (typeId == null) continue;
       final VoxelBlockType type = voxelBlockTypeById(typeId);
-      _drawBlock(canvas, cell.$1, cell.$2, type);
+      final String key = VoxelCanvasController.keyOf(cell.$1, cell.$2);
+
+      // ── Module "MusicViz-2.5D"：音乐驱动的高度起伏 + 脉冲 + 亮度 ──
+      // 静态度底（来自 3D 提取高度比）叠加当前帧频段能量 → 挤出厚度。
+      final List<double>? bands = controller.vizBands;
+      final double beat = controller.vizBeat;
+      final double level = controller.vizLevel;
+      final int bandCount = bands?.length ?? 16;
+      final double h = controller.heightOf(key);
+      final double energy = bands == null
+          ? 0.0
+          : bands[controller.bandIndexFor(key, bandCount)].clamp(0.0, 1.0);
+      final VoxelVizSettings viz = controller.vizSettings;
+      final double hh = tileH / 2;
+      final double depth = hh * (0.4 + h * 0.6 + energy * viz.amplitude);
+      // 节拍脉冲：顶面菱形缩放（强度随可视化设置，默认 1.0 → 1.15）。
+      final double topScale = 1.0 + beat * viz.beatPulse;
+      // 整体亮度随 level 呼吸（0.7~1.3，保 WCAG 对比，不压暗丢失）。
+      final double brightness = (1.0 + (level - 0.5) * 0.3).clamp(0.7, 1.3);
+
+      _drawBlock(canvas, cell.$1, cell.$2, type, depth, topScale, brightness);
     }
 
     // 选中高亮（当前选中类型）
@@ -161,13 +185,22 @@ class _VoxelPainter extends CustomPainter {
     );
   }
 
-  void _drawBlock(Canvas canvas, int col, int row, VoxelBlockType type) {
+  void _drawBlock(
+    Canvas canvas,
+    int col,
+    int row,
+    VoxelBlockType type,
+    double depth,
+    double topScale,
+    double brightness,
+  ) {
     final Offset c = _center(col, row);
     final double hw = tileW / 2;
     final double hh = tileH / 2;
-    final double depth = hh * 0.55;
+    final double topHw = hw * topScale;
+    final double topHh = hh * topScale;
 
-    // 左面（暗 20%）
+    // 左面（暗 22%）
     final Path left = Path()
       ..moveTo(c.dx, c.dy)
       ..lineTo(c.dx - hw, c.dy + hh)
@@ -185,13 +218,18 @@ class _VoxelPainter extends CustomPainter {
       ..close();
     canvas.drawPath(right, Paint()..color = _darken(type.color, 0.38));
 
-    // 顶面
-    final Path top = _diamond(c);
+    // 顶面（按节拍缩放的菱形）
+    final Path top = Path()
+      ..moveTo(c.dx, c.dy - topHh)
+      ..lineTo(c.dx + topHw, c.dy)
+      ..lineTo(c.dx, c.dy + topHh)
+      ..lineTo(c.dx - topHw, c.dy)
+      ..close();
     canvas.drawPath(
       top,
       Paint()
         ..style = PaintingStyle.fill
-        ..color = type.color,
+        ..color = _shade(type.color, brightness),
     );
     canvas.drawPath(
       top,
@@ -201,12 +239,12 @@ class _VoxelPainter extends CustomPainter {
         ..color = _darken(type.color, 0.5),
     );
 
-    // 顶面符号
+    // 顶面符号（字号随脉冲缩放）
     final TextPainter tp = TextPainter(
       text: TextSpan(
         text: type.glyph,
         style: TextStyle(
-          fontSize: tileH * 0.7,
+          fontSize: tileH * 0.7 * topScale,
           color: AppColors.onAccent,
         ),
       ),
@@ -233,9 +271,15 @@ class _VoxelPainter extends CustomPainter {
 
   Color _darken(Color c, double factor) => Color.lerp(c, Colors.black, factor)!;
 
+  /// 亮度调制：b≤1 向黑压暗、b>1 向白提亮（上限 0.3），保对比度不丢失。
+  Color _shade(Color c, double b) => b <= 1
+      ? Color.lerp(Colors.black, c, b)!
+      : Color.lerp(c, Colors.white, (b - 1).clamp(0.0, 0.3))!;
+
   @override
   bool shouldRepaint(covariant _VoxelPainter oldDelegate) =>
       oldDelegate.controller != controller ||
       oldDelegate.offsetX != offsetX ||
-      oldDelegate.offsetY != offsetY;
+      oldDelegate.offsetY != offsetY ||
+      oldDelegate.controller.vizVersion != controller.vizVersion;
 }

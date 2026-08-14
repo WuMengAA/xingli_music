@@ -1,0 +1,1415 @@
+Flutter assets will be downloaded from https://mirrors.cloud.tencent.com/flutter. Make sure you trust this source!
+Running Gradle task 'assembleRelease'...                        
+Warning: Flutter support for your project's Gradle version (8.10.2) will soon be dropped. Please upgrade your Gradle version to a version of at least 8.14.0 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's gradle version is typically defined in the gradle wrapper file. By default, this can be found at D:\Stellara\Music\xingli_music\android/gradle/wrapper/gradle-wrapper.properties. 
+For more information, see https://docs.gradle.org/current/userguide/gradle_wrapper.html.
+
+Warning: Flutter support for your project's Android Gradle Plugin version (Android Gradle Plugin version 8.7.3) will soon be dropped. Please upgrade your Android Gradle Plugin version to a version of at least Android Gradle Plugin version 8.11.1 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's AGP version is typically defined in the plugins block of the `settings.gradle` file (D:\Stellara\Music\xingli_music\android/settings.gradle), by a plugin with the id of com.android.application. 
+If you don't see a plugins block, your project was likely created with an older template version. In this case it is most likely defined in the top-level build.gradle file (D:\Stellara\Music\xingli_music\android/build.gradle) by the following line in the dependencies block of the buildscript: "classpath 'com.android.tools.build:gradle:<version>'".
+
+Warning: Flutter support for your project's Kotlin version (2.1.0) will soon be dropped. Please upgrade your Kotlin version to a version of at least 2.2.20 soon.
+Alternatively, use the flag "--android-skip-build-dependency-validation" to bypass this check.
+
+Potential fix: Your project's KGP version is typically defined in the plugins block of the `settings.gradle` file (D:\Stellara\Music\xingli_music\android/settings.gradle), by a plugin with the id of org.jetbrains.kotlin.android. 
+If you don't see a plugins block, your project was likely created with an older template version, in which case it is most likely defined in the top-level build.gradle file (D:\Stellara\Music\xingli_music\android/build.gradle) by the ext.kotlin_version property.
+
+Flutter assets will be downloaded from https://mirrors.cloud.tencent.com/flutter. Make sure you trust this source!
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 25468 bytes (98.5% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+警告: [options] 源值 8 已过时，将在未来发行版中删除
+警告: [options] 目标值 8 已过时，将在未来发行版中删除
+警告: [options] 要隐藏有关已过时选项的警告, 请使用 -Xlint:-options。
+3 个警告
+警告: [options] 源值 8 已过时，将在未来发行版中删除
+警告: [options] 目标值 8 已过时，将在未来发行版中删除
+警告: [options] 要隐藏有关已过时选项的警告, 请使用 -Xlint:-options。
+3 个警告
+警告: [options] 源值 8 已过时，将在未来发行版中删除
+警告: [options] 目标值 8 已过时，将在未来发行版中删除
+警告: [options] 要隐藏有关已过时选项的警告, 请使用 -Xlint:-options。
+3 个警告
+警告: [options] 源值 8 已过时，将在未来发行版中删除
+警告: [options] 目标值 8 已过时，将在未来发行版中删除
+警告: [options] 要隐藏有关已过时选项的警告, 请使用 -Xlint:-options。
+3 个警告
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\sensors_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\sensors_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\sensors_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\sensors_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\sensors_plus-7.1.0\android\src\main\kotlin\dev\fluttercommunity\plus\sensors\SensorsPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\share_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\share_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\share_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\share_plus\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\share_plus-12.0.2\android\src\main\kotlin\dev\fluttercommunity\plus\share\MethodCallHandler.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\file_picker\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\file_picker\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\file_picker\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\file_picker\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FileInfo.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\audioplayers_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\audioplayers_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\audioplayers_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\audioplayers_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioContextAndroid.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\on_audio_query_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\on_audio_query_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\on_audio_query_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\on_audio_query_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\OnAudioQueryPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+e: Daemon compilation failed: null
+java.lang.Exception
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:69)
+	at org.jetbrains.kotlin.daemon.common.CompileService$CallResult$Error.get(CompileService.kt:65)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemon(GradleKotlinCompilerWork.kt:240)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.compileWithDaemonOrFallbackImpl(GradleKotlinCompilerWork.kt:159)
+	at org.jetbrains.kotlin.compilerRunner.GradleKotlinCompilerWork.run(GradleKotlinCompilerWork.kt:111)
+	at org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction.execute(GradleCompilerRunnerWithWorkers.kt:76)
+	at org.gradle.workers.internal.DefaultWorkerServer.execute(DefaultWorkerServer.java:63)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:66)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1$1.create(NoIsolationWorkerFactory.java:62)
+	at org.gradle.internal.classloader.ClassLoaderUtils.executeInClassloader(ClassLoaderUtils.java:100)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.lambda$execute$0(NoIsolationWorkerFactory.java:62)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:44)
+	at org.gradle.workers.internal.AbstractWorker$1.call(AbstractWorker.java:41)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:209)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$CallableBuildOperationWorker.execute(DefaultBuildOperationRunner.java:204)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:66)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner$2.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:166)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.execute(DefaultBuildOperationRunner.java:59)
+	at org.gradle.internal.operations.DefaultBuildOperationRunner.call(DefaultBuildOperationRunner.java:53)
+	at org.gradle.workers.internal.AbstractWorker.executeWrappedInBuildOperation(AbstractWorker.java:41)
+	at org.gradle.workers.internal.NoIsolationWorkerFactory$1.execute(NoIsolationWorkerFactory.java:59)
+	at org.gradle.workers.internal.DefaultWorkerExecutor.lambda$submitWork$0(DefaultWorkerExecutor.java:174)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runExecution(DefaultConditionalExecutionQueue.java:194)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.access$700(DefaultConditionalExecutionQueue.java:127)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner$1.run(DefaultConditionalExecutionQueue.java:169)
+	at org.gradle.internal.Factories$1.create(Factories.java:31)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.withLocks(DefaultWorkerLeaseService.java:263)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:127)
+	at org.gradle.internal.work.DefaultWorkerLeaseService.runAsWorkerThread(DefaultWorkerLeaseService.java:132)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.runBatch(DefaultConditionalExecutionQueue.java:164)
+	at org.gradle.internal.work.DefaultConditionalExecutionQueue$ExecutionRunner.run(DefaultConditionalExecutionQueue.java:133)
+	at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Unknown Source)
+	at java.base/java.util.concurrent.FutureTask.run(Unknown Source)
+	at org.gradle.internal.concurrent.ExecutorPolicy$CatchAndRecordFailures.onExecute(ExecutorPolicy.java:64)
+	at org.gradle.internal.concurrent.AbstractManagedExecutor$1.run(AbstractManagedExecutor.java:48)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(Unknown Source)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(Unknown Source)
+	at java.base/java.lang.Thread.run(Unknown Source)
+Caused by: java.lang.AssertionError: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\shared_preferences_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:236)
+	at org.jetbrains.kotlin.incremental.IncrementalCachesManager.close(IncrementalCachesManager.kt:55)
+	at kotlin.io.CloseableKt.closeFinally(Closeable.kt:56)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compileNonIncrementally(IncrementalCompilerRunner.kt:293)
+	at org.jetbrains.kotlin.incremental.IncrementalCompilerRunner.compile(IncrementalCompilerRunner.kt:129)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.execIncrementalCompiler(CompileServiceImpl.kt:674)
+	at org.jetbrains.kotlin.daemon.CompileServiceImplBase.access$execIncrementalCompiler(CompileServiceImpl.kt:91)
+	at org.jetbrains.kotlin.daemon.CompileServiceImpl.compile(CompileServiceImpl.kt:1659)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at java.rmi/sun.rmi.server.UnicastServerRef.dispatch(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport$1.run(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.Transport.serviceCall(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport.handleMessages(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run0(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.lambda$run$0(Unknown Source)
+	at java.base/java.security.AccessController.doPrivileged(Unknown Source)
+	at java.rmi/sun.rmi.transport.tcp.TCPTransport$ConnectionHandler.run(Unknown Source)
+	... 3 more
+Caused by: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\shared_preferences_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\jvm\kotlin: class-fq-name-to-source.tab, source-to-classes.tab, internal-name-to-source.tab
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+	at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+	at org.jetbrains.kotlin.com.google.common.io.Closer.close(Closer.java:223)
+	... 22 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+		at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+		at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+		at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+		at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+		at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:33)
+		at org.jetbrains.kotlin.incremental.storage.FileDescriptor.save(FileToPathConverter.kt:30)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:151)
+		at org.jetbrains.kotlin.incremental.storage.AppendableCollectionExternalizer.save(LazyStorage.kt:142)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+		at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+		at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+		at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+		at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+		at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+		... 24 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\shared_preferences_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\lookups: id-to-file.tab, file-to-id.tab
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:95)
+		at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.close(BasicMapsOwner.kt:53)
+		at org.jetbrains.kotlin.incremental.LookupStorage.close(LookupStorage.kt:155)
+		... 23 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:51)
+			at org.jetbrains.kotlin.incremental.storage.LegacyFileExternalizer.save(IdToFileMap.kt:48)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:443)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.PersistentStorageWrapper.close(PersistentStorage.kt:124)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 25 more
+	Suppressed: java.lang.Exception: Could not close incremental caches in D:\Stellara\Music\xingli_music\build\shared_preferences_android\kotlin\compileReleaseKotlin\cacheable\caches-jvm\inputs: source-to-output.tab
+		... 25 more
+		Suppressed: java.lang.IllegalArgumentException: this and base files have different roots: C:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\shared_preferences_android-2.4.27\android\src\main\kotlin\io\flutter\plugins\sharedpreferences\LegacySharedPreferencesPlugin.kt and D:\Stellara\Music\xingli_music\android.
+			at kotlin.io.FilesKt__UtilsKt.toRelativeString(Utils.kt:117)
+			at kotlin.io.FilesKt__UtilsKt.relativeTo(Utils.kt:128)
+			at org.jetbrains.kotlin.incremental.storage.RelocatableFileToPathConverter.toPath(RelocatableFileToPathConverter.kt:24)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:50)
+			at org.jetbrains.kotlin.incremental.storage.FileDescriptor.getHashCode(FileToPathConverter.kt:30)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.hashKey(LinkedCustomHashMap.java:109)
+			at org.jetbrains.kotlin.com.intellij.util.containers.LinkedCustomHashMap.remove(LinkedCustomHashMap.java:153)
+			at org.jetbrains.kotlin.com.intellij.util.containers.SLRUMap.remove(SLRUMap.java:89)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.flushAppendCache(PersistentMapImpl.java:999)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.doPut(PersistentMapImpl.java:451)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentMapImpl.put(PersistentMapImpl.java:422)
+			at org.jetbrains.kotlin.com.intellij.util.io.PersistentHashMap.put(PersistentHashMap.java:105)
+			at org.jetbrains.kotlin.incremental.storage.LazyStorage.set(LazyStorage.kt:80)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.applyChanges(InMemoryStorage.kt:108)
+			at org.jetbrains.kotlin.incremental.storage.AppendableInMemoryStorage.applyChanges(InMemoryStorage.kt:179)
+			at org.jetbrains.kotlin.incremental.storage.InMemoryStorage.close(InMemoryStorage.kt:136)
+			at org.jetbrains.kotlin.incremental.storage.AppendableSetBasicMap.close(BasicMap.kt:157)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner$close$1.invoke(BasicMapsOwner.kt:53)
+			at org.jetbrains.kotlin.incremental.storage.BasicMapsOwner.forEachMapSafe(BasicMapsOwner.kt:87)
+			... 24 more
+
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FilePickerPlugin.kt:148:70: warning: unchecked cast of 'kotlin.Any?' to 'java.util.ArrayList<kotlin.String>?'.
+exception:                     getMimeTypes(arguments?.get("allowedExtensions") as ArrayList<String>?)
+exception:                                                                      ^^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\file_picker-11.0.3\android\src\main\kotlin\com\mr\flutter\plugin\filepicker\FilePickerPlugin.kt:170:70: warning: unchecked cast of 'kotlin.Any?' to 'java.util.ArrayList<kotlin.String>?'.
+exception:                     getMimeTypes(arguments?.get("allowedExtensions") as ArrayList<String>?),
+exception:                                                                      ^^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\AudioplayersPlugin.kt:72:30: warning: 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+exception:                 audioManager.isSpeakerphoneOn = defaultAudioContext.isSpeakerphoneOn
+exception:                              ^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\audioplayers_android-5.3.0\android\src\main\kotlin\xyz\luan\audioplayers\player\WrappedPlayer.kt:172:22: warning: 'var isSpeakerphoneOn: Boolean' is deprecated. Deprecated in Java.
+exception:         audioManager.isSpeakerphoneOn = context.isSpeakerphoneOn
+exception:                      ^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:15:40: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:     private val uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                        ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:15:50: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:     private val uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                                  ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:35:44: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         contentValues.put(MediaStore.Audio.Playlists.NAME, playlistName)
+exception:                                            ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:35:54: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:         contentValues.put(MediaStore.Audio.Playlists.NAME, playlistName)
+exception:                                                      ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:36:44: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         contentValues.put(MediaStore.Audio.Playlists.DATE_ADDED, System.currentTimeMillis())
+exception:                                            ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:36:54: warning: 'static field DATE_ADDED: String' is deprecated. Deprecated in Java.
+exception:         contentValues.put(MediaStore.Audio.Playlists.DATE_ADDED, System.currentTimeMillis())
+exception:                                                      ^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:67:34: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:                 MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId.toLong())
+exception:                                  ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:67:44: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:                 MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId.toLong())
+exception:                                            ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:67:52: warning: 'static fun getContentUri(p0: String!, p1: Long): Uri!' is deprecated. Deprecated in Java.
+exception:                 MediaStore.Audio.Playlists.Members.getContentUri("external", playlistId.toLong())
+exception:                                                    ^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:78:52: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.PLAY_ORDER, count + 1)
+exception:                                                    ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:78:62: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.PLAY_ORDER, count + 1)
+exception:                                                              ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:78:70: warning: 'static field PLAY_ORDER: String' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.PLAY_ORDER, count + 1)
+exception:                                                                      ^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:79:52: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.AUDIO_ID, audioId.toLong())
+exception:                                                    ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:79:62: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.AUDIO_ID, audioId.toLong())
+exception:                                                              ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:79:70: warning: 'static field AUDIO_ID: String' is deprecated. Deprecated in Java.
+exception:                 contentValues.put(MediaStore.Audio.Playlists.Members.AUDIO_ID, audioId.toLong())
+exception:                                                                      ^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:98:44: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:                 val uri = MediaStore.Audio.Playlists.Members.getContentUri(
+exception:                                            ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:98:54: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:                 val uri = MediaStore.Audio.Playlists.Members.getContentUri(
+exception:                                                      ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:98:62: warning: 'static fun getContentUri(p0: String!, p1: Long): Uri!' is deprecated. Deprecated in Java.
+exception:                 val uri = MediaStore.Audio.Playlists.Members.getContentUri(
+exception:                                                              ^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:102:46: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:                 val where = MediaStore.Audio.Playlists.Members._ID + "=?"
+exception:                                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:102:56: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:                 val where = MediaStore.Audio.Playlists.Members._ID + "=?"
+exception:                                                        ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:102:64: warning: 'static field _ID: String' is deprecated. Deprecated in Java.
+exception:                 val where = MediaStore.Audio.Playlists.Members._ID + "=?"
+exception:                                                                ^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:122:30: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.moveItem(resolver, playlistId.toLong(), from, to)
+exception:                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:122:40: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.moveItem(resolver, playlistId.toLong(), from, to)
+exception:                                        ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:122:48: warning: 'static fun moveItem(p0: ContentResolver!, p1: Long, p2: Int, p3: Int): Boolean' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.moveItem(resolver, playlistId.toLong(), from, to)
+exception:                                                ^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:136:48: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             contentValues.put(MediaStore.Audio.Playlists.NAME, newPlaylistName)
+exception:                                                ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:136:58: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:             contentValues.put(MediaStore.Audio.Playlists.NAME, newPlaylistName)
+exception:                                                          ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:137:48: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             contentValues.put(MediaStore.Audio.Playlists.DATE_MODIFIED, System.currentTimeMillis())
+exception:                                                ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:137:58: warning: 'static field DATE_MODIFIED: String' is deprecated. Deprecated in Java.
+exception:             contentValues.put(MediaStore.Audio.Playlists.DATE_MODIFIED, System.currentTimeMillis())
+exception:                                                          ^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:147:38: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID),
+exception:                                      ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:147:48: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:             arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID),
+exception:                                                ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\controllers\PlaylistController.kt:147:71: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID),
+exception:                                                                       ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:152:30: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", pId.toLong())
+exception:                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:152:40: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", pId.toLong())
+exception:                                        ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:152:48: warning: 'static fun getContentUri(p0: String!, p1: Long): Uri!' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", pId.toLong())
+exception:                                                ^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:194:36: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                    ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:194:46: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:             uri = MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                              ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:195:51: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             projection = arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID)
+exception:                                                   ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:195:61: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:             projection = arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID)
+exception:                                                             ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\AudioFromQuery.kt:195:84: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             projection = arrayOf(MediaStore.Audio.Playlists.NAME, MediaStore.Audio.Playlists._ID)
+exception:                                                                                    ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\WithFiltersQuery.kt:58:30: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> checkPlaylistsArgs(
+exception:                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\WithFiltersQuery.kt:58:40: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> checkPlaylistsArgs(
+exception:                                        ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\helper\QueryHelper.kt:131:30: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", arg.toLong())
+exception:                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\helper\QueryHelper.kt:131:40: warning: 'class Members : Any, MediaStore.Audio.AudioColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", arg.toLong())
+exception:                                        ^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\helper\QueryHelper.kt:131:48: warning: 'static fun getContentUri(p0: String!, p1: Long): Uri!' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.Members.getContentUri("external", arg.toLong())
+exception:                                                ^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\helper\QueryHelper.kt:228:30: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> loadPlaylistItem(
+exception:                              ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\queries\helper\QueryHelper.kt:228:40: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:             MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> loadPlaylistItem(
+exception:                                        ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\UriType.kt:24:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\UriType.kt:24:41: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                         ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\UriType.kt:25:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         1 -> MediaStore.Audio.Playlists.INTERNAL_CONTENT_URI
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\UriType.kt:25:41: warning: 'static field INTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:         1 -> MediaStore.Audio.Playlists.INTERNAL_CONTENT_URI
+exception:                                         ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:15:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         2 -> MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:15:41: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:         2 -> MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI
+exception:                                         ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:27:26: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> playlistProjection
+exception:                          ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:27:36: warning: 'static field EXTERNAL_CONTENT_URI: Uri!' is deprecated. Deprecated in Java.
+exception:         MediaStore.Audio.Playlists.EXTERNAL_CONTENT_URI -> playlistProjection
+exception:                                    ^^^^^^^^^^^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:55:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.NAME + " like ?"
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\WithFiltersType.kt:55:41: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.NAME + " like ?"
+exception:                                         ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:15:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.NAME + orderAndCase
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:15:41: warning: 'static field NAME: String' is deprecated. Deprecated in Java.
+exception:         0 -> MediaStore.Audio.Playlists.NAME + orderAndCase
+exception:                                         ^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:16:31: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         1 -> MediaStore.Audio.Playlists.DATE_ADDED + orderAndCase
+exception:                               ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:16:41: warning: 'static field DATE_ADDED: String' is deprecated. Deprecated in Java.
+exception:         1 -> MediaStore.Audio.Playlists.DATE_ADDED + orderAndCase
+exception:                                         ^^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:17:34: warning: 'class Playlists : Any, BaseColumns, MediaStore.Audio.PlaylistsColumns' is deprecated. Deprecated in Java.
+exception:         else -> MediaStore.Audio.Playlists.DEFAULT_SORT_ORDER + orderAndCase
+exception:                                  ^^^^^^^^^
+exception: c:\Users\Administrator\AppData\Local\Pub\Cache\hosted\mirrors.cloud.tencent.com%47dart-pub%47\on_audio_query_android-1.1.0\android\src\main\kotlin\com\lucasjosino\on_audio_query\types\sorttypes\PlaylistSortType.kt:17:44: warning: 'static field DEFAULT_SORT_ORDER: String' is deprecated. Deprecated in Java.
+exception:         else -> MediaStore.Audio.Playlists.DEFAULT_SORT_ORDER + orderAndCase
+exception:                                            ^^^^^^^^^^^^^^^^^^
+Running Gradle task 'assembleRelease'...                          314.4s
+√ Built build\app\outputs\flutter-apk\app-release.apk (68.0MB)
+APK_BUILD_EXIT=0

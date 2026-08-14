@@ -109,6 +109,58 @@ VoxelBlockType voxelBlockTypeById(String id) {
   return kVoxelBlockTypes.first;
 }
 
+/// 2.5D 可视化可调参数（Module "MusicViz-2.5D" · Phase 2：viz 编辑态持久化）。
+///
+/// 用户在画布页「可视化」面板调的 3 个滑块，随场景一起持久化；
+/// 旧场景无此字段 → [defaults]，打开即恢复中性观感。
+@immutable
+class VoxelVizSettings {
+  const VoxelVizSettings({
+    this.amplitude = 0.9,
+    this.ripplePosWeight = 0.55,
+    this.beatPulse = 0.15,
+  });
+
+  /// 频段能量推动方块挤出高度的幅度（0~1.5；原写死 0.9）。
+  final double amplitude;
+
+  /// 频段绑定混合里「位置涟漪」权重（0~1；其余归音色音高；原 0.55）。
+  final double ripplePosWeight;
+
+  /// 节拍驱动顶面菱形缩放强度（0~0.4；原 0.15 → 顶面 1.0~1.15）。
+  final double beatPulse;
+
+  /// 中性默认值（与 Phase 1 原始观感一致）。
+  static const VoxelVizSettings defaults = VoxelVizSettings();
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'amplitude': amplitude,
+        'ripplePosWeight': ripplePosWeight,
+        'beatPulse': beatPulse,
+      };
+
+  factory VoxelVizSettings.fromJson(Map<String, dynamic> json) {
+    double d(num? v, double fallback) =>
+        (v is num) ? v.toDouble().clamp(0.0, 2.0) : fallback;
+    return VoxelVizSettings(
+      amplitude: d(json['amplitude'] as num?, 0.9),
+      ripplePosWeight: d(json['ripplePosWeight'] as num?, 0.55),
+      beatPulse: d(json['beatPulse'] as num?, 0.15),
+    );
+  }
+
+  VoxelVizSettings copyWith({
+    double? amplitude,
+    double? ripplePosWeight,
+    double? beatPulse,
+  }) =>
+      VoxelVizSettings(
+        amplitude: amplitude ?? this.amplitude,
+        ripplePosWeight: ripplePosWeight ?? this.ripplePosWeight,
+        beatPulse: beatPulse ?? this.beatPulse,
+      );
+}
+
 /// 2.5D 音效场景保存模型（v2 M5-1 · P0-M5-1）。
 ///
 /// JSON 格式（架构 §3.2.3 / §7.7）：
@@ -121,6 +173,8 @@ class VoxelSoundScene {
     required this.cols,
     required this.rows,
     required this.blocks,
+    this.heights = const <String, double>{},
+    this.viz,
   });
 
   final String id;
@@ -131,15 +185,27 @@ class VoxelSoundScene {
   /// 方块表：网格 key `"$col,$row"` → 类型 id。
   final Map<String, String> blocks;
 
+  /// 每格高度比（0~1，来自 3D 世界提取；缺省的不参与可视化起伏，回落 0.5）。
+  /// 向后兼容：旧场景无此字段 → 空 map。
+  final Map<String, double> heights;
+
+  /// 可视化可调参数（振幅 / 涟漪权重 / 节拍脉冲）；null → [VoxelVizSettings.defaults]。
+  /// 向后兼容：旧场景无此字段 → null。
+  final VoxelVizSettings? viz;
+
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'name': name,
         'cols': cols,
         'rows': rows,
         'blocks': blocks,
+        if (heights.isNotEmpty) 'heights': heights,
+        if (viz != null) 'viz': viz!.toJson(),
       };
 
   factory VoxelSoundScene.fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic>? vizJson =
+        json['viz'] as Map<String, dynamic>?;
     return VoxelSoundScene(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -148,6 +214,11 @@ class VoxelSoundScene {
       blocks: (json['blocks'] as Map<String, dynamic>?)
               ?.map((String k, dynamic v) => MapEntry(k, v as String)) ??
           const <String, String>{},
+      heights: (json['heights'] as Map<String, dynamic>?)?.map(
+            (String k, dynamic v) => MapEntry(k, (v as num).toDouble()),
+          ) ??
+          const <String, double>{},
+      viz: vizJson == null ? null : VoxelVizSettings.fromJson(vizJson),
     );
   }
 
@@ -155,4 +226,24 @@ class VoxelSoundScene {
 
   static VoxelSoundScene decode(String raw) =>
       VoxelSoundScene.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+
+  /// 拷贝并覆盖部分字段（导入场景时分配新 id / 重命名用）。
+  VoxelSoundScene copyWith({
+    String? id,
+    String? name,
+    int? cols,
+    int? rows,
+    Map<String, String>? blocks,
+    Map<String, double>? heights,
+    VoxelVizSettings? viz,
+  }) =>
+      VoxelSoundScene(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        cols: cols ?? this.cols,
+        rows: rows ?? this.rows,
+        blocks: blocks ?? this.blocks,
+        heights: heights ?? this.heights,
+        viz: viz ?? this.viz,
+      );
 }

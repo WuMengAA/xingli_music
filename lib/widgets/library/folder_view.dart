@@ -9,6 +9,7 @@ import '../../models/track.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/common/info_row.dart';
 import 'card_view.dart' show LibraryEmptyView;
+import '../../widgets/notification/app_notify.dart';
 
 /// 文件夹视图（v2 M3 · P0-M3-3）：按本地目录层级浏览。
 ///
@@ -220,8 +221,7 @@ class _DetailList extends ConsumerWidget {
             final String msg =
                 await ref.read(playbackActionsProvider).playTrack(t);
             if (msg.isNotEmpty && context.mounted) {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(msg)));
+              appNotify(context, msg);
             }
           },
         );

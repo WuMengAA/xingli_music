@@ -6,6 +6,7 @@ import '../../providers/scene/scene_custom_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../scenes/scene_api.dart';
 import '../../widgets/app_icon.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 场景自定义编辑页：名称 / 图标 / 风格 / 内容 / 背景 / 粒子 / 音频 / 音景
 class SceneEditorPage extends ConsumerStatefulWidget {
@@ -345,12 +346,7 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
     await ref.read(customScenesProvider.notifier).save(updated);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('已保存'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+      appNotify(context, '已保存');
       Navigator.of(context).pop();
     }
   }

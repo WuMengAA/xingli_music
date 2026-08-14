@@ -8,6 +8,7 @@ import '../../models/track.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/common/info_row.dart';
 import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 专辑曲目列表页（v2 M3 · P0-M3-4）。
 ///
@@ -57,8 +58,7 @@ class AlbumDetailPage extends ConsumerWidget {
                   final String msg =
                       await ref.read(playbackActionsProvider).playTrack(t);
                   if (msg.isNotEmpty && context.mounted) {
-                    ScaffoldMessenger.of(context)
-                        .showSnackBar(SnackBar(content: Text(msg)));
+                    appNotify(context, msg);
                   }
                 },
               );

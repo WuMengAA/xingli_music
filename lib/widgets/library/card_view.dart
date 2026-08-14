@@ -7,6 +7,7 @@ import '../../models/track.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/common/album_card.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 卡片视图（v2 M3 · P0-M3-2）：单曲卡片网格。
 ///
@@ -47,9 +48,7 @@ class CardView extends ConsumerWidget {
   Future<void> _play(WidgetRef ref, BuildContext context, Track t) async {
     final String msg = await ref.read(playbackActionsProvider).playTrack(t);
     if (msg.isNotEmpty && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg)),
-      );
+      appNotify(context, msg);
     }
   }
 }

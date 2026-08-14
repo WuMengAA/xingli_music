@@ -26,7 +26,7 @@ Uint8List _loadSkin() {
 
 void main() {
   test('带皮肤构建：hasSkin 为真且各面 UV 落在图集内', () async {
-    final ui.Image img = await VoxelTextureAtlas.build(skinBytes: _loadSkin());
+    final ui.Image img = (await VoxelTextureAtlas.build(skinBytes: _loadSkin()))!;
     expect(VoxelTextureAtlas.hasSkin, isTrue);
     // 图集宽 = max(8*16, 128) = 128；高 = 体素行高 + 128 皮肤区。
     expect(img.width, greaterThanOrEqualTo(128));
@@ -53,7 +53,7 @@ void main() {
   });
 
   test('无皮肤回退：skinRectFor 返回 null，实体走纯色', () async {
-    final ui.Image img = await VoxelTextureAtlas.build();
+    final ui.Image img = (await VoxelTextureAtlas.build())!;
     expect(VoxelTextureAtlas.hasSkin, isFalse);
     for (final String part in _parts) {
       expect(VoxelTextureAtlas.skinRectFor(part, 3), isNull);

@@ -9,8 +9,11 @@ import '../../core/utils/format.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/audio/music_quality_provider.dart';
+import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
+import '../../widgets/sources/music_quality_sheet.dart';
 
 /// 完整播放页（架构 §5 T05 / PRD P1-04、P1-05、P1-10、P1-12）
 ///
@@ -37,7 +40,6 @@ class NowPlayingPage extends ConsumerWidget {
     final bool isPlaying =
         ref.watch(isPlayingProvider).valueOrNull ?? false;
     final PlayMode mode = ref.watch(playModeProvider);
-    final double volume = ref.watch(musicVolumeProvider);
     final PlaybackActions actions = ref.read(playbackActionsProvider);
 
     return Scaffold(
@@ -55,6 +57,18 @@ class NowPlayingPage extends ConsumerWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text('正在播放', style: context.appText.title),
+        actions: <Widget>[
+          // R26skel-b6：音乐面板上的聚合搜索入口。
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            tooltip: '聚合搜索',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AggregateSearchPage(),
+              ),
+            ),
+          ),
+        ],
       ),
       body: SafeArea(
         top: false,
@@ -83,8 +97,24 @@ class NowPlayingPage extends ConsumerWidget {
                     mode: mode,
                     actions: actions,
                   ),
+                  const SizedBox(height: AppSpace.sm),
+                  // R26skel-b6：音乐面板音质/清晰度入口（点开改）。
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () => showMusicQualitySheet(context),
+                      icon: const Icon(Icons.high_quality_rounded, size: 16),
+                      label: Text(
+                        _qualityLabel(ref),
+                        style: context.appText.caption,
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: AppSpace.lg),
-                  _VolumeRow(volume: volume),
+                  const _CollapsibleVolumeRow(),
                 ],
               ),
             );
@@ -386,6 +416,64 @@ class _ControlButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 音量行（R26skel-b6：默认折叠，点标题展开）。
+class _CollapsibleVolumeRow extends ConsumerStatefulWidget {
+  const _CollapsibleVolumeRow();
+
+  @override
+  ConsumerState<_CollapsibleVolumeRow> createState() =>
+      _CollapsibleVolumeRowState();
+}
+
+class _CollapsibleVolumeRowState
+    extends ConsumerState<_CollapsibleVolumeRow> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final double volume = ref.watch(musicVolumeProvider);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        InkWell(
+          onTap: () => setState(() => _open = !_open),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              children: <Widget>[
+                Icon(_open ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+                    size: AppSize.iconSm, color: context.appColors.iconInactive),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text('音量 · ${(volume * 100).round()}%',
+                      style: context.appText.body),
+                ),
+                Icon(_open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    size: AppSize.iconSm, color: context.appColors.iconInactive),
+              ],
+            ),
+          ),
+        ),
+        AnimatedCrossFade(
+          duration: const Duration(milliseconds: 200),
+          crossFadeState:
+              _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          firstChild: const SizedBox(height: 0),
+          secondChild: _VolumeRow(volume: volume),
+        ),
+      ],
+    );
+  }
+}
+
+/// R26skel-b6：当前音质/清晰度标签（音乐面板入口按钮文案）。
+String _qualityLabel(WidgetRef ref) {
+  final MusicQuality mq = ref.watch(musicQualityProvider);
+  final BiliVideoQuality bq = ref.watch(biliVideoQualityProvider);
+  return '音质 ${mq.label} · 清晰度 ${bq.label}';
 }
 
 /// 音量行：图标 + 滑块。拖动实时更新 provider 并接线到真实音频服务（R10）。
