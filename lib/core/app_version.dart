@@ -77,7 +77,14 @@ abstract final class AppVersion {
   /// 加本地文件护栏，占位符失败绝不 openPath）；④进世界/进存档卡死崩溃
   /// （VoxelMusicEngine().init().then 缺 .catchError→未处理异步错误安卓原生
   /// 崩，与 WorldAudioEngine 路径对称加兜底；_enter 写盘无保护→加 try/catch）。
-  static const int buildCount = 39;
+  /// cl40：安卓「仍卡死」真凶修复——全局播放/进世界 toast（global_notification_toast）
+  /// 的 build() 返回 IgnorePointer(child: Positioned(...))，Positioned 被单子组件包裹，
+  /// 父用基类 ParentData，强转 StackParentData 失败 → WidgetsBinding.drawFrame 持续抛
+  /// _CastError → 主线程重建死循环 → 系统判 ANR（只能强关）；对调层级为
+  /// Positioned(child: IgnorePointer(AnimatedBuilder(...))) 修复。另 release 资源压缩
+  /// (shrinkResources) 把仅 Dart 引用的 drawable/ic_notification 剥除致通知栏崩溃，
+  /// 新增 res/raw/keep.xml 强制保留。
+  static const int buildCount = 40;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

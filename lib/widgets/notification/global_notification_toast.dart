@@ -178,10 +178,10 @@ class _ToastCardState extends State<_ToastCard>
   Widget build(BuildContext context) {
     // 滑入/滑出用 SlideTransition（偏移 = 相对自身尺寸的比例，而非屏幕全宽平移），
     // 绝不占满屏幕；宽度固定（≤1/3 屏，至多 240）。
-    return IgnorePointer(
-      child: Positioned(
-        right: AppSpace.md,
-        top: widget.topOffset(),
+    return Positioned(
+      right: AppSpace.md,
+      top: widget.topOffset(),
+      child: IgnorePointer(
         child: AnimatedBuilder(
           animation: _ctrl,
           builder: (BuildContext context, Widget? _) => FadeTransition(

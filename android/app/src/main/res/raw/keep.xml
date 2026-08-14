@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 防止 release 资源压缩（shrinkResources）把仅由 Dart 字符串引用的
+     drawable 剥除，导致 audio_service 通知栏报
+     "Invalid notification (no valid small icon)" 而崩溃。 -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification,@drawable/ic_launcher" />
