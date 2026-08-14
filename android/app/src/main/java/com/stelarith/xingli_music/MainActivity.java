@@ -22,16 +22,19 @@ import io.flutter.plugin.common.MethodChannel;
  *  - com.stelarith.xingli_music/sensors（传感器）：
  *      lightLux()   ：TYPE_LIGHT 环境光（lux），替代 light 插件（其 minSdk 21 挡 4.4）
  *      heartRate()  ：TYPE_HEART_RATE 心率（需 BODY_SENSORS 权限；多数设备无此传感器）
- *  - com.stelarith.xingli_music/webview_login（网易云内嵌登录）：
- *      startNeteaseLogin() ：拉起 [CookieWebViewActivity]，登录成功后返回完整
- *                            cookie 串（含 httpOnly MUSIC_U）；取消返回 null
+ *  - com.stelarith.xingli_music/webview_login（内嵌网页登录，网易云/B站共用）：
+ *      startNeteaseLogin()  ：拉起 [CookieWebViewActivity]（netease 类型），
+ *                            登录成功后返回完整 cookie 串（含 httpOnly
+ *                            MUSIC_U）；取消返回 null
+ *      startBilibiliLogin() ：同上（bilibili 类型），返回含 httpOnly SESSDATA
+ *                            的完整 cookie 串
  *
  * minSdk 19 即可编译运行（SensorManager API 自 API 8 就有）。
  */
 public class MainActivity extends AudioServiceActivity {
     private static final String CHANNEL = "com.stelarith.xingli_music/sensors";
     private static final String WEBVIEW_CHANNEL = "com.stelarith.xingli_music/webview_login";
-    private static final int REQ_NETEASE_LOGIN = 0x101;
+    private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
     private MethodChannel.Result pendingWebViewResult;
@@ -57,29 +60,35 @@ public class MainActivity extends AudioServiceActivity {
                     }
                 });
 
-        // 网易云内嵌登录：拉起原生 WebView 登录页，等待 cookie 回传
+        // 内嵌网页登录（网易云 / B站共用）：拉起原生 WebView 登录页，等待 cookie 回传
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), WEBVIEW_CHANNEL)
                 .setMethodCallHandler((call, result) -> {
                     if ("startNeteaseLogin".equals(call.method)) {
-                        // 上一次未消费的结果先收尾，避免悬挂
-                        if (pendingWebViewResult != null) {
-                            pendingWebViewResult.success(null);
-                        }
-                        pendingWebViewResult = result;
-                        startActivityForResult(
-                                new Intent(this, CookieWebViewActivity.class),
-                                REQ_NETEASE_LOGIN);
+                        launchWebViewLogin(result, CookieWebViewActivity.TYPE_NETEASE);
+                    } else if ("startBilibiliLogin".equals(call.method)) {
+                        launchWebViewLogin(result, CookieWebViewActivity.TYPE_BILIBILI);
                     } else {
                         result.notImplemented();
                     }
                 });
     }
 
+    /** 拉起内嵌登录页：先收尾上一次未消费的结果（避免悬挂），再启动对应类型。 */
+    private void launchWebViewLogin(MethodChannel.Result result, String loginType) {
+        if (pendingWebViewResult != null) {
+            pendingWebViewResult.success(null);
+        }
+        pendingWebViewResult = result;
+        final Intent intent = new Intent(this, CookieWebViewActivity.class);
+        intent.putExtra(CookieWebViewActivity.EXTRA_LOGIN_TYPE, loginType);
+        startActivityForResult(intent, REQ_WEBVIEW_LOGIN);
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQ_NETEASE_LOGIN) return;
+        if (requestCode != REQ_WEBVIEW_LOGIN) return;
         MethodChannel.Result r = pendingWebViewResult;
         pendingWebViewResult = null;
         if (r == null) return;

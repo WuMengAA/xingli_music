@@ -11,6 +11,7 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
 import '../../providers/shell/shell_providers.dart';
+import '../../providers/settings/performance_providers.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
@@ -45,6 +46,9 @@ class ScenePage extends ConsumerWidget {
     // H2：右上角「游戏背景」开关 + 长按实时渲染。
     final bool bgOn = ref.watch(voxelBgEnabledProvider);
     final bool bgLive = ref.watch(voxelBgLiveProvider);
+    final bool bgAnim = ref.watch(sceneBgAnimProvider);
+    // 实时渲染 = 实时开关 或 动画开关（二者联动取并集，显示与实际不再不同步）。
+    final bool bgRealtime = bgLive || bgAnim;
 
     return PageScaffold(
       title: Terms.scene,
@@ -53,13 +57,17 @@ class ScenePage extends ConsumerWidget {
         // 长按强制「实时渲染」（省电/性能档也不退化静态帧）。
         _VoxelBgToggle(
           enabled: bgOn,
-          live: bgLive,
+          live: bgRealtime,
           available: capture != null,
           onToggle: () => ref
               .read(voxelBgEnabledProvider.notifier)
               .state = !bgOn,
-          onLongPress: () =>
-              ref.read(voxelBgLiveProvider.notifier).state = !bgLive,
+          onLongPress: () {
+            // 联动：实时开关与动画开关同步翻转（取并集，关两者 = 静态单帧）。
+            final bool next = !bgRealtime;
+            ref.read(voxelBgLiveProvider.notifier).state = next;
+            ref.read(sceneBgAnimProvider.notifier).state = next;
+          },
         ),
         _GlowEntryButton(onTap: () => _showEntrySheet(context, ref)),
         // cl29·②：相机功能迁入 Scene 模块——场景页直接可达「拍照取景」。
@@ -90,7 +98,7 @@ class ScenePage extends ConsumerWidget {
                 fallback: VoxelSceneBackground(
                   key: ValueKey(capture),
                   capture: capture,
-                  forceLive: bgLive,
+                  forceLive: bgRealtime,
                 ),
               ),
             ),

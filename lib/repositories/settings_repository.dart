@@ -69,9 +69,9 @@ class SettingsRepository {
   static const String kLodMaxChunks = 'settings.voxel.lodMaxChunks';
   static const String kShadowRender = 'settings.voxel.shadowRender';
   static const String kAoEnabled = 'settings.voxel.aoEnabled';
-  static const String kRenderScale = 'settings.voxel.renderScale';
-  static const String kRenderRatio = 'settings.voxel.renderRatio';
+  static const String kRenderPrecisionScale = 'settings.voxel.renderPrecisionScale';
   static const String kRenderPrecision = 'settings.voxel.renderPrecision';
+  static const String kPicturePreset = 'settings.picturePreset';
   static const String kOobeDone = 'settings.oobeDone';
   static const String kEngineBackend = 'settings.engineBackend';
   static const String kNoiseOverride = 'settings.effects.noise';
@@ -284,18 +284,18 @@ class SettingsRepository {
   Future<void> setAoEnabled(bool? v) => v == null
       ? _prefs.remove(kAoEnabled)
       : _prefs.setBool(kAoEnabled, v);
-  double? get renderScale => _prefs.getDouble(kRenderScale);
-  Future<void> setRenderScale(double? v) => v == null
-      ? _prefs.remove(kRenderScale)
-      : _prefs.setDouble(kRenderScale, v);
-  double? get renderRatio => _prefs.getDouble(kRenderRatio);
-  Future<void> setRenderRatio(double? v) => v == null
-      ? _prefs.remove(kRenderRatio)
-      : _prefs.setDouble(kRenderRatio, v);
+  double? get renderPrecisionScale => _prefs.getDouble(kRenderPrecisionScale);
+  Future<void> setRenderPrecisionScale(double? v) => v == null
+      ? _prefs.remove(kRenderPrecisionScale)
+      : _prefs.setDouble(kRenderPrecisionScale, v);
   double? get renderPrecision => _prefs.getDouble(kRenderPrecision);
   Future<void> setRenderPrecision(double? v) => v == null
       ? _prefs.remove(kRenderPrecision)
       : _prefs.setDouble(kRenderPrecision, v);
+  String? get picturePreset => _prefs.getString(kPicturePreset);
+  Future<void> setPicturePreset(String? v) => v == null
+      ? _prefs.remove(kPicturePreset)
+      : _prefs.setString(kPicturePreset, v);
   bool? get oobeDone => _prefs.getBool(kOobeDone);
   Future<void> setOobeDone(bool? v) => v == null
       ? _prefs.remove(kOobeDone)

@@ -21,10 +21,12 @@ import 'voxel_world_types.dart';
 /// 新建世界的可选参数（cl29）：作弊 / 结构 / 浮空岛等「一堆」开关的单一真相源。
 /// 默认全开 = 与历史版本行为一致（旧存档 / 无 options 时回落到此默认值）。
 class WorldOptions {
+  // R28：作弊 / 浮空岛默认关闭——新建世界不再默认「可作弊 + 满屏浮岛」，
+  // 用户须主动勾选。仅旧存档（fromJson 缺字段）回落到 true 以兼容历史行为。
   const WorldOptions({
-    this.cheats = true,
+    this.cheats = false,
     this.structures = true,
-    this.floatingIslands = true,
+    this.floatingIslands = false,
   });
 
   /// 作弊：开启后游戏内可随时切换生存 / 创造模式（热栏「模式」按钮）。

@@ -121,9 +121,10 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   Future<(String, int, WorldOptions)?> _askNewSave(String title, String nameHint) async {
     final TextEditingController n = TextEditingController();
     final TextEditingController s = TextEditingController();
-    bool cheats = true;
+    // R28：新建存档默认关闭作弊与浮空岛（用户要求），结构默认开。
+    bool cheats = false;
     bool structures = true;
-    bool floating = true;
+    bool floating = false;
     final (String, int, WorldOptions)? res =
         await showDialog<(String, int, WorldOptions)>(
       context: context,
@@ -254,8 +255,15 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     }
     if (!mounted) return;
     _snack('已进入空白世界「$finalName」（种子 $seed）');
+    // R28：作弊关 → 强制生存（不允许创造）；作弊开 → 默认创造（游戏内可切生存）。
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => VoxelWorld3DPage(seed: seed)),
+      MaterialPageRoute<void>(
+        builder: (_) => VoxelWorld3DPage(
+          seed: seed,
+          options: opt,
+          survival: !opt.cheats,
+        ),
+      ),
     );
   }
 
@@ -326,6 +334,8 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           builder: (_) => VoxelWorld3DPage(
         seed: seed,
         options: opt,
+        // R28：作弊关 → 强制生存（不允许创造）；作弊开 → 默认创造。
+        survival: !opt.cheats,
         // R26fx：恢复玩家状态（位置/视角/编辑层/背包）——不再每次重置摄像头。
         initialSaveData: data,
       )),
@@ -707,6 +717,15 @@ class _SaveCard extends StatelessWidget {
                     Text(
                       '${fmt(save.createdAt)} · ${backups.length} 个备份',
                       style: context.appText.artist,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      save.lastSavedAt == null
+                          ? '最近保存：—'
+                          : '最近保存：${fmt(save.lastSavedAt!)}',
+                      style: context.appText.artist.copyWith(
+                        color: context.appColors.accent,
+                      ),
                     ),
                   ],
                 ),

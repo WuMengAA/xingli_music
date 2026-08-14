@@ -140,10 +140,15 @@ Future<void> restoreSettings(WidgetRef ref) async {
       repo.shadowRender ?? ref.read(shadowRenderProvider);
   ref.read(aoEnabledProvider.notifier).state =
       repo.aoEnabled ?? ref.read(aoEnabledProvider);
-  ref.read(renderScaleProvider.notifier).state =
-      repo.renderScale?.clamp(0.25, 2.0) ?? ref.read(renderScaleProvider);
-  ref.read(renderRatioProvider.notifier).state =
-      repo.renderRatio?.clamp(0.5, 1.0) ?? ref.read(renderRatioProvider);
+  // R26fx3：单一「渲染精度」滑杆取代原 renderScale(分辨率)×renderRatio(比例)。
+  ref.read(renderPrecisionScaleProvider.notifier).state =
+      repo.renderPrecisionScale?.clamp(0.25, 2.0) ??
+          ref.read(renderPrecisionScaleProvider);
+  ref.read(picturePresetProvider.notifier).state =
+      PicturePreset.values.firstWhere(
+    (PicturePreset p) => p.name == repo.picturePreset,
+    orElse: () => PicturePreset.standard,
+  );
   ref.read(renderPrecisionProvider.notifier).state =
       repo.renderPrecision?.clamp(0.5, 2.0) ?? ref.read(renderPrecisionProvider);
   ref.read(oobeDoneProvider.notifier).state = repo.oobeDone ?? false;
@@ -322,9 +327,11 @@ final settingsSyncProvider = Provider<void>((ref) {
   ref.listen<int>(lodMaxChunksProvider, (_, v) => repo.setLodMaxChunks(v));
   ref.listen<bool>(shadowRenderProvider, (_, v) => repo.setShadowRender(v));
   ref.listen<bool>(aoEnabledProvider, (_, v) => repo.setAoEnabled(v));
-  ref.listen<double>(renderScaleProvider, (_, v) => repo.setRenderScale(v));
-  ref.listen<double>(renderRatioProvider, (_, v) => repo.setRenderRatio(v));
+  ref.listen<double>(
+      renderPrecisionScaleProvider, (_, v) => repo.setRenderPrecisionScale(v));
   ref.listen<double>(renderPrecisionProvider, (_, v) => repo.setRenderPrecision(v));
+  ref.listen<PicturePreset>(
+      picturePresetProvider, (_, v) => repo.setPicturePreset(v.name));
   ref.listen<bool>(oobeDoneProvider, (_, v) => repo.setOobeDone(v));
   ref.listen<double?>(
       glassBlurOverrideProvider, (_, v) => repo.setGlassBlurOverride(v));

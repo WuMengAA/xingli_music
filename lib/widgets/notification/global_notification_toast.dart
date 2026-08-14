@@ -6,20 +6,28 @@ import '../../core/theme/light_tokens.dart';
 import '../../models/notification_event.dart';
 import '../../providers/settings/notification_providers.dart';
 
-/// 全局通知 toast（R26r21·重构）：右上角，3 秒动画（0.35s 右下滑入 → 上浮 →
-/// 驻留 → 0.6s 右滑出），每条新事件 = 一次**全新** OverlayEntry（自包含动画、
-/// 结束自动 remove），避免长生命周期 widget 的 InheritedElement dependents
-/// 累积（框架 `dependents.isEmpty` 断言）。
+/// 全局通知 toast（R27·重写）：
 ///
-/// `GlobalNotificationToast` 本身只是一个监听者（const 挂在 AppShell），
-/// 监听 `recentNotificationsProvider` 新事件 → 插入 `_ToastOverlayEntry`。
+/// - **挂在 rootOverlay（最顶层）**：`Overlay.of(context, rootOverlay: true)`，
+///   不再被任何 `Dialog` / `BottomSheet` 的 `ModalBarrier` 灰罩盖住
+///   （修复安卓上「被弹层遮住 + 灰罩盖满屏看不到」）。
+/// - **可同时堆叠多条**：右上角纵向排列，最多 [kMaxToasts] 条；新事件不再顶掉
+///   旧事件（修复「一次只显示一条」）。旧事件到时自动移除、其余自动上移补位。
+/// - **全程 `IgnorePointer`**：即使叠在最上层也不拦截任何点击，绝不挡操作。
+/// - **轻量去重**：同一内容且当前仍显示时跳过，避免重复事件刷屏。
+///
+/// `GlobalNotificationToast` 自身只是监听者（const 挂在 AppShell），
+/// 监听 `recentNotificationsProvider` 新事件 → 插入一条自包含的 `_ToastCard`。
 class GlobalNotificationToast extends ConsumerWidget {
   const GlobalNotificationToast({super.key});
 
-  /// 当前正在显示的 toast（全局唯一）——右上角只保留最后一个，新事件覆盖旧的。
-  static OverlayEntry? _active;
-  /// 去重键：与上一条完全相同（标题+正文）则跳过，避免「从复」刷屏。
-  static String? _lastKey;
+  /// 最多同时显示条数。
+  static const int kMaxToasts = 4;
+  /// 单条估算高度（卡片 ≈ 32 + 间距 14），用于纵向堆叠定位。
+  static const double _step = 46;
+
+  /// 当前堆叠的 toast（索引 0 = 最新，置于最上方）。
+  static final List<_ToastHandle> _active = <_ToastHandle>[];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,39 +36,70 @@ class GlobalNotificationToast extends ConsumerWidget {
       if (next.isEmpty) return;
       final NotificationEvent e = next.first;
       final String key = '${e.title} ${e.message}';
-      // 去重：与上一条正在显示的内容完全一致 → 直接跳过（删除多余从复）。
-      if (_lastKey == key) return;
-      _lastKey = key;
-      _show(context, e);
+      // 轻量去重：相同内容且当前仍显示 → 跳过（避免重复事件刷屏）。
+      if (_active.any((_ToastHandle h) => h.key == key)) return;
+      _show(context, e, key);
     });
     return const SizedBox.shrink();
   }
 
-  void _show(BuildContext context, NotificationEvent e) {
-    _active?.remove(); // 只保留最后一个：先移除上一条
-    final OverlayState overlay = Overlay.of(context, rootOverlay: false);
-    late OverlayEntry entry;
-    entry = OverlayEntry(
+  void _show(BuildContext context, NotificationEvent e, String key) {
+    final OverlayState overlay = Overlay.of(context, rootOverlay: true);
+    final _ToastHandle handle = _ToastHandle(key: key);
+    handle.entry = OverlayEntry(
       builder: (BuildContext _) => _ToastCard(
         event: e,
+        topOffset: () => _topFor(handle),
         onFinish: () {
-          if (entry.mounted) entry.remove();
-          if (_active == entry) _active = null;
-          // 结束后清空去重键 → 下次再来相同内容允许重新弹出
-          _lastKey = null;
+          final int idx = _active.indexOf(handle);
+          handle.entry?.remove();
+          if (idx != -1) _active.removeAt(idx);
+          _rebuildAll(); // 其余 toast 上移补位
         },
       ),
     );
-    _active = entry;
-    overlay.insert(entry);
+    // 最新置顶（索引 0）。
+    _active.insert(0, handle);
+    // 超出上限：移除最旧的一条（立即卸载，无动画）。
+    while (_active.length > kMaxToasts) {
+      final _ToastHandle old = _active.removeLast();
+      old.entry?.remove();
+    }
+    _rebuildAll(); // 新插入后让所有 toast 重新定位
+    overlay.insert(handle.entry!);
   }
+
+  /// 该 handle 的纵向偏移（索引 0 = 顶部，向下递增）。
+  static double _topFor(_ToastHandle h) {
+    final int i = _active.indexOf(h);
+    return AppSpace.md + (i < 0 ? 0 : i) * _step;
+  }
+
+  /// 通知所有存活 toast 重新计算定位（用于增删后补位）。
+  static void _rebuildAll() {
+    for (final _ToastHandle h in _active) {
+      h.entry?.markNeedsBuild();
+    }
+  }
+}
+
+/// toast 句柄：持有 OverlayEntry 与去重键。
+class _ToastHandle {
+  _ToastHandle({required this.key});
+  OverlayEntry? entry;
+  final String key;
 }
 
 /// 单条 toast（自包含 3 秒动画 + 自动卸载）。
 class _ToastCard extends StatefulWidget {
-  const _ToastCard({required this.event, required this.onFinish});
+  const _ToastCard({
+    required this.event,
+    required this.topOffset,
+    required this.onFinish,
+  });
 
   final NotificationEvent event;
+  final double Function() topOffset;
   final VoidCallback onFinish;
 
   @override
@@ -137,13 +176,12 @@ class _ToastCardState extends State<_ToastCard>
 
   @override
   Widget build(BuildContext context) {
-    // R26fix：滑入/滑出用 SlideTransition（偏移 = **相对自身尺寸**的比例，
-    // 而非屏幕全宽平移）——原 Transform.translate 用 width×1.0 会横跨整屏，
-    // 视觉上「沾满屏幕」。现在从右侧滑入自身宽度（≤1/3 屏），紧凑小弹条。
+    // 滑入/滑出用 SlideTransition（偏移 = 相对自身尺寸的比例，而非屏幕全宽平移），
+    // 绝不占满屏幕；宽度固定（≤1/3 屏，至多 240）。
     return IgnorePointer(
       child: Positioned(
         right: AppSpace.md,
-        top: MediaQuery.paddingOf(context).top + AppSpace.md,
+        top: widget.topOffset(),
         child: AnimatedBuilder(
           animation: _ctrl,
           builder: (BuildContext context, Widget? _) => FadeTransition(
@@ -151,15 +189,11 @@ class _ToastCardState extends State<_ToastCard>
             child: SlideTransition(
               position: _offset,
               child: Container(
-                    // R26r21d：超紧凑小弹条——双行改单行、padding/圆点缩小；
-                    // cl28+：宽度不超过屏幕 1/3（至多 240，绝不占全屏）。
-                    // R26fx2：改固定宽度（替代 maxWidth 约束）——Positioned 右侧
-                    // 对齐 + 固定宽 + 单行 ellipsis，任何内容都不可能撑满屏幕。
-                    width: MediaQuery.sizeOf(context).width / 3 < 240
-                        ? MediaQuery.sizeOf(context).width / 3
-                        : 240,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                width: MediaQuery.sizeOf(context).width / 3 < 240
+                    ? MediaQuery.sizeOf(context).width / 3
+                    : 240,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color:
                       context.appColors.bgCard.withValues(alpha: 0.94),

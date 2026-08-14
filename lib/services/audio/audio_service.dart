@@ -240,6 +240,10 @@ class AudioService {
   /// 平台偶发崩溃；被取代的加载直接放弃，不触碰播放器。
   int _loadSeq = 0;
 
+  /// R27（安卓切歌防闪退）：服务已销毁标记。销毁后任何切歌/播放请求立即放弃，
+  /// 不再触碰已释放的播放器（否则在安卓上触发原生层崩溃闪退）。
+  bool _disposed = false;
+
   /// 真实播放状态流（驱动 UI，状态永远跟引擎一致）
   Stream<bool> get playingStream =>
       _music.stateStream.map((MusicEngineState s) => s.playing).distinct();
@@ -321,6 +325,7 @@ class AudioService {
     }
 
     final int seq = ++_loadSeq;
+    if (_disposed) return;
     LogService.instance.i('audio',
         '播放: ${track.title} [${track.sourceId}] uri=${_redact(track.uri)}');
 
@@ -382,16 +387,23 @@ class AudioService {
     // 等待解析期间已有更新的切歌请求：直接让位，不触碰播放器
     // （避免并发 setAudioSource 在部分平台崩溃，R20）。
     if (seq != _loadSeq) return;
+    // R27（安卓切歌防闪退）：服务已销毁则放弃，避免触碰已释放播放器。
+    if (_disposed) return;
 
     try {
+      // R27：open 调用再套一层 _safe——安卓 just_audio / media_kit 在快速切歌时
+      // 偶发 PlatformException（音频焦点被拒 / 解码器未就绪），直接吞掉并视为
+      // 加载失败（_currentTrack 保持 null → playMusic 回落 idle），绝不向上抛闪退。
       if (resolvedUrl != null) {
         // 远程 CDN 带源请求头（网易云 UA/Referer），避免 403。
-        await _music.openUri(Uri.parse(resolvedUrl), headers: headers);
+        await _safe(() => _music.openUri(Uri.parse(resolvedUrl!), headers: headers),
+            tag: 'openUri');
       } else if (track.isRemote) {
-        await _music.openUrl(track.uri);
+        await _safe(() => _music.openUrl(track.uri), tag: 'openUrl');
       } else {
-        await _music.openPath(track.uri);
+        await _safe(() => _music.openPath(track.uri), tag: 'openPath');
       }
+      if (_disposed) return;
       _currentTrack = track;
       _trackCtrl.add(_currentTrack);
       LogService.instance.i('audio', '加载成功: ${track.title}');
@@ -844,6 +856,7 @@ class AudioService {
   }
 
   Future<void> dispose() async {
+    _disposed = true;
     await _psSub?.cancel();
     _psSub = null;
     await _trackCtrl.close();

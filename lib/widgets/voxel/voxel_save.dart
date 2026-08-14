@@ -227,6 +227,7 @@ class VoxelManualSaveMeta {
     required this.id,
     required this.name,
     required this.createdAt,
+    this.lastSavedAt,
     this.background,
     this.thumbnail,
   });
@@ -238,6 +239,9 @@ class VoxelManualSaveMeta {
   final String name;
 
   final DateTime createdAt;
+
+  /// R27：最近一次保存时间（创建 / 备份 / 游戏中保存时刷新）。null = 未知。
+  final DateTime? lastSavedAt;
 
   /// cl29·③：存档背景图（场景截图 PNG 的绝对路径，见 captures/ 目录）。
   /// 非空时存档卡用该图作背景；null = 用默认表面色。
@@ -260,13 +264,40 @@ Future<String> writeManualSave(Map<String, dynamic> data, String name) async {
   final String id =
       DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
           '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
+  final String nowIso = DateTime.now().toIso8601String();
   data['_meta'] = <String, dynamic>{
+    'id': id,
     'name': name,
-    'createdAt': DateTime.now().toIso8601String(),
+    'createdAt': nowIso,
+    'lastSavedAt': nowIso,
   };
   final File f = File(await _manualPath(id));
   await f.writeAsString(const JsonEncoder().convert(data));
   return id;
+}
+
+/// R27：刷新某手动存档的「最近保存时间」（游戏中保存时调用，使存档列表显示最新时间）。
+///
+/// 直接读取该存档文件、仅更新 `_meta.lastSavedAt` 后回写，不动世界数据本身。
+Future<void> touchManualSaveLastSaved(String id) async {
+  try {
+    final File f = File(await _manualPath(id));
+    if (!await f.exists()) return;
+    final String raw = await f.readAsString();
+    final dynamic parsed = const JsonDecoder().convert(raw);
+    if (parsed is! Map<String, dynamic>) return;
+    final dynamic m = parsed['_meta'];
+    if (m is Map) {
+      m['lastSavedAt'] = DateTime.now().toIso8601String();
+    } else {
+      parsed['_meta'] = <String, dynamic>{
+        'lastSavedAt': DateTime.now().toIso8601String(),
+      };
+    }
+    await f.writeAsString(const JsonEncoder().convert(parsed));
+  } catch (_) {
+    // 忽略：刷新失败不影响存档主体
+  }
 }
 
 /// 列出全部手动存档（按创建时间倒序）；损坏文件跳过。
@@ -300,10 +331,16 @@ Future<List<VoxelManualSaveMeta>> listManualSaves() async {
           (m is Map && m['background'] is String) ? m['background'] as String : null;
       final String? thumbnail =
           (m is Map && m['thumbnail'] is String) ? m['thumbnail'] as String : null;
+      final DateTime? lastSavedAt =
+          (m is Map && m['lastSavedAt'] is String &&
+                  DateTime.tryParse(m['lastSavedAt'] as String) != null)
+              ? DateTime.parse(m['lastSavedAt'] as String)
+              : null;
       metas.add(VoxelManualSaveMeta(
         id: id,
         name: name,
         createdAt: createdAt,
+        lastSavedAt: lastSavedAt,
         background: background,
         thumbnail: thumbnail,
       ));

@@ -11,6 +11,7 @@ import 'core/throttled_binding.dart';
 import 'core/theme/light_theme.dart';
 import 'providers/color_memory/color_memory_providers.dart';
 import 'services/log_service.dart';
+import 'widgets/common/crash_screen.dart';
 
 Future<void> main() async {
   // R22：帧率节流 binding —— 必须在任何 ensureInitialized 之前初始化，
@@ -50,17 +51,27 @@ Future<void> main() async {
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();
 
-  runZonedGuarded(() {
-    runApp(
-      ProviderScope(
-        overrides: [
-          // 注入 SharedPreferences：配色记忆、使用行为等本地数据都存这里
-          prefsProvider.overrideWithValue(prefs),
-        ],
-        child: const StelarithMusicApp(),
-      ),
-    );
-  }, (Object error, StackTrace stack) {
-    LogService.instance.e('crash', '未捕获异步异常: $error', stack);
-  });
+  // 根应用启动（初始 + 「崩溃界面」重新启动共用）。
+  void runRoot() {
+    runZonedGuarded(() {
+      runApp(
+        ProviderScope(
+          overrides: [
+            // 注入 SharedPreferences：配色记忆、使用行为等本地数据都存这里
+            prefsProvider.overrideWithValue(prefs),
+          ],
+          child: const StelarithMusicApp(),
+        ),
+      );
+    }, (Object error, StackTrace stack) {
+      LogService.instance.e('crash', '未捕获异步异常: $error', stack);
+    });
+  }
+
+  // R27（崩溃界面 = 程序最后底线）：构建期抛错不再显示默认红屏，而是渲染
+  // [CrashScreen]——列出最近日志 + 「重新启动 / 日志上报」，程序不退出。
+  ErrorWidget.builder = (FlutterErrorDetails details) =>
+      CrashScreen(details: details, onRestart: runRoot);
+
+  runRoot();
 }

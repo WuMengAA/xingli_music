@@ -102,16 +102,16 @@ enum GraphicsQuality {
   perf('极低', viewDistanceChunks: 2, lodStartChunks: 1, lodStepChunks: 1,
       maxFaces: 4000, fog: false, water: false, texture: false, renderScale: 0.25),
 
-  /// 流畅：默认。纯色平铺 + 雾 + 水波（贴图关）。
+  /// 流畅：默认。纯色平铺 + 雾（水波动画默认关，见 R27：仅「高」画质启用水面）。
   /// R26r33：maxFaces 12000→9000——1050 等弱 GPU 上原 10-25FPS，降预算约 25%
   /// 面数即可明显提帧；远处面由 maxFaces 预算收敛（最远面优先裁、雾掩盖），
   /// 视觉损失小。要更流畅可选手动切「性能」档（0.5× 分辨率 + 6000 面）。
   smooth('低', viewDistanceChunks: 4, lodStartChunks: 2, lodStepChunks: 2,
-      maxFaces: 9000, fog: true, water: true, texture: false, renderScale: 0.5),
+      maxFaces: 9000, fog: true, water: false, texture: false, renderScale: 0.5),
 
-  /// 标准：更远视距 + 更大面数预算（纯色）。
+  /// 标准：更远视距 + 更大面数预算（纯色）。水面动画默认关（仅「高」开启）。
   standard('中', viewDistanceChunks: 6, lodStartChunks: 3, lodStepChunks: 2,
-      maxFaces: 18000, fog: true, water: true, texture: false, renderScale: 0.8),
+      maxFaces: 18000, fog: true, water: false, texture: false, renderScale: 0.8),
 
   /// R26fx3 高：启用 16×16 程序化贴图图集（独家效果），最高视距/面数预算，
   /// 1.0 分辨率 + AO/阴影。
@@ -391,6 +391,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// true=生存模式（生命/摔落伤害/禁飞）；false=创造（可飞行）。
   bool _survival = false;
 
+  // R28：存档是否成功恢复过玩家数值。true 时进生存模式不再 respawn（清零满血），
+  // 否则每次进世界都把存档里的血量/饥饿冲掉 → 用户感知「数值每次被刷新」。
+  bool _vitalsRestored = false;
+
   // R26p-camera：创造飞行模式。false=未飞行（受重力下落）；true=飞行（无重力、
   // 保持当前高度，升降键控制 altitude）。双击跳跃切换；再次双击退出→开始下落。
   bool _flyMode = false;
@@ -511,6 +515,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // ── R24d 30s 自动存档状态 ─────────────────────────────
   Timer? _saveTimer;
   DateTime? _lastSavedAt;
+
+  /// R27：返回键退出闸门——true 时允许 PopScope 真正 pop（仅 [_saveAndExit] 时临时置 true）。
+  bool _allowPop = false;
+  /// R27：上次按返回键的时间（用于「连按两次 = 保存退出」判定）。
+  DateTime? _lastBackPress;
 
   /// R26d 手动存档命名输入（存档菜单弹层用）。
   final TextEditingController _saveNameCtrl = TextEditingController();
@@ -1055,8 +1064,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       frame,
       _quality.texture ? _atlas : null,
       renderScale: _quality.renderScale *
-          ref.read(renderScaleProvider) *
-          ref.read(renderRatioProvider) *
+          ref.read(renderPrecisionScaleProvider) *
           _frameDynScale,
     ).paint(cv, _viewport);
     return rec.endRecording();
@@ -2264,7 +2272,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       _held.remove(_Nav.down);
       _fpVy = 0;
       if (survival) {
-        _vitals.respawn();
+        // R28：仅「新世界（存档无数值）」才重置生存数值；已恢复存档则保留，
+        // 避免进生存把自动存档的血量/饥饿冲掉。
+        if (!_vitalsRestored) _vitals.respawn();
         _mobs.clear();
       }
       _syncInventoryForMode();
@@ -2431,7 +2441,57 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     await _saveNow();
     if (!mounted) return;
     _snack('已保存并退出');
-    Navigator.of(context).maybePop();
+    // R27：临时放开 PopScope 闸门，等 rebuild 生效后再 pop，避免被自身 PopScope 拦截。
+    _allowPop = true;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  /// R27：游戏中返回键接管（安卓系统返回 / 桌面 Esc）。
+  ///
+  /// - 任一内嵌面板（背包 / 折叠 HUD / 相机 / UI 折叠 / 暂停菜单）打开时 →
+  ///   仅关闭该面板，不退出世界（这些面板不是独立路由，返回键不会自动收掉）。
+  /// - 处于游戏主界面时：单次 → 弹提醒「请用存档保存退出」且不退出；
+  ///   1.5s 内第二次 → 直接保存并退出（应急退出）。
+  void _onWorldPop(bool didPop, Object? result) {
+    if (didPop) return; // 已在退出流程（_allowPop=true 触发的真正 pop）
+    // 1) 关闭最上层的内嵌面板（非路由弹层，需手动收掉）。
+    if (_bagOpen) {
+      _toggleBag();
+      return;
+    }
+    if (_foldOpen) {
+      setState(() => _foldOpen = false);
+      return;
+    }
+    if (_cameraMode) {
+      setState(() => _cameraMode = !_cameraMode);
+      return;
+    }
+    if (_uiCollapsed) {
+      setState(() => _uiCollapsed = false);
+      return;
+    }
+    if (_paused) {
+      _setPaused(false);
+      return;
+    }
+    // 2) 主游戏界面：单击提醒 / 双击保存退出。
+    final DateTime now = DateTime.now();
+    if (_lastBackPress != null &&
+        now.difference(_lastBackPress!) < const Duration(milliseconds: 1500)) {
+      _lastBackPress = null;
+      _saveAndExit();
+    } else {
+      _lastBackPress = now;
+      appNotify(
+        context,
+        '请通过「游戏菜单 → 保存退出」离开世界；连按两次返回可快速保存退出',
+        title: '提示',
+      );
+    }
   }
 
   /// H1r2：恢复存档——从 自动备份（≤20）/ 手动备份 中任选，恢复到当前世界
@@ -2820,6 +2880,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   Future<void> _saveNow() async {
     await writeVoxelSave(_buildSaveData());
+    // R27：游戏中保存 → 同步刷新所属手动存档的「最近保存时间」，使存档列表显示最新时间。
+    if (_currentMeta is Map<String, dynamic> &&
+        _currentMeta!['id'] is String) {
+      final String mid = _currentMeta!['id'] as String;
+      unawaited(touchManualSaveLastSaved(mid));
+    }
     if (!mounted) return;
     _lastSavedAt = DateTime.now();
     setState(() {});
@@ -2893,7 +2959,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     } catch (_) {}
     try {
       final Map<String, dynamic>? vj = data['vitals'] as Map<String, dynamic>?;
-      if (vj != null) _vitals.loadJson(vj);
+      if (vj != null) {
+        _vitals.loadJson(vj);
+        _vitalsRestored = true; // R28：存档确有数值 → 进生存不再 respawn
+      }
     } catch (_) {}
     try {
       final Map<String, dynamic>? ij = data['inv'] as Map<String, dynamic>?;
@@ -2965,7 +3034,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // ── 4. 生存 / 背包（各自容错）──
     try {
       final Map<String, dynamic>? vj = data['vitals'] as Map<String, dynamic>?;
-      if (vj != null) _vitals.loadJson(vj);
+      if (vj != null) {
+        _vitals.loadJson(vj);
+        _vitalsRestored = true; // R28：存档确有数值 → 进生存不再 respawn
+      }
     } catch (_) {
       // 生存数值损坏：跳过
     }
@@ -4028,7 +4100,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // R26m：光标保持可见——隐藏 + 无平台鼠标捕获会让视角转到窗口边缘就
     // "卡死"、体感像"转不动/绑错了"（用户反馈）。相对移动 + 边缘续转
     // （见 _applyEdgeLook）实现无需插件的 FPS 视角；Alt 仍可暂停视角。
-    return Focus(
+    return PopScope(
+      canPop: _allowPop,
+      onPopInvokedWithResult: _onWorldPop,
+      child: Focus(
       onKeyEvent: _onKey,
       autofocus: true,
       child: MouseRegion(
@@ -4065,8 +4140,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             staticPicture: _staticPicture,
                             // R26fx：渲染分辨率 × 渲染比例 × 动态缩放（倍率式）。
                             renderScale: _quality.renderScale *
-                                ref.watch(renderScaleProvider) *
-                                ref.watch(renderRatioProvider) *
+                                ref.watch(renderPrecisionScaleProvider) *
                                 _frameDynScale,
                             // F4：水下滤镜——眼睛没入水中时叠加蓝色调。
                             underwater:
@@ -4178,6 +4252,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         ),
         );
         },
+      ),
       ),
       ),
     );

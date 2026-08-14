@@ -189,8 +189,9 @@ class _VoxelSceneBackgroundState extends ConsumerState<VoxelSceneBackground>
       _audio?.setGlobalVolume(
           m ? 0 : ref.read(soundscapeVolumeProvider).clamp(0.0, 1.0));
     });
-    // 动画开关：场景背景独立开关（false = 静态单帧省电）；forceLive 强制实时。
-    _static = widget.forceLive ? false : !ref.watch(sceneBgAnimProvider);
+    // 实时渲染 = 「场景页实时开关」与「设置·动画」的联动结果（scene_page 已
+    // 取并集传入 forceLive）。二者任一开启即实时重绘；均关 = 静态单帧省电。
+    _static = !widget.forceLive;
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints c) {

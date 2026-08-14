@@ -59,9 +59,13 @@ abstract final class AppVersion {
   static const AppStage stage = AppStage.alpha;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
-  /// cl35：R26skel-b6——聚合搜索源徽标(音乐/视频源)+入口(卡片/面板)、
-  /// 音量默认折叠、音质选择(VIP/大会员自动识别)、遗漏检查+git提交。
-  static const int buildCount = 35;
+  /// cl36：安卓切歌防闪退补丁 + 通知系统重做(rootOverlay/多实例堆叠) +
+  /// 水面默认关闭(高画质外) + 游戏中返回键(提醒/双击保存退出) +
+  /// 存档最近保存时间 + 崩溃界面兜底(ErrorWidget.builder→CrashScreen)。
+  /// cl37：生存模式 bug 修复——新建/读档作弊关强制生存(禁创造)、
+  /// 饥饿衰减提速至分钟级、进生存保留存档数值(不再 respawn 覆盖)、
+  /// 新建存档作弊/浮空岛默认关。
+  static const int buildCount = 37;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

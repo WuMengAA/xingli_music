@@ -686,8 +686,11 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '场景背景 · 动画',
       subtitle: '关 = 静态单帧省电',
       value: ref.watch(sceneBgAnimProvider),
-      onChanged: (bool v) =>
-          ref.read(sceneBgAnimProvider.notifier).state = v,
+      onChanged: (bool v) {
+        // 与场景页「实时渲染」联动：动画开则实时开，二者保持同步。
+        ref.read(sceneBgAnimProvider.notifier).state = v;
+        ref.read(voxelBgLiveProvider.notifier).state = v;
+      },
     ),
   ),
   'sceneEditor': SettingItemDef(
@@ -874,7 +877,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           const SizedBox(height: 4),
           Text(
             '当前：${q.label} · 视距 ${ref.watch(viewDistanceChunksProvider)} 区块 · '
-            '渲染 ${(ref.watch(renderScaleProvider) * ref.watch(renderRatioProvider)).toStringAsFixed(2)}×',
+            '渲染 ${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
             style: Theme.of(context).textTheme.labelSmall,
           ),
           const SizedBox(height: 6),
@@ -1039,51 +1042,34 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ],
     ),
   ),
-  'renderScale': SettingItemDef(
-    title: '渲染分辨率',
+  'renderPrecisionScale': SettingItemDef(
+    title: '渲染精度',
     builder: (context, ref) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          '渲染分辨率 · 当前 ${ref.watch(renderScaleProvider).toStringAsFixed(2)}×',
+          '渲染精度 · 当前 ${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×'
+          '（同比例降分辨率，尺寸不变）',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         Slider(
-          value: ref.watch(renderScaleProvider),
+          value: ref.watch(renderPrecisionScaleProvider),
           min: 0.25,
           max: 2.0,
           divisions: 14,
-          label: '${ref.watch(renderScaleProvider).toStringAsFixed(2)}×',
+          label: '${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
           onChanged: (double v) =>
-              ref.read(renderScaleProvider.notifier).state = v,
-        ),
-      ],
-    ),
-  ),
-  'renderRatio': SettingItemDef(
-    title: '渲染比例',
-    builder: (context, ref) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('渲染比例（低配阶梯再降一档）', style: Theme.of(context).textTheme.bodyMedium),
-        const SizedBox(height: 6),
-        _chips<double>(
-          ref: ref,
-          value: ref.watch(renderRatioProvider),
-          values: const <double>[0.5, 0.75, 1.0],
-          labels: const <String>['50%', '75%', '100%'],
-          onChanged: (double v) =>
-              ref.read(renderRatioProvider.notifier).state = v,
+              ref.read(renderPrecisionScaleProvider.notifier).state = v,
         ),
       ],
     ),
   ),
   'renderPrecision': SettingItemDef(
-    title: '渲染精度',
+    title: '几何精度（面数）',
     builder: (context, ref) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('渲染精度（几何面数倍率）', style: Theme.of(context).textTheme.bodyMedium),
+        Text('几何精度（面数倍率，与渲染分辨率无关）', style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 6),
         _chips<double>(
           ref: ref,
@@ -1095,6 +1081,27 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         ),
       ],
     ),
+  ),
+  'picturePreset': SettingItemDef(
+    title: '全局画面预设',
+    builder: (context, ref) {
+      final PicturePreset p = ref.watch(picturePresetProvider);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('全局画面预设 · 一键套用（精度 + 模糊 + 噪点 + 动画）',
+              style: Theme.of(context).textTheme.bodyMedium),
+          const SizedBox(height: 6),
+          _chips<PicturePreset>(
+            ref: ref,
+            value: p,
+            values: PicturePreset.values,
+            labels: <String>[for (final PicturePreset x in PicturePreset.values) x.label],
+            onChanged: (PicturePreset x) => applyPicturePreset(ref, x),
+          ),
+        ],
+      );
+    },
   ),
   'engineBackend': SettingItemDef(
     title: '图形后端',
@@ -1346,9 +1353,10 @@ void _applyQualityPreset(WidgetRef ref, GraphicsQuality q) {
           : (q == GraphicsQuality.smooth ? 6 : 8);
   // R26fx3：渲染分辨率倍率重置为 1.0（档位默认 renderScale 已含 0.25/0.5/0.8/1.0，
   // painter = q.renderScale × 手动倍率；不再双乘）。
-  ref.read(renderScaleProvider.notifier).state = 1.0;
-  ref.read(renderRatioProvider.notifier).state = 1.0;
+  ref.read(renderPrecisionScaleProvider.notifier).state = 1.0;
   ref.read(renderPrecisionProvider.notifier).state = 1.0;
+  // 画面预设重置为标准（跟随档位）。
+  ref.read(picturePresetProvider.notifier).state = PicturePreset.standard;
   ref.read(fpsLimitProvider.notifier).state =
       q == GraphicsQuality.perf ? FpsLimit.fps24 : FpsLimit.fps60;
   // R26fx3：极低档「所有剔除拉满」——视锥剔除也开（其他档位默认关）。

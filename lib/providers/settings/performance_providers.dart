@@ -225,13 +225,15 @@ final sceneBgFpsProvider = StateProvider<int>((ref) => 30);
 final sceneBgFogProvider = StateProvider<bool>((ref) => true);
 
 /// 场景背景 · 水波动画。
-final sceneBgWaterProvider = StateProvider<bool>((ref) => true);
+/// R27：默认关——水面上下浮动对性能影响大，仅「高」画质建议手动开启（见设置）。
+final sceneBgWaterProvider = StateProvider<bool>((ref) => false);
 
 /// 场景背景 · 天空渐变。
 final sceneBgSkyProvider = StateProvider<bool>((ref) => true);
 
-/// 场景背景 · 动画开关（false = 静态单帧，最省电）。
-final sceneBgAnimProvider = StateProvider<bool>((ref) => true);
+/// 场景背景 · 动画开关（false = 静态单帧，最省电；与场景页「实时渲染」联动，
+/// 任一开启即实时重绘）。默认关：单帧静态才能稳 60fps（用户确认）。
+final sceneBgAnimProvider = StateProvider<bool>((ref) => false);
 
 // ── 体素区块 / LOD（R23m：16×16 区块，视距与 LOD 可调）───────────────
 
@@ -301,7 +303,8 @@ final frustumCullEnabledProvider = StateProvider<bool>((ref) => false);
 final underwaterFilterEnabledProvider = StateProvider<bool>((ref) => true);
 
 /// 水流动（G4：放置水源后向四周 9 格扩散，20tps 驱动）。
-final waterFlowEnabledProvider = StateProvider<bool>((ref) => true);
+/// R27：默认关——水面流动对性能影响大，仅「高」画质建议手动开启（见设置）。
+final waterFlowEnabledProvider = StateProvider<bool>((ref) => false);
 
 /// 手电筒模式（R26fl）：FOV 不变，完整视线窄锥剔除 + 边界黑化 + 泛光。
 final flashlightEnabledProvider = StateProvider<bool>((ref) => false);
@@ -326,16 +329,82 @@ final shadowRenderProvider = StateProvider<bool>((ref) => true);
 /// 环境光屏蔽 AO（方块角落/缝隙变暗，增强立体感；关 = 均匀亮度更省）。
 final aoEnabledProvider = StateProvider<bool>((ref) => true);
 
-// ── 渲染分辨率 / 比例 / 精度（画面设置，倍率式：1.0 = 画质档默认）──
+// ── 渲染精度 / 几何精度（画面设置，倍率式：1.0 = 画质档默认）──
 
-/// 渲染分辨率倍率（0.25~2.0；乘画质档 renderScale）。
-final renderScaleProvider = StateProvider<double>((ref) => 1.0);
+/// 渲染精度（分辨率倍率，0.25~2.0；同比例、画面不缩放、尺寸不变，仅降低
+/// 内部渲染分辨率——1080p ×0.5 = 半分辨率渲染再放大铺满，帧率翻倍）。
+/// 取代原 renderScale + renderRatio 两个旋钮（用户要求合并为单一「渲染精度」）。
+final renderPrecisionScaleProvider = StateProvider<double>((ref) => 1.0);
 
-/// 渲染比例（额外缩放 0.5/0.75/1.0；低配阶梯再降一档）。
-final renderRatioProvider = StateProvider<double>((ref) => 1.0);
-
-/// 渲染精度（几何面数倍率 0.5×/1×/1.5×/2×；乘 maxFaces）。
+/// 几何精度（面数倍率 0.5×/1×/1.5×/2×；乘 maxFaces，与渲染分辨率无关）。
 final renderPrecisionProvider = StateProvider<double>((ref) => 1.0);
+
+// ── 全局画面预设（精度 + 模糊 + 噪点 + 动画 一键套用）──────────────
+
+/// 全局画面预设。
+enum PicturePreset {
+  eco('省电'),
+  standard('标准'),
+  high('高画质'),
+  ultra('极致');
+
+  const PicturePreset(this.label);
+  final String label;
+
+  /// 渲染精度（分辨率倍率）。
+  double get precision => const <PicturePreset, double>{
+        PicturePreset.eco: 0.5,
+        PicturePreset.standard: 1.0,
+        PicturePreset.high: 1.0,
+        PicturePreset.ultra: 1.5,
+      }[this]!;
+
+  /// 噪点纹理覆盖（null = 跟随档位）。
+  bool? get noise => const <PicturePreset, bool?>{
+        PicturePreset.eco: false,
+        PicturePreset.standard: null,
+        PicturePreset.high: false,
+        PicturePreset.ultra: false,
+      }[this]!;
+
+  /// 玻璃模糊强度覆盖（null = 跟随档位）。
+  double? get blur => const <PicturePreset, double?>{
+        PicturePreset.eco: 0.0,
+        PicturePreset.standard: null,
+        PicturePreset.high: 12.0,
+        PicturePreset.ultra: 16.0,
+      }[this]!;
+
+  /// 背景动画覆盖（null = 跟随档位）。
+  bool? get anim => const <PicturePreset, bool?>{
+        PicturePreset.eco: false,
+        PicturePreset.standard: null,
+        PicturePreset.high: true,
+        PicturePreset.ultra: true,
+      }[this]!;
+
+  /// 液态玻璃覆盖（null = 跟随档位）。
+  bool? get liquid => const <PicturePreset, bool?>{
+        PicturePreset.eco: false,
+        PicturePreset.standard: null,
+        PicturePreset.high: true,
+        PicturePreset.ultra: true,
+      }[this]!;
+}
+
+/// 当前画面预设（纯 UI 状态；套用预设会一次性写入各特效 override）。
+final picturePresetProvider =
+    StateProvider<PicturePreset>((ref) => PicturePreset.standard);
+
+/// 套用画面预设：一次设好 渲染精度 + 模糊 + 噪点 + 背景动画 + 液态玻璃。
+void applyPicturePreset(WidgetRef ref, PicturePreset p) {
+  ref.read(picturePresetProvider.notifier).state = p;
+  ref.read(renderPrecisionScaleProvider.notifier).state = p.precision;
+  ref.read(noiseOverrideProvider.notifier).state = p.noise;
+  ref.read(glassBlurOverrideProvider.notifier).state = p.blur;
+  ref.read(bgAnimationOverrideProvider.notifier).state = p.anim;
+  ref.read(liquidGlassOverrideProvider.notifier).state = p.liquid;
+}
 
 /// OOBE 完成标记（首次启动欢迎页；完成后不再显示）。
 final oobeDoneProvider = StateProvider<bool>((ref) => false);

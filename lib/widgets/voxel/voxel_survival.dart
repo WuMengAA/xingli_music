@@ -54,9 +54,12 @@ class PlayerVitals extends ChangeNotifier {
     if (dt <= 0) return;
     bool changed = false;
 
-    // 疲劳：走路 0.01/格、冲刺 0.1/格，另加极慢的基础代谢。
+    // 疲劳：走路 0.02/格、冲刺 0.10/格，基础代谢 0.015/秒。
+    // R28：原公式（0.01/格 + 0.005/秒）下饱和度 5 要约 14 小时才掉 1 格，
+    // 实际「饥饿值永不下降」。提速约 4~8×：步行满饥饿约 8~10 分钟掉光，
+    // 冲刺更快——「能感知到、但不折磨人」。
     final double add =
-        moved * (sprinting ? 0.10 : 0.01) + dt * 0.005;
+        moved * (sprinting ? 0.10 : 0.02) + dt * 0.015;
     if (add > 0) {
       _exhaustion += add;
       while (_exhaustion >= 4.0) {

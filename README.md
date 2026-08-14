@@ -1,29 +1,36 @@
-# 星璃（Stelarith）· 无限音乐画布
+# 星璃音乐 · xingli_music
 
-> 在星光中流淌的真理之光 —— 一个可以无限滑动、场景随音乐和心情变化、强调沉浸体验的个人音乐空间。
+> 在星光中流淌的真理之光 —— 一个以「体素世界 + 多源音乐」为核心的沉浸式音乐应用：可无限滑动的场景画布、随音乐联动的体素 3D 世界与开放世界游戏、网易云 / B站 / 本地多音源聚合播放。
 
 ## 一句话定位
 
-一个可以无限滑动、场景随音乐和心情变化、强调沉浸体验的个人音乐空间。
+体素 3D 世界 + 多源音乐播放的 Flutter 跨平台应用：场景随音乐和心情变化，强调沉浸体验，并附带可拍摄、可游玩的开放世界。
 
-## 核心机制
+## 平台
+
+- **Windows（桌面）**：体素 3D 渲染、B站视频场景背景、扫码 / 系统浏览器登录
+- **Android（移动）**：原生 WebView 登录 + 扫码登录
+
+（早期规划含 iOS，当前工程聚焦 Windows + Android）
+
+## 核心模块
 
 | 模块 | 说明 |
 | ---- | ---- |
-| 无限画布 | 八向滑动，无边界，卡片和场景在画布上散布 |
-| 场景系统 | 每个场景有自己的视觉风格、音景、粒子、光影和配色 |
-| 音乐播放 | 随机播放本地音乐，与场景联动，不涉及版权问题 |
-| 心情联动 | 用户简单选择心情，配色和场景推荐随之变化 |
-| 配色系统 | 动态配色，随天气、节日、季节、心情、个人喜好变化 |
-| 隐私分层 | 本地优先，用户可自主选择是否上传数据 |
+| 无限画布 / 场景 | 八向滑动无边界，场景随音乐 / 心情联动，动态配色 |
+| 体素 3D 世界 | 体素渲染的开放世界：4 独立动作键、游戏设置合集、世界存档（唯一入口）、存档缩略图 |
+| 场景拍摄 | 独立画质 / 效果（与游戏画质解耦）；B站视频可作场景背景（默认静音，**不进游戏**） |
+| 多源音乐播放 | 网易云（音乐源）/ 哔哩哔哩（视频源，可作背景）/ 本地（音乐源）聚合搜索与播放 |
+| 播放器 | 音乐卡片 / 音乐面板（NowPlayingPage）/ 统一播放器；音量折叠、音质选择（自动识别网易云 VIP / B站大会员） |
+| 声音分类 | 音乐 / 背景 / 音效 / 白噪音四类，设备自适应声道预算（桌面 / 移动 / 紧凑端方案） |
+| 设置系统 | collection→group→item 注册表，含音频 / 画面 / 游戏 / 场景背景等 |
 
 ## 技术选型
 
-- 平台：Flutter（先 iOS / Android，后续扩展桌面）
-- 状态管理：Riverpod（flutter_riverpod）
-- 音频引擎：audioplayers + just_audio
-- 本地存储：SQLite（sqflite）+ shared_preferences
-- 动画：Flutter 原生动画 + 自定义粒子系统
+- 框架：Flutter 3.x / Riverpod 状态管理
+- 音频 / 视频：media_kit（纯音频关视频输出；背景视频走独立 Player + VideoController）
+- 多音源抽象：MusicSource（`activeSourcesProvider`：网易云 / B站 / 本地）
+- 本地存储：SQLite（sqflite）+ shared_preferences + SecureBox（加密 cookie）
 
 ## 设计原则
 
@@ -32,45 +39,36 @@
 - **习惯性交互**：不要求用户主动"打卡"，而是通过使用行为自然记录
 - **极简克制**：界面元素少，操作靠手势，不靠按钮
 
-## 第一版边界（不做的事）
-
-- 不做云端同步
-- 不做复杂数据分析
-- 不做社交功能
-- 不做商业化功能
-- 不做复杂用户系统（先本地使用）
-
-## 目录结构
+## 目录（要点）
 
 ```
 lib/
-├── main.dart                 # 入口
-├── app.dart                  # 应用根组件
-├── core/                     # 核心基础（主题等）
-│   └── theme/
-│       └── app_theme.dart    # Material 3 主题与星璃配色
-├── pages/                    # 页面（按功能模块细分）
-│   └── canvas/
-│       └── canvas_page.dart  # 主页面：无限画布
-├── widgets/                  # 可复用组件
-├── models/                   # 数据模型
-├── providers/                # Riverpod 状态
-│   └── canvas/
-│       └── canvas_providers.dart
-├── services/                 # 业务服务（音乐 / 存储 / 场景）
-└── utils/                    # 工具函数
+├── main.dart / app.dart         # 入口与应用根
+├── core/                        # 主题、设置注册表、版本
+├── pages/                       # canvas / sources(聚合搜索) / now_playing / voxel 世界 / scene
+├── widgets/                     # 卡片、场景背景、音源、设置组件
+├── providers/                   # Riverpod（audio / sources / settings / voxel）
+└── services/audio/sources/      # 网易云 / B站 / 本地 音源实现
 ```
 
-## 快速开始
+## 构建
 
 ```bash
-# 1. 安装 Flutter SDK 3.x（详见 SETUP.md）
-# 2. 拉取依赖
 flutter pub get
-# 3. 补齐平台工程（首次需要，补齐图标 / Xcode 工程 / gradle wrapper 等资源）
-flutter create .
-# 4. 运行
-flutter run
+
+# Windows
+flutter build windows --release   # 产物 build/windows/x64/runner/Release/
+
+# Android
+flutter build apk --release       # 产物 build/app/outputs/flutter-apk/app-release.apk
 ```
 
-详细步骤见 [`SETUP.md`](SETUP.md)。
+> Windows 需 Visual Studio 2022 +「使用 C++ 的桌面开发」工作负载；Android 需配置签名 keystore 才能上架。
+
+## 当前版本
+
+- `0.26.8.14_alpha_cl35`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
+
+## 说明
+
+- 第三方音乐源（网易云 / B站）仅供个人学习研究，版权归原平台，勿商用二次分发。
