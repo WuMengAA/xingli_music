@@ -17,6 +17,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/ota_download_provider.dart';
 import '../../services/ota_service.dart';
+import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
 
 /// 打开版本日志面板（自动获取最新日志：changelog 倒序，首条即最新）。
@@ -129,6 +130,7 @@ class _VersionUpdatePanel extends ConsumerStatefulWidget {
 
 class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   bool _checking = false;
+  bool _installing = false;
 
   /// G7：检查 GitHub Releases → 有更新 → 询问/直接下载 →（后台）哈希校验 → 提示。
   Future<void> _check() async {
@@ -146,6 +148,21 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     if (!go || !mounted) return;
     // 交给全局控制器（后台下载，本页可关闭）。
     unawaited(ref.read(otaDownloadProvider.notifier).start(r.latestTag));
+  }
+
+  /// 下载完成后调系统安装器安装（cl74：此前整条安装链路缺失，下载完无入口）。
+  Future<void> _install(String apkPath) async {
+    if (_installing) return;
+    setState(() => _installing = true);
+    try {
+      await OtaInstall.install(apkPath);
+    } on OtaException catch (e) {
+      if (mounted) appNotify(context, e.message);
+    } catch (e) {
+      if (mounted) appNotify(context, '安装失败：$e');
+    } finally {
+      if (mounted) setState(() => _installing = false);
+    }
   }
 
   Future<bool?> _confirmUpdate(BuildContext context, OtaCheckResult r) {
@@ -359,23 +376,29 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                   backgroundColor: colors.accent,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                icon: _checking
+                icon: (_checking || _installing)
                     ? const SizedBox(
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.system_update_alt_rounded, size: 18),
+                    : Icon(
+                        dl.isDone
+                            ? Icons.install_mobile_rounded
+                            : Icons.system_update_alt_rounded,
+                        size: 18,
+                      ),
                 label: Text(
                   dl.isDone
-                      ? '已就绪：${dl.tag}'
+                      ? (_installing ? '安装中…' : '安装更新')
                       : (dl.isDownloading
                           ? '下载中…'
                           : (_checking ? '检查中…' : '检查更新')),
                 ),
-                onPressed:
-                    (_checking || dl.isDownloading || dl.isDone) ? null : _check,
+                onPressed: (_checking || dl.isDownloading || _installing)
+                    ? null
+                    : (dl.isDone ? () => _install(dl.apkPath) : _check),
               ),
             ),
             const SizedBox(height: AppSpace.xs),

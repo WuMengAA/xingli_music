@@ -104,30 +104,38 @@ class OtaService {
       final List<dynamic> releases =
           jsonDecode(utf8.decode(resp.bodyBytes)) as List<dynamic>;
       if (releases.isEmpty) return OtaCheckResult.none;
-      // 取第一个非 draft 的 Release。
-      final Map<String, dynamic> first =
-          (releases.firstWhere(
-                (dynamic r) =>
-                    (r as Map<String, dynamic>)['draft'] != true,
-                orElse: () => releases.first,
-              )
-              as Map<String, dynamic>);
-      final String tag =
-          (first['tag_name'] as String?)?.trim() ?? '';
-      if (tag.isEmpty) return OtaCheckResult.none;
-      final int build = _parseBuild(tag);
-      final bool hotfix = tag.contains('-hotfix');
+      // 遍历所有非 draft 的 Release，取构建号最大者（不再依赖 GitHub 返回顺序，
+      // 避免 hotfix / 重发导致顺序变化取错版本；cl* 体系优先，语义版本 tag 解析
+      // 为 -1 会被跳过）。
+      String bestTag = '';
+      int bestBuild = -1;
+      bool bestHotfix = false;
+      String bestNotes = '';
+      for (final dynamic item in releases) {
+        final Map<String, dynamic> r = item as Map<String, dynamic>;
+        if (r['draft'] == true) continue;
+        final String tag = (r['tag_name'] as String?)?.trim() ?? '';
+        if (tag.isEmpty) continue;
+        final int build = _parseBuild(tag);
+        if (build < 0) continue;
+        if (build > bestBuild) {
+          bestBuild = build;
+          bestTag = tag;
+          bestHotfix = tag.contains('-hotfix');
+          bestNotes = (r['body'] as String?) ?? '';
+        }
+      }
+      if (bestTag.isEmpty || bestBuild < 0) return OtaCheckResult.none;
       final int current = AppVersion.buildCount;
-      final bool hasUpdate = build > current;
+      final bool hasUpdate = bestBuild > current;
       LogService.instance.i('ota',
-          '检查更新: tag=$tag build=$build 当前=$current hotfix=$hotfix 有更新=$hasUpdate');
+          '检查更新: 最新=$bestTag build=$bestBuild 当前=$current hotfix=$bestHotfix 有更新=$hasUpdate');
       return OtaCheckResult(
-        latestTag: tag,
-        latestBuild: build,
-        isHotfix: hotfix,
+        latestTag: bestTag,
+        latestBuild: bestBuild,
+        isHotfix: bestHotfix,
         hasUpdate: hasUpdate,
-        releaseNotes:
-            (first['body'] as String?) ?? '',
+        releaseNotes: bestNotes,
       );
     } catch (e) {
       LogService.instance.w('ota', '检查更新失败: $e');

@@ -12,6 +12,8 @@
     <!-- 在线流媒体 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- cl74：OTA 应用内安装未知来源 APK（Android 8+ 必需） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- 后台播放（audio_service）所需权限 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -78,5 +80,18 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- cl74：OTA 安装器访问下载的 APK（App 私有 files 目录）所需的
+             FileProvider；authority 必须与 Dart 侧 kOtaFileProviderAuthority
+             及 MainActivity 的 OTA_AUTHORITY 完全一致。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.stelarith.xingli_music.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

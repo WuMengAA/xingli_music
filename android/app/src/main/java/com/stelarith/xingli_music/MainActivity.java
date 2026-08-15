@@ -2,12 +2,19 @@ package com.stelarith.xingli_music;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.Manifest;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
+
+import java.io.File;
 
 import com.ryanheise.audioservice.AudioServiceActivity;
 
@@ -34,6 +41,8 @@ import io.flutter.plugin.common.MethodChannel;
 public class MainActivity extends AudioServiceActivity {
     private static final String CHANNEL = "com.stelarith.xingli_music/sensors";
     private static final String WEBVIEW_CHANNEL = "com.stelarith.xingli_music/webview_login";
+    private static final String OTA_CHANNEL = "com.stelarith.xingli_music/ota_install";
+    private static final String OTA_AUTHORITY = "com.stelarith.xingli_music.fileprovider";
     private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
@@ -71,6 +80,43 @@ public class MainActivity extends AudioServiceActivity {
                         result.notImplemented();
                     }
                 });
+
+        // OTA 安装：Dart 侧下载并校验完 APK 后，调系统安装器完成安装。
+        // 必须用 FileProvider 生成 content:// URI（Android 7+ 禁止 file:// 暴露给
+        // 外部应用），并带 FLAG_GRANT_READ_URI_PERMISSION（配合
+        // REQUEST_INSTALL_PACKAGES 权限，Android 8+ 才能装未知来源 APK）。
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), OTA_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if ("install".equals(call.method)) {
+                        installApk(call.arguments(), result);
+                    } else {
+                        result.notImplemented();
+                    }
+                });
+    }
+
+    /** 调系统安装器安装已下载的 APK（[args] 为 APK 绝对路径）。 */
+    private void installApk(Object args, MethodChannel.Result result) {
+        if (!(args instanceof String)) {
+            result.error("bad_args", "apkPath 必须是字符串", null);
+            return;
+        }
+        final File apk = new File((String) args);
+        if (!apk.exists()) {
+            result.error("no_file", "安装包不存在: " + args, null);
+            return;
+        }
+        try {
+            final Uri uri = FileProvider.getUriForFile(this, OTA_AUTHORITY, apk);
+            final Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, "application/vnd.android.package-archive");
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            result.success(true);
+        } catch (Exception e) {
+            result.error("install_failed", e.getMessage(), null);
+        }
     }
 
     /** 拉起内嵌登录页：先收尾上一次未消费的结果（避免悬挂），再启动对应类型。 */

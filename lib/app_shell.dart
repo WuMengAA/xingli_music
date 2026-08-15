@@ -25,6 +25,8 @@ import 'providers/settings/settings_layout_provider.dart';
 import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
 import 'repositories/settings_repository.dart';
+import 'services/ota_service.dart';
+import 'services/ota_install.dart';
 import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/notification/app_notify.dart';
 import 'widgets/shell/app_dock.dart';
@@ -105,6 +107,11 @@ class _AppShellState extends ConsumerState<AppShell> {
       unawaited(loadSettingsLayoutAsset(ref));
       // F4：版本升级后弹询问是否重走初始化流程（仅当已完成为 true 且版本变高）。
       unawaited(_maybeAskReOobe(context));
+      // cl74：启动自动检查 OTA（仅已完成为 true 的老用户；首次走 OOBE 不弹）。
+      // 有新版本弹全局提示，用户可前往 设置 → 关于 → 版本更新 处理。
+      if (ref.read(oobeDoneProvider)) {
+        unawaited(_autoCheckOta(context));
+      }
     });
   }
 
@@ -157,6 +164,31 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  /// cl74：启动自动检查 OTA（initState 的 post-frame 回调里调用一次）。
+  /// 有新版本仅弹全局提示，不自动下载/安装；失败静默（不阻塞启动）。
+  Future<void> _autoCheckOta(BuildContext context) async {
+    try {
+      final OtaCheckResult r = await OtaService.instance.checkForUpdate();
+      if (!context.mounted) return;
+      if (r.hasUpdate && r.latestTag.isNotEmpty) {
+        appNotify(context, '发现新版本 ${r.latestTag}，可前往 设置 → 关于 → 版本更新');
+      }
+    } catch (_) {
+      // 启动检查失败不阻塞。
+    }
+  }
+
+  /// cl74：调系统安装器安装已下载的 APK（供下载完成 SnackBar 的「安装」动作）。
+  Future<void> _installApk(String apkPath) async {
+    try {
+      await OtaInstall.install(apkPath);
+    } on OtaException catch (e) {
+      if (mounted) appNotify(context, e.message);
+    } catch (e) {
+      if (mounted) appNotify(context, '安装失败：$e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // R26fx：OOBE 首次启动引导——未完成时覆盖全屏，完成后进入主界面。
@@ -186,12 +218,22 @@ class _AppShellState extends ConsumerState<AppShell> {
     });
 
     // cl61：OTA 后台下载完成 / 失败 → 全局通知（页面可已关闭，AppShell 常驻监听）。
+    // cl74：下载完成直接给「安装」动作（此前只提示"可安装"却无入口）。
     ref.listen<OtaDownloadState>(
       otaDownloadProvider,
       (OtaDownloadState? previous, OtaDownloadState next) {
         if (previous == null || previous.isDownloading == false) return;
         if (next.isDone) {
-          appNotify(context, '新版本 ${next.tag} 已下载并通过校验，可安装更新');
+          final String path = next.apkPath;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('新版本 ${next.tag} 已下载并通过 SHA-256 校验'),
+              action: SnackBarAction(
+                label: '安装',
+                onPressed: () => unawaited(_installApk(path)),
+              ),
+            ),
+          );
         } else if (next.isError) {
           appNotify(context, '更新下载失败：${next.error ?? '未知错误'}');
         }

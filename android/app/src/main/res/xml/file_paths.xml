@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cl74：OTA 安装器访问下载 APK 的 FileProvider 路径白名单。
+     APK 由 OtaService 存到 getApplicationDocumentsDirectory()
+     （Android → /data/data/<pkg>/files），故 files-path 即可覆盖；
+     另含 external-files / cache 以兼容不同路径变体（FileProvider 会
+     自动选中最匹配的 root）。name 仅用于 content:// 路径段，可任意。 -->
+<paths>
+    <files-path name="ota" path="." />
+    <external-files-path name="ext_ota" path="." />
+    <cache-path name="cache_ota" path="." />
+</paths>

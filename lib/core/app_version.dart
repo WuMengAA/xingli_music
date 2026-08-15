@@ -201,6 +201,18 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl74：OTA 端到端打通·启动自动检查 + 下载后真安装——
+  /// ①自动检查：AppShell.initState 启动后自动查一次 GitHub Releases（仅已完
+  /// 成 OOBE 的老用户），有新版本弹全局提示引导去 设置→关于→版本更新；
+  /// ②checkForUpdate 健壮性：原只取列表第一个非 draft Release、依赖 GitHub
+  /// 返回顺序，改为遍历所有非 draft Release 取**最大构建号**（hotfix 预发布
+  /// 仍纳入、语义版本 tag 解析为 -1 跳过），顺序变化不再取错版本；
+  /// ③安装链路补齐（此前整条缺失）：新增 REQUEST_INSTALL_PACKAGES 权限 +
+  /// FileProvider(res/xml/file_paths.xml) + MainActivity 的 ota_install
+  /// MethodChannel（FileProvider.getUriForFile → ACTION_VIEW + 授权 URI
+  /// 权限）+ Dart 侧 OtaInstall.install；版本更新页下载完成后按钮变为可点的
+  /// 「安装更新」，AppShell 下载完成通知带「安装」动作。Android 8+ 真正能装；
+  /// buildCount 73→74（0.26.8.15_alpha_cl74）。
   /// cl73：UI 流畅度优化·消除 UnifiedPlayer 进度/音量拖动整树重建——
   /// UnifiedPlayer 是 1219 行 ConsumerStatefulWidget，原进度条/音量拖动都放在
   /// 父级 setState 中执行 → 拖动时每帧重建整棵小部件树（含 3D 场景背景、歌词、
@@ -265,7 +277,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 73;
+  static const int buildCount = 74;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -321,6 +333,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl74',
+    title: 'OTA 端到端打通：启动自动检查 + 下载后真安装',
+    details: <String>[
+      '启动自动检查：AppShell 启动后自动查一次 GitHub Releases（仅老用户），有新版本弹全局提示引导去 设置→关于→版本更新',
+      'checkForUpdate 健壮性：遍历所有非 draft Release 取最大构建号，不再依赖 GitHub 返回顺序（hotfix 预发布仍纳入）',
+      '安装链路补齐（此前整条缺失）：REQUEST_INSTALL_PACKAGES 权限 + FileProvider + MainActivity ota_install 通道 + Dart 侧 OtaInstall.install',
+      '下载完成后版本更新页按钮变为可点「安装更新」，AppShell 下载完成通知带「安装」动作，Android 8+ 真正能装；buildCount 73→74（0.26.8.15_alpha_cl74）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl73',
