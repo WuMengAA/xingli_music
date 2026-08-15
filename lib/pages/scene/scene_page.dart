@@ -88,11 +88,18 @@ class HomeSceneContent extends ConsumerWidget {
           // ⚠️ 仅场景页/播放器背景；3D 游戏内不放视频（用户明确要求）。
           if (capture != null && bgOn)
             Positioned.fill(
-              child: SceneVideoBackground(
-                fallback: VoxelSceneBackground(
-                  key: ValueKey(capture),
-                  capture: capture,
-                  forceLive: bgRealtime,
+              // cl52-E：主页视频背景顶部圆角（与其它页面玻璃表面一致），
+              // 避免直角贴顶显得突兀。
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(AppRadius.xl),
+                ),
+                child: SceneVideoBackground(
+                  fallback: VoxelSceneBackground(
+                    key: ValueKey(capture),
+                    capture: capture,
+                    forceLive: bgRealtime,
+                  ),
                 ),
               ),
             ),

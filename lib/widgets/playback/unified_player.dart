@@ -78,6 +78,9 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
   bool _seeking = false;
   double? _seekMs;
 
+  /// cl52-B：歌词内嵌开关——歌词按钮（音量右、上一首左）点击展开/收起。
+  bool _lyricsOpen = false;
+
   /// 折叠态（R1 可折叠播放器）：收起时只显示封面 + 曲名 + 播放 / 展开。
   /// UI 自适应：空间紧张（横屏矮 / 手表）时**默认折叠**。
   bool _collapsed = false;
@@ -158,24 +161,8 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
             ],
           ),
         ),
-        // cl46：全局收藏（心形收藏 / 取消收藏）。
-        PlaybackIconButton(
-          icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-          size: 22,
-          active: isFav,
-          tooltip: isFav ? '取消收藏' : '收藏',
-          onTap: () {
-            if (now == null) return;
-            unawaited(toggleFavoriteTrack(ref, now));
-          },
-        ),
-        // cl46：白噪音——横向按钮（图标 + 文字）。
-        _WhiteNoiseLabeledButton(
-          active: whiteNoise,
-          onTap: _toggleWhiteNoise,
-        ),
-        // cl46：视听结合快捷开关——白噪音右边、全屏左边。
-        _BiliVisualToggleButton(),
+        // cl52-B：收藏/白噪音/视听已迁出 header（收藏→传输行循环右边；
+        // 白噪音+视听→底部操作行音质右边）。header 只保留放大 + 折叠。
         PlaybackIconButton(
           icon: _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
           size: 22,
@@ -248,10 +235,31 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                             volOpen: _volOpen,
                             onToggleVol: () =>
                                 setState(() => _volOpen = !_volOpen),
+                            // cl52-B：歌词内嵌开关 + 收藏（循环右边）。
+                            lyricsOpen: _lyricsOpen,
+                            onToggleLyrics: () => setState(
+                                () => _lyricsOpen = !_lyricsOpen),
+                            isFav: isFav,
+                            onToggleFav: () {
+                              if (now == null) return;
+                              unawaited(toggleFavoriteTrack(ref, now));
+                            },
                           ),
                           _buildVolumePanel(ref, _volOpen),
-                          // ⑧：搜索 + 音质入口下沉到音乐卡片底部（全局液态玻璃卡片）。
-                          _buildBottomActions(context, ref),
+                          // cl52-B：内嵌歌词（按钮展开后显示在传输行下方）。
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOutCubic,
+                            child: _lyricsOpen && widget.lyricsSlot != null
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: widget.lyricsSlot!,
+                                  )
+                                : const SizedBox(width: double.infinity),
+                          ),
+                          // ⑧：搜索 + 音质入口下沉到音乐卡片底部（全局液态玻璃卡片）；
+                          // cl52-B：白噪音 + 视听 + 均衡器也并入底部（音质右边）。
+                          _buildBottomActions(context, ref, whiteNoise: whiteNoise, onToggleWhiteNoise: _toggleWhiteNoise),
                         ],
                       ),
               ),
@@ -357,13 +365,20 @@ PlayMode _nextMode(PlayMode m) => switch (m) {
       PlayMode.loop => PlayMode.order,
     };
 
-/// 统一传输行（prev / play / next / volume / mode）。
+/// 统一传输行（volume / lyrics / prev / play / next / mode / favorite）。
+///
+/// cl52-B：按用户要求重排——歌词按钮在音量右边、上一首左边；收藏移到
+/// 循环模式右边。全屏态不重复放歌词钮（歌词已在 Overlay 内展示）。
 Widget _buildTransportRow(
   BuildContext context,
   WidgetRef ref, {
   required bool fullscreen,
   required bool volOpen,
   required VoidCallback onToggleVol,
+  required bool lyricsOpen,
+  required VoidCallback onToggleLyrics,
+  required bool isFav,
+  required VoidCallback onToggleFav,
 }) {
   final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
   final PlayMode mode = ref.watch(playModeProvider);
@@ -382,6 +397,18 @@ Widget _buildTransportRow(
         tooltip: '音量',
         onTap: onToggleVol,
       ),
+      // cl52-B：歌词按钮——音量右边、上一首左边（全屏态不重复）。
+      if (!fullscreen)
+        PlaybackIconButton(
+          icon: lyricsOpen
+              ? Icons.lyrics_rounded
+              : Icons.lyrics_outlined,
+          size: sideSize,
+          tint: true,
+          active: lyricsOpen,
+          tooltip: lyricsOpen ? '收起歌词' : '显示歌词',
+          onTap: onToggleLyrics,
+        ),
       PlaybackIconButton(
         svgName: AppIcons.previous,
         size: sideSize,
@@ -420,6 +447,14 @@ Widget _buildTransportRow(
             showPlaybackToast(context, '播放模式：${_modeLabel(next)}');
           }
         },
+      ),
+      // cl52-B：收藏移到循环模式右边（header 不再放收藏）。
+      PlaybackIconButton(
+        icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        size: sideSize,
+        active: isFav,
+        tooltip: isFav ? '取消收藏' : '收藏',
+        onTap: onToggleFav,
       ),
     ],
   );
@@ -553,13 +588,24 @@ Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
   );
 }
 
-/// ⑧⑩：音乐卡片底部操作行——搜索（弹出式底部卡片）+ 音质 / 清晰度。
-Widget _buildBottomActions(BuildContext context, WidgetRef ref) {
+/// ⑧⑩：音乐卡片底部操作行——搜索 + 音质 / 清晰度 + 白噪音 + 视听 + 均衡器。
+///
+/// cl52-B：白噪音与视听从 header 迁到这里（音质右边），均衡器紧随视听
+/// （图标形式）。header 只保留放大 / 折叠。
+Widget _buildBottomActions(
+  BuildContext context,
+  WidgetRef ref, {
+  required bool whiteNoise,
+  required VoidCallback onToggleWhiteNoise,
+}) {
   final AppThemeColors colors = context.appColors;
   return Padding(
     padding: const EdgeInsets.only(top: 6),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    child: Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 14,
+      runSpacing: 4,
       children: <Widget>[
         TextButton.icon(
           onPressed: () => unawaited(showAggregateSearchSheet(context)),
@@ -567,7 +613,6 @@ Widget _buildBottomActions(BuildContext context, WidgetRef ref) {
           label: Text('搜索', style: context.appText.caption),
           style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
-        const SizedBox(width: 14),
         TextButton.icon(
           onPressed: () => unawaited(showMusicQualitySheet(context)),
           icon:
@@ -575,7 +620,73 @@ Widget _buildBottomActions(BuildContext context, WidgetRef ref) {
           label: Text('音质', style: context.appText.caption),
           style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
         ),
+        // cl52-B：白噪音（音质右边）。
+        _WhiteNoiseLabeledButton(active: whiteNoise, onTap: onToggleWhiteNoise),
+        // cl52-B：视听（白噪音右边）。
+        _BiliVisualToggleButton(),
+        // cl52-B：均衡器（视听右边，图标形式）。
+        Tooltip(
+          message: '均衡器',
+          child: InkWell(
+            onTap: () => showEqualizerSheet(context),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.equalizer_rounded,
+                      size: 18, color: colors.textSecondary),
+                  const SizedBox(width: 4),
+                  Text('均衡', style: context.appText.caption),
+                ],
+              ),
+            ),
+          ),
+        ),
       ],
+    ),
+  );
+}
+
+/// 均衡器弹层（底部卡片）：紧凑卡片与全屏 Overlay 共用（cl52-B 提取）。
+Future<void> showEqualizerSheet(BuildContext context) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: context.appColors.bgSurface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text('均衡器', style: context.appText.subtitle),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: '关闭',
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            const Flexible(child: EqualizerPanel()),
+          ],
+        ),
+      ),
     ),
   );
 }
@@ -883,47 +994,8 @@ class _FullscreenPlaybackOverlayState
     );
   }
 
-  /// I：播放菜单内打开均衡器（复用 [EqualizerPanel]，弹层展示）。
-  void _openEqualizer(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: context.appColors.bgSurface,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (BuildContext sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.md,
-            AppSpace.md,
-            AppSpace.md,
-            AppSpace.lg,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Expanded(
-                    child: Text('均衡器', style: context.appText.subtitle),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    tooltip: '关闭',
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpace.sm),
-              const Flexible(child: EqualizerPanel()),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  /// I：播放菜单内打开均衡器（复用 [showEqualizerSheet]，弹层展示）。
+  void _openEqualizer(BuildContext context) => showEqualizerSheet(context);
 
   Widget _buildContent(Track? now, bool whiteNoise) {
     return Column(
@@ -993,6 +1065,19 @@ class _FullscreenPlaybackOverlayState
           fullscreen: true,
           volOpen: _volOpen,
           onToggleVol: () => setState(() => _volOpen = !_volOpen),
+          // 全屏态：歌词已在 Overlay 内展示，不重复放歌词钮。
+          lyricsOpen: false,
+          onToggleLyrics: () {},
+          isFav: now == null
+              ? false
+              : (ref.watch(isFavoriteProvider(
+                      trackKeyOf(now.title, now.artist, now.sourceId)))
+                  .value ??
+                  false),
+          onToggleFav: () {
+            if (now == null) return;
+            unawaited(toggleFavoriteTrack(ref, now));
+          },
         ),
         _buildVolumePanel(ref, _volOpen),
         const SizedBox(height: 8),
@@ -1035,24 +1120,13 @@ class _FullscreenPlaybackOverlayState
           widget.lyricsSlot!,
         ],
         const SizedBox(height: 8),
-        // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）。
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            PlaybackIconButton(
-              icon: Icons.search_rounded,
-              size: AppSize.iconSm,
-              tooltip: '搜索',
-              onTap: () => unawaited(showAggregateSearchSheet(context)),
-            ),
-            const SizedBox(width: 16),
-            PlaybackIconButton(
-              icon: Icons.high_quality_rounded,
-              size: AppSize.iconSm,
-              tooltip: '音质',
-              onTap: () => unawaited(showMusicQualitySheet(context)),
-            ),
-          ],
+        // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）；
+        // cl52-B：白噪音 + 视听 + 均衡器并入（音质右边），与紧凑卡片一致。
+        _buildBottomActions(
+          context,
+          ref,
+          whiteNoise: whiteNoise,
+          onToggleWhiteNoise: _toggleWhiteNoise,
         ),
       ],
     );

@@ -140,7 +140,11 @@ abstract final class AppVersion {
   /// 网易云/B站自动匹配最优曲目）；②上下歌切换考虑播放记录（新增
   /// recordPlayOrderProvider：按最近播放推导顺序，顺序/倒序模式下下一首按
   /// 播放记录走而不是字母序，场景默认曲目未命中时优先取最近播过的曲目）。
-  static const int buildCount = 51;
+  /// cl52：音乐卡片重构 + 界面统一①——①音乐卡片按钮重排：歌词钮移到
+  /// 音量右、上一首左；收藏移到循环模式右；白噪音+视听+均衡器并入底部
+  /// 操作行（音质右边，均衡器为图标形式）；header 只保留放大+折叠；
+  /// 歌词可点钮在卡片内展开（不再只存在于全屏）。②主页视频背景顶部圆角。
+  static const int buildCount = 52;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -196,6 +200,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl52',
+    title: '音乐卡片重构 + 界面统一：按钮重排 / 歌词内嵌 / 视频背景圆角',
+    details: <String>[
+      '音乐卡片按钮重排：歌词钮移到音量右边、上一首左边；收藏移到循环模式右边',
+      '白噪音 + 视听 + 均衡器并入底部操作行（音质右边，均衡器为图标形式）；header 只保留放大 + 折叠',
+      '歌词可点钮在卡片内展开（不再只存在于全屏 Overlay），全屏与紧凑卡片行为一致',
+      '主页视频背景加顶部圆角（与其它页面玻璃表面一致）',
+      '背景视频保持默认静音，不影响主音乐播放',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl51',
