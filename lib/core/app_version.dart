@@ -194,12 +194,19 @@ abstract final class AppVersion {
   /// （按同伴名字区分多人；半透明胶囊 + 实体主色描边；与太阳月亮同坐标系，
   /// 转视角/远端移动实时跟随；静态快照下也始终可见）；buildCount 63→64
   /// （0.26.8.15_alpha_cl64）。
+  /// cl66：G9 多人联机·编辑层快照同步——新/(重)加入玩家加入即看到他人已建结构。
+  /// 主机在成员接入(NetPeerConnected)时主动下发权威编辑层快照（已变方块+发光方块，
+  /// 地形由 seed 确定性复现不同步），客户端收到后 loadJson 应用到本地世界并强制整帧
+  /// 重建；客户端 world 视图注册 onEditSnapshot 后主动 requestEditSnapshot，规避
+  /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
+  /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
+  /// （0.26.8.15_alpha_cl66）。
   /// cl65：G9 多人联机·断线重连——客户端掉线/切后台/锁屏后自动重试连接并恢复
   /// 会话（指数退避，1.5s 起、封顶 8s、最多 12 次；重连期间世界全程继续渲染，
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 65;
+  static const int buildCount = 66;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -255,6 +262,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl66',
+    title: 'G9 多人联机·编辑层快照同步：加入即见他人已建结构',
+    details: <String>[
+      '新/(重)加入玩家加入即看到他人已建造的结构（此前只收到 seed 基础地形，看不到他人编辑）',
+      '主机在成员接入时主动下发权威编辑层快照（已变方块 + 发光方块；地形由 seed 确定性复现，仅不同步编辑层）',
+      '客户端收到快照后 loadJson 应用到本地世界并强制整帧重建，与实时 edit 增量广播无缝衔接',
+      '客户端注册回调后主动 requestEditSnapshot，规避「welcome/Snapshot 早于 world 视图注册」竞态；buildCount 65→66（0.26.8.15_alpha_cl66）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl65',

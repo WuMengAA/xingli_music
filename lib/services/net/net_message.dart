@@ -22,6 +22,8 @@ enum NetMsgType {
   requestListen, // 客户端请求主机当前一起听状态
   bye, // 主动离开
   ping, // 心跳
+  editSnapshot, // 主机→新成员/重连：编辑层快照（已变方块+发光方块），payload: edits/lights
+  requestEditSnapshot, // 客户端请求主机当前编辑层快照（防「welcome 早于 world 视图注册」竞态）
 }
 
 /// 一条网络消息（JSON 信封：t=类型 f=发送方 to=接收方(可选) p=负载）。

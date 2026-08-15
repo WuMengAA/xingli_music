@@ -225,6 +225,13 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   /// 初次加入不触发。
   void Function()? onReconnected;
 
+  // ── G9 cl66：编辑层快照（仅编辑层，地形不同步）──
+  /// 主机提供编辑层快照（世界视图注册，仅主机调用）：返回
+  /// `{edits: [...], lights: [...]}`（[VoxelWorld.editLayerJson]）。
+  Map<String, dynamic>? Function()? editSnapshotProvider;
+  /// 客户端收到编辑层快照后应用（世界视图注册）：把他人已建结构落到本地世界。
+  void Function(List<dynamic> edits, List<dynamic> lights)? onEditSnapshot;
+
   // 重连参数：指数退避（1.5s 起，封顶 8s），最多 12 次后转致命错误。
   static const int _kReconnectMaxAttempts = 12;
   static const Duration _kReconnectBase = Duration(milliseconds: 1500);
@@ -342,6 +349,21 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       state = state.copyWith(
         peers: <PeerInfo>[...state.peers, PeerInfo(id: e.peerId)],
       );
+      // G9 cl66：主机→新成员下发编辑层快照（已变方块 = 他人已建结构），
+      // 使其加入即看到他人建造（地形由 seed 确定性复现，仅不同步编辑层）。
+      // 仅主机提供（编辑层权威在主机世界）；快照为一次性全量，后续增量由
+      // 实时 broadcastEdit 维持。
+      final Map<String, dynamic>? snap = editSnapshotProvider?.call();
+      if (snap != null) {
+        _node?.sendTo(
+          e.peerId,
+          NetMessage(
+            type: NetMsgType.editSnapshot,
+            from: state.localId ?? '',
+            payload: snap,
+          ),
+        );
+      }
     } else if (e is NetPeerDisconnected) {
       state = state.copyWith(
         peers: state.peers.where((p) => p.id != e.peerId).toList(),
@@ -483,6 +505,35 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         onRemoteEdit?.call(x, y, z, v);
         break;
 
+      case NetMsgType.editSnapshot:
+        // 客户端：把主机下发的编辑层快照（他人已建结构）应用到本地世界。
+        final List<dynamic>? edits =
+            msg.payload['edits'] as List<dynamic>?;
+        final List<dynamic>? lights =
+            msg.payload['lights'] as List<dynamic>?;
+        if (edits != null && lights != null) {
+          onEditSnapshot?.call(edits, lights);
+        }
+        break;
+
+      case NetMsgType.requestEditSnapshot:
+        // 仅主机响应：把当前权威编辑层快照单发给请求者（客户端 world 视图注册
+        // 回调后主动请求，规避 welcome 早于视图回调注册的竞态）。
+        if (state.role == NetRole.host) {
+          final Map<String, dynamic>? snap = editSnapshotProvider?.call();
+          if (snap != null) {
+            _node?.sendTo(
+              from,
+              NetMessage(
+                type: NetMsgType.editSnapshot,
+                from: state.localId ?? '',
+                payload: snap,
+              ),
+            );
+          }
+        }
+        break;
+
       case NetMsgType.vitals:
         final PeerInfo? p = state.peer(from);
         if (p != null) {
@@ -584,6 +635,19 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       type: NetMsgType.vitals,
       from: state.localId ?? '',
       payload: <String, dynamic>{'hp': health, 'hg': hunger, 'xp': xp},
+    ));
+  }
+
+  /// G9 cl66：客户端请求主机当前编辑层快照。
+  /// 在 world 视图注册 onEditSnapshot 后立即调用，避免「welcome/Snapshot 早于
+  /// world 视图回调注册」竞态导致快照被静默丢弃（主机也会在 NetPeerConnected
+  /// 时主动下发一次，二者幂等，重复应用无害）。
+  void requestEditSnapshot() {
+    if (_node == null || state.role != NetRole.client) return;
+    _node!.send(NetMessage(
+      type: NetMsgType.requestEditSnapshot,
+      from: state.localId ?? '',
+      payload: const <String, dynamic>{},
     ));
   }
 
@@ -772,6 +836,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     onRemoteEdit = null;
     onRemoteTransform = null;
     onReconnected = null;
+    editSnapshotProvider = null;
+    onEditSnapshot = null;
     _intentionalLeave = false;
     state = const NetSessionState();
   }

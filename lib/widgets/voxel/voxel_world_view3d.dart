@@ -723,6 +723,29 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _forceRebuild = true;
         _dirty = true;
       };
+      // G9 cl66：编辑层快照——加入 / 重连后看到他人已建结构。
+      // 客户端：收到快照应用到本地世界（清静态快照 + 强制重建 + 失效几何缓存）。
+      net.onEditSnapshot = (List<dynamic> edits, List<dynamic> lights) {
+        widget.world.loadJson(<String, dynamic>{
+          'schema': 2,
+          'edits': edits,
+          'lights': lights,
+        });
+        _chunkCache.clear(); // 编辑层已变 → 全量几何缓存失效，强制整帧重建
+        _staticPicture = null; // 清静态快照：快照必须即时重绘
+        _forceRebuild = true; // 计入重建门控（即便本地相机静止）
+        _dirty = true;
+      };
+      // 主机：提供权威编辑层快照（仅主机；客户端不持有权威世界）。
+      if (ref.read(netSessionProvider).role == NetRole.host) {
+        net.editSnapshotProvider = () => widget.world.editLayerJson();
+      }
+      // 客户端：注册回调后主动请求一次快照（避免「welcome/Snapshot 早于
+      // world 视图回调注册」竞态导致快照丢失；主机也会在连接建立时主动
+      // 下发一次，二者幂等，重复应用无害）。
+      if (ref.read(netSessionProvider).role == NetRole.client) {
+        net.requestEditSnapshot();
+      }
       _netBroadcastTimer = Timer.periodic(
         const Duration(milliseconds: 100),
         (_) => _broadcastMyTransform(),
@@ -874,6 +897,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       net.onRemoteEdit = null;
       net.onRemoteTransform = null;
       net.onReconnected = null;
+      net.onEditSnapshot = null;
+      net.editSnapshotProvider = null;
     }
     super.dispose();
   }

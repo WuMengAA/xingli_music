@@ -860,9 +860,9 @@ class VoxelWorld {
   // ── R24d 自动存档序列化 ──────────────────────────────
   /// 序列化为可持久化的 JSON。地形由 [seed] 确定性复现，仅保存玩家编辑层
   /// （破坏 / 放置的方块）与发光方块——"存档存进所有东西"的方块侧全部在此。
-  Map<String, dynamic> toJson() {
-    // cl38（开放世界 chunk 化）：edits 按 chunk 分桶序列化，每项
-    // [cx, cz, lx, ly, lz, voxelIndex] —— 字段明确、可逆，不再依赖打包 key。
+  /// 序列化编辑层（chunk 分桶，每项 [cx, cz, lx, ly, lz, voxelIndex]）。
+  /// cl38（开放世界 chunk 化）：字段明确、可逆，不再依赖打包 key。
+  List<List<int>> _serializeEdits() {
     final List<List<int>> edits = <List<int>>[];
     for (final MapEntry<(int, int), Map<int, Voxel>> ce in _edits.entries) {
       final int cx = ce.key.$1;
@@ -872,15 +872,21 @@ class VoxelWorld {
         edits.add(<int>[cx, cz, lx, ly, lz, Voxel.values.indexOf(e.value)]);
       }
     }
-    final List<List<int>> lights = <List<int>>[
-      for (final MapEntry<(int, int, int), Voxel> e in _lights.entries)
-        <int>[
-          e.key.$1,
-          e.key.$2,
-          e.key.$3,
-          Voxel.values.indexOf(e.value),
-        ],
-    ];
+    return edits;
+  }
+
+  /// 序列化发光方块（每项 [x, y, z, voxelIndex]）。
+  List<List<int>> _serializeLights() => <List<int>>[
+        for (final MapEntry<(int, int, int), Voxel> e in _lights.entries)
+          <int>[
+            e.key.$1,
+            e.key.$2,
+            e.key.$3,
+            Voxel.values.indexOf(e.value),
+          ],
+      ];
+
+  Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'schema': 2, // cl38 起：chunk 化 edits 格式
       'seed': seed,
@@ -888,11 +894,19 @@ class VoxelWorld {
       'sizeX': sizeX,
       'sizeZ': sizeZ,
       'waterLevel': waterLevel,
-      'edits': edits,
-      'lights': lights,
+      'edits': _serializeEdits(),
+      'lights': _serializeLights(),
       'options': options.toJson(),
     };
   }
+
+  /// G9 cl66：仅编辑层 + 发光方块的快照（地形由 seed 确定性复现，不同步）。
+  /// 供联机主机在成员加入 / 重连时下发，使其加入即看到他人已建结构。
+  /// 返回 `{edits: [...], lights: [...]}`，与 [loadJson] 接收格式一致。
+  Map<String, dynamic> editLayerJson() => <String, dynamic>{
+        'edits': _serializeEdits(),
+        'lights': _serializeLights(),
+      };
 
   /// 从存档恢复玩家编辑层与发光方块。
   ///
