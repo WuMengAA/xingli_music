@@ -380,6 +380,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             // cl55：版本日志（自动获取最新）+ 版本更新（OTA 入口）。
             SettingItem(id: 'versionLog', title: '版本日志'),
             SettingItem(id: 'versionUpdate', title: '版本更新'),
+            // F4：重新打开初始化流程（设置-关于-初始化流程）。
+            SettingItem(id: 'initWizard', title: '初始化流程'),
             SettingItem(id: 'logUpload', title: '日志上报'),
           ],
         ),

@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../pages/explore/experiments/equalizer_page.dart';
 import '../pages/library/favorites_page.dart';
 import '../pages/library/top_list_page.dart';
+import '../pages/oobe/oobe_page.dart';
 import '../pages/scene/custom_scene_list_page.dart';
 import '../pages/scene/voxel_sound_editor_page.dart';
 import '../pages/settings/scene_editor_page.dart';
@@ -1627,6 +1628,20 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '版本更新',
       subtitle: '检查 GitHub 与官方网站是否有新版本',
       onTap: () => showVersionUpdateSheet(context),
+    ),
+  ),
+  // F4：重新打开初始化流程（10 步引导；重走仅合并、不清数据）。
+  'initWizard': SettingItemDef(
+    title: '初始化流程',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.auto_awesome_outlined,
+      title: '初始化流程',
+      subtitle: '重新体验界面介绍 / 个性化 / 权限 / 协议（不清除数据）',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const OobePage()),
+      ),
     ),
   ),
   'logUpload': SettingItemDef(

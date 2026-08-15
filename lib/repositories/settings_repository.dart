@@ -75,6 +75,8 @@ class SettingsRepository {
   static const String kRenderPrecision = 'settings.voxel.renderPrecision';
   static const String kPicturePreset = 'settings.picturePreset';
   static const String kOobeDone = 'settings.oobeDone';
+  /// F4：最近一次完成 OOBE 的构建号（升级检测用——版本升级后弹询问是否重走）。
+  static const String kOobeLastBuild = 'settings.oobeLastBuild';
   static const String kEngineBackend = 'settings.engineBackend';
   static const String kNoiseOverride = 'settings.effects.noise';
   static const String kGlassBlurOverride = 'settings.effects.glassBlur';
@@ -310,6 +312,12 @@ class SettingsRepository {
   Future<void> setOobeDone(bool? v) => v == null
       ? _prefs.remove(kOobeDone)
       : _prefs.setBool(kOobeDone, v);
+
+  /// F4：最近完成 OOBE 的构建号（int 存 string）。
+  int? get oobeLastBuild => _prefs.getInt(kOobeLastBuild);
+  Future<void> setOobeLastBuild(int? v) => v == null
+      ? _prefs.remove(kOobeLastBuild)
+      : _prefs.setInt(kOobeLastBuild, v);
 
   double? get glassBlurOverride => _prefs.getDouble(kGlassBlurOverride);
   Future<void> setGlassBlurOverride(double? v) => v == null

@@ -162,7 +162,11 @@ abstract final class AppVersion {
   /// hotfix 直下→SHA-256 校验），版本更新面板接入真实链路；开源配套
   /// LICENSE(MIT) + GitHub Actions 发布工作流（tag cl*/v* 自动构建 APK+校验
   /// 文件并发布 Release）。
-  static const int buildCount = 56;
+  /// cl57：G8 公网日志服务器（服务端 Node + Cloudflare 公网隧道，代码托管
+  /// GitHub）+ F4 OOBE 重做（10 步初始化：欢迎/界面介绍/个性化/游戏画质/
+  /// 隐私安全/通知权限/实验性功能/版本日志/更新检查/用户协议+完成；版本升级
+  /// 弹询问重走；数据保护「合并且不清除数据」提示；设置-关于-初始化流程入口）。
+  static const int buildCount = 57;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -218,6 +222,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl57',
+    title: '公网日志服务器 + OOBE 初始化流程重做（10 步）',
+    details: <String>[
+      '日志上报服务端开源托管（tools/log_server）：零依赖 Node 服务 + 网页查看器 + Cloudflare Tunnel 公网部署模板',
+      'OOBE 重做为 10 步初始化：欢迎 / 界面介绍 / 个性化 / 游戏画质 / 隐私与安全 / 通知权限 / 实验性功能 / 版本日志 / 更新检查 / 用户协议+完成',
+      '版本升级检测：检测到构建号升级后弹窗询问是否重新走初始化流程',
+      '数据保护：检测到已有数据时醒目提示「合并且不清除数据」，重走流程绝不清理数据',
+      '设置 → 关于 → 初始化流程：可随时重新体验引导',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl56',

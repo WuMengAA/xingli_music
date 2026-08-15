@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/app_version.dart';
 import 'core/theme/app_theme_colors.dart';
 import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
@@ -99,7 +100,51 @@ class _AppShellState extends ConsumerState<AppShell> {
       unawaited(restoreSettings(ref));
       // 布局整理：尝试读 assets/settings_layout.json 覆盖默认布局（随包分发）。
       unawaited(loadSettingsLayoutAsset(ref));
+      // F4：版本升级后弹询问是否重走初始化流程（仅当已完成为 true 且版本变高）。
+      unawaited(_maybeAskReOobe(context));
     });
+  }
+
+  /// F4：版本升级检测——上次完成 OOBE 的构建号 < 当前构建号 → 弹询问。
+  Future<void> _maybeAskReOobe(BuildContext context) async {
+    try {
+      final bool done = ref.read(oobeDoneProvider);
+      if (!done) return; // 首次走 OOBE，不弹。
+      final int? last = ref.read(settingsRepositoryProvider).oobeLastBuild;
+      if (last != null && last >= AppVersion.buildCount) return; // 无升级。
+      if (!mounted) return;
+      // 延迟片刻，避免与冷启动动画抢屏。
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      final bool? go = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext c) => AlertDialog(
+          title: const Text('版本已更新'),
+          content: const Text(
+            '检测到应用已升级（新版本已包含最新功能）。\n'
+            '是否重新走一遍初始化流程？\n\n'
+            '提示：重走流程只会合并设置，不会清除任何数据。',
+            style: TextStyle(fontSize: 13),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: const Text('跳过'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: const Text('重新初始化'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted || go != true) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const OobePage()),
+      );
+    } catch (_) {
+      // 升级弹窗失败不阻塞启动。
+    }
   }
 
   @override

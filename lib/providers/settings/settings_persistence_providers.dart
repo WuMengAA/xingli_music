@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_version.dart';
 import '../../core/throttled_binding.dart';
 import '../../models/scene.dart';
 import '../../models/track.dart';
@@ -338,7 +339,11 @@ final settingsSyncProvider = Provider<void>((ref) {
   ref.listen<double>(renderPrecisionProvider, (_, v) => repo.setRenderPrecision(v));
   ref.listen<PicturePreset>(
       picturePresetProvider, (_, v) => repo.setPicturePreset(v.name));
-  ref.listen<bool>(oobeDoneProvider, (_, v) => repo.setOobeDone(v));
+  ref.listen<bool>(oobeDoneProvider, (_, v) {
+    repo.setOobeDone(v);
+    // F4：完成 OOBE 时记录当前构建号（升级检测：版本升级后弹询问是否重走）。
+    if (v) repo.setOobeLastBuild(AppVersion.buildCount);
+  });
   ref.listen<double?>(
       glassBlurOverrideProvider, (_, v) => repo.setGlassBlurOverride(v));
   ref.listen<bool?>(

@@ -1,6 +1,18 @@
 # 星璃 · 云端日志收集器（log_server）
 
 配套 app「日志上报」功能的**自建服务端**，零依赖 Node 服务。
+代码随项目开源托管在 GitHub（`WuMengAA/xingli_music` → `tools/log_server/`），
+可部署到任意公网服务器 / VPS / 云主机，或经 Cloudflare Tunnel 内网穿透暴露公网。
+
+## 公网部署总览（G8）
+
+```
+App（任意网络） ──HTTPS──▶ logs.example.com ──▶ Cloudflare 隧道 / nginx ──▶ node server.js :8765 ──▶ logs/*.log
+```
+
+- **代码**：本目录（GitHub 仓库内），`git clone` 后即可部署；
+- **公网入口**：推荐 Cloudflare Tunnel（无需公网 IP、无需改 A 记录，见下）或 nginx + 域名；
+- **安全**：日志已脱敏，但公网务必加一层鉴权（Cloudflare Access / nginx basic auth，见下）。
 
 ## 启动
 
