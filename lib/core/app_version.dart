@@ -53,7 +53,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 14;
+  static const int day = 15;
 
   /// 阶段。
   static const AppStage stage = AppStage.alpha;
@@ -177,7 +177,11 @@ abstract final class AppVersion {
   /// cl60：GitHub 开源 + OTA 发布链路打通——代码推送 github.com/WuMengAA/xingli_music
   /// main 分支，打 tag（cl*/v*）触发 GitHub Actions 自动构建 APK + sha256 并发布
   /// Release；应用内「设置→关于→版本更新」即可检测 / 下载 / 哈希校验 / 安装新版本。
-  static const int buildCount = 60;
+  /// cl61：OTA 下载体验升级 + 版本号进入 0.26.8.15——①下载显示实时进度（进度条/
+  /// 百分比/已下载-总量/实时网速）；②**挂后台下载**（全局 otaDownloadProvider 单例，
+  /// 关闭更新页下载继续，完成/失败由 AppShell 常驻监听弹全局通知）；③版本号按日期
+  /// 推进 day 14→15、buildCount 60→61（0.26.8.15_alpha_cl61），从此版起 OTA 可自动更新。
+  static const int buildCount = 61;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -233,6 +237,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl61',
+    title: 'OTA 下载体验升级：实时进度 / 网速 + 挂后台下载（版本进入 0.26.8.15）',
+    details: <String>[
+      '更新下载显示实时进度：进度条 + 百分比 + 已下载/总量 + 实时网速（MB/s）',
+      '支持后台下载：关闭「版本更新」页后下载继续，完成/失败由全局通知提示（可并行处理其他事）',
+      'SHA-256 哈希校验通过才提示安装，防篡改',
+      '版本号按日期推进：0.26.8.14 → 0.26.8.15（cl60 → cl61）；从此版起 OTA 自动更新可用',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl60',

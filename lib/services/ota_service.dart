@@ -64,6 +64,23 @@ class OtaCheckResult {
   );
 }
 
+/// 下载进度（cl61）：已下载 / 总量 / 实时网速（字节每秒）。
+class OtaProgress {
+  const OtaProgress({
+    required this.receivedBytes,
+    required this.totalBytes,
+    required this.speedBytesPerSec,
+  });
+
+  final int receivedBytes;
+  final int totalBytes;
+  final double speedBytesPerSec;
+
+  /// 0~1 进度（总量未知时按 -1 处理为 0）。
+  double get fraction =>
+      totalBytes > 0 ? (receivedBytes / totalBytes).clamp(0.0, 1.0) : 0;
+}
+
 /// OTA 服务单例。
 class OtaService {
   OtaService._();
@@ -136,8 +153,13 @@ class OtaService {
 
   /// 下载 Release 资产并校验 SHA-256。
   ///
+  /// [onProgress] 在下载期间持续回调进度（字节 / 网速），供 UI 展示；
+  /// 下载不依赖调用方生命周期（调用方销毁后 Future 继续跑，即「挂后台」）。
   /// 返回安装包路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。
-  Future<String> downloadAndVerify(String tag) async {
+  Future<String> downloadAndVerify(
+    String tag, {
+    void Function(OtaProgress progress)? onProgress,
+  }) async {
     final String url =
         'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$kOtaAssetName';
     final String shaUrl =
@@ -148,8 +170,8 @@ class OtaService {
 
     // 1) 下载 sha256 期望值。
     final String expected = await _fetchSha256(shaUrl);
-    // 2) 下载 apk（流式）。
-    await _download(url, apkPath);
+    // 2) 下载 apk（流式，回调进度）。
+    await _download(url, apkPath, onProgress: onProgress);
     // 3) 校验。
     final String actual = await _sha256OfFile(apkPath);
     if (expected.isNotEmpty && actual != expected) {
@@ -175,15 +197,48 @@ class OtaService {
     }
   }
 
-  Future<void> _download(String url, String path) async {
-    final http.Response resp = await _client
-        .get(Uri.parse(url))
-        .timeout(const Duration(minutes: 5));
+  /// 流式下载到文件，边下边回调进度（已下载 / 总量 / 实时网速）。
+  Future<void> _download(
+    String url,
+    String path, {
+    void Function(OtaProgress progress)? onProgress,
+  }) async {
+    final http.Request req = http.Request('GET', Uri.parse(url));
+    final http.StreamedResponse resp =
+        await _client.send(req).timeout(const Duration(minutes: 2));
     if (resp.statusCode != 200) {
       throw OtaException('下载失败（HTTP ${resp.statusCode}）');
     }
+    final int total = resp.contentLength ?? -1;
     final File f = File(path);
-    await f.writeAsBytes(resp.bodyBytes, flush: true);
+    final IOSink sink = f.openWrite();
+    int received = 0;
+    final Stopwatch sw = Stopwatch()..start();
+    int lastBytes = 0;
+    double speed = 0;
+    try {
+      await for (final List<int> chunk in resp.stream) {
+        sink.add(chunk);
+        received += chunk.length;
+        final int now = sw.elapsedMilliseconds;
+        if (now >= 400) {
+          // 实时网速：本窗口字节 / 窗口时长（EMA 平滑）。
+          final double inst = (received - lastBytes) * 1000 / now;
+          speed = speed <= 0 ? inst : speed * 0.6 + inst * 0.4;
+          lastBytes = received;
+          sw..reset()..start();
+        }
+        onProgress?.call(OtaProgress(
+          receivedBytes: received,
+          totalBytes: total > 0 ? total : received,
+          speedBytesPerSec: speed,
+        ));
+      }
+    } finally {
+      await sink.flush();
+      await sink.close();
+    }
+    if (received == 0) throw OtaException('下载内容为空');
   }
 
   Future<String> _sha256OfFile(String path) async {

@@ -18,6 +18,7 @@ import 'providers/audio/audio_providers.dart';
 import 'providers/audio/equalizer_providers.dart';
 import 'providers/scene/scene_providers.dart';
 import 'providers/settings/notification_providers.dart';
+import 'providers/settings/ota_download_provider.dart';
 import 'providers/settings/performance_providers.dart';
 import 'providers/settings/settings_persistence_providers.dart';
 import 'providers/settings/settings_layout_provider.dart';
@@ -25,6 +26,7 @@ import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
 import 'repositories/settings_repository.dart';
 import 'widgets/companion/companion_global_fab.dart';
+import 'widgets/notification/app_notify.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
 import 'widgets/playback/music_card.dart';
@@ -182,6 +184,19 @@ class _AppShellState extends ConsumerState<AppShell> {
             );
       }
     });
+
+    // cl61：OTA 后台下载完成 / 失败 → 全局通知（页面可已关闭，AppShell 常驻监听）。
+    ref.listen<OtaDownloadState>(
+      otaDownloadProvider,
+      (OtaDownloadState? previous, OtaDownloadState next) {
+        if (previous == null || previous.isDownloading == false) return;
+        if (next.isDone) {
+          appNotify(context, '新版本 ${next.tag} 已下载并通过校验，可安装更新');
+        } else if (next.isError) {
+          appNotify(context, '更新下载失败：${next.error ?? '未知错误'}');
+        }
+      },
+    );
 
     final int pageIndex = ref.watch(shellPageIndexProvider);
     final int? selectedTab = ref.watch(selectedTabIndexProvider);

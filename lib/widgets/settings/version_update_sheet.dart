@@ -7,13 +7,15 @@
 ///   此处保留统一入口（点击即触发检查回调）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../services/log_service.dart';
+import '../../providers/settings/ota_download_provider.dart';
 import '../../services/ota_service.dart';
 import '../notification/app_notify.dart';
 
@@ -127,14 +129,10 @@ class _VersionUpdatePanel extends ConsumerStatefulWidget {
 
 class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   bool _checking = false;
-  bool _downloading = false;
 
-  /// G7：检查 GitHub Releases → 有更新 → 询问/直接下载 → 哈希校验 → 提示。
+  /// G7：检查 GitHub Releases → 有更新 → 询问/直接下载 →（后台）哈希校验 → 提示。
   Future<void> _check() async {
-    setState(() {
-      _checking = true;
-      _downloading = false;
-    });
+    setState(() => _checking = true);
     final OtaCheckResult r = await OtaService.instance.checkForUpdate();
     if (!mounted) return;
     setState(() => _checking = false);
@@ -144,10 +142,10 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
       return;
     }
     // 有更新：hotfix 直接下载；普通版本先确认。
-    final bool go = r.isHotfix ||
-        (await _confirmUpdate(context, r)) == true;
+    final bool go = r.isHotfix || (await _confirmUpdate(context, r)) == true;
     if (!go || !mounted) return;
-    await _download(r.latestTag);
+    // 交给全局控制器（后台下载，本页可关闭）。
+    unawaited(ref.read(otaDownloadProvider.notifier).start(r.latestTag));
   }
 
   Future<bool?> _confirmUpdate(BuildContext context, OtaCheckResult r) {
@@ -174,30 +172,11 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     );
   }
 
-  Future<void> _download(String tag) async {
-    setState(() => _downloading = true);
-    try {
-      // 下载 + SHA-256 校验（服务内部完成）。
-      final String apkPath = await OtaService.instance.downloadAndVerify(tag);
-      if (!mounted) return;
-      setState(() => _downloading = false);
-      appNotify(context, '新版本已下载并通过校验：$tag');
-      LogService.instance.i(
-          'ota', '更新包已就绪（校验通过）: $apkPath（安装器接入见后续）');
-    } on OtaException catch (e) {
-      if (!mounted) return;
-      setState(() => _downloading = false);
-      appNotify(context, e.message);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _downloading = false);
-      appNotify(context, '更新失败：$e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppThemeColors colors = context.appColors;
+    // cl61：订阅全局下载状态（后台下载，本页只负责展示）。
+    final OtaDownloadState dl = ref.watch(otaDownloadProvider);
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -249,6 +228,130 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
               ),
             ),
             const SizedBox(height: AppSpace.md),
+            // ── 下载进度 / 网速 / 后台提示（cl61）──
+            if (dl.isDownloading) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpace.md),
+                decoration: BoxDecoration(
+                  color: colors.bgCard,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            '正在下载 ${dl.tag} …',
+                            style: context.appText.body,
+                          ),
+                        ),
+                        Text(
+                          '${(dl.fraction * 100).toStringAsFixed(1)}%',
+                          style: context.appText.subtitle
+                              .copyWith(color: colors.accent),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: dl.fraction,
+                        minHeight: 6,
+                        backgroundColor: colors.accentSoft,
+                        valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    Row(
+                      children: <Widget>[
+                        Text(
+                          '${_fmtBytes(dl.receivedBytes)} / '
+                          '${_fmtBytes(dl.totalBytes)}',
+                          style: context.appText.caption,
+                        ),
+                        const Spacer(),
+                        Text(
+                          _fmtSpeed(dl.speedBytesPerSec),
+                          style: context.appText.caption
+                              .copyWith(color: colors.textSecondary),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: <Widget>[
+                        const Icon(
+                          Icons.cloud_download_outlined,
+                          size: 14,
+                          color: Color(0xFF9AA3B2),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '后台下载中，可关闭本页，完成后通知你',
+                            style: context.appText.artist,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+            ],
+            if (dl.isDone) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpace.md),
+                decoration: BoxDecoration(
+                  color: colors.accentSoft,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Row(
+                  children: <Widget>[
+                    const Icon(Icons.check_circle,
+                        color: Color(0xFF34C759), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${dl.tag} 已下载并通过 SHA-256 校验，可安装更新',
+                        style: context.appText.body,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+            ],
+            if (dl.isError) ...<Widget>[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(AppSpace.md),
+                decoration: BoxDecoration(
+                  color: colors.accentSoft,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(Icons.error_outline,
+                        color: Color(0xFFFF3B30), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        dl.error ?? '更新失败',
+                        style: context.appText.bodyMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+            ],
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -256,7 +359,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                   backgroundColor: colors.accent,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                icon: _checking || _downloading
+                icon: _checking
                     ? const SizedBox(
                         width: 16,
                         height: 16,
@@ -265,17 +368,21 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                       )
                     : const Icon(Icons.system_update_alt_rounded, size: 18),
                 label: Text(
-                  _downloading
-                      ? '下载并校验中…'
-                      : (_checking ? '检查中…' : '检查更新'),
+                  dl.isDone
+                      ? '已就绪：${dl.tag}'
+                      : (dl.isDownloading
+                          ? '下载中…'
+                          : (_checking ? '检查中…' : '检查更新')),
                 ),
-                onPressed: (_checking || _downloading) ? null : _check,
+                onPressed:
+                    (_checking || dl.isDownloading || dl.isDone) ? null : _check,
               ),
             ),
             const SizedBox(height: AppSpace.xs),
             Text(
               '连接 GitHub Releases 自动获取安装包，下载后校验 SHA-256 哈希，'
-              '通过才提示安装；hotfix 版本直接下载。',
+              '通过才提示安装；支持后台下载（可关闭本页，完成后通知你）；'
+              'hotfix 版本直接下载。',
               style: context.appText.artist,
             ),
           ],
@@ -283,6 +390,14 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
       ),
     );
   }
+
+  static String _fmtBytes(int b) => b >= 1048576
+      ? '${(b / 1048576).toStringAsFixed(1)} MB'
+      : '${(b / 1024).toStringAsFixed(0)} KB';
+
+  static String _fmtSpeed(double bs) => bs >= 1048576
+      ? '${(bs / 1048576).toStringAsFixed(1)} MB/s'
+      : '${(bs / 1024).toStringAsFixed(0)} KB/s';
 }
 
 /// 单条版本日志。
