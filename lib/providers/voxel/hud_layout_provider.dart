@@ -11,6 +11,7 @@ library;
 import 'dart:convert' show JsonDecoder, JsonEncoder;
 import 'dart:ui' show Offset;
 
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,6 +32,17 @@ final hudLayoutProvider =
 
 /// HUD 缩放倍率（摇杆 / 动作键整体大小；默认 1.0，允许 0.8~1.4）。
 final hudScaleProvider = StateProvider<double>((ref) => 1.0);
+
+/// 屏幕自适应基准缩放：基于视口短边相对参考尺寸（420dp）的比例，
+/// 让游戏 HUD 控件在手机 / 平板、竖屏 / 横屏下都保持合适大小
+/// （与手动档位 [hudScaleProvider] 叠加，共同决定实际缩放）。
+///
+/// - 平板（短边 >700）→ 放大；小屏手机（<360）→ 缩小；范围夹紧 [0.8, 1.35]。
+double hudResponsiveScale(BuildContext context) {
+  final double shortest = MediaQuery.of(context).size.shortestSide;
+  final double s = shortest / 420; // 参考 420dp（典型手机宽）
+  return s.clamp(0.8, 1.35);
+}
 
 /// HUD 布局编辑模式（开启后浮动元素显示边框、可拖动；关闭自动保存）。
 final hudEditProvider = StateProvider<bool>((ref) => false);

@@ -4621,8 +4621,11 @@ class _HudWrap extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bool edit = ref.watch(hudEditProvider);
     final Offset pos = ref.watch(hudLayoutProvider)[id] ?? defaultPos;
-    // R26x：HUD 整体缩放（摇杆 / 动作键大小），由 [hudScaleProvider] 控制。
-    final double scale = ref.watch(hudScaleProvider);
+    // R26x：HUD 整体缩放（摇杆 / 动作键大小）= 手动档位([hudScaleProvider])
+    // × 屏幕自适应基准([hudResponsiveScale])——平板放大、小屏/竖屏缩小，
+    // 解决「控件不随屏幕变化、竖屏杂乱」（游戏页布局修复 #1）。
+    final double scale =
+        ref.watch(hudScaleProvider) * hudResponsiveScale(context);
     // R26g 修复：此前用 LayoutBuilder 取尺寸再返回 Positioned——Positioned
     // 被包在 LayoutBuilder 子级里违反 ParentDataWidget（Positioned 必须直接
     // 挂在 Stack 下），进入世界（摇杆/动作键出现）即抛异常（用户「点生存
@@ -4673,10 +4676,14 @@ class _ToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 自适应：按屏幕短边缩放内边距/图标/字号，竖屏小屏不拥挤、平板不袖珍。
+    final double s = hudResponsiveScale(context);
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 6 * s),
+        constraints: BoxConstraints(minHeight: 32 * s),
         decoration: BoxDecoration(
           color: active
               ? context.appColors.accent.withValues(alpha: 0.55)
@@ -4687,10 +4694,10 @@ class _ToggleChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Icon(icon, size: 16, color: const Color(0xFFF2F5FA)),
-            const SizedBox(width: 4),
+            Icon(icon, size: 16 * s, color: const Color(0xFFF2F5FA)),
+            SizedBox(width: 4 * s),
             Text(label,
-                style: const TextStyle(color: Color(0xFFF2F5FA), fontSize: 12)),
+                style: TextStyle(color: const Color(0xFFF2F5FA), fontSize: 12 * s)),
           ],
         ),
       ),

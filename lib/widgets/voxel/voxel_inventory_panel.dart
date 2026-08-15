@@ -15,6 +15,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
+import '../../providers/voxel/hud_layout_provider.dart';
 import 'voxel_crafting.dart';
 import 'voxel_inventory.dart';
 import 'voxel_items.dart';
@@ -286,6 +287,7 @@ class _Slot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onSecondaryTap: onSecondaryTap,
       onLongPress: onLongPress,
@@ -382,46 +384,66 @@ class VoxelHotbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double s = hudResponsiveScale(context);
     return AnimatedBuilder(
       animation: inventory,
       builder: (BuildContext context, Widget? _) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              _chip(
-                icon: survival ? Icons.favorite_outline : Icons.flight_rounded,
-                tip: survival ? '生存模式' : '创造模式',
-                onTap: onToggleSurvival,
-              ),
-              const SizedBox(width: 6),
-              for (int i = 0; i < VoxelInventory.hotbarSize; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: _Slot(
-                    stack: inventory.at(i),
-                    selected: inventory.selected == i,
-                    // R29：快捷栏（物品栏一部分）也显示方块名，满足「物品栏标明
-                    // 各种物体 / 方块名称」；主仓原本就显示，合成页已显示。
-                    showName: true,
-                    onTap: () => onSelect(i),
+        return LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints constraints) {
+            final double avail = constraints.maxWidth;
+            // 自适应槽位：9 格 + 2 个切换键 + 间隔，全部在可用宽度内排下，
+            // 竖屏窄屏不再横向溢出（游戏页布局修复 #2）。
+            const double chipW = 38;
+            const double gap = 4;
+            const double edge = 6;
+            final double fixed =
+                2 * chipW + 2 * edge + (VoxelInventory.hotbarSize - 1) * gap;
+            final double slotSize =
+                ((avail - fixed) / VoxelInventory.hotbarSize).clamp(28.0, 52.0);
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  _chip(
+                    scale: s,
+                    icon: survival
+                        ? Icons.favorite_outline
+                        : Icons.flight_rounded,
+                    tip: survival ? '生存模式' : '创造模式',
+                    onTap: onToggleSurvival,
                   ),
-                ),
-              const SizedBox(width: 6),
-              _chip(
-                icon: Icons.backpack_outlined,
-                tip: '背包 / 合成',
-                onTap: onOpenBag,
+                  SizedBox(width: edge),
+                  for (int i = 0; i < VoxelInventory.hotbarSize; i++) ...<Widget>[
+                    if (i > 0) SizedBox(width: gap),
+                    _Slot(
+                      stack: inventory.at(i),
+                      selected: inventory.selected == i,
+                      // R29：快捷栏（物品栏一部分）也显示方块名，满足「物品栏标明
+                      // 各种物体 / 方块名称」；主仓原本就显示，合成页已显示。
+                      showName: true,
+                      size: slotSize,
+                      onTap: () => onSelect(i),
+                    ),
+                  ],
+                  SizedBox(width: edge),
+                  _chip(
+                    scale: s,
+                    icon: Icons.backpack_outlined,
+                    tip: '背包 / 合成',
+                    onTap: onOpenBag,
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
 
   Widget _chip({
+    required double scale,
     required IconData icon,
     required String tip,
     required VoidCallback onTap,
@@ -429,16 +451,17 @@ class VoxelHotbar extends StatelessWidget {
     return Tooltip(
       message: tip,
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          width: 34,
-          height: 34,
+          width: 38 * scale,
+          height: 38 * scale,
           decoration: BoxDecoration(
             color: const Color(0x660B1220),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: const Color(0x66FFFFFF)),
           ),
-          child: Icon(icon, size: 18, color: const Color(0xFFF2F5FA)),
+          child: Icon(icon, size: 18 * scale, color: const Color(0xFFF2F5FA)),
         ),
       ),
     );

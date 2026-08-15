@@ -1,3 +1,5 @@
+import 'dart:math' show min;
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -41,18 +43,37 @@ class VoxelCanvasView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final double w = constraints.maxWidth;
-          final double h = height;
-          // 画布居中，菱形区偏移
-          final double offsetX = w / 2;
-          final double offsetY = h / 2 - (controller.cols + controller.rows) * tileH / 4;
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double w = constraints.maxWidth;
+        // 高度可能无界（编辑器页未约束）——回退到宽度的合理比例，避免 Infinity。
+        final double hAvail =
+            constraints.maxHeight.isFinite ? constraints.maxHeight : w * 0.75;
+        final int cols = controller.cols;
+        final int rows = controller.rows;
+        final double span = (cols + rows).toDouble();
+        final double ratio = this.tileH / this.tileW; // 28/46 ≈ 0.609
 
-          return GestureDetector(
+        // 自适应瓦片：让整张等距网格在竖屏窄屏 / 横屏宽屏都完整显示
+        // （不裁切、不溢出）。横向受 (cols+rows)*tileW/2 限制，纵向受
+        // 菱形区高度 + 顶部厚度余量限制（游戏页布局修复 #3）。
+        double tileW = this.tileW;
+        if (span > 0) {
+          final double fromW = (w - 32) * 2 / span;
+          final double fromH = hAvail / (ratio * (span / 2 + 1.75));
+          tileW = min(fromW, fromH).clamp(10.0, this.tileW);
+        }
+        final double tileH = tileW * ratio;
+
+        // 画布高度 = 可用高度（瓦片尺寸已保证内容收敛其中）；菱形区居中。
+        final double canvasH = hAvail;
+        final double offsetX = w / 2;
+        final double offsetY = canvasH / 2 - span * tileH / 4;
+
+        return SizedBox(
+          height: canvasH,
+          width: w,
+          child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapDown: (TapDownDetails d) {
               final (int, int)? cell = _hitTest(
@@ -64,7 +85,7 @@ class VoxelCanvasView extends StatelessWidget {
               if (cell != null) onTapBlock?.call(cell.$1, cell.$2);
             },
             child: CustomPaint(
-              size: Size(w, h),
+              size: Size(w, canvasH),
               painter: _VoxelPainter(
                 controller: controller,
                 offsetX: offsetX,
@@ -75,9 +96,9 @@ class VoxelCanvasView extends StatelessWidget {
                 repaint: controller,
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

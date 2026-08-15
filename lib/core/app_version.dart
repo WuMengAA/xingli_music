@@ -127,7 +127,11 @@ abstract final class AppVersion {
   /// + 机制存档/世界/自定义世界偏移率）；⑤渲染修复——分辨率缩放 buildFrame
   /// 与 paint 同步（修只显示左上角）、可见集洪泛半径收敛（低视距不再 17×17）、
   /// LOD 默认扩到 32 区块。
-  static const int buildCount = 48;
+  /// cl49：游戏页竖屏布局修复——①HUD 控件随屏幕自适应（新增 hudResponsiveScale，
+  /// 摇杆/动作键/顶栏按钮按视口短边缩放、加不透明命中区）；②底部物品栏按可用宽度
+  /// 自适应槽位尺寸，竖屏窄屏不再横向溢出；③2.5D 音效画布按约束反推瓦片尺寸，
+  /// 整张等距网格在竖屏/横屏都完整显示（不再左右裁切）。
+  static const int buildCount = 49;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -183,6 +187,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl49',
+    title: '游戏页竖屏布局修复：HUD 自适应 + 物品栏不溢出 + 2.5D 画布完整',
+    details: <String>[
+      'HUD 控件随屏幕自适应：新增 hudResponsiveScale（按视口短边缩放），摇杆/动作键/顶栏按钮在手机/平板、竖屏/横屏都合适大小',
+      '所有可点控件加不透明命中区（HitTestBehavior.opaque），触摸目标更稳',
+      '底部物品栏按可用宽度自适应槽位尺寸，9 格 + 2 切换键必在屏宽内排下，竖屏窄屏不再横向溢出',
+      '2.5D 音效画布按约束反推瓦片尺寸，整张等距网格在竖屏/横屏都完整显示（不再左右裁切）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl48',
