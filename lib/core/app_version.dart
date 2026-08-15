@@ -201,12 +201,18 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl67：G9 多人联机·编辑层按玩家位置范围同步——在 cl66 全量快照基础上细化
+  /// 为「只同步自身周围 N 格区块」：主机按请求者机位就近裁剪回发，客户端加入/
+  /// 重连/机位跨 chunk 时按需拉取与卸载，大世界不再全量淹没；新增
+  /// [VoxelWorld.editLayerJsonNear]（Chebyshev 距离裁剪）+ [mergeEditLayer]
+  /// （合并式应用，不清空本地远处编辑）；主机不再于接入时全量下发，改由客户端
+  /// 按机位 requestEditSnapshot；buildCount 66→67（0.26.8.15_alpha_cl67）。
   /// cl65：G9 多人联机·断线重连——客户端掉线/切后台/锁屏后自动重试连接并恢复
   /// 会话（指数退避，1.5s 起、封顶 8s、最多 12 次；重连期间世界全程继续渲染，
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 66;
+  static const int buildCount = 67;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -262,6 +268,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl67',
+    title: 'G9 多人联机·编辑层按玩家位置范围同步：只同步周围区块',
+    details: <String>[
+      '在 cl66 全量快照基础上细化：不再全量下发，只同步本地玩家周围 N 格区块的编辑（主机按请求者机位裁剪）',
+      '客户端加入 / 重连 / 机位跨 chunk 时按需拉取与卸载，离开原范围后远端新区块编辑补齐，大世界不再全量淹没网络与内存',
+      '新增 editLayerJsonNear（Chebyshev 距离裁剪）+ mergeEditLayer（合并式应用，保留本地远处编辑）；主机不再接入时全量下发，改由客户端按机位请求',
+      'buildCount 66→67（0.26.8.15_alpha_cl67）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl66',

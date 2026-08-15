@@ -327,6 +327,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   final Map<String, PeerInfo> _remotePlayers = <String, PeerInfo>{};
   // G9：位置广播定时器（~100ms 上报自身机位 / 视角）。
   Timer? _netBroadcastTimer;
+  // G9 cl67：编辑层快照按玩家位置范围同步——最近一次拉取快照时本地所在 chunk，
+  // 用于「机位跨 chunk 时重新拉取」（游走加载/卸载）。初始化为不可能命中的哨兵值，
+  // 强制首帧即拉取一次。
+  int _lastSnapCx = -0x7FFFFFFF;
+  int _lastSnapCz = -0x7FFFFFFF;
+  // 快照覆盖半径（chunk 数）。远大于渲染视距窗口（渲染 ~8 chunk 见方），保证
+  // 近端编辑始终被覆盖；远端大世界按游走按需加载，不全量下发（cl67 范围同步）。
+  static const int _kSnapRadiusCount = 8;
 
   // R26r5：视角 Y 缓冲——跳跃 / 蹲下 / 上升下降时相机高度平滑跟随（不硬切）。
   double _eyeSmoothY = 0;
@@ -716,17 +724,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _forceRebuild = true; // 计入重建门控
         _dirty = true;
       };
-      // G9 cl65：重连成功后远端连接 id 变化，清旧远端玩家缓存避免重复方块人。
+      // G9 cl67：重连成功后重拉自身周围快照（连接视为全新，主机不主动下发，
+      // 须客户端按新机位重新请求）；cl65 仍清旧远端玩家缓存避免重复方块人。
       net.onReconnected = () {
         _remotePlayers.clear();
         _staticPicture = null;
         _forceRebuild = true;
         _dirty = true;
+        if (ref.read(netSessionProvider).role == NetRole.client) {
+          _requestSnapshotAroundMe();
+        }
       };
-      // G9 cl66：编辑层快照——加入 / 重连后看到他人已建结构。
-      // 客户端：收到快照应用到本地世界（清静态快照 + 强制重建 + 失效几何缓存）。
+      // G9 cl67：编辑层快照——按玩家位置范围同步（加入 / 重连 / 游走时看到
+      // 自身周围他人已建结构）。客户端：收到快照合并到本地世界（[mergeEditLayer]
+      // 不清空现有 _edits，保留此前已合并的远处编辑 + 本地自身编辑；随后
+      // 清静态快照 + 强制重建 + 失效几何缓存）。
       net.onEditSnapshot = (List<dynamic> edits, List<dynamic> lights) {
-        widget.world.loadJson(<String, dynamic>{
+        widget.world.mergeEditLayer(<String, dynamic>{
           'schema': 2,
           'edits': edits,
           'lights': lights,
@@ -736,15 +750,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _forceRebuild = true; // 计入重建门控（即便本地相机静止）
         _dirty = true;
       };
-      // 主机：提供权威编辑层快照（仅主机；客户端不持有权威世界）。
+      // 主机：提供权威编辑层快照，但按请求者机位就近裁剪（[editLayerJsonNear]），
+      // 只回发其周围 _kSnapRadiusCount 格区块（地形不同步，仅编辑层）。
       if (ref.read(netSessionProvider).role == NetRole.host) {
-        net.editSnapshotProvider = () => widget.world.editLayerJson();
+        net.editSnapshotProvider = (int cx, int cz, int radius) =>
+            widget.world.editLayerJsonNear(_fpPos.x ~/ VoxelWorld.kChunkSize,
+                _fpPos.z ~/ VoxelWorld.kChunkSize, radius);
       }
-      // 客户端：注册回调后主动请求一次快照（避免「welcome/Snapshot 早于
-      // world 视图回调注册」竞态导致快照丢失；主机也会在连接建立时主动
-      // 下发一次，二者幂等，重复应用无害）。
+      // 客户端：注册回调后按自身机位主动拉取一次快照（避免「welcome/Snapshot
+      // 早于 world 视图回调注册」竞态；主机不再主动全量下发，改由客户端按
+      // 机位请求，二者契合 cl67 范围同步）。
       if (ref.read(netSessionProvider).role == NetRole.client) {
-        net.requestEditSnapshot();
+        _requestSnapshotAroundMe();
       }
       _netBroadcastTimer = Timer.periodic(
         const Duration(milliseconds: 100),
@@ -1247,6 +1264,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     ];
   }
 
+  /// G9 cl67：按本地机位向主机请求周围编辑层快照（范围同步）。
+  /// 仅客户端调用；记录的 [_lastSnapCx/_lastSnapCz] 用于「机位跨 chunk 时
+  /// 重新拉取」去重，避免每 100ms 重复请求。
+  void _requestSnapshotAroundMe() {
+    if (!widget.multiplayer) return;
+    if (ref.read(netSessionProvider).role != NetRole.client) return;
+    final int cx = _fpPos.x ~/ VoxelWorld.kChunkSize;
+    final int cz = _fpPos.z ~/ VoxelWorld.kChunkSize;
+    _lastSnapCx = cx;
+    _lastSnapCz = cz;
+    ref.read(netSessionProvider.notifier).requestEditSnapshot(
+          cx,
+          cz,
+          _kSnapRadiusCount,
+        );
+  }
+
   /// G9：上报自身机位 / 视角给会话层（~100ms 定时器调用）。
   void _broadcastMyTransform() {
     if (!widget.multiplayer) return;
@@ -1254,6 +1288,17 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
             _viewMode == _ViewMode.thirdPerson)
         ? _fpPos
         : _camera.position;
+    // G9 cl67：机位跨 chunk 则重新拉取周围快照（游走加载/卸载——离开原范围
+    // 后远端新区块的编辑按需补齐，先前范围外的编辑不再全量持有）。注意用
+    // [_fpPos]（玩家脚底权威坐标）判定跨块，与 [_requestSnapshotAroundMe]
+    // 一致，避免非第一人称模式下相机与 fpPos 不一致导致的重复请求。
+    if (ref.read(netSessionProvider).role == NetRole.client) {
+      final int cx = _fpPos.x ~/ VoxelWorld.kChunkSize;
+      final int cz = _fpPos.z ~/ VoxelWorld.kChunkSize;
+      if (cx != _lastSnapCx || cz != _lastSnapCz) {
+        _requestSnapshotAroundMe();
+      }
+    }
     ref.read(netSessionProvider.notifier).broadcastTransform(
           p.x,
           p.y,

@@ -908,6 +908,91 @@ class VoxelWorld {
         'lights': _serializeLights(),
       };
 
+  /// G9 cl67：位置范围裁剪的编辑层快照——只返回距 (cx,cz) 的 chunk Chebyshev
+  /// 距离 <= [radius] 的编辑与发光方块，供联机「按玩家位置范围同步」：主机按
+  /// 请求者的机位裁剪，仅下发其周围 N 格区块，避免大世界全量淹没网络/内存。
+  /// [radius] < 0 退化为全量（与 [editLayerJson] 等价，存档/迁移沿用）。
+  /// 形状与 [editLayerJson] / [mergeEditLayer] 接收端一致。
+  Map<String, dynamic> editLayerJsonNear(int cx, int cz, int radius) {
+    final List<List<int>> edits = <List<int>>[];
+    for (final MapEntry<(int, int), Map<int, Voxel>> ce in _edits.entries) {
+      if (radius >= 0) {
+        final int d =
+            math.max((ce.key.$1 - cx).abs(), (ce.key.$2 - cz).abs());
+        if (d > radius) continue;
+      }
+      for (final MapEntry<int, Voxel> e in ce.value.entries) {
+        final (int lx, int ly, int lz) = _unpackLocal(e.key);
+        edits.add(<int>[
+          ce.key.$1,
+          ce.key.$2,
+          lx,
+          ly,
+          lz,
+          Voxel.values.indexOf(e.value),
+        ]);
+      }
+    }
+    final List<List<int>> lights = <List<int>>[];
+    for (final MapEntry<(int, int, int), Voxel> e in _lights.entries) {
+      final int lcx = e.key.$1 ~/ kChunkSize;
+      final int lcz = e.key.$3 ~/ kChunkSize;
+      if (radius >= 0) {
+        final int d = math.max((lcx - cx).abs(), (lcz - cz).abs());
+        if (d > radius) continue;
+      }
+      lights.add(<int>[
+        e.key.$1,
+        e.key.$2,
+        e.key.$3,
+        Voxel.values.indexOf(e.value),
+      ]);
+    }
+    return <String, dynamic>{
+      'edits': edits,
+      'lights': lights,
+    };
+  }
+
+  /// G9 cl67：合并式应用编辑层快照（**不清空**现有 [_edits]）。
+  /// 与 [loadJson] 解码头逻辑完全一致，但去掉 `_edits.clear()` / `_lights.clear()`，
+  /// 保留客户端自身此前已合并的远处编辑（范围同步下，客户端可能先后合并过多个
+  /// 不同范围的快照）。对同一区块重复应用幂等（后写覆盖先写，主机权威值胜出）。
+  /// 默认按 [schema]=2 的 chunk 化格式解码（[loadJson] 也兼容旧格式，但快照只
+  /// 产出自 cl38 起的新格式，故此处只读 schema>=2 分支）。
+  void mergeEditLayer(Map<String, dynamic> json) {
+    final int schema = (json['schema'] as int?) ?? 2;
+    for (final dynamic e in (json['edits'] as List<dynamic>? ?? <dynamic>[])) {
+      final List<dynamic> a = e as List<dynamic>;
+      if (schema >= 2 && a.length >= 6) {
+        final int cx = a[0] as int;
+        final int cz = a[1] as int;
+        final int lx = a[2] as int;
+        final int ly = a[3] as int;
+        final int lz = a[4] as int;
+        final int vi = a[5] as int;
+        if (vi >= 0 && vi < Voxel.values.length) {
+          final int x = cx * kChunkSize + lx;
+          final int z = cz * kChunkSize + lz;
+          (_edits.putIfAbsent((cx, cz), () => <int, Voxel>{}))
+              [_localKey(x, ly, z)] = Voxel.values[vi];
+        }
+      }
+    }
+    for (final dynamic e in (json['lights'] as List<dynamic>? ?? <dynamic>[])) {
+      final List<dynamic> a = e as List<dynamic>;
+      if (a.length >= 4) {
+        final int x = a[0] as int;
+        final int y = a[1] as int;
+        final int z = a[2] as int;
+        final int vi = a[3] as int;
+        if (vi >= 0 && vi < Voxel.values.length) {
+          _lights[(x, y, z)] = Voxel.values[vi];
+        }
+      }
+    }
+  }
+
   /// 从存档恢复玩家编辑层与发光方块。
   ///
   /// 调用方应先校验 [seed] 一致（地形不同则编辑坐标无意义），不一致时跳过。

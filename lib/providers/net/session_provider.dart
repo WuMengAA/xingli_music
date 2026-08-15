@@ -225,10 +225,12 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   /// 初次加入不触发。
   void Function()? onReconnected;
 
-  // ── G9 cl66：编辑层快照（仅编辑层，地形不同步）──
-  /// 主机提供编辑层快照（世界视图注册，仅主机调用）：返回
-  /// `{edits: [...], lights: [...]}`（[VoxelWorld.editLayerJson]）。
-  Map<String, dynamic>? Function()? editSnapshotProvider;
+  // ── G9 cl67：编辑层快照（按玩家位置范围同步，仅编辑层，地形不同步）──
+  /// 主机提供编辑层快照（世界视图注册，仅主机调用）：以请求者的机位
+  /// (cx,cz) 与范围半径 radius 裁剪，返回
+  /// `{edits: [...], lights: [...]}`（[VoxelWorld.editLayerJsonNear]）。
+  /// 签名带机位参数，使主机能按需只下发请求者周围 N 格区块，避免大世界全量。
+  Map<String, dynamic>? Function(int cx, int cz, int radius)? editSnapshotProvider;
   /// 客户端收到编辑层快照后应用（世界视图注册）：把他人已建结构落到本地世界。
   void Function(List<dynamic> edits, List<dynamic> lights)? onEditSnapshot;
 
@@ -349,21 +351,11 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       state = state.copyWith(
         peers: <PeerInfo>[...state.peers, PeerInfo(id: e.peerId)],
       );
-      // G9 cl66：主机→新成员下发编辑层快照（已变方块 = 他人已建结构），
-      // 使其加入即看到他人建造（地形由 seed 确定性复现，仅不同步编辑层）。
-      // 仅主机提供（编辑层权威在主机世界）；快照为一次性全量，后续增量由
-      // 实时 broadcastEdit 维持。
-      final Map<String, dynamic>? snap = editSnapshotProvider?.call();
-      if (snap != null) {
-        _node?.sendTo(
-          e.peerId,
-          NetMessage(
-            type: NetMsgType.editSnapshot,
-            from: state.localId ?? '',
-            payload: snap,
-          ),
-        );
-      }
+      // G9 cl67：不再在 NetPeerConnected 时主动下发编辑层快照。
+      // 原因：新成员刚接入时尚无上报机位，范围裁剪无从谈起；且范围同步下
+      // 全量下发违背「只同步自身周围区块」的设计。改为客户端 world 视图注册
+      // 回调后，按自身机位调用 [requestEditSnapshot] 主动拉取（见下
+      // requestEditSnapshot case / 方法），主机按机位裁剪回发。
     } else if (e is NetPeerDisconnected) {
       state = state.copyWith(
         peers: state.peers.where((p) => p.id != e.peerId).toList(),
@@ -517,10 +509,16 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         break;
 
       case NetMsgType.requestEditSnapshot:
-        // 仅主机响应：把当前权威编辑层快照单发给请求者（客户端 world 视图注册
-        // 回调后主动请求，规避 welcome 早于视图回调注册的竞态）。
+        // 仅主机响应：按请求者机位 (cx,cz) 与半径 radius 裁剪编辑层快照，单发
+        // 给请求者（客户端 world 视图注册回调后主动请求，规避 welcome 早于
+        // 视图回调注册的竞态）。主机用请求者上报的机位就近裁剪，只回发其周围
+        // N 格区块，避免大世界全量淹没（cl67 范围同步）。
         if (state.role == NetRole.host) {
-          final Map<String, dynamic>? snap = editSnapshotProvider?.call();
+          final int cx = (msg.payload['cx'] as int?) ?? 0;
+          final int cz = (msg.payload['cz'] as int?) ?? 0;
+          final int radius = (msg.payload['radius'] as int?) ?? -1;
+          final Map<String, dynamic>? snap =
+              editSnapshotProvider?.call(cx, cz, radius);
           if (snap != null) {
             _node?.sendTo(
               from,
@@ -638,16 +636,21 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     ));
   }
 
-  /// G9 cl66：客户端请求主机当前编辑层快照。
-  /// 在 world 视图注册 onEditSnapshot 后立即调用，避免「welcome/Snapshot 早于
-  /// world 视图回调注册」竞态导致快照被静默丢弃（主机也会在 NetPeerConnected
-  /// 时主动下发一次，二者幂等，重复应用无害）。
-  void requestEditSnapshot() {
+  /// G9 cl67：客户端按自身机位请求主机编辑层快照（范围同步）。
+  /// [cx],[cz] 为请求者所在 chunk 坐标，[radius] 为需覆盖的 chunk 半径；
+  /// 主机据此就近裁剪回发（只下发周围区块）。在 world 视图注册 onEditSnapshot
+  /// 后立即调用，避免「welcome/Snapshot 早于 world 视图回调注册」竞态导致快照
+  /// 被静默丢弃；后续机位跨 chunk 时再按需重新请求（游走加载/卸载）。
+  void requestEditSnapshot(int cx, int cz, int radius) {
     if (_node == null || state.role != NetRole.client) return;
     _node!.send(NetMessage(
       type: NetMsgType.requestEditSnapshot,
       from: state.localId ?? '',
-      payload: const <String, dynamic>{},
+      payload: <String, dynamic>{
+        'cx': cx,
+        'cz': cz,
+        'radius': radius,
+      },
     ));
   }
 
