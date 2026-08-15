@@ -158,7 +158,11 @@ abstract final class AppVersion {
   /// ④设置-关于-存储（软件占用空间统计）。
   /// cl55：设置-关于 新增「版本日志」（自动获取最新，changelog 倒序首条即最新）
   /// +「版本更新」（OTA 入口，G7 接入 GitHub/官网检查→下载→哈希校验→提醒）。
-  static const int buildCount = 55;
+  /// cl56：G7 开源 + OTA——新增 OtaService（检查 GitHub Releases→比对构建号→
+  /// hotfix 直下→SHA-256 校验），版本更新面板接入真实链路；开源配套
+  /// LICENSE(MIT) + GitHub Actions 发布工作流（tag cl*/v* 自动构建 APK+校验
+  /// 文件并发布 Release）。
+  static const int buildCount = 56;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -214,6 +218,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl56',
+    title: 'GitHub 开源 + OTA 更新：自动检查 / 下载 / 哈希校验',
+    details: <String>[
+      '项目开源（MIT）：GitHub Actions 发布工作流——打 tag（cl*/v*）自动构建 APK + 生成 SHA-256 校验文件并发布 Release',
+      '新增 OTA 更新服务：连接 GitHub Releases 自动检查新版本（比对构建号）',
+      'hotfix 标记的版本直接下载；下载后校验 SHA-256 哈希，通过才提示安装',
+      '设置 → 关于 → 版本更新 接入真实检查链路（确认 → 下载 → 校验 → 提醒）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl55',
