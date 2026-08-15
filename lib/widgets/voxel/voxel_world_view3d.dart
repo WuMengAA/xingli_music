@@ -716,6 +716,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _forceRebuild = true; // 计入重建门控
         _dirty = true;
       };
+      // G9 cl65：重连成功后远端连接 id 变化，清旧远端玩家缓存避免重复方块人。
+      net.onReconnected = () {
+        _remotePlayers.clear();
+        _staticPicture = null;
+        _forceRebuild = true;
+        _dirty = true;
+      };
       _netBroadcastTimer = Timer.periodic(
         const Duration(milliseconds: 100),
         (_) => _broadcastMyTransform(),
@@ -866,6 +873,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       final NetSessionNotifier net = ref.read(netSessionProvider.notifier);
       net.onRemoteEdit = null;
       net.onRemoteTransform = null;
+      net.onReconnected = null;
     }
     super.dispose();
   }
@@ -4526,10 +4534,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     );
   }
 
-  /// 断线覆盖层：连接状态为 error 时全屏提示并引导返回大厅。
+  /// 断线覆盖层：连接丢失时提示。
+  /// - [ConnStatus.reconnecting]：非致命「重连中…」覆盖层（带进度圈 + 第 N 次
+  ///   尝试），世界继续渲染，可手动返回大厅放弃；
+  /// - [ConnStatus.error]：致命「连接已断开」，引导返回大厅。
   Widget _buildDisconnectOverlay() {
     final NetSessionState net = ref.watch(netSessionProvider);
-    if (net.status != ConnStatus.error) return const SizedBox.shrink();
+    if (net.status != ConnStatus.reconnecting &&
+        net.status != ConnStatus.error) {
+      return const SizedBox.shrink();
+    }
+    final bool reconnecting = net.status == ConnStatus.reconnecting;
+    final String title = reconnecting ? '重连中…' : '连接已断开';
+    final String sub = reconnecting
+        ? '正在尝试重新连接（第 ${net.reconnectAttempt} 次）\n稍候即可恢复联机'
+        : (net.error ?? '与房主的连接已丢失');
+    final Color iconColor =
+        reconnecting ? const Color(0xFF7CC8FF) : const Color(0xFFFF6B6B);
     return Positioned.fill(
       child: Container(
         color: const Color(0xCC000000),
@@ -4544,15 +4565,26 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                const Icon(Icons.wifi_off, size: 48, color: Color(0xFFFF6B6B)),
+                if (reconnecting)
+                  const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 4,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFF7CC8FF)),
+                    ),
+                  )
+                else
+                  Icon(Icons.wifi_off, size: 48, color: iconColor),
                 const SizedBox(height: 16),
-                const Text('连接已断开',
-                    style: TextStyle(
+                Text(title,
+                    style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 8),
-                Text(net.error ?? '与房主的连接已丢失',
+                Text(sub,
                     style: const TextStyle(
                         color: Color(0xCCF2F5FA), fontSize: 13),
                     textAlign: TextAlign.center),

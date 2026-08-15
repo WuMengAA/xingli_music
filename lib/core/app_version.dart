@@ -194,7 +194,12 @@ abstract final class AppVersion {
   /// （按同伴名字区分多人；半透明胶囊 + 实体主色描边；与太阳月亮同坐标系，
   /// 转视角/远端移动实时跟随；静态快照下也始终可见）；buildCount 63→64
   /// （0.26.8.15_alpha_cl64）。
-  static const int buildCount = 64;
+  /// cl65：G9 多人联机·断线重连——客户端掉线/切后台/锁屏后自动重试连接并恢复
+  /// 会话（指数退避，1.5s 起、封顶 8s、最多 12 次；重连期间世界全程继续渲染，
+  /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
+  /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
+  /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
+  static const int buildCount = 65;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -250,6 +255,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl65',
+    title: 'G9 多人联机·断线重连：掉线自动恢复会话',
+    details: <String>[
+      '客户端掉线 / 切后台 / 锁屏后自动重试连接并恢复联机会话（指数退避，1.5s 起、封顶 8s、最多 12 次）',
+      '重连期间世界全程继续渲染，非致命「重连中…」覆盖层（带进度圈 + 第 N 次尝试）替代原致命「连接已断开」',
+      '重连成功后重写远端玩家缓存（清旧连接 id，避免重连后出现重复方块人）',
+      '主动离开 / 超过重连上限转致命错误，引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl64',

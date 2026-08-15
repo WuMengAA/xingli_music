@@ -9,6 +9,7 @@ library;
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -23,7 +24,7 @@ import '../../services/net/net_node.dart';
 
 enum NetRole { offline, host, client }
 
-enum ConnStatus { idle, connecting, connected, error }
+enum ConnStatus { idle, connecting, connected, reconnecting, error }
 
 /// 一名联机成员（远端玩家）的状态快照。
 class PeerInfo {
@@ -141,6 +142,7 @@ class NetSessionState {
     this.hostSeed,
     this.hostOptions,
     this.dj = false,
+    this.reconnectAttempt = 0,
   });
 
   final NetRole role;
@@ -155,6 +157,7 @@ class NetSessionState {
   final int? hostSeed;
   final Map<String, dynamic>? hostOptions;
   final bool dj; // 本端是否 DJ（一起听音源）
+  final int reconnectAttempt; // 重连尝试次数（status==reconnecting 时 UI 展示）
 
   NetSessionState copyWith({
     NetRole? role,
@@ -169,6 +172,7 @@ class NetSessionState {
     int? hostSeed,
     Map<String, dynamic>? hostOptions,
     bool? dj,
+    int? reconnectAttempt,
   }) =>
       NetSessionState(
         role: role ?? this.role,
@@ -183,6 +187,7 @@ class NetSessionState {
         hostSeed: hostSeed ?? this.hostSeed,
         hostOptions: hostOptions ?? this.hostOptions,
         dj: dj ?? this.dj,
+        reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
       );
 
   PeerInfo? peer(String id) {
@@ -210,6 +215,20 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   Timer? _posTimer;
   bool _djListeners = false;
   Completer<void>? _joined;
+
+  // ── 断线重连（G9 cl65，仅客户端）──
+  bool _reconnecting = false;
+  int _reconnectAttempt = 0;
+  Timer? _reconnectTimer;
+  bool _intentionalLeave = false;
+  /// 重连成功回调（世界视图注册）：清旧远端玩家缓存等；仅重连成功触发，
+  /// 初次加入不触发。
+  void Function()? onReconnected;
+
+  // 重连参数：指数退避（1.5s 起，封顶 8s），最多 12 次后转致命错误。
+  static const int _kReconnectMaxAttempts = 12;
+  static const Duration _kReconnectBase = Duration(milliseconds: 1500);
+  static const Duration _kReconnectMaxBackoff = Duration(seconds: 8);
 
   /// 远端方块编辑回调（世界视图注册；最后一次注册者生效）。
   void Function(int x, int y, int z, int v)? onRemoteEdit;
@@ -328,11 +347,16 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         peers: state.peers.where((p) => p.id != e.peerId).toList(),
       );
     } else if (e is NetClosed) {
-      state = state.copyWith(
-        status: ConnStatus.error,
-        error: '连接已断开',
-        role: NetRole.offline,
-      );
+      // G9 cl65：客户端非主动断开 → 自动重连；否则致命错误。
+      if (state.role == NetRole.client && !_intentionalLeave) {
+        _beginReconnect();
+      } else {
+        state = state.copyWith(
+          status: ConnStatus.error,
+          error: '连接已断开',
+          role: NetRole.offline,
+        );
+      }
     } else if (e is NetMessageEvent) {
       _onMessage(e.from, e.message);
     }
@@ -635,8 +659,100 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     }
   }
 
+  // ── G9 cl65：断线重连（仅客户端）───────────────────
+
+  /// 开始重连：关闭旧节点，进入 reconnecting 态，调度首次尝试。
+  /// 保留 hostIp/port/seed/options/peers，使世界在重连期间继续渲染。
+  Future<void> _beginReconnect() async {
+    if (_reconnecting) return;
+    _reconnecting = true;
+    _reconnectAttempt = 0;
+    _joined = Completer<void>();
+    state = state.copyWith(
+      status: ConnStatus.reconnecting,
+      error: null,
+      reconnectAttempt: 0,
+    );
+    await _node?.close().catchError((_) {});
+    _node = null;
+    _scheduleReconnect();
+  }
+
+  void _scheduleReconnect() {
+    _reconnectAttempt++;
+    if (_reconnectAttempt > _kReconnectMaxAttempts) {
+      _failReconnect();
+      return;
+    }
+    final int sec = math.min(
+      _kReconnectMaxBackoff.inSeconds,
+      (_kReconnectBase.inMilliseconds *
+              math.pow(2, _reconnectAttempt - 1) /
+              1000)
+          .ceil(),
+    );
+    state = state.copyWith(reconnectAttempt: _reconnectAttempt);
+    _reconnectTimer = Timer(Duration(seconds: sec), _attemptReconnect);
+  }
+
+  Future<void> _attemptReconnect() async {
+    if (!_reconnecting) return;
+    final String? ip = state.hostIp;
+    final int? port = state.port;
+    if (ip == null || port == null) {
+      _failReconnect();
+      return;
+    }
+    try {
+      _node = await NetNode.connect(ip, port);
+      state = state.copyWith(localId: _node!.localId);
+      _subscribe();
+      _sendHello();
+      await _joined!.future.timeout(const Duration(seconds: 6));
+      // 重连成功：恢复连接态，清空重连状态并回调（供世界视图清远端缓存）。
+      _reconnecting = false;
+      _reconnectAttempt = 0;
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      state = state.copyWith(
+        status: ConnStatus.connected,
+        reconnectAttempt: 0,
+      );
+      onReconnected?.call();
+    } catch (_) {
+      if (!_reconnecting) return;
+      if (_reconnectAttempt >= _kReconnectMaxAttempts) {
+        _failReconnect();
+      } else {
+        _scheduleReconnect();
+      }
+    }
+  }
+
+  void _failReconnect() {
+    _reconnecting = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _node = null;
+    state = state.copyWith(
+      status: ConnStatus.error,
+      error: '连接已断开，无法重连',
+      role: NetRole.offline,
+      reconnectAttempt: 0,
+    );
+  }
+
+  /// 取消重连（用户主动离开时调用）。
+  void _cancelReconnect() {
+    _reconnecting = false;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+  }
+
   /// 离开联机（保持世界，仅断开连接）。
   Future<void> leave() async {
+    _intentionalLeave = true;
+    _cancelReconnect();
     if (_node != null) {
       _node!.send(NetMessage(
         type: NetMsgType.bye,
@@ -655,11 +771,15 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     _djListeners = false;
     onRemoteEdit = null;
     onRemoteTransform = null;
+    onReconnected = null;
+    _intentionalLeave = false;
     state = const NetSessionState();
   }
 
   @override
   void dispose() {
+    _intentionalLeave = true;
+    _cancelReconnect();
     _posTimer?.cancel();
     try {
       _beacon?.close();
