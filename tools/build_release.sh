@@ -19,7 +19,9 @@ export GRADLE_USER_HOME="D:\.gradle"
 export ANDROID_HOME="D:\Android\Sdk"
 
 echo "==> 构建 release APK（可能耗时 1-3 分钟）"
-"$FLUTTER" build apk --release
+# --no-tree-shake-icons：保留动态图标（ui_editor_model.resolveIcon 运行时解析 IconData，
+# 无法被图标瘦身优化处理，release 下会报错）。
+"$FLUTTER" build apk --release --no-tree-shake-icons
 
 SRC="build/app/outputs/flutter-apk/app-release.apk"
 # 从 AppVersion 读取展示版本与代号（与设置页一致）

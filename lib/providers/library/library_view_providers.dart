@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
 
-/// 曲库浏览样式（v2 M3 · P0-M3-1）。
-enum LibraryViewStyle { card, folder, album }
+/// 曲库浏览样式（#421：卡片式 / 列表式）。
+enum LibraryViewStyle { card, list }
 
 /// 当前浏览样式（持久化到 prefs，key：`library_view_style_v1`）。
 final StateNotifierProvider<LibraryViewStyleNotifier, LibraryViewStyle>

@@ -16,7 +16,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/voxel/graphics_quality_provider.dart';
-import '../../providers/voxel/view_distance_provider.dart';
 import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
@@ -188,7 +187,7 @@ class GameGraphicsPage extends ConsumerWidget {
                   children: <Widget>[
                     for (final FpsLimit f in FpsLimit.values)
                       ChoiceChip(
-                        label: Text('${f.value} FPS'),
+                        label: Text(f.label),
                         selected: fps == f,
                         onSelected: (_) =>
                             ref.read(fpsLimitProvider.notifier).state = f,
@@ -200,6 +199,30 @@ class GameGraphicsPage extends ConsumerWidget {
                   '限制体素动画 / 可视化刷新率；24 最低耗、120 最流畅'
                   '（低端机建议 24）。',
                   style: context.appText.artist,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpace.lg),
+
+          // ═══ 方块描边（cl45）═══
+          _Card(
+            title: '方块描边',
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    '玩家 5 格内实描边 + 5~12 格极淡渐隐；'
+                    '关闭后不描边（更省面数、画面更干净）',
+                    style: context.appText.artist,
+                  ),
+                ),
+                Switch(
+                  value: ref.watch(outlineEnabledProvider),
+                  onChanged: (bool v) => ref
+                      .read(outlineEnabledProvider.notifier)
+                      .state = v,
                 ),
               ],
             ),

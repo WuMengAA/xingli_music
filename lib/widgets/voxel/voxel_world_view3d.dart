@@ -1008,12 +1008,20 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     widget.cameraOut?.value = _camera;
     // R26o：渲染分辨率倍率（性能档 0.5 → 半分辨率渲染 + 画家放大）。
     // R26r7：乘以动态倍率 _dynScale——望向脚下/天上等面数陡增场景自动降。
-    final double rs = _quality.renderScale * _dynScale;
+    // cl46 修复：**必须**与画家 renderScale 完全一致（_quality.renderScale ×
+    // renderPrecisionScale × _dynScale）。此前漏乘 renderPrecisionScale，画家
+    // 却乘了它 → frame 顶点在较大的视口空间、paint 却按较小空间放大 1/rs 倍
+    // → 画面被放大只显示屏幕左上角（用户实测「拉低拉高分辨率只显示左上角」）。
+    final double rs = _quality.renderScale *
+        ref.read(renderPrecisionScaleProvider) *
+        _dynScale;
     _frameDynScale = _dynScale; // 快照：画家与本帧用同一倍率，避免拉伸错位
     final Stopwatch sw = Stopwatch()..start();
     _frame.value = VoxelRenderer.buildFrame(
       world: widget.world,
-      camera: _camera,
+      // cl45：相机 far 推到「LOD 地平线」——视距不再硬剔，LOD 远景大方块
+      // 可越过视距延伸到 lodMaxChunks（看得更远、更流畅）。
+      camera: _camera.copyWith(far: _renderFar()),
       viewport: Size(_viewport.width * rs, _viewport.height * rs),
       // R26x：贴图是否启用由画质档（GraphicsQuality.texture）经 [_configFor]
       // 决定（高清档启用，其余纯色）；图集本身恒构建以备切换。仅在此同步遮挡剔除。
@@ -3576,6 +3584,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   }
 
   // ── 画面精度 → 渲染配置映射（R24c）────────────────────
+  /// cl45：渲染 far = max(视距, LOD 地平线) —— LOD 远景可越过视距看得更远。
+  double _renderFar() =>
+      math.max(_config.viewDistanceChunks, _config.lodMaxChunks) *
+      RenderConfig.chunkSize.toDouble();
+
   RenderConfig _configFor(GraphicsQuality q) => RenderConfig(
         // P0(性能合集)：视距以**档位自身值为硬上限**——切「性能」档就跑 2 区块，
         // 不再被全局 provider 的历史值（可能 8/12）顶高 → 低档不再 5090 卡死。
@@ -3589,6 +3602,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         lodStepBlocks: ref.read(lodStepBlocksProvider),
         lodSampleBase: ref.read(lodSampleBaseProvider),
         lodMaxChunks: ref.read(lodMaxChunksProvider),
+        // cl45：边界雾（可选，与 LOD 互斥）——开=传统视距雾，关=LOD 远景。
+        boundaryFog: ref.read(boundaryFogEnabledProvider),
         // 性能受限时近处也 LOD：perf/smooth 满精度带收窄到 3×3（fullBand=1），
         // 带外更近就开始合成大方块（配合 lodStart 调小）。
         fullBandChunks: q == GraphicsQuality.perf || q == GraphicsQuality.smooth
@@ -3624,6 +3639,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         // R26fx：阴影渲染 / 环境光屏蔽（画面设置）。
         shadowRender: ref.read(shadowRenderProvider),
         aoEnabled: ref.read(aoEnabledProvider),
+        // cl45：方块描边总开关（玩家 5 格内实描边 + 5~12 格极淡渐隐）。
+        outlineEnabled: ref.read(outlineEnabledProvider),
         skyGradient: true,
         // 用户确认（性能优化：面剔除）：开启区块朝向减面（allowMask 侧面剔除）
         // ——配合 cl30 迟滞持久化（跨帧复用旧 mask，消除旋转 popping）与
@@ -3800,7 +3817,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                   // 搜索/音质已并入卡片，默认音量收起）。
                   if (_started) ...<Widget>[
                     const SizedBox(height: 6),
-                    UnifiedPlayer(lyricsSlot: const LyricsView()),
+                    UnifiedPlayer(
+                      lyricsSlot: const LyricsView(),
+                    ),
                   ],
                 ],
               ),
@@ -5105,6 +5124,22 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
   late int _seed = widget.seed;
   late VoxelWorld _world =
       VoxelWorld(seed: _seed, options: widget.options ?? const WorldOptions());
+
+  @override
+  void initState() {
+    super.initState();
+    // cl46：自定义世界机制——全局偏移率（0~1）→ seed 偏移（0~65536），
+    // 调整后新世界/新存档整体变化（地形/群系/结构随噪声偏移重排）。
+    try {
+      final double off = ProviderScope.containerOf(context)
+          .read(worldGenOffsetProvider);
+      if (off != 0) {
+        _seed = widget.seed + (off * 65536).round();
+      }
+    } catch (_) {
+      // provider 不可用（测试等）时忽略，保持原 seed。
+    }
+  }
 
   /// 子视图外送的当前机位（拍照取景用）。
   late final ValueNotifier<VoxelCamera> _cameraOut =

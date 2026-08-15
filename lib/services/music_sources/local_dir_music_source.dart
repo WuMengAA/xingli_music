@@ -84,6 +84,10 @@ class LocalDirMusicSource implements MusicSource {
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
 
+  /// 本地目录 just_audio 即可解码，无需 media_kit。
+  @override
+  bool get requiresMediaKit => false;
+
   String _baseName(String path) {
     final String f = path.replaceAll('\\', '/');
     return f.substring(f.lastIndexOf('/') + 1);

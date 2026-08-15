@@ -7,9 +7,12 @@ import '../../core/layout/responsive_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
+import '../../models/track_stats.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/sources/bilibili_provider.dart';
+import '../../providers/stats/track_stats_providers.dart';
 import '../../services/audio/audio_service.dart';
 import '../app_icon.dart';
 import '../common/playback_feedback.dart';
@@ -17,6 +20,7 @@ import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
 import '../sources/music_quality_sheet.dart';
+import 'bili_visual_options_sheet.dart';
 import 'equalizer_panel.dart';
 import 'playback_controls.dart';
 
@@ -47,7 +51,11 @@ import 'playback_controls.dart';
 /// 传输键（prev/play/next/volume）复用共享 `PlaybackIconButton`（AppIcon +
 /// `iconPrimary`/`accent`），与全局播放器一致。
 class UnifiedPlayer extends ConsumerStatefulWidget {
-  const UnifiedPlayer({super.key, this.onOpenNowPlaying, this.lyricsSlot});
+  const UnifiedPlayer({
+    super.key,
+    this.onOpenNowPlaying,
+    this.lyricsSlot,
+  });
 
   /// 点击左侧信息区（封面 + 曲名）的回调。
   ///
@@ -118,6 +126,13 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
     final Track? now = ref.watch(nowPlayingProvider);
     // #167：白噪音状态取「生效来源」（跟随场景 / 全局），非全局开关本身
     final bool whiteNoise = ref.watch(effectiveWhiteNoiseProvider).on;
+    // cl46：全局收藏——当前曲目是否已收藏。
+    final String favKey = now == null
+        ? ''
+        : trackKeyOf(now.title, now.artist, now.sourceId);
+    final bool isFav = favKey.isEmpty
+        ? false
+        : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
 
     final Widget header = Row(
       children: <Widget>[
@@ -143,10 +158,24 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
             ],
           ),
         ),
-        PlaybackButtonFabric.whiteNoise(
+        // cl46：全局收藏（心形收藏 / 取消收藏）。
+        PlaybackIconButton(
+          icon: isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          size: 22,
+          active: isFav,
+          tooltip: isFav ? '取消收藏' : '收藏',
+          onTap: () {
+            if (now == null) return;
+            unawaited(toggleFavoriteTrack(ref, now));
+          },
+        ),
+        // cl46：白噪音——横向按钮（图标 + 文字）。
+        _WhiteNoiseLabeledButton(
           active: whiteNoise,
           onTap: _toggleWhiteNoise,
         ),
+        // cl46：视听结合快捷开关——白噪音右边、全屏左边。
+        _BiliVisualToggleButton(),
         PlaybackIconButton(
           icon: _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
           size: 22,
@@ -549,6 +578,97 @@ Widget _buildBottomActions(BuildContext context, WidgetRef ref) {
       ],
     ),
   );
+}
+
+/// 白噪音横向按钮（cl46）：图标 + 文字，激活态高亮描底。
+class _WhiteNoiseLabeledButton extends StatelessWidget {
+  const _WhiteNoiseLabeledButton({
+    required this.active,
+    required this.onTap,
+  });
+
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = context.appColors.accent;
+    return Tooltip(
+      message: active ? '关闭场景白噪音' : '开启场景白噪音',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: active ? accent.withValues(alpha: 0.12) : null,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                active ? Icons.graphic_eq_rounded : Icons.graphic_eq_outlined,
+                size: 18,
+                color: active ? accent : context.appColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '白噪音',
+                style: context.appText.caption
+                    .copyWith(color: active ? accent : null),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 视听结合快捷开关（cl46）：白噪音右边、全屏左边。
+class _BiliVisualToggleButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool on = ref.watch(biliVisualEnabledProvider);
+    final Color accent = context.appColors.accent;
+    return Tooltip(
+      message: on
+          ? '关闭视听结合（长按设置模糊/同步/变速）'
+          : '开启视听结合（B站背景视频）',
+      child: InkWell(
+        onTap: () =>
+            ref.read(biliVisualEnabledProvider.notifier).state = !on,
+        onLongPress: on ? () => showBiliVisualOptionsSheet(context) : null,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: on ? accent.withValues(alpha: 0.12) : null,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                on
+                    ? Icons.play_circle_fill_rounded
+                    : Icons.play_circle_outline_rounded,
+                size: 18,
+                color: on ? accent : context.appColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '视听',
+                style: context.appText.caption
+                    .copyWith(color: on ? accent : null),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// 白噪音来源切换（#167）：跟随场景 ⇄ 全局播放。

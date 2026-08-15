@@ -195,11 +195,11 @@ void main() {
       final LibraryViewStyleNotifier n1 = LibraryViewStyleNotifier(prefs);
       expect(n1.state, LibraryViewStyle.card);
 
-      await n1.setStyle(LibraryViewStyle.album);
-      expect(n1.state, LibraryViewStyle.album);
+      await n1.setStyle(LibraryViewStyle.list);
+      expect(n1.state, LibraryViewStyle.list);
 
       final LibraryViewStyleNotifier n2 = LibraryViewStyleNotifier(prefs);
-      expect(n2.state, LibraryViewStyle.album, reason: '重启后样式保持');
+      expect(n2.state, LibraryViewStyle.list, reason: '重启后样式保持');
     });
   });
 

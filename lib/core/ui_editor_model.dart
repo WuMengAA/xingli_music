@@ -77,6 +77,10 @@ class UiNode {
     this.children = const <UiNode>[],
     this.x,
     this.y,
+    // cl45：自由定位（root Stack 画布）、预览动画、可点击反馈。
+    this.freePos = false,
+    this.anim = 'none',
+    this.tappable = false,
   });
 
   /// 全局唯一 id（编辑器选中/定位用；拖入时重新赋值新 id）。
@@ -126,9 +130,18 @@ class UiNode {
 
   List<UiNode> children;
 
-  /// 自由定位（编辑器拖拽时记录；画布用 Stack 定位）。
+  /// 自由定位（画布用 Stack 定位）。
   double? x;
   double? y;
+
+  /// cl45：自由定位模式（root 容器开 → 画布用 Stack + Positioned(x,y) 渲染）。
+  bool freePos;
+
+  /// cl45：预览动画：none / fade（淡入）/ scale（缩放）。
+  String anim;
+
+  /// cl45：可点击（预览里点击有高亮反馈，演示事件交互）。
+  bool tappable;
 
   // ── 便利构造 ──────────────────────────────────────────
 
@@ -257,37 +270,27 @@ class UiNode {
   }
 
   /// 返回替换后的新树（不可变式更新，编辑器 setState 用）。
+  ///
+  /// cl45：改为**递归** + clone 实现——原实现只替换直接子节点、且手工重建
+  /// 会丢掉新增字段（深层选中改属性失效 / 字段丢失的潜伏 bug）。
   UiNode replace(String nodeId, UiNode newNode) {
     if (id == nodeId) return newNode;
-    return UiNode(
-      id: id,
-      type: type,
-      name: name,
-      layout: layout,
-      align: align,
-      gap: gap,
-      padding: padding,
-      cornerRadius: cornerRadius,
-      width: width,
-      height: height,
-      color: color,
-      gradientStart: gradientStart,
-      gradientEnd: gradientEnd,
-      gradientDirection: gradientDirection,
-      borderColor: borderColor,
-      accentColor: accentColor,
-      textColor: textColor,
-      text: text,
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      icon: icon,
-      iconSize: iconSize,
-      children: children
-          .map((UiNode c) => c.id == nodeId ? newNode : c)
-          .toList(),
-      x: x,
-      y: y,
-    );
+    final UiNode c = clone();
+    c.children = <UiNode>[
+      for (final UiNode child in children)
+        child.id == nodeId ? newNode : child.replace(nodeId, newNode),
+    ];
+    return c;
+  }
+
+  /// cl45：深拷贝并**重写整棵子树的所有 id**（粘贴用，保证全局唯一）。
+  UiNode remapIds() {
+    final UiNode c = clone();
+    c.id = 'n${DateTime.now().microsecondsSinceEpoch}_${c.hashCode.abs()}';
+    if (c.children.isNotEmpty) {
+      c.children = c.children.map((UiNode e) => e.remapIds()).toList();
+    }
+    return c;
   }
 
   // ── 序列化 ──────────────────────────────────────────
@@ -317,6 +320,9 @@ class UiNode {
         'iconSize': iconSize,
         if (x != null) 'x': x,
         if (y != null) 'y': y,
+        if (freePos) 'freePos': true,
+        if (anim != 'none') 'anim': anim,
+        if (tappable) 'tappable': true,
         if (children.isNotEmpty)
           'children': children.map((UiNode n) => n.toJson()).toList(),
       };
@@ -355,6 +361,9 @@ class UiNode {
         iconSize: (j['iconSize'] as num?)?.toDouble() ?? 20,
         x: (j['x'] as num?)?.toDouble(),
         y: (j['y'] as num?)?.toDouble(),
+        freePos: j['freePos'] == true,
+        anim: j['anim'] as String? ?? 'none',
+        tappable: j['tappable'] == true,
         children: (j['children'] as List<dynamic>? ?? const <dynamic>[])
             .map((dynamic e) => UiNode.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -697,47 +706,24 @@ UiNode moveNode(UiNode root, String nodeId, String targetContainerId) {
   if (target.type != UiNodeType.container) return root;
 
   // 先移除 node。
-  UiNode remove(UiNode n) => UiNode(
-        id: n.id,
-        type: n.type,
-        name: n.name,
-        layout: n.layout,
-        align: n.align,
-        gap: n.gap,
-        padding: n.padding,
-        cornerRadius: n.cornerRadius,
-        width: n.width,
-        height: n.height,
-        color: n.color,
-        gradientStart: n.gradientStart,
-        gradientEnd: n.gradientEnd,
-        gradientDirection: n.gradientDirection,
-        borderColor: n.borderColor,
-        accentColor: n.accentColor,
-        textColor: n.textColor,
-        text: n.text,
-        fontSize: n.fontSize,
-        fontWeight: n.fontWeight,
-        icon: n.icon,
-        iconSize: n.iconSize,
-        children: n.children
-            .where((UiNode c) => c.id != nodeId)
-            .map(remove)
-            .toList(),
-        x: n.x,
-        y: n.y,
-      );
+  UiNode remove(UiNode n) {
+    final UiNode c = n.clone();
+    c.children = c.children
+        .where((UiNode x) => x.id != nodeId)
+        .map(remove)
+        .toList();
+    return c;
+  }
 
   final UiNode removed = remove(root);
   // 目标容器被移除后的新 id 节点上追加 node。
   UiNode append(UiNode n) {
-    if (n.id == targetContainerId) {
-      final UiNode c = n.clone();
-      c.children = <UiNode>[...c.children, node];
-      return c;
-    }
     final UiNode c = n.clone();
-    c.children = c.children.map(append).toList();
+    if (c.id == targetContainerId) {
+      c.children = <UiNode>[...c.children, node];
+    } else {
+      c.children = c.children.map(append).toList();
+    }
     return c;
   }
 

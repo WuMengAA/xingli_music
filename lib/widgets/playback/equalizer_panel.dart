@@ -35,11 +35,13 @@ class EqualizerPanel extends ConsumerWidget {
           value: enabled,
           onChanged: (bool v) {
             ref.read(eqEnabledProvider.notifier).state = v;
-            // 开 → 应用当前预设；关 → 应用平坦预设（清掉 mpv 滤镜/DSP）。
-            applyEqPreset(
-              ref,
-              v ? ref.read(eqPresetProvider) : kEqPresets.first,
-            );
+            // 开 → 应用当前预设；关 → 真正关闭（清 mpv 滤镜/Android EQ），
+            // 避免残留效果导致后续播放异常（R-EQ）。
+            if (v) {
+              applyEqPreset(ref, ref.read(eqPresetProvider));
+            } else {
+              disableEq(ref);
+            }
           },
         ),
         const SizedBox(height: AppSpace.md),

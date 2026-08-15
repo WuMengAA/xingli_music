@@ -5,37 +5,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_tokens.dart';
-import '../../core/terms/naming_dict.dart';
 import '../../models/scene.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
-import '../../providers/shell/shell_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
-import '../../widgets/lyrics/lyrics_view.dart';
 import '../../widgets/scene/scene_color_panel.dart';
-import '../../widgets/playback/unified_player.dart';
+import '../../widgets/playback/music_card.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
+import '../../pages/scene/custom_scene_edit_page.dart';
 import '../../pages/voxel/voxel_main_menu_page.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../services/log_service.dart';
 
-/// 场景页 · 浅色场景卡堆 + 一体化播放面板（R1/R2）
+/// 主页 · 场景内容（原场景页合并进主页，R1/R2）
 ///
-/// v2 M1：接入统一模板 [PageScaffold]。
-/// v2 M5-4：右上角 40dp **微光圆点**入口弹出**三选一** ——
-/// 首页 / 沉浸画布 / 配色面板（P0-M5-4，配色写入 `Scene.visual` 等并持久化）。
-/// v2 R1/R2：底部由「分开的播放卡片 + 全局迷你播放器」重构为
-/// **一体化播放面板**（对齐旧沉浸画布 ControlBar 款式），
-/// 并随场景页自带全局音量（R3）与白噪音开关（R4）。
-/// R5：切换场景仅切换音景层与视觉，**不中断当前音乐播放**。
-class ScenePage extends ConsumerWidget {
-  const ScenePage({super.key});
+/// 顶部操作条（游戏背景开关 / 入口弹层 / 拍照取景 / 场景评估）+ 场景卡堆 +
+/// 一体化播放面板（歌词内嵌）。切换场景仅切换音景层与视觉，
+/// **不中断当前音乐播放**（R5）。
+class HomeSceneContent extends ConsumerWidget {
+  const HomeSceneContent({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,7 +45,7 @@ class ScenePage extends ConsumerWidget {
     final bool bgRealtime = bgLive || bgAnim;
 
     return PageScaffold(
-      title: Terms.scene,
+      title: '主页',
       actions: <Widget>[
         // H2：游戏背景开关——点击开/关体素取景背景（可叠加现有深色背景）；
         // 长按强制「实时渲染」（省电/性能档也不退化静态帧）。
@@ -111,6 +105,14 @@ class ScenePage extends ConsumerWidget {
               currentIndex: activeIndex,
               nowPlaying: ref.watch(nowPlayingProvider),
               isPlaying: ref.watch(isPlayingProvider).valueOrNull ?? false,
+              // cl46-E：长按场景中间卡片 = 打开当前场景的详细 / 个性编辑。
+              onLongPress: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CustomSceneEditPage(
+                    scene: ref.read(activeSceneProvider),
+                  ),
+                ),
+              ),
               onSceneChanged: (int i) {
                 ref.read(currentSceneIndexProvider.notifier).state = i;
                 final Scene scene = scenes[i];
@@ -119,15 +121,16 @@ class ScenePage extends ConsumerWidget {
               },
             ),
           ),
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(
               AppSpace.md,
               AppSpace.sm,
               AppSpace.md,
               AppSpace.sm,
             ),
-            // 歌词区：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度
-            child: UnifiedPlayer(lyricsSlot: LyricsView()),
+            // 歌词区：LyricsView 内嵌进音乐卡，自行跟随 audio_providers 的
+            // 当前曲目与播放进度（全屏播放时显示）
+            child: const MusicCard(),
           ),
               ],
             ),
@@ -243,18 +246,6 @@ class ScenePage extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                ListTile(
-                  leading: Icon(
-                    Icons.home_outlined,
-                    color: context.appColors.iconPrimary,
-                  ),
-                  title: Text('首页', style: context.appText.body),
-                  subtitle: Text('回到 Shell 内的隐藏首页', style: context.appText.artist),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    setShellPage(ref, ShellPage.home);
-                  },
-                ),
                 ListTile(
                   leading: Icon(
                     Icons.auto_awesome,

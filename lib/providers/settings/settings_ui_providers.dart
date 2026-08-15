@@ -79,7 +79,8 @@ extension SettingsSectionX on SettingsSection {
   /// 竖栏 tile 文字（52dp 宽栏内仅容 2 个汉字）。
   String get label => switch (this) {
         SettingsSection.audio => '音频',
-        SettingsSection.visual => '画面',
+        // cl45：用户要求「画面」改名「个性」。
+        SettingsSection.visual => '个性',
         SettingsSection.notification => '通知',
         SettingsSection.experiment => '实验',
         SettingsSection.about => '关于',
@@ -88,7 +89,7 @@ extension SettingsSectionX on SettingsSection {
   /// 详情区标题。
   String get title => switch (this) {
         SettingsSection.audio => '音频 · 音量与音源',
-        SettingsSection.visual => '画面 · 外观与场景',
+        SettingsSection.visual => '个性 · 外观与场景',
         SettingsSection.notification => '通知中心',
         SettingsSection.experiment => '实验管理',
         SettingsSection.about => '关于星璃',

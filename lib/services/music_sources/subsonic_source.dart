@@ -107,4 +107,8 @@ class SubsonicSource implements MusicSource {
 
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
+
+  /// Subsonic 直连流 just_audio 即可解码，无需 media_kit。
+  @override
+  bool get requiresMediaKit => false;
 }

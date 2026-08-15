@@ -237,3 +237,15 @@ String bilibiliErrorText(Object e) {
   }
   return 'B站请求失败，请稍后重试';
 }
+
+/// cl46 视听结合：当前歌曲自动搜B站视频作场景卡片背景画面（默认开）。
+final biliVisualEnabledProvider = StateProvider<bool>((Ref ref) => true);
+
+/// 视听结合：背景视频模糊（默认关）。
+final biliVisualBlurProvider = StateProvider<bool>((Ref ref) => false);
+
+/// 视听结合：视频跟随音乐进度同步（默认开）。
+final biliVisualSyncProvider = StateProvider<bool>((Ref ref) => true);
+
+/// 视听结合：变速适配——时长相差过大时实时同步进度（默认关）。
+final biliVisualTempoAdaptProvider = StateProvider<bool>((Ref ref) => false);

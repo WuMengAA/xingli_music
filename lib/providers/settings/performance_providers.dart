@@ -40,17 +40,22 @@ final performanceModeProvider = StateProvider<PerformanceMode>(
   (ref) => PerformanceMode.quality,
 );
 
-/// 帧率限制档位。
+/// 帧率限制档位（cl46：3 / 24 / 30 / 45 / 60 / 无限制）。
 enum FpsLimit {
+  fps3(3),
   fps24(24),
   fps30(30),
+  fps45(45),
   fps60(60),
-  fps120(120);
+  unlimited(0);
 
   const FpsLimit(this.value);
 
-  /// 每秒帧数。
+  /// 每秒帧数（0 = 无限制）。
   final int value;
+
+  /// 用户可读文案。
+  String get label => this == FpsLimit.unlimited ? '无限制' : '$value FPS';
 }
 
 /// 全局帧率限制，默认 60（随档位预设联动，见 `defaultFpsFor`）。
@@ -322,13 +327,24 @@ final lodStepBlocksProvider = StateProvider<int>((ref) => 16);
 final lodSampleBaseProvider = StateProvider<int>((ref) => 4);
 
 /// LOD 最远渲染距离（区块，4~32；可大于基础视距，远景大方块看得更远）。
-final lodMaxChunksProvider = StateProvider<int>((ref) => 8);
+/// cl45：默认 8→16——LOD 地平线 256 格，视距不再硬剔、看得更远；
+/// cl46：默认 16→32——用户要求近 2 区块到远 32 区块渐进 LOD（最外档
+/// cell≥32 走地平线 Impostor 超省模式，远景面数≈单元数，不会成面数黑洞）。
+final lodMaxChunksProvider = StateProvider<int>((ref) => 32);
 
 /// 阴影渲染（太阳方向投影阴影：顶面被太阳方向相邻方块遮挡时调暗）。
 final shadowRenderProvider = StateProvider<bool>((ref) => true);
 
 /// 环境光屏蔽 AO（方块角落/缝隙变暗，增强立体感；关 = 均匀亮度更省）。
 final aoEnabledProvider = StateProvider<bool>((ref) => true);
+
+/// 方块描边总开关（cl45：默认开）。开 = 玩家 5 格内实描边 + 5~12 格极淡渐隐；
+/// 关 = 完全不描边（省面数、画面更干净）。
+final outlineEnabledProvider = StateProvider<bool>((ref) => true);
+
+/// 边界雾（cl45：默认关，与 LOD 互斥）。开 = 视距边缘快速收口雾 + LOD 关闭
+/// （传统视距雾）；关 = LOD 远景大方块延伸到 lodMaxChunks（看得更远）。
+final boundaryFogEnabledProvider = StateProvider<bool>((ref) => false);
 
 // ── 渲染精度 / 几何精度（画面设置，倍率式：1.0 = 画质档默认）──
 
@@ -409,3 +425,18 @@ void applyPicturePreset(WidgetRef ref, PicturePreset p) {
 
 /// OOBE 完成标记（首次启动欢迎页；完成后不再显示）。
 final oobeDoneProvider = StateProvider<bool>((ref) => false);
+
+/// cl46：世界自动备份间隔（分钟：5 / 15 / 30 / 60）。
+final backupIntervalMinutesProvider = StateProvider<int>((ref) => 15);
+
+/// cl46：自定义世界机制——全局偏移率（0.0~1.0，参与地形 / 群系 / 结构生成）。
+final worldGenOffsetProvider = StateProvider<double>((ref) => 0.0);
+
+/// cl46：世界机制细调——地形起伏偏移（0.0~1.0）。
+final worldGenTerrainProvider = StateProvider<double>((ref) => 0.0);
+
+/// cl46：世界机制细调——群系分布偏移（0.0~1.0）。
+final worldGenBiomeProvider = StateProvider<double>((ref) => 0.0);
+
+/// cl46：世界机制细调——结构生成偏移（0.0~1.0）。
+final worldGenStructureProvider = StateProvider<double>((ref) => 0.0);

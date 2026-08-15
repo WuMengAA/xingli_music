@@ -26,22 +26,26 @@ class DockItem {
   });
 }
 
-/// 4 个 Tab 的顺序 —— 必须与 `ShellPage` 的前 4 个页面常量
-/// （`scene=0 / library=1 / explore=2 / settings=3`）严格一致（P0-B2）。
+/// 5 个 Tab 的顺序 —— 必须与 `ShellPage` 的页面常量
+/// （`home=0 / library=1 / world=2 / explore=3 / settings=4`）严格一致。
 ///
-/// v3 调整：曲库提前到第二位、探索后移（用户需求）。
 /// 注意 `ShellPage` 是 `abstract final class` 的 int 常量集合，**不是 Dart enum**，
 /// 因此没有 `.values`，两边顺序只能靠本注释与 code review 约束。
 const List<DockItem> kDockItems = <DockItem>[
   DockItem(
-    icon: Icons.auto_awesome_outlined,
-    selectedIcon: Icons.auto_awesome,
-    label: '场景',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home,
+    label: '主页',
   ),
   DockItem(
     icon: Icons.library_music_outlined,
     selectedIcon: Icons.library_music,
     label: '曲库',
+  ),
+  DockItem(
+    icon: Icons.public_outlined,
+    selectedIcon: Icons.public,
+    label: '世界',
   ),
   DockItem(
     icon: Icons.explore_outlined,
@@ -137,7 +141,7 @@ class AppDock extends StatelessWidget {
                 child: Material(
                   type: MaterialType.transparency,
                   child: Row(
-                    // 4 个 Expanded 严格等分，中间不插 SizedBox —— 才能对齐
+                    // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
                     // 设计坐标 x=0/104/208/312（390dp 基准）。
                     children: <Widget>[
                       for (int i = 0; i < items.length; i++)

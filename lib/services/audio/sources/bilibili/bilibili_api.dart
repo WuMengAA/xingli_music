@@ -20,6 +20,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 
 /// 接口根地址。
@@ -30,6 +31,14 @@ const String kBilibiliPassportBase = 'https://passport.bilibili.com';
 const String kBilibiliUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+/// wbi 签名所需的 64 位混排表（B站官方固定，不可改）。
+const List<int> _kWbiMixinTable = <int>[
+  46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, //
+  27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, //
+  37, 48, 7, 16, 24, 55, 40, 61, 26, 17, 0, 1, 60, 51, 30, 4, //
+  22, 25, 54, 21, 56, 59, 6, 63, 57, 62, 11, 36, 20, 34, 44, 52,
+];
 
 /// B站接口返回的业务错误（HTTP 200 但 code != 0 也走这里）。
 class BilibiliApiException implements Exception {
@@ -98,6 +107,10 @@ class BilibiliApi {
   DateTime _lastReq = DateTime.fromMillisecondsSinceEpoch(0);
 
   final http.Client _client = http.Client();
+
+  /// wbi 混排键缓存（nav 接口取得，10 分钟有效，避免每次播放都请求）。
+  String? _wbiMixinKey;
+  DateTime _wbiKeyExpire = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// 串行节流：两次请求至少间隔 [kBilibiliMinInterval]。
   Future<void> _throttle() async {
@@ -309,14 +322,77 @@ class BilibiliApi {
 
   // ── 播放地址 ──────────────────────────────────────────────────────
 
+  /// 取视频 cid（view 接口，无需登录、无需签名即可访问）。
+  Future<int> _fetchCid(String bvid) async {
+    final dynamic body = await _getJson(
+      '$kBilibiliApiBase/x/web-interface/view?bvid=$bvid',
+      withCookie: false,
+    );
+    final dynamic data = body['data'];
+    final int cid = (data is Map ? (data['cid'] as num?)?.toInt() : null) ?? 0;
+    if (cid == 0) throw const BilibiliApiException(-1, '无法获取视频 cid');
+    return cid;
+  }
+
+  /// 取 wbi 混排键（nav 接口，缓存 10 分钟）。
+  Future<String> _getMixinKey() async {
+    final DateTime now = DateTime.now();
+    if (_wbiMixinKey != null && _wbiKeyExpire.isAfter(now)) {
+      return _wbiMixinKey!;
+    }
+    final dynamic body = await _getJson(
+      '$kBilibiliApiBase/x/web-interface/nav',
+      withCookie: false,
+    );
+    final dynamic data = body['data'];
+    final dynamic wbi = data is Map ? data['wbi_img'] : null;
+    if (wbi is! Map) throw const BilibiliApiException(-1, 'wbi 密钥获取失败');
+    final String imgUrl = (wbi['img_url'] as String?) ?? '';
+    final String subUrl = (wbi['sub_url'] as String?) ?? '';
+    final String imgKey = imgUrl.split('/').last.split('.').first;
+    final String subKey = subUrl.split('/').last.split('.').first;
+    final String raw = imgKey + subKey;
+    final StringBuffer sb = StringBuffer();
+    for (final int i in _kWbiMixinTable) {
+      if (i < raw.length) sb.write(raw[i]);
+    }
+    final String key = sb.toString();
+    _wbiMixinKey = key.length > 32 ? key.substring(0, 32) : key;
+    _wbiKeyExpire = now.add(const Duration(minutes: 10));
+    return _wbiMixinKey!;
+  }
+
+  /// 构造带 wbi 签名的 playurl 请求地址（同时补齐 cid）。
+  ///
+  /// B站 `x/player/playurl` 现在**必须**同时带 wbi 签名（w_rid/wts）与视频
+  /// cid，否则返回 -400。音频流与画面流共用同一个 playurl，仅返回字段不同。
+  Future<String> _signedPlayUrl(String bvid) async {
+    final int cid = await _fetchCid(bvid);
+    final String mixinKey = await _getMixinKey();
+    final Map<String, String> params = <String, String>{
+      'bvid': bvid,
+      'cid': cid.toString(),
+      'fnval': '16',
+      'fourk': '1',
+    };
+    final int wts = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    params['wts'] = wts.toString();
+    final List<String> keys = params.keys.toList()..sort();
+    final String raw = keys.map((String k) => '$k=${params[k]}').join('&');
+    final String wrid = md5.convert(utf8.encode(raw + mixinKey)).toString();
+    params['w_rid'] = wrid;
+    return Uri.parse('$kBilibiliApiBase/x/player/playurl')
+        .replace(queryParameters: params)
+        .toString();
+  }
+
   /// 解析 BVID 的音频流（DASH audio m4s）。
   ///
   /// 返回首个可用 audio 的 baseUrl（未登录也能拿到低码率音频；登录后更高
   /// 音质）。若 DASH 缺失，回退 durl（mp4 直链，含音轨）。失败抛中文异常。
   Future<String> resolveAudioUrl(String bvid) async {
     final dynamic body = await _getJson(
-      '$kBilibiliApiBase/x/player/playurl'
-      '?bvid=$bvid&fnval=16&fourk=1',
+      await _signedPlayUrl(bvid),
       withCookie: true,
     );
     final dynamic data = body['data'];
@@ -360,8 +436,7 @@ class BilibiliApi {
   /// 2 = 三档…）。自动夹到可用档数内。
   Future<String> resolveVideoUrl(String bvid, {int qualityIndex = 0}) async {
     final dynamic body = await _getJson(
-      '$kBilibiliApiBase/x/player/playurl'
-      '?bvid=$bvid&fnval=16&fourk=1',
+      await _signedPlayUrl(bvid),
       withCookie: true,
     );
     final dynamic data = body['data'];

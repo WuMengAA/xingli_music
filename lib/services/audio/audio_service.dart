@@ -9,15 +9,20 @@ import '../../models/track.dart';
 import '../log_service.dart';
 import 'ambient_soundscape_service.dart';
 import 'just_audio_backend.dart';
+import 'media_kit_backend.dart';
 import 'music_backend.dart';
 import 'soundscape_generator.dart';
 
-/// 解析出的可直接播放地址 + 请求头（交给 just_audio `AudioSource.uri`）。
+/// 解析出的可直接播放地址 + 请求头（交给后端 `AudioSource.uri`）。
 class ResolvedStream {
-  const ResolvedStream(this.url, [this.headers = const <String, String>{}]);
+  const ResolvedStream(this.url,
+      [this.headers = const <String, String>{}, this.requiresMediaKit = false]);
 
   final String url;
   final Map<String, String> headers;
+
+  /// 该曲源是否需要 media_kit 后端（④ #392：网易云·B站 CDN 流路由用）。
+  final bool requiresMediaKit;
 }
 
 /// 占位 uri → 真实地址的解析器。返回 null 表示无需解析（走默认本地路径逻辑）。
@@ -106,11 +111,14 @@ class AudioService {
   /// v2 EQ：允许外部装配 `AudioPipeline(androidAudioEffects: [eq])`。
   /// 仅 Android 生效（非 Android 传入 null 走默认管线）。
   /// S2：音乐后端可注入（默认 just_audio；传 [MediaKitBackend] 切 media_kit）。
-  AudioService({AudioPipeline? musicPipeline, MusicBackend? musicBackend})
-      : _music = musicBackend ??
-            JustAudioBackend(
-              audioPipeline: musicPipeline ?? AudioPipeline(),
-            ) {
+  /// ④ #392/#393：双后端并存——just_audio（默认）+ media_kit（全格式 /
+  /// 网易云·B站 CDN 流）。按曲源 [MusicSource.requiresMediaKit] 或全局引擎
+  /// 开关路由到对应后端，由 [_switchBackend] 在切歌时抉择。
+  AudioService({AudioPipeline? musicPipeline, bool useMediaKit = false})
+      : _useMediaKitGlobal = useMediaKit,
+        _justAudioBackend =
+            JustAudioBackend(audioPipeline: musicPipeline ?? AudioPipeline()),
+        _mediaKitBackend = MediaKitBackend() {
     _activeSc = _scA;
     // R3 修复：环境音/音景播放器不抢焦点，避免打断音乐。
     // 注意：_sfx 是 just_audio 播放器，跟随音乐会话，无需（也不能）设置
@@ -123,22 +131,88 @@ class AudioService {
     unawaited(_safe(() => _wn.setAudioContext(noFocus)));
     unawaited(_safe(() => _cue.setAudioContext(noFocus)));
 
-    // 播放器状态流 → 细粒度 DEBUG 日志（自动识别播放/切歌/静音问题）。
-    // 依赖 LogService（纯 Dart 单例），与 Riverpod 无关。
-    _psSub = _music.stateStream.listen((MusicEngineState ps) {
-      LogService.instance.d(
-          'audio', 'playerState: ${ps.processing} playing=${ps.playing}');
-    });
+    // 绑定初始活跃后端（just_audio / media_kit）的派生流。
+    _bindBackend(useMediaKit ? _mediaKitBackend : _justAudioBackend);
   }
 
-  /// 音乐引擎状态流订阅（dispose 时取消）。
-  StreamSubscription<MusicEngineState>? _psSub;
+  /// 全局是否走 media_kit（设置→播放引擎 = media_kit）。
+  final bool _useMediaKitGlobal;
 
-  /// 音乐播放后端（S2：just_audio / media_kit 抽象）。
-  final MusicBackend _music;
+  /// just_audio 后端（默认；Android 真 EQ、稳定）。
+  final JustAudioBackend _justAudioBackend;
+
+  /// media_kit（libmpv）后端：全格式 / 网易云·B站 CDN 流 / Hi-Res。
+  final MediaKitBackend _mediaKitBackend;
+
+  /// 当前活跃后端（路由结果）。所有引擎调用统一走它。
+  late MusicBackend _activeBackend;
 
   /// I（均衡器）：暴露当前音乐后端（Windows 分支按类型选 mpv 滤镜引擎）。
-  MusicBackend get backend => _music;
+  MusicBackend get backend => _activeBackend;
+
+  /// cl46 自动播放：曲目自然播放完成时触发（由 AutoPlayTracker 挂接）。
+  void Function()? onCompleted;
+
+  /// 派生流控制器：后端切换时改绑，UI（StreamProvider）无需重新订阅。
+  final StreamController<PlaybackState> _stateCtrl =
+      StreamController<PlaybackState>.broadcast();
+  final StreamController<bool> _playingCtrl =
+      StreamController<bool>.broadcast();
+  final StreamController<Duration?> _positionCtrl =
+      StreamController<Duration?>.broadcast();
+  final StreamController<Duration?> _durationCtrl =
+      StreamController<Duration?>.broadcast();
+
+  /// 活跃后端状态流订阅（[_bindBackend] 切换，dispose 时取消）。
+  StreamSubscription<MusicEngineState>? _stateSub;
+  StreamSubscription<Duration?>? _positionSub;
+  StreamSubscription<Duration?>? _durationSub;
+
+  /// 绑定活跃后端的派生流（取消旧订阅、改挂新后端）。
+  /// 构造函数与 [_switchBackend] 都会调用。
+  void _bindBackend(MusicBackend backend) {
+    _stateSub?.cancel();
+    _stateSub = null;
+    _positionSub?.cancel();
+    _positionSub = null;
+    _durationSub?.cancel();
+    _durationSub = null;
+
+    _activeBackend = backend;
+    _stateSub = backend.stateStream.listen((MusicEngineState s) {
+      LogService.instance.d(
+          'audio', 'playerState: ${s.processing} playing=${s.playing}');
+      _stateCtrl.add(_toPlaybackState(s));
+      _playingCtrl.add(s.playing);
+      // cl46 自动播放：自然播放完成（completed 且非手动暂停）。
+      if (s.processing == MusicProcess.completed && !s.playing) {
+        onCompleted?.call();
+      }
+    });
+    _positionSub = backend.positionStream.listen(_positionCtrl.add);
+    _durationSub = backend.durationStream.listen(_durationCtrl.add);
+  }
+
+  /// 切换到另一后端：先暂停旧后端（防双音轨叠播），重绑派生流，
+  /// 并立即推 loading 态让 UI 进入加载中。④ 路由核心。
+  void _switchBackend(MusicBackend target) {
+    if (target == _activeBackend) return;
+    unawaited(_safe(() => _activeBackend.pause(), tag: 'switchPausePrev'));
+    _bindBackend(target);
+    _stateCtrl.add(PlaybackState.loading);
+    _playingCtrl.add(false);
+  }
+
+  /// 引擎状态 → 播放状态机（与原 stateStream 派生逻辑一致）。
+  static PlaybackState _toPlaybackState(MusicEngineState s) {
+    if (s.processing == MusicProcess.loading) return PlaybackState.loading;
+    if (!s.playing) {
+      return s.processing == MusicProcess.idle
+          ? PlaybackState.idle
+          : PlaybackState.paused;
+    }
+    return PlaybackState.playing;
+  }
 
   /// 一次性事件音效播放器（「我的世界」主题音效调度用）
   final AudioPlayer _sfx = AudioPlayer();
@@ -177,7 +251,7 @@ class AudioService {
   void setStreamResolver(StreamResolver? resolver) => _streamResolver = resolver;
 
   /// 音乐是否在播放（just_audio 真实状态）
-  bool get musicPlaying => _music.playing;
+  bool get musicPlaying => _activeBackend.playing;
 
   String? _activeSoundscapeId;
 
@@ -223,19 +297,8 @@ class AudioService {
   PlaybackState _state = PlaybackState.idle;
   PlaybackState get state => _state;
 
-  /// 状态流：由引擎真实状态派生，UI 永远与引擎一致
-  Stream<PlaybackState> get stateStream =>
-      _music.stateStream.map((MusicEngineState s) {
-        if (s.processing == MusicProcess.loading) {
-          return PlaybackState.loading;
-        }
-        if (!s.playing) {
-          return s.processing == MusicProcess.idle
-              ? PlaybackState.idle
-              : PlaybackState.paused;
-        }
-        return PlaybackState.playing;
-      }).distinct();
+  /// 状态流：由活跃后端真实状态派生，UI 永远与引擎一致（④ 后端切换不断流）。
+  Stream<PlaybackState> get stateStream => _stateCtrl.stream.distinct();
 
   /// 音景切换请求序号：快速切换时只执行最新一次
   int _scSeq = 0;
@@ -258,14 +321,13 @@ class AudioService {
   bool _disposed = false;
 
   /// 真实播放状态流（驱动 UI，状态永远跟引擎一致）
-  Stream<bool> get playingStream =>
-      _music.stateStream.map((MusicEngineState s) => s.playing).distinct();
+  Stream<bool> get playingStream => _playingCtrl.stream.distinct();
 
   /// 播放位置流（用于进度反馈）
-  Stream<Duration?> get positionStream => _music.positionStream;
+  Stream<Duration?> get positionStream => _positionCtrl.stream;
 
   /// 曲目时长流
-  Stream<Duration?> get durationStream => _music.durationStream;
+  Stream<Duration?> get durationStream => _durationCtrl.stream;
 
   // ── 音乐播放 ───────────────────────────────────────
 
@@ -330,30 +392,37 @@ class AudioService {
     if (_currentTrack?.uri == track.uri) {
       _state = PlaybackState.playing;
       await _safe(
-        () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
+        () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: '续播音量',
       );
-      await _safe(() => _music.play(), tag: '续播');
+      await _safe(() => _activeBackend.play(), tag: '续播');
       return;
     }
 
     final int seq = ++_loadSeq;
     if (_disposed) return;
+    final Track? prevTrack = _currentTrack; // #396：加载失败回退用
     LogService.instance.i('audio',
         '播放: ${track.title} [${track.sourceId}] uri=${_redact(track.uri)}');
 
     // 进入加载态（在 await 期间状态即 loading，togglePlay 会忽略）
     _state = PlaybackState.loading;
+    // #396：进入加载态即把歌名推到通知栏/锁屏，避免「歌名滞后到加载成功
+    // 才显示」（用户反馈安卓通知栏歌名更新不及时的根因）。
+    _trackCtrl.add(track);
     final Future<void> load = _prepareMusic(track, seq);
-    if (_music.playing) {
+    if (_activeBackend.playing) {
       // 快速淡出旧曲（后台，与加载并行）
       unawaited(_fadeMusic(1.0, 0.0, fade ~/ 2));
     }
     await load;
 
-    // 加载失败：回到 idle
+    // 加载失败：通知栏回退到上一首（仍有声或至少保持上一首信息），
+    // 不显示「没播出来的那首」（#396）。
     if (_currentTrack == null) {
-      _state = PlaybackState.idle;
+      _currentTrack = prevTrack;
+      _trackCtrl.add(prevTrack);
+      _state = prevTrack != null ? PlaybackState.playing : PlaybackState.idle;
       return;
     }
     // 加载期间已被更新的切歌请求取代：让位，自身不再发声
@@ -370,8 +439,8 @@ class AudioService {
     _cancelFades();
     // 直接落到目标音量再播放：规避部分 Android 解码器「先设 0 再 play」会锁死
     // 静音、必须手动拖一下音量才有声的问题（用户反馈「须拖动主音量才有声」）。
-    await _safe(() => _music.setVolume(target), tag: 'setVolume');
-    await _safe(() => _music.play(), tag: 'play');
+    await _safe(() => _activeBackend.setVolume(target), tag: 'setVolume');
+    await _safe(() => _activeBackend.play(), tag: 'play');
     _state = PlaybackState.playing;
     LogService.instance.i('audio', '播放开始: ${track.title}');
   }
@@ -379,15 +448,13 @@ class AudioService {
   Future<void> _prepareMusic(Track track, int seq) async {
     // 占位符（如 netease://song/<id>，非 http、非本地文件）先经解析器
     // 换成真实播放地址；本地文件/直连 http 不解析，走下方默认分支。
-    String? resolvedUrl;
-    Map<String, String> headers = const <String, String>{};
+    ResolvedStream? resolved;
     if (_streamResolver != null && !track.uri.startsWith('http')) {
       try {
         final ResolvedStream? r = await _streamResolver!(track)
             .timeout(const Duration(seconds: 20));
         if (r != null && r.url.startsWith('http')) {
-          resolvedUrl = r.url;
-          headers = r.headers;
+          resolved = r;
         }
       } on TimeoutException {
         // 解析超时（网络/接口卡住）：判加载失败，不进播放器、不回落 openPath，
@@ -409,11 +476,23 @@ class AudioService {
       }
     }
 
+    // resolved 解析结果：提取 url + 请求头（供下方 open 分支使用）。
+    final String? resolvedUrl = resolved?.url;
+    final Map<String, String> headers = resolved?.headers ?? const <String, String>{};
+
     // 等待解析期间已有更新的切歌请求：直接让位，不触碰播放器
     // （避免并发 setAudioSource 在部分平台崩溃，R20）。
     if (seq != _loadSeq) return;
     // R27（安卓切歌防闪退）：服务已销毁则放弃，避免触碰已释放播放器。
     if (_disposed) return;
+
+    // ④ #392/#393：按曲源是否需要 media_kit 选定后端。
+    // 全局 media_kit 开启，或曲源声明 requiresMediaKit（网易云·B站 CDN 流
+    // just_audio 无法解码、media_kit 可解）→ 走 media_kit；其余走 just_audio。
+    final bool needsMk = resolved?.requiresMediaKit ?? false;
+    final MusicBackend target =
+        (_useMediaKitGlobal || needsMk) ? _mediaKitBackend : _justAudioBackend;
+    _switchBackend(target);
 
     try {
       // R27：open 调用再套一层 _safe——安卓 just_audio / media_kit 在快速切歌时
@@ -421,16 +500,16 @@ class AudioService {
       // 加载失败（_currentTrack 保持 null → playMusic 回落 idle），绝不向上抛闪退。
       if (resolvedUrl != null) {
         // 远程 CDN 带源请求头（网易云 UA/Referer），避免 403。
-        await _safe(() => _music.openUri(Uri.parse(resolvedUrl!), headers: headers),
+        await _safe(() => _activeBackend.openUri(Uri.parse(resolvedUrl), headers: headers),
             tag: 'openUri');
       } else if (track.isRemote) {
-        await _safe(() => _music.openUrl(track.uri), tag: 'openUrl');
+        await _safe(() => _activeBackend.openUrl(track.uri), tag: 'openUrl');
       } else if (_isLocalFilePath(track.uri)) {
         // 真实本地文件路径（含 file://）：剥离 scheme 后正常打开。
         final String path = track.uri.startsWith('file://')
             ? Uri.parse(track.uri).toFilePath()
             : track.uri;
-        await _safe(() => _music.openPath(path), tag: 'openPath');
+        await _safe(() => _activeBackend.openPath(path), tag: 'openPath');
       } else {
         // 占位符（netease:///bili:// 等）解析失败却落到这里：绝不以文件路径
         // 打开非法 URI（原生层不可捕获崩溃）。判加载失败，回落 idle。
@@ -464,7 +543,7 @@ class AudioService {
       case PlaybackState.loading:
         return;
       case PlaybackState.playing:
-        await _safe(() => _music.pause(), tag: 'pause');
+        await _safe(() => _activeBackend.pause(), tag: 'pause');
         _state = PlaybackState.paused;
         LogService.instance.i('audio', '暂停');
         break;
@@ -472,10 +551,10 @@ class AudioService {
         // 先恢复目标音量再 play（防止残留淡出把音量压成 0）。
         _cancelFades();
         await _safe(
-          () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
+          () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
           tag: '音量恢复',
         );
-        await _safe(() => _music.play(), tag: 'play');
+        await _safe(() => _activeBackend.play(), tag: 'play');
         _state = PlaybackState.playing;
         LogService.instance.i('audio', '继续播放');
         break;
@@ -484,13 +563,13 @@ class AudioService {
 
   /// 跳转播放位置（进度条拖动 seek）
   Future<void> seek(Duration position) async {
-    await _safe(() => _music.seek(position), tag: 'seek');
+    await _safe(() => _activeBackend.seek(position), tag: 'seek');
   }
 
   /// 仅暂停（系统媒体控件「暂停」用，不切换状态为其它）
   Future<void> pauseOnly() async {
     if (_state == PlaybackState.playing) {
-      await _safe(() => _music.pause(), tag: 'pauseOnly');
+      await _safe(() => _activeBackend.pause(), tag: 'pauseOnly');
       _state = PlaybackState.paused;
       LogService.instance.i('audio', '暂停（系统/打断）');
     }
@@ -502,10 +581,10 @@ class AudioService {
       // 先恢复目标音量（防止残留淡出静音，R20）。
       _cancelFades();
       await _safe(
-        () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
+        () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: '音量恢复',
       );
-      await _safe(() => _music.play(), tag: 'resume');
+      await _safe(() => _activeBackend.play(), tag: 'resume');
       _state = PlaybackState.playing;
       LogService.instance.i('audio', '续播（系统）');
     }
@@ -513,9 +592,9 @@ class AudioService {
 
   /// 临时压低/恢复音量（音频焦点被其它应用 duck 时用，不改变记忆音量）
   Future<void> setDuck(bool ducked) async {
-    if (_music.playing) {
+    if (_activeBackend.playing) {
       await _safe(
-        () => _music.setVolume(
+        () => _activeBackend.setVolume(
             ducked ? 0.15 * _masterVol : (_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol)),
         tag: 'setDuck',
       );
@@ -585,9 +664,9 @@ class AudioService {
   Future<void> setMasterVolume(double v) async {
     _masterVol = v.clamp(0.0, 1.0);
     LogService.instance.i('audio', '主音量: ${(_masterVol * 100).round()}%');
-    if (_music.playing) {
+    if (_activeBackend.playing) {
       await _safe(
-        () => _music.setVolume(
+        () => _activeBackend.setVolume(
             _musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: 'setMasterVolume_music',
       );
@@ -671,9 +750,9 @@ class AudioService {
     if (_balanceMode == mode) return;
     _balanceMode = mode;
     // 立即以新模式重算当前音量（若在播放）
-    if (_music.playing) {
+    if (_activeBackend.playing) {
       await _safe(
-        () => _music.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
+        () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: 'setBalanceVolume',
       );
     }
@@ -792,8 +871,8 @@ class AudioService {
       LogService.instance.i('audio', '音乐声音量: $pct%');
     }
     final double out = _musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol;
-    if (_music.playing) {
-      await _safe(() => _music.setVolume(out), tag: 'setMusicVolume');
+    if (_activeBackend.playing) {
+      await _safe(() => _activeBackend.setVolume(out), tag: 'setMusicVolume');
     }
   }
 
@@ -801,9 +880,9 @@ class AudioService {
   Future<void> setMusicMuted(bool m) async {
     _musicMuted = m;
     LogService.instance.i('audio', '音乐声静音: ${m ? '开' : '关'}');
-    if (_music.playing) {
+    if (_activeBackend.playing) {
       await _safe(
-        () => _music.setVolume(m ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
+        () => _activeBackend.setVolume(m ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: 'setMusicMuted',
       );
     }
@@ -847,8 +926,8 @@ class AudioService {
     _musicVol = music;
     _scVol = soundscape;
 
-    if (_music.playing) {
-      unawaited(_fadeMusic(_music.volume, _musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol, const Duration(milliseconds: 1200)));
+    if (_activeBackend.playing) {
+      unawaited(_fadeMusic(_activeBackend.volume, _musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol, const Duration(milliseconds: 1200)));
     }
     if (_activeSoundscapeId != null) {
       unawaited(_fadeSoundscape(_activeSc, _activeSc.volume, _scMuted ? 0.0 : _scVol * _masterVol, const Duration(milliseconds: 1200)));
@@ -857,20 +936,25 @@ class AudioService {
 
   // ── 音量渐变工具 ───────────────────────────────────
 
+  /// cl46 自动过渡：快速淡出当前曲（1.5s），供「接近末尾自动切歌」使用。
+  /// 下一首经 [playMusic] 播放，自带淡入。
+  Future<void> fadeOutMusic() =>
+      _fadeMusic(1.0, 0.0, const Duration(milliseconds: 1500));
+
   Future<void> _fadeMusic(double from, double to, Duration duration) async {
     // 带序号：每次调用自增；被更新的淡入取代时立即退出，避免并发
     // 写 volume 互相覆盖（旧淡出把新曲音量压成 0 的静音 bug，R20）。
     final int seq = ++_fadeSeq;
     const int steps = 16;
     if (duration.inMilliseconds <= 0) {
-      await _safe(() => _music.setVolume(to), tag: 'fadeMusic');
+      await _safe(() => _activeBackend.setVolume(to), tag: 'fadeMusic');
       return;
     }
     final Duration step = duration ~/ steps;
     for (int i = 1; i <= steps; i++) {
       if (seq != _fadeSeq) return; // 已被更新的淡入取代
       await _safe(
-        () => _music.setVolume(from + (to - from) * i / steps),
+        () => _activeBackend.setVolume(from + (to - from) * i / steps),
         tag: 'fadeMusic',
       );
       await Future<void>.delayed(step);
@@ -902,11 +986,18 @@ class AudioService {
 
   Future<void> dispose() async {
     _disposed = true;
-    await _psSub?.cancel();
-    _psSub = null;
+    await _stateSub?.cancel();
+    await _positionSub?.cancel();
+    await _durationSub?.cancel();
+    await _stateCtrl.close();
+    await _playingCtrl.close();
+    await _positionCtrl.close();
+    await _durationCtrl.close();
     await _trackCtrl.close();
     await _playErrorCtrl.close();
-    await _safe(() => _music.dispose(), tag: 'dispose');
+    // 双后端都要释放（#393）。
+    await _safe(() => _justAudioBackend.dispose(), tag: 'disposeJA');
+    await _safe(() => _mediaKitBackend.dispose(), tag: 'disposeMK');
     await _safe(() => _sfx.dispose(), tag: 'disposeSfx');
     await _safe(() => _scA.dispose(), tag: 'disposeScA');
     await _safe(() => _scB.dispose(), tag: 'disposeScB');

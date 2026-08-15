@@ -104,6 +104,10 @@ class MinecraftMusicSource implements MusicSource {
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
 
+  /// 内置 MC 曲 just_audio 即可解码，无需 media_kit。
+  @override
+  bool get requiresMediaKit => false;
+
   String _baseName(String path) {
     final String f = path.replaceAll('\\', '/');
     return f.substring(f.lastIndexOf('/') + 1);

@@ -179,6 +179,19 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           ],
         ),
         SettingGroup(
+          id: 'audio_mine',
+          name: '我的音乐',
+          items: <SettingItem>[
+            // cl46：全局收藏 + 自定义歌单（名称 / 相册背景图 / 排序）。
+            SettingItem(id: 'favoritesPlaylists', title: '收藏与歌单'),
+            // cl46：听歌排行（播放次数 / 收听时长）。
+            SettingItem(id: 'topList', title: '听歌排行'),
+            // cl46：自动播放 / 自动过渡（默认开）。
+            SettingItem(id: 'autoPlay', title: '自动播放', kind: SettingKind.toggle),
+            SettingItem(id: 'autoTransition', title: '自动过渡', kind: SettingKind.toggle),
+          ],
+        ),
+        SettingGroup(
           id: 'audio_source',
           name: '音源',
           items: <SettingItem>[
@@ -200,8 +213,7 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
         ),
       ],
     ),
-    // R26skel：新增「游戏」集合——游戏内快捷设置（开放世界 菜单 → 游戏设置）
-    // 的统一收纳位，与游戏菜单共享同一批 provider；常用画面项仍在「画面」。
+    // cl46：凡游戏画面、机制统统迁入「游戏」分类。
     SettingCollection(
       id: 'game',
       name: '游戏',
@@ -215,23 +227,65 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'hudEdit', title: '布局编辑', kind: SettingKind.toggle),
             // R26skel-b3：游戏 UI 大小（HUD 摇杆/动作键缩放）。
             SettingItem(id: 'hudScale', title: '游戏 UI 大小', kind: SettingKind.slider),
-            SettingItem(id: 'fpsLimit', title: '帧率限制', kind: SettingKind.chips),
           ],
         ),
+        // 画质：低中高预设（卡片预览选择）+ 分辨率 + 帧率 + 阴影。
         SettingGroup(
-          id: 'game_graphics',
-          name: '画质预设',
+          id: 'game_quality',
+          name: '画质',
           items: <SettingItem>[
-            SettingItem(id: 'perfPreset', title: '画质预设', kind: SettingKind.chips),
+            SettingItem(id: 'perfPreset', title: '画质预设（低 / 中 / 高）'),
+            SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
+            SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
+            SettingItem(id: 'shadowRender', title: '阴影（真阴影）', kind: SettingKind.toggle),
+            SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
+          ],
+        ),
+        // 渲染 · 高级（迁移自「个性 · 画面高级」）。
+        SettingGroup(
+          id: 'game_render_advanced',
+          name: '渲染 · 高级',
+          items: <SettingItem>[
             SettingItem(id: 'viewDistance', title: '视距', kind: SettingKind.slider),
             SettingItem(id: 'renderPrecisionScale', title: '渲染精度', kind: SettingKind.slider),
+            SettingItem(id: 'lodEnabled', title: 'LOD 开关', kind: SettingKind.toggle),
+            SettingItem(id: 'lodStart', title: 'LOD 起始', kind: SettingKind.slider),
+            SettingItem(id: 'lodStepBlocks', title: 'LOD 步长（格）', kind: SettingKind.chips),
+            SettingItem(id: 'lodSample', title: 'LOD 采样（大方块）', kind: SettingKind.chips),
+            SettingItem(id: 'lodMaxChunks', title: 'LOD 最远距离', kind: SettingKind.slider),
+            SettingItem(id: 'outlineToggle', title: '方块描边', kind: SettingKind.toggle),
+            SettingItem(id: 'boundaryFog', title: '边界雾', kind: SettingKind.toggle),
+            SettingItem(id: 'engineBackend', title: '图形后端', kind: SettingKind.chips),
+            SettingItem(id: 'renderPrecision', title: '几何精度（面数）', kind: SettingKind.chips),
+            SettingItem(id: 'faceCull', title: '侧面剔除', kind: SettingKind.toggle),
+            SettingItem(id: 'occlusionCull', title: '遮挡剔除', kind: SettingKind.toggle),
+            SettingItem(id: 'backFaceCull', title: '背面剔除', kind: SettingKind.toggle),
+            SettingItem(id: 'frustumCull', title: '视锥剔除', kind: SettingKind.toggle),
+            SettingItem(id: 'underwaterFilter', title: '水下滤镜', kind: SettingKind.toggle),
+            SettingItem(id: 'flashlight', title: '手电筒模式', kind: SettingKind.toggle),
+            SettingItem(id: 'waterFlow', title: '水流动', kind: SettingKind.toggle),
+            SettingItem(id: 'aoRender', title: '环境光屏蔽（AO）', kind: SettingKind.toggle),
+            SettingItem(id: 'fxNoise', title: '噪点纹理', kind: SettingKind.toggle),
+          ],
+        ),
+        // 机制：存档机制 / 世界机制 / 自定义世界机制。
+        SettingGroup(
+          id: 'game_mechanics',
+          name: '机制',
+          items: <SettingItem>[
+            SettingItem(id: 'autoBackup', title: '后台自动备份'),
+            SettingItem(id: 'backupInterval', title: '备份间隔', kind: SettingKind.chips),
+            SettingItem(id: 'worldSave', title: '世界存档'),
+            SettingItem(id: 'worldSfx', title: '世界音效设置'),
+            SettingItem(id: 'worldGen', title: '自定义世界机制'),
           ],
         ),
       ],
     ),
     SettingCollection(
       id: 'visual',
-      name: '画面',
+      // cl45：用户要求「画面」改名「个性」。
+      name: '个性',
       groups: <SettingGroup>[
         SettingGroup(
           id: 'visual_appearance',
@@ -252,32 +306,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'customSceneList', title: '自定义场景管理'),
           ],
         ),
-        SettingGroup(
-          id: 'visual_advanced',
-          name: '画面 · 高级',
-          items: <SettingItem>[
-            SettingItem(id: 'picturePreset', title: '全局画面预设', kind: SettingKind.chips),
-            SettingItem(id: 'lodEnabled', title: 'LOD 开关', kind: SettingKind.toggle),
-            SettingItem(id: 'lodStart', title: 'LOD 起始', kind: SettingKind.slider),
-            SettingItem(id: 'lodStepBlocks', title: 'LOD 步长（格）', kind: SettingKind.chips),
-            SettingItem(id: 'lodSample', title: 'LOD 采样（大方块）', kind: SettingKind.chips),
-            SettingItem(id: 'lodMaxChunks', title: 'LOD 最远距离', kind: SettingKind.slider),
-            SettingItem(id: 'engineBackend', title: '图形后端', kind: SettingKind.chips),
-            SettingItem(id: 'renderPrecision', title: '几何精度（面数）', kind: SettingKind.chips),
-            SettingItem(id: 'shadowRender', title: '阴影渲染', kind: SettingKind.toggle),
-            SettingItem(id: 'aoRender', title: '环境光屏蔽（AO）', kind: SettingKind.toggle),
-            SettingItem(id: 'fxNoise', title: '噪点纹理', kind: SettingKind.toggle),
-            SettingItem(id: 'fxBlur', title: '玻璃模糊', kind: SettingKind.toggle),
-            SettingItem(id: 'fxBg', title: '背景动画', kind: SettingKind.toggle),
-            SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）', kind: SettingKind.toggle),
-            SettingItem(id: 'flashlight', title: '手电筒模式', kind: SettingKind.toggle),
-            SettingItem(id: 'underwaterFilter', title: '水下滤镜', kind: SettingKind.toggle),
-            SettingItem(id: 'faceCull', title: '侧面剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'occlusionCull', title: '遮挡剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'backFaceCull', title: '背面剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'frustumCull', title: '视锥剔除', kind: SettingKind.toggle),
-          ],
-        ),
         // R26skel-b4：场景背景画质（独立于游戏画质）。
         SettingGroup(
           id: 'visual_scene_bg',
@@ -293,22 +321,7 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
         ),
       ],
     ),
-    SettingCollection(
-      id: 'mechanics',
-      name: '机制',
-      groups: <SettingGroup>[
-        SettingGroup(
-          id: 'mechanics_world',
-          name: '世界与玩法',
-          items: <SettingItem>[
-            SettingItem(id: 'worldSfx', title: '世界音效设置'),
-            SettingItem(id: 'worldSave', title: '世界存档'),
-            SettingItem(id: 'autoBackup', title: '后台自动备份'),
-            SettingItem(id: 'waterFlow', title: '水流动', kind: SettingKind.toggle),
-          ],
-        ),
-      ],
-    ),
+    // cl45：原「机制」合集已并入「游戏 · 世界与玩法」（见 game_mechanics 组）。
     SettingCollection(
       id: 'notification',
       name: '通知',

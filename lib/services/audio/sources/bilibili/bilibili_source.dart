@@ -154,4 +154,8 @@ class BilibiliSource implements MusicSource {
         'User-Agent': kBilibiliUserAgent,
         'Referer': 'https://www.bilibili.com/',
       };
+
+  /// B站音频流 just_audio 无法解码，必须 media_kit（libmpv）。
+  @override
+  bool get requiresMediaKit => true;
 }

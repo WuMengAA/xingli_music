@@ -2,12 +2,12 @@
 /// 应用外壳导航状态
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 依据 `docs/PRD_UI_重构.md` §5.2「Tab 索引与页面索引的映射」：
-/// Dock 只有 4 个 Tab，但 `IndexedStack` 有 5 个子页面，因此需要两个状态，
-/// 且**唯一真源是 [shellPageIndexProvider]**，Tab 高亮由其派生。
+/// 依据底部导航重构（主页 / 曲库 / 世界 / 探索 / 设置，共 5 Tab）：
+/// `IndexedStack` 有 5 个子页面、Dock 也有 5 个 Tab；**唯一真源是
+/// [shellPageIndexProvider]**，Tab 高亮由其派生。
 ///
 /// ```
-/// selectedTabIndex = (shellPageIndex <= 3) ? shellPageIndex : null
+/// selectedTabIndex = isTab(shellPageIndex) ? shellPageIndex : null
 /// ```
 library;
 
@@ -18,32 +18,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 ///
 /// | index | 页面           | Dock          |
 /// |-------|----------------|---------------|
-/// | 0     | `ScenePage`    | Tab 0（默认） |
+/// | 0     | `HomePage`     | Tab 0（默认） |
 /// | 1     | `LibraryPage`  | Tab 1         |
-/// | 2     | `ExplorePage`  | Tab 2         |
-/// | 3     | `SettingsPage` | Tab 3         |
-/// | 4     | `HomePage`     | 无 Tab 高亮   |
+/// | 2     | `WorldPage`    | Tab 2         |
+/// | 3     | `ExplorePage`  | Tab 3         |
+/// | 4     | `SettingsPage` | Tab 4         |
 abstract final class ShellPage {
-  /// 场景页 —— Tab 0，冷启动默认页（P0-B7）。
-  static const int scene = 0;
+  /// 主页 —— Tab 0，冷启动默认页（合并原场景页内容）。
+  static const int home = 0;
 
-  /// 曲库页 —— Tab 1（v3 调整：曲库提前到第二 Dock）。
+  /// 曲库页 —— Tab 1。
   static const int library = 1;
 
-  /// 探索页 —— Tab 2（v3 调整：探索后移一位）。
-  static const int explore = 2;
+  /// 世界页（星璃世界入口）—— Tab 2。
+  static const int world = 2;
 
-  /// 设置页 —— Tab 3。
-  static const int settings = 3;
+  /// 探索页 —— Tab 3。
+  static const int explore = 3;
 
-  /// 首页 —— 隐藏页，无 Tab 高亮（P0-B8 / B9 / G5）。
-  static const int home = 4;
+  /// 设置页 —— Tab 4。
+  static const int settings = 4;
 
   /// `IndexedStack` 子页面总数。
   static const int count = 5;
 
-  /// Dock Tab 数量（P0-B2：有且仅有 4 个）。
-  static const int tabCount = 4;
+  /// Dock Tab 数量（重构后：主页 / 曲库 / 世界 / 探索 / 设置，共 5 个）。
+  static const int tabCount = 5;
 
   /// 该页面索引是否对应一个 Dock Tab。
   static bool isTab(int index) => index >= 0 && index < tabCount;
@@ -53,9 +53,9 @@ abstract final class ShellPage {
 ///
 /// **唯一真源**。冷启动默认为「场景」（P0-B7）。
 final StateProvider<int> shellPageIndexProvider =
-    StateProvider<int>((Ref ref) => ShellPage.scene);
+    StateProvider<int>((Ref ref) => ShellPage.home);
 
-/// 当前高亮的 Dock Tab（0..3）；处于首页（index 4）时为 `null`。
+/// 当前高亮的 Dock Tab（0..4）；处于非 Tab 页时为 `null`。
 ///
 /// 派生自 [shellPageIndexProvider]，**不可单独赋值**，避免双真源不同步。
 final Provider<int?> selectedTabIndexProvider = Provider<int?>((Ref ref) {

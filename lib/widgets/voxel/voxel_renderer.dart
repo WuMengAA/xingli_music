@@ -239,6 +239,11 @@ class RenderConfig {
     // R26fx：画面开关——环境光屏蔽 AO / 太阳投影阴影（默认开，可设置关闭）。
     this.aoEnabled = true,
     this.shadowRender = true,
+    // cl45：方块描边总开关（默认开）：玩家 5 格内实描边，5~12 格极淡渐隐。
+    this.outlineEnabled = true,
+    // cl45：边界雾（可选，与 LOD 互斥）——开=传统视距雾在视距边缘收口、
+    // 隐藏远景（LOD 关闭）；关=LOD 远景大方块延伸到 lodMaxChunks，看得更远。
+    this.boundaryFog = false,
   });
 
   /// 区块边长（格，R23m：16×16 一区块，MC 惯例）。
@@ -336,6 +341,13 @@ class RenderConfig {
   /// 太阳投影阴影：顶面被太阳方向相邻方块遮挡时调暗。
   final bool shadowRender;
 
+  /// 方块描边总开关（cl45）：玩家 5 格内实描边，5~12 格极淡渐隐，>12 不描。
+  final bool outlineEnabled;
+
+  /// 边界雾（cl45，与 LOD 互斥）：开=视距边缘快速收口雾（LOD 关闭）；
+  /// 关=LOD 远景延伸到 lodMaxChunks（看得更远）。
+  final bool boundaryFog;
+
   RenderConfig copyWith({
     double? renderDistance,
     int? maxFaces,
@@ -353,6 +365,8 @@ class RenderConfig {
     bool? lodFaceCull,
     LodQuality? lodQuality,
     bool? lodFrustumCull,
+    bool? outlineEnabled,
+    bool? boundaryFog,
   }) {
     return RenderConfig(
       renderDistance: renderDistance ?? this.renderDistance,
@@ -384,6 +398,8 @@ class RenderConfig {
       lodBuildBudget: lodBuildBudget ?? this.lodBuildBudget,
       aoEnabled: aoEnabled ?? this.aoEnabled,
       shadowRender: shadowRender ?? this.shadowRender,
+      outlineEnabled: outlineEnabled ?? this.outlineEnabled,
+      boundaryFog: boundaryFog ?? this.boundaryFog,
     );
   }
 }
@@ -597,18 +613,12 @@ abstract final class VoxelRenderer {
     final List<List<double>> texDepthB = newBuckets();
     final List<List<double>> waterDepthB = newBuckets();
     const int kOutline = 0x4D000000; // 描边色：~30% 黑，ARGB
-    const int kOutlineA = 0x4D; // 描边基础 alpha（淡出时按比例缩放）
-    // R27②：描边距离「跟随视距 + 末段淡出」。
-    // 原实现是硬编码 `kEdgeMaxDepth = 15.0` 的二值截断：描边在离玩家 15 格处
-    // 整齐地一刀切消失，玩家于是看到一圈环绕自身的「近似立方圆」边界，且无论
-    // 视距设 2/4/6/8 chunks 都纹丝不动（用户反馈「描边视距严重不符」）。
-    // 修复 A：上限由 camera.far（= 视距，世界格）派生，与视距档位联动；夹到
-    //         [16,72]——每面描边要额外生成 8 个三角形，是面数黑洞，用户也认可
-    //         「再往上意义不大而且很卡」，故保留上限护栏。
-    // 修复 B：末段 30% 距离把 alpha 线性淡到 0，硬边界环变成察觉不到的渐隐。
-    final double kEdgeMaxDepth = (camera.far * 0.5).clamp(16.0, 72.0);
-    final double kEdgeFadeStart = kEdgeMaxDepth * 0.7;
-    final double kEdgeFadeSpan = kEdgeMaxDepth - kEdgeFadeStart;
+    const int kOutlineA = 0x4D; // 描边基础 alpha（5 格内实描边用）
+    // cl45（用户拍板）：描边只描玩家半径内——5 格内实描边，5~12 格极淡渐隐
+    // 作为方向提示，>12 格不描（不再按视距一刀切全场景描边，省面数、也无
+    // 「环绕自身立方圆」的硬边界环）。总开关由设置「方块描边」控制。
+    const double kOutlineRadius = 5.0;
+    const double kOutlineFadeMax = 12.0;
 
     // 把一面拼进对应批次（贴图 / 纯色 / 水 / 描边）。
     // [depth]：面中心相机深度（0~far），描边按其落入深度桶，绘制时远→近，
@@ -618,7 +628,8 @@ abstract final class VoxelRenderer {
         [double depth = 0,
         List<double>? ao,
         double aoScale = 1.0,
-        List<bool>? edgeMask]) {
+        List<bool>? edgeMask,
+        double? hDist]) {
       final double x0 = xy[0], y0 = xy[1];
       final double x1 = xy[2], y1 = xy[3];
       final double x2 = xy[4], y2 = xy[5];
@@ -674,21 +685,22 @@ abstract final class VoxelRenderer {
           ..add(cA)..add(cC)..add(cD);
         plainDepthB[bkt].add(depth);
       }
-      // 描边：仅不透明面。每条边画成一条细长方块（2 三角形），
-      // drawVertices 无 line 模式，故用细长方块近似（R25 描边诉求）。
+      // 描边：仅不透明面、且主地形路径传入 hDist（玩家水平距离）才描。
+      // 每条边画成一条细长方块（2 三角形），drawVertices 无 line 模式，
+      // 故用细长方块近似（R25 描边诉求）。
       // R26b：按 depth 落桶，绘制时远→近，前面面的描边盖住后面面的描边。
-      // R26f：距离衰减——深度 > 15 格不画描边（1.1px 细线远处不可见，
-      // 但每面要生成 8 个三角形，是面数黑洞，近距画、远距省）。
-      if (!translucentFace && depth < kEdgeMaxDepth) {
+      // cl45：玩家 5 格内实描边；5~12 格极淡渐隐提示；>12 格不描（面数护栏）。
+      if (!translucentFace && config.outlineEnabled && hDist != null &&
+          hDist <= kOutlineFadeMax) {
         const double hw = 1.1; // 描边半宽（px）
-        // R27②：末段淡出——alpha 随深度线性衰减到 0，消除硬截断的可见边界环。
         int outlineCol = kOutline;
-        if (depth > kEdgeFadeStart) {
-          final double f =
-              (1.0 - (depth - kEdgeFadeStart) / kEdgeFadeSpan).clamp(0.0, 1.0);
-          final int a = (kOutlineA * f).round().clamp(0, 255);
-          // 已淡到不可见：直接跳过，省掉 8 个无效三角形（面数护栏）。
-          if (a <= 1) return;
+        if (hDist > kOutlineRadius) {
+          // 5 格外极淡：基础 alpha 快速降到 ~15% 并随距离淡到 0（渐隐提示）。
+          final double t =
+              ((hDist - kOutlineRadius) / (kOutlineFadeMax - kOutlineRadius))
+                  .clamp(0.0, 1.0);
+          final int a = (kOutlineA * 0.15 * (1.0 - t)).round().clamp(0, 255);
+          if (a <= 2) return; // 已淡到不可见：省掉 8 个无效三角形（面数护栏）。
           outlineCol = a << 24;
         }
         // R26r8：描边并入地形面批次（plain）一起按深度排序——描边深度取面深度
@@ -785,10 +797,19 @@ abstract final class VoxelRenderer {
     // R23m：距离上限 = max(区块视距, renderDistance)，区块视距为主。
     // R26：渲染距离随 FOV 联动——拉远（fov→120°）时系数≈1 全距离开（不再
     // 「剔除太狠」）；放大（fov 缩小）时系数下降，远处不渲染（省性能）。
+    // cl45：渲染最远 = max(基础视距, LOD 地平线)——去除视距硬剔除：
+    // 视距只决定「满精度带 / 雾」的位置，LOD 远景大方块可越过视距延伸到
+    // lodMaxChunks（看得更远）。fovFactor 只作用于基础视距（满精度面数预算），
+    // LOD 低成本、不受缩放影响。
+    final double lodHorizon =
+        config.lodMaxChunks * RenderConfig.chunkSize.toDouble();
     final double maxDist = math.max(
-      config.renderDistance,
-      config.viewDistanceChunks * RenderConfig.chunkSize.toDouble(),
-    ) * (camera.fov / VoxelCamera.maxFov).clamp(0.3, 1.0);
+      math.max(
+        config.renderDistance,
+        config.viewDistanceChunks * RenderConfig.chunkSize.toDouble(),
+      ) * (camera.fov / VoxelCamera.maxFov).clamp(0.3, 1.0),
+      lodHorizon,
+    );
 
     // 列级（按面中心）方位粗剔除参数：水平前向 + 半锥角。R23s 改为**每帧**
     // 作用在缓存面上（相机相关），不再进入相机无关的 chunk 几何缓存——
@@ -860,7 +881,12 @@ abstract final class VoxelRenderer {
     final int loopVd = math.max(vd, kFullBand);
     // R26r20·D2：S2 可见集洪泛半径与视距解耦——必须覆盖到渲染最远（maxDist），
     // 否则低视距下 LOD 外环被 visible 守卫整片剔除 → 正前方最远一刀切。
-    final int floodVd = math.max(vd, (maxDist / cs).ceil() + 1);
+    // cl46 性能修复：洪泛半径改为「满精度带 + 视距」即可——满精度带守卫只
+    // 需要 5×5（kFullBand）；LOD 外环不再依赖 visible（_emitLodPass 传 null，
+    // 改由视锥剔除 + 面数预算 + enclosed 守卫控制）。原 floodVd=17（LOD 地平线）
+    // 令低视距也每帧洪泛 17×17=289 区块（BFS 开销随半径平方增长），正是
+    // 「两区块反而卡」的主因之一。降为 max(vd, kFullBand) 后洪泛开销降 ~11 倍。
+    final int floodVd = math.max(vd, kFullBand);
 
     // S2：区块级连通 flood-fill 可见集（cave culling）。仅当相机区块几何已缓存
     // （稳态）才启用——加载期相机区块未建好时退化为全方阵遍历，避免黑屏。
@@ -871,10 +897,18 @@ abstract final class VoxelRenderer {
             world.maxY)
         : const <(int, int)>{};
 
-    // R26i/R26r：起雾点。原取 LOD 起始距离；LOD 关闭后改为视距的 80%，
-    // 使雾与渲染距离挂钩、不再依赖 LOD 设置。
-    fogStart = math.max(1.0, chunkVd * 0.8);
-    fogSpan = math.max(1.0, maxDist - fogStart);
+    // cl45：雾距双策略（与 LOD 互斥）。
+    // - boundaryFog 关（默认）：雾从视距 80% 起、拖到 LOD 地平线（maxDist），
+    //   远景大方块在雾里淡出 → 看得更远且无硬切。
+    // - boundaryFog 开：雾在视距边缘快速收口（约 1.2×视距全雾），隐藏远景，
+    //   同时 LOD 通道关闭（见下方守卫）→ 传统视距雾。
+    if (config.boundaryFog) {
+      fogStart = math.max(1.0, chunkVd * 0.6);
+      fogSpan = math.max(1.0, chunkVd * 0.6);
+    } else {
+      fogStart = math.max(1.0, chunkVd * 0.8);
+      fogSpan = math.max(1.0, maxDist - fogStart);
+    }
 
     // R23s 区块几何缓存：每个 (cx,cz,lod) 的"occlusion 可见面"集合是相机无关的，
     // 只与地形有关 → 缓存后跨帧 / 相机平移复用，每帧省掉百万级 world.get +
@@ -1160,12 +1194,19 @@ abstract final class VoxelRenderer {
             // R25：同时拼入批量缓冲（画家一次性提交，GPU 加速）。
             // R26j：逐顶点 AO × 斜度烘焙进颜色。
             // R26l：不透明面按轮廓边掩码描边（内部边不描）。
+            // cl45：描边半径按「玩家（相机）水平距离」判定——5 格内实描，
+            // 5~12 格极淡渐隐，>12 不描；总开关 config.outlineEnabled。
+            final double hDist = math.sqrt(
+                (cf.bx + 0.5 - b.eyeX) * (cf.bx + 0.5 - b.eyeX) +
+                (cf.bz + 0.5 - b.eyeZ) * (cf.bz + 0.5 - b.eyeZ));
             final List<bool>? edgeMask =
-                (cf.voxel.isTransparent || depth >= kEdgeMaxDepth)
+                (cf.voxel.isTransparent ||
+                        !config.outlineEnabled ||
+                        hDist > kOutlineFadeMax)
                     ? null
                     : _faceEdgeMask(world, cf, b);
             pushFace(clippedFace.xy, tileUv, argb, tint,
-                cf.voxel.isTransparent, depth, cf.ao, cf.tilt, edgeMask);
+                cf.voxel.isTransparent, depth, cf.ao, cf.tilt, edgeMask, hDist);
           } else {
             // 近平面薄片：均匀 AO 着色 + 无描边（贴眼平面、亚像素级，不可辨）。
             final double avgAo =
@@ -1193,7 +1234,8 @@ abstract final class VoxelRenderer {
     // 形成「近处精细、远处物理马赛克」的层级；面数远低于全距离开满精度。
     // R26lod：LOD 面计数——包一层 pushFace 统计远景大方块发射面数（诊断/测试）。
     int lodFaceCount = 0;
-    if (config.lodEnabled && !enclosed) {
+    // cl45：边界雾开启时关闭 LOD 通道（雾即边界策略，二者互斥）。
+    if (config.lodEnabled && !enclosed && !config.boundaryFog) {
       void lodPush(Float32List xy, Float32List? uv, int argb, int tint,
           bool trans, [double depth = 0]) {
         lodFaceCount++;
@@ -1221,7 +1263,9 @@ abstract final class VoxelRenderer {
         sd.z,
         lights,
         lodPush,
-        visible.isEmpty ? null : visible,
+        // cl46：LOD 不再依赖可见集（可见集只覆盖满精度带）——改由视锥剔除 +
+        // 面数预算 + enclosed 守卫控制，避免「两区块也每帧洪泛 17×17」的开销。
+        null,
       );
     }
 

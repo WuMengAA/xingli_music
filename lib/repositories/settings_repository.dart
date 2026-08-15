@@ -69,6 +69,8 @@ class SettingsRepository {
   static const String kLodMaxChunks = 'settings.voxel.lodMaxChunks';
   static const String kShadowRender = 'settings.voxel.shadowRender';
   static const String kAoEnabled = 'settings.voxel.aoEnabled';
+  static const String kOutlineEnabled = 'settings.voxel.outlineEnabled';
+  static const String kBoundaryFog = 'settings.voxel.boundaryFog';
   static const String kRenderPrecisionScale = 'settings.voxel.renderPrecisionScale';
   static const String kRenderPrecision = 'settings.voxel.renderPrecision';
   static const String kPicturePreset = 'settings.picturePreset';
@@ -284,6 +286,14 @@ class SettingsRepository {
   Future<void> setAoEnabled(bool? v) => v == null
       ? _prefs.remove(kAoEnabled)
       : _prefs.setBool(kAoEnabled, v);
+  bool? get outlineEnabled => _prefs.getBool(kOutlineEnabled);
+  Future<void> setOutlineEnabled(bool? v) => v == null
+      ? _prefs.remove(kOutlineEnabled)
+      : _prefs.setBool(kOutlineEnabled, v);
+  bool? get boundaryFog => _prefs.getBool(kBoundaryFog);
+  Future<void> setBoundaryFog(bool? v) => v == null
+      ? _prefs.remove(kBoundaryFog)
+      : _prefs.setBool(kBoundaryFog, v);
   double? get renderPrecisionScale => _prefs.getDouble(kRenderPrecisionScale);
   Future<void> setRenderPrecisionScale(double? v) => v == null
       ? _prefs.remove(kRenderPrecisionScale)

@@ -5,8 +5,6 @@ import '../models/scene.dart';
 import '../core/motion/motion.dart';
 import '../models/track.dart';
 import '../providers/audio/audio_providers.dart';
-import '../pages/sources/aggregate_search_page.dart';
-import '../widgets/sources/music_quality_sheet.dart';
 import 'app_icon.dart';
 import 'liquid_glass.dart';
 
@@ -28,7 +26,11 @@ class SceneCardStack extends StatefulWidget {
     this.nowPlaying,
     this.isPlaying = false,
     required this.onSceneChanged,
+    this.onLongPress,
   });
+
+  /// cl46-E：长按卡片 = 打开当前场景的详细 / 个性编辑。
+  final VoidCallback? onLongPress;
 
   @override
   State<SceneCardStack> createState() => _SceneCardStackState();
@@ -72,6 +74,7 @@ class _SceneCardStackState extends State<SceneCardStack> {
             pressed: _pressed,
             onPressStart: () => setState(() => _pressed = true),
             onPressEnd: () => setState(() => _pressed = false),
+            onLongPress: widget.onLongPress,
           ),
         ),
       ),
@@ -87,6 +90,7 @@ class _SceneCard extends StatelessWidget {
   final bool pressed;
   final VoidCallback onPressStart;
   final VoidCallback onPressEnd;
+  final VoidCallback? onLongPress;
 
   const _SceneCard({
     super.key,
@@ -96,6 +100,7 @@ class _SceneCard extends StatelessWidget {
     required this.pressed,
     required this.onPressStart,
     required this.onPressEnd,
+    this.onLongPress,
   });
 
   @override
@@ -109,10 +114,13 @@ class _SceneCard extends StatelessWidget {
     const Color lightText = Color(0xFFF5F5FA);
     final Color lightMuted = Colors.white.withValues(alpha: 0.78);
 
+    final double cardW = MediaQuery.of(context).size.width * 0.94;
+    final double cardH = cardW * 9 / 16;
     return Center(
       child: SizedBox(
-        // R1 放大：演示卡片宽度 0.78 → 0.94 屏宽（留边距即可）
-        width: MediaQuery.of(context).size.width * 0.94,
+        // cl46-E：中间场景卡片默认 16:9（与音画比例一致，视觉更稳定）。
+        width: cardW,
+        height: cardH,
         // 液态玻璃场景卡片：高透明玻璃 + 场景渐变叠加
         child: LiquidGlass(
           radius: 16,
@@ -135,6 +143,7 @@ class _SceneCard extends StatelessWidget {
               onTapDown: (_) => onPressStart(),
               onTapUp: (_) => onPressEnd(),
               onTapCancel: onPressEnd,
+              onLongPress: onLongPress,
               child: Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -181,28 +190,7 @@ class _SceneCard extends StatelessWidget {
                               ),
                             ),
                             const Spacer(),
-                            // R26skel-b6：音乐卡片上的聚合搜索入口。
-                            IconButton(
-                              icon: Icon(Icons.search_rounded,
-                                  size: 18,
-                                  color: lightText.withValues(alpha: 0.85)),
-                              visualDensity: VisualDensity.compact,
-                              tooltip: '聚合搜索',
-                              onPressed: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const AggregateSearchPage(),
-                                ),
-                              ),
-                            ),
-                            // R26skel-b6：音乐卡片上的音质/清晰度入口。
-                            IconButton(
-                              icon: Icon(Icons.high_quality_rounded,
-                                  size: 18,
-                                  color: lightText.withValues(alpha: 0.85)),
-                              visualDensity: VisualDensity.compact,
-                              tooltip: '音质与清晰度',
-                              onPressed: () => showMusicQualitySheet(context),
-                            ),
+                            // cl46-E：去掉搜索 / 音质入口（迁移到个性编辑与播放卡片）。
                           ],
                         ),
                         const SizedBox(height: 4),

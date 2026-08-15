@@ -140,6 +140,10 @@ Future<void> restoreSettings(WidgetRef ref) async {
       repo.shadowRender ?? ref.read(shadowRenderProvider);
   ref.read(aoEnabledProvider.notifier).state =
       repo.aoEnabled ?? ref.read(aoEnabledProvider);
+  ref.read(outlineEnabledProvider.notifier).state =
+      repo.outlineEnabled ?? ref.read(outlineEnabledProvider);
+  ref.read(boundaryFogEnabledProvider.notifier).state =
+      repo.boundaryFog ?? ref.read(boundaryFogEnabledProvider);
   // R26fx3：单一「渲染精度」滑杆取代原 renderScale(分辨率)×renderRatio(比例)。
   ref.read(renderPrecisionScaleProvider.notifier).state =
       repo.renderPrecisionScale?.clamp(0.25, 2.0) ??
@@ -327,6 +331,8 @@ final settingsSyncProvider = Provider<void>((ref) {
   ref.listen<int>(lodMaxChunksProvider, (_, v) => repo.setLodMaxChunks(v));
   ref.listen<bool>(shadowRenderProvider, (_, v) => repo.setShadowRender(v));
   ref.listen<bool>(aoEnabledProvider, (_, v) => repo.setAoEnabled(v));
+  ref.listen<bool>(outlineEnabledProvider, (_, v) => repo.setOutlineEnabled(v));
+  ref.listen<bool>(boundaryFogEnabledProvider, (_, v) => repo.setBoundaryFog(v));
   ref.listen<double>(
       renderPrecisionScaleProvider, (_, v) => repo.setRenderPrecisionScale(v));
   ref.listen<double>(renderPrecisionProvider, (_, v) => repo.setRenderPrecision(v));

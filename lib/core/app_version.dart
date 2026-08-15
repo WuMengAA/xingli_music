@@ -101,7 +101,33 @@ abstract final class AppVersion {
   /// 立方圆」）。改为随 camera.far*0.5 派生（夹 [16,72] 面数护栏）+ 末段 30%
   /// 距离 alpha 线性淡出，硬边界环变察觉不到的渐隐；⑨顶部播放器改为顶栏 Column
   /// 子项（防窄屏折行 chips 重叠，旧固定 top:92 同型坑）+ 清孤儿 import。
-  static const int buildCount = 43;
+  /// cl44：④ AudioService 双后端（just_audio + media_kit）并存并按曲源
+  /// requiresMediaKit 路由——网易云/B站 CDN 流改走 media_kit（libmpv），
+  /// 修复 just_audio 无法解码致无声/进度条空转；②通知栏歌名加载即更新 + 失败
+  /// 回退上一首；①关于页更新日志展示。
+  /// cl45：①描边只描玩家 5 格内（实描）+5~12 格极淡渐隐、设置可关；②视距不
+  /// 硬剔除——相机 far/雾/加载推到 LOD 地平线，LOD 近 2→远 16（可 32）区块
+  /// 少面大体积替身、看得更远更流畅，可选边界雾（与 LOD 互斥）；③设置「画面」
+  /// 改名「个性」+ 游戏高级画质并入 + 机制并入游戏；④UI 编辑器大补（撤销/重做、
+  /// 复制粘贴+多选、对齐/分布/吸附/微调、层级树、预览动画、可点击反馈）；
+  /// ⑤均衡器应用失败自动关闭 + 补应用兜底（修复开启后无声/播放失败）。
+  /// cl47：cl46-E 组件纠正后重新构建（场景卡片 16:9/长按/去搜索音质由误改的
+  /// UnifiedPlayer 迁回真正的 SceneCardStack）+ 修复「视听结合」B站背景视频
+  /// 无法播放（open 缺 Referer+UA → CDN 403，已补 httpHeaders 并 video 控制器
+  /// 提前创建、_stop 改用 stop()）。
+  /// cl48：底部导航重做（主页/曲库/世界/探索/设置 5 Tab）+ 场景页合并进主页
+  /// （去掉独立场景路由，HomePage 复用场景内容组件）+ 新增 WorldPage
+  /// 复用体素世界主菜单作星璃世界入口。
+  /// cl46：①全局数据层——听歌总时长/单曲播放次数（收录进歌曲卡片）、
+  /// 全局收藏 + 全局歌单（自定义名/相册背景图/排序）、听歌历史自动收录
+  /// （相似歌名/歌手询问归并、与歌单联动）；②自动播放（默认开）+ 曲末 5 秒
+  /// 淡出淡入过渡 + 后台播放；③场景中间卡片 16:9 + 长按开场景个性 + 去搜索/
+  /// 音质 + B站视听结合（歌名自动匹配视频背景，白噪音旁快捷开关）；④设置重组
+  /// （游戏画面/机制统统迁入游戏：画质卡片预设/分辨率/帧率 3~60+无限制/阴影
+  /// + 机制存档/世界/自定义世界偏移率）；⑤渲染修复——分辨率缩放 buildFrame
+  /// 与 paint 同步（修只显示左上角）、可见集洪泛半径收敛（低视距不再 17×17）、
+  /// LOD 默认扩到 32 区块。
+  static const int buildCount = 48;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -125,3 +151,166 @@ abstract final class AppVersion {
   static String get _dd => day.toString().padLeft(2, '0');
   static String get _stageSuffix => stage == AppStage.release ? '' : '_${stage.tag}';
 }
+
+/// ════════════════════════════════════════════════════════════════════════
+/// 更新日志（用户 2026-08-15 要求：关于页展示）
+/// ════════════════════════════════════════════════════════════════════════
+///
+/// 每条记录一次构建的核心变更；按时间倒序（最新在前）。详情用要点列出，
+/// 避免长段落。版本串与 [AppVersion.display] 同源（大版本.年.月.日_阶段_clNN）。
+
+/// 单条更新日志。
+class ChangelogEntry {
+  const ChangelogEntry({
+    required this.version,
+    required this.cl,
+    required this.title,
+    required this.details,
+  });
+
+  /// 版本串（如 `0.26.8.14`）。
+  final String version;
+
+  /// 构建号（如 `cl43`）。
+  final String cl;
+
+  /// 一句话标题。
+  final String title;
+
+  /// 变更要点（2~5 条）。
+  final List<String> details;
+}
+
+/// 更新日志（倒序，最新在前）。
+const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl48',
+    title: '底部导航重做：主页/曲库/世界/探索/设置 + 场景并入主页',
+    details: <String>[
+      '底部 Dock 由 4 Tab 改为 5 Tab：主页 / 曲库 / 世界（星璃世界入口）/ 探索 / 设置',
+      '主页合并原场景页内容（场景卡堆 + 操作条 + 音乐卡），去掉独立场景页路由',
+      '世界 Tab 复用体素世界主菜单（世界存档 / 开放世界 / 游戏设置）',
+      'ShellPage 索引重映射：home=0 / library=1 / world=2 / explore=3 / settings=4',
+      '音乐卡独立化为 MusicCard 组件（内嵌歌词、跨页共享播放状态不重载），AppShell 与场景页统一复用',
+      '视频作场景背景：当前 B站曲目静音视频画面作背景，默认关闭模糊，与音乐进度自动同步 + 变速适配开关（默认关）',
+      '曲库重做：顶部聚合搜索（本地/网易云/B站三源合一）+ 第一页歌曲一览（卡片/列表切换 + 分类筛选）+ 第二页时光沉底（听歌情况 + 历史记录）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl47',
+    title: '全局数据层 + 视听结合 + 游戏设置重组 + 渲染优化',
+    details: <String>[
+      '全局统计：听歌总时长 / 单曲播放次数，收录进每首歌卡片；播放自动记录（SQLite）',
+      '全局收藏 + 全局歌单：自定义名称 / 相册背景图 / 排序方式；听歌历史自动收录（相似歌名/歌手询问归并，与歌单联动）',
+      '自动播放（默认开）+ 自动过渡（曲末 5 秒淡出淡入）+ 后台播放',
+      '场景中间卡片：默认 16:9、长按打开场景个性、去掉搜索/音质',
+      '视听结合：当前歌曲自动搜 B站视频静音作背景画面，白噪音旁快捷开关',
+      '设置重组：游戏画面/机制统统迁入「游戏」分类——画质（低中高卡片预览/分辨率/帧率 3~60+无限制/阴影）+ 机制（存档/世界/自定义世界偏移率）',
+      '渲染优化：修复改分辨率只显示左上角（buildFrame/paint 同步）；可见集洪泛半径收敛（低视距不再每帧 17×17）；LOD 默认扩到 32 区块',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl45',
+    title: '描边 5 格化 + 视距不硬剔 + 设置重组 + UI 编辑器大补 + EQ 修复',
+    details: <String>[
+      '描边：只描玩家 5 格内（实描边）+ 5~12 格极淡渐隐，设置可关',
+      '渲染：视距不再硬剔除——相机 far/雾/加载推到 LOD 地平线，LOD 近 2 → 远 16（可 32）区块少面大体积替身，看得更远更流畅；可选边界雾（与 LOD 互斥）',
+      '设置：画面分类改名「个性」；游戏高级画质并入个性；机制并入游戏分类',
+      'UI 编辑器：撤销/重做、复制粘贴+多选、对齐/分布/网格吸附/方向键微调、层级树、预览动画、可点击反馈',
+      '均衡器：应用失败自动关闭 + 补应用兜底，修复开启后无声/播放失败',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl44',
+    title: '音源→后端路由落地 + 通知歌名即时更新',
+    details: <String>[
+      'AudioService 双后端并存（just_audio + media_kit），按曲源 requiresMediaKit 自动路由（#392/#393）',
+      '网易云 / B站 流改走 media_kit（libmpv），修复 just_audio 无法解码致无声、进度条空转',
+      '通知栏/锁屏歌名进入加载态即更新，不再滞后；加载失败回退上一首（#396）',
+      '关于页更新日志现已展示（#①）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl43',
+    title: '描边视距修复 + 顶部播放器防重叠 + 音量链路校正',
+    details: <String>[
+      '② 方块描边「环绕自身立方圆」根因修复：原硬编码 15 格二值截断，改为随视距派生 + 末段淡出',
+      '⑨ 游戏内顶部液态玻璃播放器改为顶栏子项，消除窄屏折行重叠',
+      'media_kit 音量语义 0~1↔0~100 校正（修复「media_kit 无声」）',
+      '网易云/解析类源自动路由到 media_kit 后端（just_audio 无法解码其 CDN 流）',
+      '系统媒体控件歌名在加载即更新，不再滞后到加载完成',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl42',
+    title: '体素渲染 / UX 大修（10 项反馈）',
+    details: <String>[
+      'LOD 默认开启 + 裙边裂口修复（远处方块减面生效）',
+      '云视距 / 太阳无极过渡+泛光 / 向下平行面剔除复核',
+      '背包物品改为居中 3×9 表格；退出按钮移到背包/合成左侧',
+      '搜索 + 音质并入底部音乐卡片',
+      '游戏 UI 顶部居中液态玻璃播放器；音源搜索改弹出式底部卡片',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl41',
+    title: '修复「播 1 秒后静音、须拖主音量恢复」',
+    details: <String>[
+      '切歌时旧曲淡出在后台把新曲音量压成 0',
+      '新增 _cancelFades() 在直接 setVolume 前作废在途淡出',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl40',
+    title: '修复安卓「仍卡死」真凶',
+    details: <String>[
+      '全局播放/进世界 toast 的 Positioned/StackParentData 强转失败 → ANR',
+      '通知栏小图标被资源压缩剥除 → 新增 keep.xml 保留',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl39',
+    title: '安卓运行时 4 连崩修复',
+    details: <String>[
+      '占位符解析超时兜底、歌名/曲名真源对齐',
+      '网易云源崩溃回落、进世界/进存档异步错误兜底',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl38',
+    title: '开放世界地基 P0+P1',
+    details: <String>[
+      '编辑层坐标改为 chunk 分桶（支持任意/负坐标、大范围）',
+      '玩家生存状态抽离为 playerVitalsProvider 单例真相源',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.13',
+    cl: 'cl37',
+    title: '生存模式 bug 修复',
+    details: <String>[
+      '新建/读档强制生存、饥饿衰减提速',
+      '新建存档作弊/浮空岛默认关',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.13',
+    cl: 'cl36',
+    title: '安卓切歌防闪退 + 通知系统重做',
+    details: <String>[
+      '占位符解析超时兜底避免无限加载',
+      '通知 rootOverlay/多实例堆叠、水面默认关、返回键提醒',
+      '崩溃界面兜底（ErrorWidget.builder → CrashScreen）',
+    ],
+  ),
+];

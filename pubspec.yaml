@@ -21,7 +21,9 @@ dependencies:
   # media_kit（C 方案，libmpv 解码器迁移 S1）：全格式兼容 / Hi-Res / 无缝
   media_kit: ^1.2.6
   media_kit_video: ^1.2.6
-  media_kit_libs_windows_audio: ^1.0.9
+  # Windows 只用 media_kit_libs_windows_video（video 版 libmpv 含 audio 解码，
+  # 官方文档明确 Windows 上 audio/video libs 互斥，同时依赖会因同名 7z 校验
+  # 冲突导致 CMake 构建失败——cl45 踩坑修复）。
   media_kit_libs_windows_video: ^1.0.10
   media_kit_libs_android_video: ^1.3.8
 

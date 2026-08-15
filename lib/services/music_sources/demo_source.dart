@@ -40,4 +40,8 @@ class DemoSource implements MusicSource {
 
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
+
+  /// 演示流 just_audio 即可解码，无需 media_kit。
+  @override
+  bool get requiresMediaKit => false;
 }

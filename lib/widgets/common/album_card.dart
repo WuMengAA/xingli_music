@@ -1,9 +1,12 @@
 import '../../core/theme/app_theme_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_tokens.dart';
 import '../../core/utils/format.dart';
 import '../../models/track.dart';
+import '../../models/track_stats.dart';
+import '../../providers/stats/track_stats_providers.dart';
 import '../liquid_glass.dart';
 import 'track_cover.dart';
 
@@ -11,7 +14,8 @@ import 'track_cover.dart';
 ///
 /// 几何沿用 v1 AlbumCard 规范：封面 72 左上角 + 3 行文本
 /// （歌名 / 歌手 / 时长），白底 r24 / 1px 描边 / `AppShadow.card`。
-class AlbumCard extends StatelessWidget {
+/// cl46：时长下追加全局收录信息（播放次数 / 累计收听时长）。
+class AlbumCard extends ConsumerWidget {
   const AlbumCard({
     super.key,
     required this.track,
@@ -22,7 +26,10 @@ class AlbumCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final String key = trackKeyOf(track.title, track.artist, track.sourceId);
+    final TrackStats? stats =
+        ref.watch(statsMapProvider).value?[key];
     return LiquidGlass(
       radius: AppRadius.lg,
       child: Material(
@@ -64,6 +71,20 @@ class AlbumCard extends StatelessWidget {
                   formatDuration(track.duration),
                   style: context.appText.caption,
                 ),
+                // cl46：全局收录信息——播放次数 / 累计收听时长。
+                if (stats != null && (stats.playCount > 0 || stats.totalMs > 0))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(
+                      stats.playCount > 0
+                          ? '已听 ${stats.playCount} 次 · ${stats.totalLabel}'
+                          : stats.totalLabel,
+                      style: context.appText.caption
+                          .copyWith(color: context.appColors.accent),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
               ],
             ),
           ),

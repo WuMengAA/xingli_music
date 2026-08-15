@@ -11,7 +11,7 @@ import 'pages/explore/explore_page.dart';
 import 'pages/oobe/oobe_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
-import 'pages/scene/scene_page.dart';
+import 'pages/world/world_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'providers/audio/audio_providers.dart';
 import 'providers/audio/equalizer_providers.dart';
@@ -22,11 +22,10 @@ import 'providers/settings/settings_persistence_providers.dart';
 import 'providers/settings/settings_layout_provider.dart';
 import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
-import 'widgets/lyrics/lyrics_view.dart';
 import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
-import 'widgets/playback/unified_player.dart';
+import 'widgets/playback/music_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/noise_texture.dart';
 
@@ -53,7 +52,7 @@ import 'widgets/noise_texture.dart';
 /// └ SafeArea(top)
 ///   ├ Expanded → ContentContainer → IndexedStack(5 页，全部保活)
 ///   ├ MiniPlayer（全局唯一一份，5 页持续可见）
-///   └ SafeArea(bottom) → AppDock（4 Tab）
+///   └ SafeArea(bottom) → AppDock（5 Tab）
 /// ```
 ///
 /// 🚫 **禁止**在本文件 import 任何暗色画布资产：`core/theme/` 下的动态派生
@@ -77,11 +76,11 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// （P0-B10 / 约定 C11）。
   /// v3 调整：曲库提前到 Tab 1、探索后移到 Tab 2（用户需求）。
   static const List<Widget> _pages = <Widget>[
-    ScenePage(), //   0 · 场景
-    LibraryPage(), // 1 · 曲库
-    ExplorePage(), // 2 · 探索
-    SettingsPage(), //3 · 设置
-    HomePage(), //    4 · 首页（隐藏页，无 Tab 高亮）
+    HomePage(), //       0 · 主页（场景内容 + 音乐卡）
+    LibraryPage(), //    1 · 曲库
+    WorldPage(), //      2 · 世界（星璃世界入口）
+    ExplorePage(), //    3 · 探索
+    SettingsPage(), //   4 · 设置
   ];
 
   @override
@@ -207,7 +206,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                             ),
                           ),
                         ),
-                        if (pageIndex != ShellPage.scene) ...<Widget>[
+                        if (pageIndex != ShellPage.home) ...<Widget>[
                           const SizedBox(height: AppSpace.sm),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(
@@ -216,13 +215,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                               AppSpace.md,
                               AppSpace.sm,
                             ),
-                            child: UnifiedPlayer(
-                              // 歌词区：LyricsView 自行跟随 audio_providers 的
-                              // 当前曲目与播放进度（全屏播放时显示）
-                              lyricsSlot: const LyricsView(),
-                              // R23j：点击信息区默认打开全屏播放卡片
-                              //（不再 push NowPlayingPage）
-                            ),
+                            child: const MusicCard(),
                           ),
                         ],
                       ],

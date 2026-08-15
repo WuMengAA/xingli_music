@@ -22,4 +22,10 @@ abstract class MusicSource {
   /// 播放 CDN 必须携带的请求头（如网易云的 User-Agent / Referer）。
   /// 多数源返回空；需要鉴权头/反热链头的源自行实现（`NeteaseSource` 已实现）。
   Map<String, String> get playbackHeaders;
+
+  /// 是否需要 media_kit 后端才能播放（默认 false = just_audio 即可）。
+  ///
+  /// 网易云 / B站 的 CDN 流格式特殊、带签名，just_audio 默认后端无法解码，
+  /// 必须走 media_kit（libmpv）。[AudioService] 据此在切歌时路由到正确后端。
+  bool get requiresMediaKit => false;
 }

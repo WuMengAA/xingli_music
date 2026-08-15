@@ -165,4 +165,8 @@ class NeteaseSource implements MusicSource {
   /// 播放 CDN 必须携带的请求头（§3.3）。
   @override
   Map<String, String> get playbackHeaders => api.playbackHeaders;
+
+  /// 网易云 CDN 流带签名且格式特殊，just_audio 无法解码，必须 media_kit。
+  @override
+  bool get requiresMediaKit => true;
 }

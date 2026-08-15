@@ -16,6 +16,8 @@ import 'providers/settings/performance_providers.dart';
 import 'providers/audio/audio_providers.dart';
 import 'providers/settings/log_upload_providers.dart';
 import 'providers/settings/notification_providers.dart';
+import 'providers/audio/auto_play_providers.dart';
+import 'providers/stats/track_stats_providers.dart';
 import 'providers/theme/theme_providers.dart';
 import 'services/audio/audio_handler.dart';
 import 'services/audio/audio_service.dart';
@@ -122,6 +124,12 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
   Widget build(BuildContext context) {
     // ── 云端日志上报器：watch 保持存活并挂到 LogService（默认关闭）────
     ref.watch(remoteLogUploaderProvider);
+
+    // ── cl46 全局播放统计跟踪器：watch 保持存活，自动记录听歌时长/次数 ──
+    ref.watch(trackStatsTrackerProvider);
+
+    // ── cl46 自动播放 / 自动过渡：watch 保持存活，曲毕自动切歌 ──
+    ref.watch(autoPlayTrackerProvider);
 
     // ── R16 主题系统：浅色 / 深色 / 跟随系统 + 皮肤主色 ──────
     // 浅色主题由 kLightTheme（品牌紫）与皮肤主色叠加；

@@ -63,11 +63,11 @@ void main() {
   }
 
   const Map<int, String> pageNames = <int, String>{
-    ShellPage.scene: '场景页',
+    ShellPage.home: '主页',
     ShellPage.library: '曲库页',
+    ShellPage.world: '世界页',
     ShellPage.explore: '探索页',
     ShellPage.settings: '设置页',
-    ShellPage.home: '首页',
   };
 
   void report(String scope) {

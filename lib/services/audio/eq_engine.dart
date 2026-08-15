@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../log_service.dart';
 import 'music_backend.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -115,6 +116,9 @@ abstract class EqEngine {
   /// Android：应用真 EQ 到当前音频管线。
   Future<void> apply(EqPreset preset);
 
+  /// 关闭真实 EQ / 清掉滤镜（EQ 关闭或应用失败时调用，保证音乐可听不静音）。
+  Future<void> disable();
+
   /// 其余平台：仅记录状态（不做 DSP）。
   void applySimulation(EqPreset preset);
 }
@@ -137,6 +141,11 @@ class SimulatedEqEngine implements EqEngine {
   @override
   Future<void> apply(EqPreset preset) async {
     // 模拟层不做 DSP；状态由 equalizerProviders 的 eqPresetProvider 维护。
+  }
+
+  @override
+  Future<void> disable() async {
+    // 模拟层无 DSP 可关。
   }
 
   @override
@@ -173,7 +182,17 @@ class BackendEqEngine implements EqEngine {
         'equalizer=f=${kEqFrequencies[i].toStringAsFixed(0)}'
             ':t=0.5:g=${g[i].toStringAsFixed(1)}',
     ].join(',');
-    await _backend.setEqualizerFilter(chain);
+    final bool ok = await _backend.setEqualizerFilter(chain);
+    if (!ok && chain.isNotEmpty) {
+      // 后端不支持/滤镜失败：抛给上层自动关闭 EQ（避免静音状态残留）。
+      throw StateError('当前后端无法应用 mpv EQ 滤镜');
+    }
+  }
+
+  /// 关闭：清空 mpv `af` 滤镜链（EQ 关闭/失败时保证音乐可听）。
+  @override
+  Future<void> disable() async {
+    await _backend.setEqualizerFilter('');
   }
 
   @override
@@ -208,17 +227,43 @@ class AndroidEqEngine implements EqEngine {
       await _equalizer.setEnabled(true);
       final AndroidEqualizerParameters params = await _equalizer.parameters;
       final List<AndroidEqualizerBand> bands = params.bands;
-      if (bands.isEmpty) return;
+      if (bands.isEmpty) {
+        // 无可用频段：直接关闭，避免空效果把输出静音。
+        await _equalizer.setEnabled(false);
+        return;
+      }
 
-      // 10 段逻辑频段 → 设备实际频段就近映射。
-      // 设备频段数量不定（常见 5 段），按中心频率最近原则分配。
+      // 10 段逻辑频段 → 设备实际频段就近映射（每物理频段只写一次，
+      // 避免重复 setGain 增加中途失败概率）。
+      final Set<AndroidEqualizerBand> touched =
+          <AndroidEqualizerBand>{};
       for (int i = 0; i < kEqFrequencies.length; i++) {
         final double target = preset.gainAt(i).clamp(kEqMinGain, kEqMaxGain);
         final AndroidEqualizerBand band = _nearestBand(bands, kEqFrequencies[i]);
-        await band.setGain(target);
+        if (touched.add(band)) {
+          await band.setGain(target);
+        }
       }
-    } catch (_) {
-      // 音频会话未就绪（R-04）：静默，由播放开始补应用。
+    } catch (e, st) {
+      // R-EQ：应用失败（音频会话未就绪 / 设备不支持）必须兜底——立即关闭 EQ，
+      // 避免「半应用」状态把输出静音（用户反馈「开启均衡器后音乐无声」真凶）。
+      LogService.instance.e('eq', 'Android EQ 应用失败: $e\n$st');
+      try {
+        await _equalizer.setEnabled(false);
+      } catch (_) {
+        // 关闭也失败则忽略（音频会话可能已被释放）。
+      }
+      rethrow; // 上层 applyEqPreset 捕获后自动关闭 EQ + 提示。
+    }
+  }
+
+  /// 关闭真 EQ（EQ 关闭/应用失败时调用，保证音乐可听）。
+  @override
+  Future<void> disable() async {
+    try {
+      await _equalizer.setEnabled(false);
+    } catch (e, st) {
+      LogService.instance.d('eq', 'Android EQ 关闭失败: $e\n$st');
     }
   }
 

@@ -11,9 +11,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../pages/explore/experiments/equalizer_page.dart';
+import '../pages/library/favorites_page.dart';
+import '../pages/library/top_list_page.dart';
 import '../pages/scene/custom_scene_list_page.dart';
 import '../pages/scene/voxel_sound_editor_page.dart';
 import '../pages/settings/scene_editor_page.dart';
+import '../pages/settings/game_graphics_page.dart';
 import '../pages/settings/server_settings_page.dart';
 import '../pages/voxel/voxel_main_menu_page.dart';
 import '../providers/voxel/graphics_quality_provider.dart';
@@ -22,6 +25,7 @@ import '../providers/voxel/world_audio_provider.dart';
 import '../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../providers/audio/audio_providers.dart';
 import '../providers/audio/audio_scheme.dart';
+import '../providers/audio/auto_play_providers.dart';
 import '../providers/audio/music_quality_provider.dart';
 import '../models/experiment.dart';
 import '../models/track.dart';
@@ -100,6 +104,108 @@ Widget _chips<T>({
           selected: value == values[i],
           onSelected: (_) => onChanged(values[i]),
         ),
+    ],
+  );
+}
+
+/// cl46：画质预设卡片（名称 + 参数摘要预览，点击选择）。
+class _QualityPresetCard extends StatelessWidget {
+  const _QualityPresetCard({
+    required this.quality,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final GraphicsQuality quality;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color accent = context.appColors.accent;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? accent : context.appColors.border,
+            width: selected ? 2 : 1,
+          ),
+          color: selected
+              ? accent.withValues(alpha: 0.08)
+              : Colors.transparent,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(
+                  Icons.high_quality_rounded,
+                  size: 16,
+                  color: selected ? accent : context.appColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    quality.label,
+                    style: context.appText.body
+                        .copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (selected)
+                  Icon(Icons.check_circle_rounded,
+                      size: 16, color: accent),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _summary(quality),
+              style: context.appText.caption,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _summary(GraphicsQuality g) =>
+      '视距 ${g.viewDistanceChunks} 区块 · 渲染 ${(g.renderScale * 100).round()}%\n'
+      '面数 ${g.maxFaces ~/ 1000}k · '
+      '${g.texture ? '贴图' : '纯色'}${g.water ? ' · 水面' : ''}'
+      '${g.fog ? ' · 雾' : ''}';
+}
+
+/// cl46：自定义世界机制——偏移率滑块行（0.0~1.0）。
+Widget _worldGenSlider(
+  BuildContext context,
+  String label,
+  double value,
+  ValueChanged<double> onChanged,
+) {
+  return Row(
+    children: <Widget>[
+      SizedBox(
+        width: 84,
+        child: Text(label, style: context.appText.bodyMuted),
+      ),
+      Expanded(
+        child: Slider(
+          value: value.clamp(0.0, 1.0),
+          onChanged: onChanged,
+        ),
+      ),
+      SizedBox(
+        width: 44,
+        child: Text(
+          value.toStringAsFixed(2),
+          style: context.appText.caption,
+          textAlign: TextAlign.right,
+        ),
+      ),
     ],
   );
 }
@@ -751,6 +857,177 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ),
     ),
   ),
+  // cl46：全局收藏 + 自定义歌单（名称 / 相册背景图 / 排序方式）。
+  'favoritesPlaylists': SettingItemDef(
+    title: '收藏与歌单',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.favorite_outline_rounded,
+      title: '收藏与歌单',
+      subtitle: '全局收藏 · 自定义歌单（名称 / 背景图 / 排序）',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const FavoritesAndPlaylistsPage(),
+        ),
+      ),
+    ),
+  ),
+  // cl46：听歌排行——全局播放次数 / 收听时长 Top 榜。
+  'topList': SettingItemDef(
+    title: '听歌排行',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.leaderboard_rounded,
+      title: '听歌排行',
+      subtitle: '全局播放次数 / 收听时长排行榜',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const TopListPage()),
+      ),
+    ),
+  ),
+  // cl46：自动播放——曲毕自动按播放顺序 / 歌单顺序下一首。
+  'autoPlay': SettingItemDef(
+    title: '自动播放',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '自动播放',
+      subtitle: '曲目播完后自动按播放顺序 / 歌单顺序播下一首',
+      value: ref.watch(autoPlayProvider),
+      onChanged: (bool v) =>
+          ref.read(autoPlayProvider.notifier).state = v,
+    ),
+  ),
+  // cl46：自动过渡——接近曲末 5 秒淡出淡入，无缝衔接。
+  'autoTransition': SettingItemDef(
+    title: '自动过渡',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '自动过渡',
+      subtitle: '接近曲末 5 秒淡出旧曲、淡入新曲，无感连续播放',
+      value: ref.watch(autoTransitionProvider),
+      onChanged: (bool v) =>
+          ref.read(autoTransitionProvider.notifier).state = v,
+    ),
+  ),
+  // cl46：渲染分辨率（渲染精度缩放 0.5×~2×，与渲染·高级的「渲染精度」同一数据源）。
+  'renderResolution': SettingItemDef(
+    title: '分辨率',
+    builder: (context, ref) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('分辨率 · 渲染缩放', style: context.appText.body),
+          const SizedBox(height: 6),
+          _chips<double>(
+            ref: ref,
+            value: ref.watch(renderPrecisionScaleProvider),
+            values: const <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
+            labels: const <String>['0.5×', '0.75×', '1×', '1.25×', '1.5×', '2×'],
+            onChanged: (double v) =>
+                ref.read(renderPrecisionScaleProvider.notifier).state = v,
+          ),
+        ],
+      ),
+    ),
+  ),
+  // cl46：世界自动备份间隔。
+  'backupInterval': SettingItemDef(
+    title: '备份间隔',
+    builder: (context, ref) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('自动备份间隔', style: context.appText.body),
+          const SizedBox(height: 6),
+          _chips<int>(
+            ref: ref,
+            value: ref.watch(backupIntervalMinutesProvider),
+            values: const <int>[5, 15, 30, 60],
+            labels: const <String>['5 分钟', '15 分钟', '30 分钟', '1 小时'],
+            onChanged: (int v) =>
+                ref.read(backupIntervalMinutesProvider.notifier).state = v,
+          ),
+        ],
+      ),
+    ),
+  ),
+  // cl46：自定义世界机制——全局偏移率 + 地形 / 群系 / 结构细调。
+  'worldGen': SettingItemDef(
+    title: '自定义世界机制',
+    builder: (context, ref) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          _worldGenSlider(
+            context,
+            '全局偏移率',
+            ref.watch(worldGenOffsetProvider),
+            (double v) => ref.read(worldGenOffsetProvider.notifier).state = v,
+          ),
+          _worldGenSlider(
+            context,
+            '地形起伏',
+            ref.watch(worldGenTerrainProvider),
+            (double v) => ref.read(worldGenTerrainProvider.notifier).state = v,
+          ),
+          _worldGenSlider(
+            context,
+            '群系分布',
+            ref.watch(worldGenBiomeProvider),
+            (double v) => ref.read(worldGenBiomeProvider.notifier).state = v,
+          ),
+          _worldGenSlider(
+            context,
+            '结构生成',
+            ref.watch(worldGenStructureProvider),
+            (double v) => ref.read(worldGenStructureProvider.notifier).state = v,
+          ),
+        ],
+      ),
+    ),
+  ),
+
+  // ── 画面 · 游戏画质（cl45：从「游戏」迁入「个性」，含专属高级页）──
+  'gameGraphics': SettingItemDef(
+    title: '游戏画面 · 高级设置',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.dashboard_customize_outlined,
+      title: '游戏画面 · 高级设置',
+      subtitle: '画质档 / 视距 / LOD / 描边 / 帧率（与游戏内共享）',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage()),
+      ),
+    ),
+  ),
+  'outlineToggle': SettingItemDef(
+    title: '方块描边',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '方块描边',
+      subtitle: '玩家 5 格内实描边 + 5~12 格极淡渐隐；关掉更省面数',
+      value: ref.watch(outlineEnabledProvider),
+      onChanged: (bool v) =>
+          ref.read(outlineEnabledProvider.notifier).state = v,
+    ),
+  ),
+  'boundaryFog': SettingItemDef(
+    title: '边界雾',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '边界雾',
+      subtitle: '开=视距边缘收口雾（隐藏远景，LOD 关闭）；关=LOD 远景看得更远',
+      value: ref.watch(boundaryFogEnabledProvider),
+      onChanged: (bool v) =>
+          ref.read(boundaryFogEnabledProvider.notifier).state = v,
+    ),
+  ),
 
   // ── 机制 · 渲染与机制（cl30+ 可单独开关）────────────
   'faceCull': SettingItemDef(
@@ -880,15 +1157,28 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
             '渲染 ${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
             style: Theme.of(context).textTheme.labelSmall,
           ),
-          const SizedBox(height: 6),
-          _chips<GraphicsQuality>(
-            ref: ref,
-            value: q,
-            values: GraphicsQuality.values,
-            labels: <String>[
-              for (final GraphicsQuality g in GraphicsQuality.values) g.label
-            ],
-            onChanged: (GraphicsQuality g) => _applyQualityPreset(ref, g),
+          const SizedBox(height: 8),
+          // cl46：低中高预设 → 卡片预览与选择。
+          LayoutBuilder(
+            builder: (BuildContext c, BoxConstraints bc) {
+              const int cols = 2;
+              final double cardW = (bc.maxWidth - 8) / cols;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  for (final GraphicsQuality g in GraphicsQuality.values)
+                    SizedBox(
+                      width: cardW,
+                      child: _QualityPresetCard(
+                        quality: g,
+                        selected: q == g,
+                        onTap: () => _applyQualityPreset(ref, g),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       );
@@ -905,7 +1195,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           ref: ref,
           value: ref.watch(fpsLimitProvider),
           values: FpsLimit.values,
-          labels: <String>[for (final FpsLimit f in FpsLimit.values) '${f.value} FPS'],
+          labels: <String>[for (final FpsLimit f in FpsLimit.values) f.label],
           onChanged: (FpsLimit f) =>
               ref.read(fpsLimitProvider.notifier).state = f,
         ),

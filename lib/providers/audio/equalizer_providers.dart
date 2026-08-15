@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../services/audio/audio_service.dart';
 import '../../services/audio/eq_engine.dart';
 import '../../services/audio/media_kit_backend.dart';
+import '../../services/log_service.dart';
 import '../audio/audio_providers.dart';
 
 /// 当前 EQ 引擎：
@@ -50,7 +52,13 @@ final Provider<void> eqReapplyOnPlayProvider = Provider<void>((Ref ref) {
       final EqPreset preset = ref.read(eqPresetProvider);
       final EqEngine engine = ref.read(eqEngineProvider);
       if (engine.supported) {
-        engine.apply(preset);
+        // R-EQ：补应用失败必须兜底——未捕获的异步异常在 Android 上是
+        // 「开启 EQ 后播放失败/闪退」的根因（音频会话未就绪抛 PlatformException）。
+        unawaited(engine.apply(preset).catchError((Object e, StackTrace st) {
+          LogService.instance.e('eq', '播放时补应用 EQ 失败，自动关闭: $e\n$st');
+          ref.read(eqEnabledProvider.notifier).state = false;
+          unawaited(engine.disable());
+        }));
       }
     },
   );
@@ -65,17 +73,37 @@ final Provider<void> eqReapplyOnPlayProvider = Provider<void>((Ref ref) {
 Future<void> applyEqPreset(WidgetRef ref, EqPreset preset) async {
   ref.read(eqPresetProvider.notifier).state = preset;
   final EqEngine engine = ref.read(eqEngineProvider);
-  if (engine.supported) {
-    await engine.apply(preset);
-  } else {
-    engine.applySimulation(preset);
-    // 可选整体增益微调：十档均值偏移 → 音量微调（轻量、非 DSP）
-    final double avg = preset.gains.isEmpty
-        ? 0
-        : preset.gains.reduce((a, b) => a + b) / preset.gains.length;
-    final double base = ref.read(musicVolumeProvider);
-    final double target = (base + avg * 0.01).clamp(0.0, 1.0);
-    ref.read(musicVolumeProvider.notifier).state = target;
-    await ref.read(audioServiceProvider).setMusicVolume(target);
+  try {
+    if (engine.supported) {
+      await engine.apply(preset);
+    } else {
+      engine.applySimulation(preset);
+      // 可选整体增益微调：十档均值偏移 → 音量微调（轻量、非 DSP）
+      final double avg = preset.gains.isEmpty
+          ? 0
+          : preset.gains.reduce((a, b) => a + b) / preset.gains.length;
+      final double base = ref.read(musicVolumeProvider);
+      final double target = (base + avg * 0.01).clamp(0.0, 1.0);
+      ref.read(musicVolumeProvider.notifier).state = target;
+      await ref.read(audioServiceProvider).setMusicVolume(target);
+    }
+  } catch (e, st) {
+    // R-EQ：应用失败自动关闭 EQ（清滤镜/关效果）并复位开关，
+    // 保证音乐可听不静音——「开启均衡器后无声/播放失败」兜底。
+    LogService.instance.e('eq', 'EQ 应用失败，自动关闭: $e\n$st');
+    ref.read(eqEnabledProvider.notifier).state = false;
+    await engine.disable();
+  }
+}
+
+/// 关闭 EQ（面板开关「关」时调用）：清滤镜/关效果 + 状态复位，
+/// 避免只应用 flat 预设导致 Android EQ 仍 enable / mpv af 滤镜残留。
+Future<void> disableEq(WidgetRef ref) async {
+  ref.read(eqEnabledProvider.notifier).state = false;
+  final EqEngine engine = ref.read(eqEngineProvider);
+  try {
+    await engine.disable();
+  } catch (e, st) {
+    LogService.instance.e('eq', '关闭 EQ 失败: $e\n$st');
   }
 }

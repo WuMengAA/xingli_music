@@ -40,6 +40,9 @@ class _FakeNeteaseSource implements MusicSource {
         'User-Agent': 'ua-test',
         'Referer': 'https://music.163.com/',
       };
+
+  @override
+  bool get requiresMediaKit => true;
 }
 
 /// 模拟本地源：解析原样返回文件路径（非 http）。
@@ -58,6 +61,9 @@ class _FakeLocalSource implements MusicSource {
 
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
+
+  @override
+  bool get requiresMediaKit => false;
 }
 
 /// 模拟「登录失效」的网易云源。
@@ -80,6 +86,9 @@ class _FailingNeteaseSource implements MusicSource {
 
   @override
   Map<String, String> get playbackHeaders => const <String, String>{};
+
+  @override
+  bool get requiresMediaKit => true;
 }
 
 void main() {

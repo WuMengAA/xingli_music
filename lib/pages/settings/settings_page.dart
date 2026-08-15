@@ -731,7 +731,7 @@ class _VisualDetail extends ConsumerWidget {
           children: <Widget>[
             for (final FpsLimit f in FpsLimit.values)
               ChoiceChip(
-                label: Text('${f.value} FPS'),
+                label: Text(f.label),
                 selected: fps == f,
                 onSelected: (_) {
                   ref.read(fpsLimitProvider.notifier).state = f;
@@ -950,6 +950,10 @@ class _AboutDetail extends StatelessWidget {
         _InfoRow(label: '语义版本', value: AppVersion.semver),
         const _InfoRow(label: '开源协议', value: 'MIT'),
         const SizedBox(height: AppSpace.lg),
+        Text('更新日志', style: context.appText.subtitle),
+        const SizedBox(height: AppSpace.md),
+        ...changelog.map((ChangelogEntry e) => _ChangelogTile(e)),
+        const SizedBox(height: AppSpace.lg),
         _EntryRow(
           icon: Icons.cloud_upload_outlined,
           title: '日志上报',
@@ -959,6 +963,58 @@ class _AboutDetail extends StatelessWidget {
         const SizedBox(height: AppSpace.lg),
         Text('日志与开源信息见项目仓库 README。', style: context.appText.bodyMuted),
       ],
+    );
+  }
+}
+
+/// 关于页更新日志单条。
+class _ChangelogTile extends StatelessWidget {
+  const _ChangelogTile(this.entry);
+
+  final ChangelogEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpace.md),
+      padding: const EdgeInsets.all(AppSpace.md),
+      decoration: BoxDecoration(
+        color: context.appColors.accentSoft,
+        borderRadius: AppRadius.brMd,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Text(entry.title, style: context.appText.subtitle),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${entry.version} · ${entry.cl}',
+                style: context.appText.bodyMuted,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...entry.details.map(
+            (String d) => Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('· ', style: context.appText.bodyMuted),
+                  Expanded(
+                    child: Text(d, style: context.appText.bodyMuted),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

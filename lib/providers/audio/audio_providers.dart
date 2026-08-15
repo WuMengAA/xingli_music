@@ -15,7 +15,6 @@ import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
-import '../../services/audio/media_kit_backend.dart';
 import 'audio_scheme.dart';
 import '../../services/audio/minecraft_sfx_service.dart';
 import '../../services/audio/playback_controller.dart';
@@ -68,7 +67,7 @@ final audioServiceProvider = Provider<AudioService>((ref) {
     musicPipeline: eq != null
         ? AudioPipeline(androidAudioEffects: <AndroidEqualizer>[eq])
         : null,
-    musicBackend: useMediaKit ? MediaKitBackend() : null,
+    useMediaKit: useMediaKit,
   );
   // 注入占位符解析器：netease://song/<id> 等占位 uri 在播放前解析成
   // 真实 CDN 地址并附加请求头（见 [buildStreamResolver]）。
@@ -95,7 +94,7 @@ StreamResolver buildStreamResolver(ProviderReader read) {
       try {
         final String url = await s.resolveStreamUrl(track);
         if (url.startsWith('http')) {
-          return ResolvedStream(url, s.playbackHeaders);
+          return ResolvedStream(url, s.playbackHeaders, s.requiresMediaKit);
         }
       } on NeteaseResolveException catch (e) {
         throw StreamResolveException(e.message);

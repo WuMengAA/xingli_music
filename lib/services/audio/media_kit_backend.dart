@@ -89,8 +89,9 @@ class MediaKitBackend implements MusicBackend {
     // Player 创建前的 setVolume 是 no-op（_player == null）——把缓存的
     // 音量补设回去，避免"音量设置丢失"导致的无声（R23 安卓实测 media_kit
     // 可播放但无声音，音量链路是头号嫌疑）。
+    // R27：[_lastVolume] 按 [MusicBackend] 契约是 0~1，转成 media_kit 的 0~100。
     if (_lastVolume >= 0) {
-      unawaited(p.setVolume(_lastVolume));
+      unawaited(p.setVolume(_lastVolume * 100.0));
     }
     return p;
   }
@@ -151,7 +152,9 @@ class MediaKitBackend implements MusicBackend {
   @override
   double get volume {
     final Player? p = _player;
-    return p == null ? 0.7 : p.state.volume;
+    // media_kit 的音量语义是 0~100（百分比），而 [MusicBackend] 契约是 0~1；
+    // 读回时 ÷100 转回 0~1，与 just_audio 后端语义一致（R27 修复「无声」）。
+    return p == null ? 0.7 : (p.state.volume / 100.0).clamp(0.0, 1.0);
   }
 
   @override
@@ -261,7 +264,8 @@ class MediaKitBackend implements MusicBackend {
       LogService.instance.i(
         'audio',
         'media_kit 1s后: playing=${p.state.playing} '
-        'volume=${p.state.volume} pos=${p.state.position}',
+        'volume=${p.state.volume}%（意图 ${(_lastVolume * 100).round()}%）'
+        ' pos=${p.state.position}',
       );
     }());
   }
@@ -285,7 +289,10 @@ class MediaKitBackend implements MusicBackend {
   Future<void> setVolume(double volume) async {
     _lastVolume = volume;
     final Player? p = _player;
-    if (p != null) await p.setVolume(volume);
+    // R27：media_kit 音量语义是 0~100（百分比），而 [MusicBackend] 契约是 0~1。
+    // 入参按契约是 0~1，这里 ×100 转成 media_kit 期望的百分比，否则 0.7 会被当成
+    // 0.7% → 几乎无声（用户反馈「media_kit 无声」真凶）。
+    if (p != null) await p.setVolume(volume * 100.0);
   }
 
   /// I（均衡器）：Windows 真 DSP——mpv `af` 滤镜链。
