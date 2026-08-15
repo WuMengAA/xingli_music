@@ -215,3 +215,40 @@ class MergeCandidate {
   final ListenEntry source;
   final TrackStats canonical;
 }
+
+/// 已解析的可播放链接缓存（重播加速 / 失效自动重匹配）。
+///
+/// 记录「上次成功解析出的直链 URL + 失效时间」，供再次播放时：
+/// - 未过期 → 直接用缓存直链，跳过重新解析（更快、更省流量）；
+/// - 已过期 / 无缓存 → 走源重新解析，再失败则按 名称/时长/歌手 聚合搜索自动匹配。
+class ResolvedLink {
+  const ResolvedLink({
+    required this.trackKey,
+    required this.url,
+    required this.expireAtMs,
+    required this.updatedAtMs,
+  });
+
+  final String trackKey;
+
+  /// 可直接播放的直链（http(s) URL）。
+  final String url;
+
+  /// 失效时间戳（毫秒）。0 表示未知 / 永不过期。
+  final int expireAtMs;
+
+  /// 最近一次成功解析时间（毫秒）。
+  final int updatedAtMs;
+
+  /// 是否已过期（expireAtMs<=0 视为未过期）。
+  bool get isExpired =>
+      expireAtMs > 0 &&
+      DateTime.now().millisecondsSinceEpoch >= expireAtMs;
+
+  factory ResolvedLink.fromRow(Map<String, dynamic> row) => ResolvedLink(
+        trackKey: row['track_key'] as String,
+        url: row['url'] as String,
+        expireAtMs: row['expire_at'] as int? ?? 0,
+        updatedAtMs: row['updated_at'] as int? ?? 0,
+      );
+}

@@ -7,6 +7,8 @@ import '../models/track.dart';
 import '../providers/audio/audio_providers.dart';
 import 'app_icon.dart';
 import 'liquid_glass.dart';
+import 'lyrics/lyrics_view.dart';
+import '../providers/settings/scene_card_opacity_provider.dart';
 
 /// 场景卡片（主视觉单元）
 ///
@@ -83,7 +85,7 @@ class _SceneCardStackState extends State<SceneCardStack> {
 }
 
 /// 单张场景卡片（官方 Card）
-class _SceneCard extends StatelessWidget {
+class _SceneCard extends ConsumerWidget {
   final Scene scene;
   final Track? nowPlaying;
   final bool isPlaying;
@@ -104,7 +106,7 @@ class _SceneCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ThemeData theme = Theme.of(context);
     final double scale = _responsiveScale(context);
 
@@ -114,8 +116,84 @@ class _SceneCard extends StatelessWidget {
     const Color lightText = Color(0xFFF5F5FA);
     final Color lightMuted = Colors.white.withValues(alpha: 0.78);
 
+    // 场景卡片背景浓度：越低越通透（视频背景透出），越高越实。默认 0.25。
+    final double opacity = ref.watch(sceneCardOpacityProvider);
+
+    // 歌词判定：当前曲目有非空歌词才展开右半区；否则整卡居中、右半区折叠。
+    final Track? playing = ref.watch(nowPlayingProvider);
+    final bool hasLyrics = playing != null &&
+        ref.watch(parsedLyricsProvider(playing)).maybeWhen(
+              data: (List<LyricLine> lines) => lines.isNotEmpty,
+              orElse: () => false,
+            );
+
     final double cardW = MediaQuery.of(context).size.width * 0.94;
     final double cardH = cardW * 9 / 16;
+
+    // 元数据列（左半区 / 无歌词时整卡居中显示）。
+    final Widget metadata = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            AppIcon(scene.icon, size: 18, color: scene.visual.accent),
+            const SizedBox(width: 8),
+            Text(
+              scene.name,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontSize: 18 * scale,
+                color: lightText,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                scene.mood,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: scene.visual.accent.withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+            const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          scene.desc,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodySmall?.copyWith(color: lightMuted),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          nowPlaying?.title ?? scene.track,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 26 * scale,
+            color: lightText,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          nowPlaying?.artist ?? scene.artist,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.bodyMedium?.copyWith(color: lightMuted),
+        ),
+        const SizedBox(height: 14),
+        _TrackProgress(
+          color: scene.visual.accent,
+          isPlaying: isPlaying,
+        ),
+      ],
+    );
+
     return Center(
       child: SizedBox(
         // cl46-E：中间场景卡片默认 16:9（与音画比例一致，视觉更稳定）。
@@ -124,118 +202,58 @@ class _SceneCard extends StatelessWidget {
         // 液态玻璃场景卡片：高透明玻璃 + 场景渐变叠加
         child: LiquidGlass(
           radius: 16,
-
-          child: Container(
-            // 场景渐变叠加在玻璃之上（深色渐变保证文字对比度）
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Card(
-            // 透明 Card，让 Container 的渐变透过；投影由外层 Container 提供
-            color: Colors.transparent,
-            elevation: 0,
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: InkWell(
-              onTapDown: (_) => onPressStart(),
-              onTapUp: (_) => onPressEnd(),
-              onTapCancel: onPressEnd,
-              onLongPress: onLongPress,
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                // R1 适配：横屏矮高度下卡片被压缩时用 FittedBox(scaleDown)
-                // 整体等比缩小而非溢出；内部固定间距（不用 Spacer，避免
-                // 无界高度断言崩溃）。
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.center,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minWidth: 320,
-                      maxWidth: 420,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 顶部：场景名 + 氛围词 + 聚合搜索入口
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppIcon(scene.icon,
-                                size: 18, color: scene.visual.accent),
-                            const SizedBox(width: 8),
-                            Text(
-                              scene.name,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontSize: 18 * scale,
-                                color: lightText,
+          // 背景浓度（透明度）作用于深色叠加层：opacity 越低越通透。
+          child: Opacity(
+            opacity: opacity,
+            child: Container(
+              // 场景渐变叠加在玻璃之上（深色渐变保证文字对比度）
+              decoration: BoxDecoration(
+                gradient: gradient,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Card(
+                // 透明 Card，让 Container 的渐变透过；投影由外层 Container 提供
+                color: Colors.transparent,
+                elevation: 0,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: InkWell(
+                  onTapDown: (_) => onPressStart(),
+                  onTapUp: (_) => onPressEnd(),
+                  onTapCancel: onPressEnd,
+                  onLongPress: onLongPress,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
+                    // 有歌词：左右两栏（左元数据 / 右歌词，各占 1/2）；
+                    // 无歌词：整卡居中、右半区折叠。
+                    child: hasLyrics
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Expanded(child: metadata),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: LyricsView(height: cardH - 40),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                scene.mood,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: scene.visual.accent
-                                      .withValues(alpha: 0.6),
-                                  fontStyle: FontStyle.italic,
-                                ),
+                            ],
+                          )
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.center,
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(
+                                minWidth: 320,
+                                maxWidth: 420,
                               ),
+                              child: metadata,
                             ),
-                            const Spacer(),
-                            // cl46-E：去掉搜索 / 音质入口（迁移到个性编辑与播放卡片）。
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // 场景描述
-                        Text(
-                          scene.desc,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: lightMuted,
                           ),
-                        ),
-                        const SizedBox(height: 14),
-                        // 中部：曲目名（锚点）
-                        Text(
-                          nowPlaying?.title ?? scene.track,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontSize: 26 * scale,
-                            color: lightText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        // 艺术家
-                        Text(
-                          nowPlaying?.artist ?? scene.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: lightMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        // 底部：官方进度条（独立订阅，局部刷新）
-                        _TrackProgress(
-                          color: scene.visual.accent,
-                          isPlaying: isPlaying,
-                        ),
-                      ],
-                    ),
                   ),
                 ),
               ),
-            ),
             ),
           ),
         ),

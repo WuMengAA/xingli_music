@@ -304,6 +304,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           items: <SettingItem>[
             SettingItem(id: 'sceneEditor', title: '场景编辑器'),
             SettingItem(id: 'customSceneList', title: '自定义场景管理'),
+            // cl50：场景卡片背景透明度（0.1~0.9，默认 0.25），用户可自调。
+            SettingItem(id: 'sceneCardOpacity', title: '场景卡片透明度', kind: SettingKind.slider),
           ],
         ),
         // R26skel-b4：场景背景画质（独立于游戏画质）。

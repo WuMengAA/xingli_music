@@ -28,10 +28,25 @@ class TrackStatsDb {
     final String path = p.join(dir.path, 'music_stats.db');
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _create,
+      onUpgrade: _upgrade,
     );
     return _db!;
+  }
+
+  Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
+    // v1 → v2：新增「已解析直链缓存」表（重播加速 / 失效重匹配）。
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE resolved_links(
+          track_key TEXT PRIMARY KEY,
+          url TEXT NOT NULL,
+          expire_at INTEGER NOT NULL DEFAULT 0,
+          updated_at INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
   }
 
   Future<void> _create(Database db, int version) async {
@@ -97,6 +112,15 @@ class TrackStatsDb {
       CREATE TABLE merge_dismissed(
         track_key TEXT PRIMARY KEY,
         dismissed_at INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    // v2：已解析直链缓存（重播加速 / 失效自动重匹配）。
+    await db.execute('''
+      CREATE TABLE resolved_links(
+        track_key TEXT PRIMARY KEY,
+        url TEXT NOT NULL,
+        expire_at INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
     // 常用索引：历史按时间倒序、歌单内排序。
@@ -411,5 +435,45 @@ class TrackStatsDb {
       limit: 1,
     );
     return rows.isNotEmpty;
+  }
+
+  // ── 已解析直链缓存（v2：重播加速 / 失效重匹配）──────────────────────
+
+  /// 保存某曲最近一次成功解析出的直链与失效时间（upsert）。
+  Future<void> saveResolvedLink(
+    String trackKey,
+    String url, {
+    int expireAtMs = 0,
+  }) async {
+    final Database db = await database;
+    await db.insert(
+      'resolved_links',
+      <String, Object?>{
+        'track_key': trackKey,
+        'url': url,
+        'expire_at': expireAtMs,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// 读取某曲的直链缓存（无则返回 null）。
+  Future<ResolvedLink?> resolvedLinkOf(String trackKey) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      'resolved_links',
+      where: 'track_key = ?',
+      whereArgs: <Object>[trackKey],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : ResolvedLink.fromRow(rows.first);
+  }
+
+  /// 全部直链缓存（供批量失效判断 / 调试）。
+  Future<List<ResolvedLink>> allResolvedLinks() async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.query('resolved_links');
+    return rows.map(ResolvedLink.fromRow).toList();
   }
 }

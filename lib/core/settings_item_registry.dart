@@ -31,6 +31,7 @@ import '../models/experiment.dart';
 import '../models/track.dart';
 import '../providers/explore/experiment_providers.dart';
 import '../providers/settings/performance_providers.dart';
+import '../providers/settings/scene_card_opacity_provider.dart';
 import '../providers/sources/netease_provider.dart';
 import '../providers/sources/bilibili_provider.dart';
 import '../services/audio/sources/bilibili/bilibili_api.dart';
@@ -824,6 +825,44 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       subtitle: '列出 / 新建 / 编辑自定义场景（含默认 BGM 选曲）',
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const CustomSceneListPage()),
+      ),
+    ),
+  ),
+  // cl50：场景卡片背景透明度（0.1~0.9，默认 0.25），用户可自调。
+  'sceneCardOpacity': SettingItemDef(
+    title: '场景卡片透明度',
+    builder: (context, ref) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text('场景卡片透明度（背景浓度）', style: context.appText.bodyMuted),
+          const SizedBox(height: 2),
+          Text('越低越通透、露出视频背景；越高卡片越实',
+              style: context.appText.caption),
+          const SizedBox(height: 6),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Slider(
+                  value: ref.watch(sceneCardOpacityProvider),
+                  min: 0.1,
+                  max: 0.9,
+                  onChanged: (double v) =>
+                      ref.read(sceneCardOpacityProvider.notifier).set(v),
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text(
+                  ref.watch(sceneCardOpacityProvider).toStringAsFixed(2),
+                  style: context.appText.caption,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     ),
   ),
