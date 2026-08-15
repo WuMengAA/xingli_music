@@ -377,6 +377,9 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'aboutInfo', title: '应用信息', kind: SettingKind.block),
             // cl54-G6：存储占用（软件占用空间统计）。
             SettingItem(id: 'storageUsage', title: '存储'),
+            // cl55：版本日志（自动获取最新）+ 版本更新（OTA 入口）。
+            SettingItem(id: 'versionLog', title: '版本日志'),
+            SettingItem(id: 'versionUpdate', title: '版本更新'),
             SettingItem(id: 'logUpload', title: '日志上报'),
           ],
         ),

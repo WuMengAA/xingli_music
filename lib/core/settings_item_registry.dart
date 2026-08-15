@@ -46,6 +46,7 @@ import '../widgets/notification/notification_center.dart';
 import '../widgets/settings/llm_settings_sheet.dart';
 import '../widgets/settings/log_upload_sheet.dart';
 import '../widgets/settings/storage_usage_sheet.dart';
+import '../widgets/settings/version_update_sheet.dart';
 import '../widgets/sources/netease_login_sheet.dart';
 import '../widgets/sources/bilibili_login_sheet.dart';
 import 'app_version.dart';
@@ -1602,6 +1603,30 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '存储',
       subtitle: '查看软件占用空间（数据 / 日志 / 临时文件）',
       onTap: () => showStorageUsageSheet(context),
+    ),
+  ),
+  // cl55：版本日志（自动获取最新日志）。
+  'versionLog': SettingItemDef(
+    title: '版本日志',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.history_rounded,
+      title: '版本日志',
+      subtitle: '自动获取最新日志（当前 ${AppVersion.display}）',
+      onTap: () => showVersionLogSheet(context),
+    ),
+  ),
+  // cl55：版本更新（OTA 入口；G7 接入真实检查）。
+  'versionUpdate': SettingItemDef(
+    title: '版本更新',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.system_update_alt_rounded,
+      title: '版本更新',
+      subtitle: '检查 GitHub 与官方网站是否有新版本',
+      onTap: () => showVersionUpdateSheet(context),
     ),
   ),
   'logUpload': SettingItemDef(

@@ -156,7 +156,9 @@ abstract final class AppVersion {
   /// 首帧 .valueOrNull 为 null 导致回退字母序，改 await future）；
   /// ③全局画面预设重构四档（省电/流畅/标准/高质，含简介与省电提醒、帧率联动）；
   /// ④设置-关于-存储（软件占用空间统计）。
-  static const int buildCount = 54;
+  /// cl55：设置-关于 新增「版本日志」（自动获取最新，changelog 倒序首条即最新）
+  /// +「版本更新」（OTA 入口，G7 接入 GitHub/官网检查→下载→哈希校验→提醒）。
+  static const int buildCount = 55;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -212,6 +214,15 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl55',
+    title: '关于页新增版本日志 + 版本更新入口',
+    details: <String>[
+      '设置 → 关于 → 版本日志：自动获取最新日志（changelog 倒序，最新在顶部），展示全部历史更新',
+      '设置 → 关于 → 版本更新：检查更新入口（当前版本展示；G7 接入 GitHub / 官网 OTA 检查、下载、哈希校验与提醒）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl54',
