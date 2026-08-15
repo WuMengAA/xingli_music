@@ -201,6 +201,15 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl70：渲染性能优化·消除实体 _emitBox / _skinUV 每帧堆分配（cl68-O4/cl69 同源收尾）——
+  /// 实体（玩家/同伴/掉落物）每个 _emitBox 原每 box 分配 8 角 list + 6 个 12 元素
+  /// quad list + faceOrder list + 每面 Float32List(8) 投影缓冲；_skinUV 每皮肤面
+  /// 再分配 record list + Float32List(8)。改为复用模块级单例 scratch（_boxCorners
+  /// 24 槽 / _boxXyScratch / _skinUvScratch）+ 常量查表（_boxQuadIdx / _boxFaceOrder
+  /// / _skinUvLocal：原始 (x0-x0)/dx 等恒为 0/1 → 全 face 同一 UV 模式），发射路径零堆分配。
+  /// _emitBox 同步写入并消费各缓冲（pushFace 首行即取标量拷贝入批量缓冲、不持有引用；
+  /// _skinUV 返回 _skinUvScratch 仅同步传给 pushFace），复用安全、视觉零变化；
+  /// buildCount 69→70（0.26.8.15_alpha_cl70）。
   /// cl69：渲染性能优化·消除 LOD 发射路径每帧堆分配（cl68-O4 同源收尾）——
   /// LOD 马赛克从满精度带外覆盖到地平线，单元数可达数千，原每单元每面经
   /// `_emitLodQuad(Float64List.fromList(...))` 堆分配 12 元组 + 内部
@@ -226,7 +235,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 69;
+  static const int buildCount = 70;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -282,6 +291,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl70',
+    title: '渲染性能优化：消除实体 _emitBox / _skinUV 每帧堆分配',
+    details: <String>[
+      '实体（玩家/同伴/掉落物）每个 _emitBox 原每 box 分配 8 角 list + 6 个 12 元素 quad list + faceOrder list + 每面 Float32List(8) 投影缓冲；_skinUV 每皮肤面再分配 record list + Float32List(8)',
+      '改为复用模块级单例 scratch（_boxCorners 24 槽 / _boxXyScratch / _skinUvScratch）+ 常量查表（_boxQuadIdx / _boxFaceOrder / _skinUvLocal：原始 (x0-x0)/dx 等恒为 0/1 → 全 face 同一 UV 模式），发射路径零堆分配',
+      '_emitBox 同步写入并消费各缓冲（pushFace 首行即取标量拷贝入批量缓冲、不持有引用；_skinUV 返回缓冲仅同步传给 pushFace），复用安全、视觉零变化（cl68-O4/cl69 同源收尾）',
+      'buildCount 69→70（0.26.8.15_alpha_cl70）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl69',

@@ -2136,7 +2136,8 @@ abstract final class VoxelRenderer {
     final double sinR = math.sin(rotX);
     // 对任一点 (x,y,z) 依次做：①绕 (pivotX,pivotZ) 垂直轴 yaw ②绕
     // (pivotY, swingPivotZ) X 轴摆动。
-    List<double> _rot(double x, double y, double z) {
+    // cl70：角直接写入复用缓冲 _boxCorners（24 槽：8 角 × 3），不再每角返回新 list。
+    void _rot(double x, double y, double z, int dst) {
       final double x1 =
           rotYaw == 0 ? x : pivotX + (x - pivotX) * cosY - (z - pivotZ) * sinY;
       final double z1 =
@@ -2147,46 +2148,36 @@ abstract final class VoxelRenderer {
       final double z2 = rotX == 0
           ? z1
           : swingPivotZ + (y - pivotY) * sinR + (z1 - swingPivotZ) * cosR;
-      return <double>[x1, y2, z2];
+      _boxCorners[dst * 3] = x1;
+      _boxCorners[dst * 3 + 1] = y2;
+      _boxCorners[dst * 3 + 2] = z2;
     }
     // 实体取包围盒中心做点光采样（体积小，逐面精算没有收益）。
     final double cxm = (x0 + x1) * 0.5;
     final double cym = (y0 + y1) * 0.5;
     final double czm = (z0 + z1) * 0.5;
     // 八个角（yaw + 摆动后的世界坐标）。
-    final List<List<double>> C = <List<double>>[
-      _rot(x0, y0, z0), _rot(x1, y0, z0), _rot(x1, y0, z1), _rot(x0, y0, z1),
-      _rot(x0, y1, z0), _rot(x1, y1, z0), _rot(x1, y1, z1), _rot(x0, y1, z1),
-    ];
-    // 六面顶点（环绕顺序 0-1-2-3：top/bottom/north/south/west/east）。
-    final List<List<double>> quads = <List<double>>[
-      <double>[...C[4], ...C[5], ...C[6], ...C[7]], // top
-      <double>[...C[0], ...C[1], ...C[2], ...C[3]], // bottom
-      <double>[...C[0], ...C[1], ...C[5], ...C[4]], // north
-      <double>[...C[3], ...C[2], ...C[6], ...C[7]], // south
-      <double>[...C[0], ...C[3], ...C[7], ...C[4]], // west
-      <double>[...C[1], ...C[2], ...C[6], ...C[5]], // east
-    ];
-    final List<BlockFace> faceOrder = <BlockFace>[
-      BlockFace.top,
-      BlockFace.bottom,
-      BlockFace.north,
-      BlockFace.south,
-      BlockFace.west,
-      BlockFace.east,
-    ];
+    _rot(x0, y0, z0, 0);
+    _rot(x1, y0, z0, 1);
+    _rot(x1, y0, z1, 2);
+    _rot(x0, y0, z1, 3);
+    _rot(x0, y1, z0, 4);
+    _rot(x1, y1, z0, 5);
+    _rot(x1, y1, z1, 6);
+    _rot(x0, y1, z1, 7);
 
     for (int k = 0; k < 6; k++) {
-      final List<double> c = quads[k];
-      final BlockFace f = faceOrder[k];
-      final Float32List xy = Float32List(8);
+      final List<int> idx = _boxQuadIdx[k];
+      final BlockFace f = _boxFaceOrder[k];
+      final Float32List xy = _boxXyScratch;
       double depthSum = 0;
       bool clipped = false;
       for (int i = 0; i < 4; i++) {
+        final int base = idx[i] * 3;
         final ScreenPoint? sp = VoxelCamera.projectWith(
-          c[i * 3],
-          c[i * 3 + 1],
-          c[i * 3 + 2],
+          _boxCorners[base],
+          _boxCorners[base + 1],
+          _boxCorners[base + 2],
           b,
           proj,
         );
@@ -2230,7 +2221,7 @@ abstract final class VoxelRenderer {
       if (skinPart != null && config.textureEnabled && VoxelTextureAtlas.hasSkin) {
         final Float32List? rect = VoxelTextureAtlas.skinRectFor(skinPart, f.index);
         if (rect != null) {
-          uv = _skinUV(rect, f, x0, y0, z0, x1, y1, z1);
+          uv = _skinUV(rect);
         }
       }
       final int argb = col.toARGB32();
@@ -2252,49 +2243,15 @@ abstract final class VoxelRenderer {
   ///
   /// u 取水平轴（top/bottom→x，north/south→x，west/east→z），v 取竖直轴（y）；
   /// v 翻转（1 - v）使纹理上缘对齐盒顶，保证头脸等正向显示。
-  static Float32List _skinUV(
-    Float32List rect,
-    BlockFace f,
-    double x0,
-    double y0,
-    double z0,
-    double x1,
-    double y1,
-    double z1,
-  ) {
+  static Float32List _skinUV(Float32List rect) {
     final double sx = rect[0], sy = rect[1], sw = rect[2], sh = rect[3];
-    final double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
-    late final List<(double, double)> uvLocal;
-    switch (f) {
-      case BlockFace.top:
-      case BlockFace.bottom:
-        uvLocal = <(double, double)>[
-          ((x0 - x0) / dx, (z0 - z0) / dz),
-          ((x1 - x0) / dx, (z0 - z0) / dz),
-          ((x1 - x0) / dx, (z1 - z0) / dz),
-          ((x0 - x0) / dx, (z1 - z0) / dz),
-        ];
-      case BlockFace.north:
-      case BlockFace.south:
-        uvLocal = <(double, double)>[
-          ((x0 - x0) / dx, (y0 - y0) / dy),
-          ((x1 - x0) / dx, (y0 - y0) / dy),
-          ((x1 - x0) / dx, (y1 - y0) / dy),
-          ((x0 - x0) / dx, (y1 - y0) / dy),
-        ];
-      case BlockFace.west:
-      case BlockFace.east:
-        uvLocal = <(double, double)>[
-          ((z0 - z0) / dz, (y0 - y0) / dy),
-          ((z1 - z0) / dz, (y0 - y0) / dy),
-          ((z1 - z0) / dz, (y1 - y0) / dy),
-          ((z0 - z0) / dz, (y1 - y0) / dy),
-        ];
-    }
-    final Float32List out = Float32List(8);
+    // cl70：4 角归一化 UV 对所有 face 恒为 (0,0)/(1,0)/(1,1)/(0,1)（原始
+    // (x0-x0)/dx 等恒为 0/1，与 box 尺寸/朝向无关）→ 用常量 _skinUvLocal，
+    // 消除每面 record list 分配；out 复用 _skinUvScratch（仅同步传给 pushFace）。
+    final Float32List out = _skinUvScratch;
     for (int i = 0; i < 4; i++) {
-      final double u = uvLocal[i].$1;
-      final double v = 1 - uvLocal[i].$2; // 翻转：纹理上=面顶
+      final double u = _skinUvLocal[i].$1;
+      final double v = 1 - _skinUvLocal[i].$2; // 翻转：纹理上=面顶
       out[i * 2] = sx + u * sw;
       out[i * 2 + 1] = sy + v * sh;
     }
@@ -3149,6 +3106,38 @@ abstract final class VoxelRenderer {
   // 与 `xy`（pushFace 首行即取标量追加到缓冲，亦不持有），故两处复用安全。
   static final Float64List _lodQuadScratch = Float64List(12);
   static final Float32List _lodXyScratch = Float32List(8);
+
+  // cl70：实体 _emitBox / _skinUV 复用缓冲（与 _lodXyScratch 同 lineage，
+  // 消除每 box 14 个小 list + 每面 xy/uv 的每帧堆分配）。
+  // 8 角 × 3 坐标（_rot 直接写入，不再每角返回新 list）。
+  static final Float64List _boxCorners = Float64List(24);
+  static final Float32List _boxXyScratch = Float32List(8);
+  static final Float32List _skinUvScratch = Float32List(8);
+  // 六面 → 4 角索引（查表替代每 box 展开 6 个 12 元素 list）。
+  static const List<List<int>> _boxQuadIdx = <List<int>>[
+    <int>[4, 5, 6, 7], // top
+    <int>[0, 1, 2, 3], // bottom
+    <int>[0, 1, 5, 4], // north
+    <int>[3, 2, 6, 7], // south
+    <int>[0, 3, 7, 4], // west
+    <int>[1, 2, 6, 5], // east
+  ];
+  static const List<BlockFace> _boxFaceOrder = <BlockFace>[
+    BlockFace.top,
+    BlockFace.bottom,
+    BlockFace.north,
+    BlockFace.south,
+    BlockFace.west,
+    BlockFace.east,
+  ];
+  // 皮肤 UV 的 4 角归一化坐标：原始 (x0-x0)/dx 等恒为 0/1 → 全 face 同一模式。
+  static const List<(double, double)> _skinUvLocal = <(double, double)>[
+    (0.0, 0.0),
+    (1.0, 0.0),
+    (1.0, 1.0),
+    (0.0, 1.0),
+  ];
+
   static Float64List _fillLodQuad(
     double x0, double y0, double z0,
     double x1, double y1, double z1,
