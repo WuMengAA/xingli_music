@@ -1291,6 +1291,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         scale: 1.0,
         lookYaw: peer.yaw,
         lookPitch: peer.pitch,
+        label: peer.name, // G9：头顶名字标签
       ));
     }
     return ents;
@@ -4639,6 +4640,8 @@ class _VoxelFramePainter extends CustomPainter {
     final ui.Picture? pic = staticPicture;
     if (pic != null) {
       canvas.drawPicture(pic);
+      // G9：名字标签即便静态快照也实时绘制（HUD 应始终可见，不随场景冻结）。
+      if (frame.nameLabels.isNotEmpty) _drawNameLabels(canvas);
       return;
     }
     final SkyPalette sky = frame.sky;
@@ -4712,6 +4715,9 @@ class _VoxelFramePainter extends CustomPainter {
           ),
       );
     }
+    // G9：联机远端玩家名字标签——画在最上层（玩家名字永远清晰可见），
+    // 坐标由相机投影得到（scaled 空间，与太阳月亮同坐标系）。
+    if (frame.nameLabels.isNotEmpty) _drawNameLabels(canvas);
     canvas.restore();
   }
 
@@ -4868,6 +4874,45 @@ class _VoxelFramePainter extends CustomPainter {
         canvas.drawVertices(v, ui.BlendMode.srcOver, _plainPaint);
       }
     }
+  }
+
+  /// G9：联机远端玩家名字标签——画在所有内容之上。坐标来自 [VoxelFrame]
+  /// （相机投影的 scaled 空间，与太阳月亮同坐标系），转视角 / 远端移动时随世界
+  /// 更新；落在相机后方时 buildFrame 不存储，此处仅画可见者。
+  void _drawNameLabels(Canvas canvas) {
+    for (final VoxelNameLabel lb in frame.nameLabels) {
+      _drawNameTag(canvas, lb);
+    }
+  }
+
+  void _drawNameTag(Canvas canvas, VoxelNameLabel lb) {
+    // 设备字号恒定（scaled 空间绘制，乘 renderScale 抵消 1/renderScale 放大）。
+    final double fontPx = 14 * renderScale;
+    final ui.ParagraphBuilder pb = ui.ParagraphBuilder(
+      ui.ParagraphStyle(textAlign: TextAlign.center),
+    )
+      ..pushStyle(ui.TextStyle(
+        color: const Color(0xFFFFFFFF),
+        fontSize: fontPx,
+        fontWeight: FontWeight.w600,
+      ))
+      ..addText(lb.text);
+    final ui.Paragraph para = pb.build();
+    para.layout(ui.ParagraphConstraints(width: 240 * renderScale));
+    final double tw = para.width;
+    final double th = para.height;
+    // 标签中心对齐头顶投影点，略上移避免压住头部。
+    final Offset c = Offset(lb.sx, lb.sy - th * 0.5 - 6 * renderScale);
+    final RRect bg = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: c,
+        width: tw + 14 * renderScale,
+        height: th + 8 * renderScale,
+      ),
+      Radius.circular(8 * renderScale),
+    );
+    canvas.drawRRect(bg, Paint()..color = lb.color.withValues(alpha: 0.85));
+    canvas.drawParagraph(para, Offset(c.dx - tw / 2, c.dy - th / 2));
   }
 
   @override

@@ -190,7 +190,11 @@ abstract final class AppVersion {
   /// （角色/房主地址/同伴列表/一起听状态 + 一键离开）；③断线覆盖层（status==error 居中
   /// 提示 + 返回大厅）；一起听（主机为 DJ）客户端跟随播放随地基接通；buildCount 62→63
   /// （0.26.8.15_alpha_cl63）。
-  static const int buildCount = 63;
+  /// cl64：G9 多人联机增强——体素世界内为联机同伴方块人头顶渲染浮动名字标签
+  /// （按同伴名字区分多人；半透明胶囊 + 实体主色描边；与太阳月亮同坐标系，
+  /// 转视角/远端移动实时跟随；静态快照下也始终可见）；buildCount 63→64
+  /// （0.26.8.15_alpha_cl64）。
+  static const int buildCount = 64;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -246,6 +250,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl64',
+    title: 'G9 多人联机增强：世界内远端玩家名字标签',
+    details: <String>[
+      '体素世界内为联机同伴方块人头顶渲染浮动名字标签，按同伴名字区分多人',
+      '半透明胶囊 + 实体主色描边，白字高对比，任意背景（天空/地形/水下）清晰可读',
+      '标签与太阳月亮同坐标系（相机投影），转视角 / 远端移动实时跟随',
+      '静态快照模式下仍始终可见（HUD 不随场景冻结）；buildCount 63→64（0.26.8.15_alpha_cl64）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl63',

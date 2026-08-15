@@ -405,6 +405,28 @@ class RenderConfig {
 }
 
 /// 一帧渲染结果。
+/// G9：名字标签（联机远端玩家头顶浮动名字）。
+/// [sx]/[sy] 为头部上方屏幕坐标（scaled 空间，同 [VoxelFrame.sunSX/sunSY]），
+/// 由相机投影得到，转视角 / 远端移动时随世界更新。
+class VoxelNameLabel {
+  const VoxelNameLabel({
+    required this.sx,
+    required this.sy,
+    required this.text,
+    required this.color,
+  });
+
+  /// 头顶屏幕坐标（scaled 空间，与太阳月亮同坐标系）。
+  final double sx;
+  final double sy;
+
+  /// 显示文字（同伴名字）。
+  final String text;
+
+  /// 实体主色（ARGB），用于标签底色胶囊，增强同伴辨识度。
+  final Color color;
+}
+
 class VoxelFrame {
   const VoxelFrame({
     required this.sky,
@@ -424,6 +446,7 @@ class VoxelFrame {
     this.moonSX = 0,
     this.moonSY = 0,
     this.moonVisible = false,
+    this.nameLabels = const <VoxelNameLabel>[],
     this.opaquePlainBuckets = const <VoxelMeshBatch?>[],
     this.opaqueTexturedBuckets = const <VoxelMeshBatch?>[],
     this.waterBuckets = const <VoxelMeshBatch?>[],
@@ -467,6 +490,9 @@ class VoxelFrame {
   final double moonSY;
   final bool moonVisible;
 
+  /// G9：联机远端玩家名字标签（头顶浮动名字）。空帧为空，画家不绘制。
+  final List<VoxelNameLabel> nameLabels;
+
   /// 批量网格（R25 GPU 加速）：非贴图/贴图不透明面 / 水面，各按相机深度
   /// 分 8 桶（远→近）。逐桶提交 → 画家算法正确，消除透视/穿墙。
   /// 桶为空 = null。空帧（[empty]）全部为空，画家回退逐面绘制。
@@ -497,6 +523,7 @@ class VoxelFrame {
     moonSX: 0,
     moonSY: 0,
     moonVisible: false,
+    nameLabels: const <VoxelNameLabel>[],
   );
 }
 
@@ -1269,10 +1296,14 @@ abstract final class VoxelRenderer {
       );
     }
 
-    // 实体（如 AI 陪伴小人）：当作额外方块盒，与地形一起参与深度排序 / 预算裁剪。
-    // R24c：实体面也并入同一全局桶（不再分 opaque/translucent 两 Pass），
-    // 画家算法下所有面统一远→近排序，水/玻璃才能被正确遮挡。
-    for (final VoxelEntity en in entities) {
+  // 实体（如 AI 陪伴小人）：当作额外方块盒，与地形一起参与深度排序 / 预算裁剪。
+  // R24c：实体面也并入同一全局桶（不再分 opaque/translucent 两 Pass），
+  // 画家算法下所有面统一远→近排序，水/玻璃才能被正确遮挡。
+
+  // G9：收集联机远端玩家名字标签（投影头部上方坐标，画家在最上层绘制）。
+  final List<VoxelNameLabel> nameLabels = <VoxelNameLabel>[];
+
+  for (final VoxelEntity en in entities) {
       // R26g：生物视锥剔除——第一/三人称下不在视角内的生物整只跳过
       //（只不渲染、不删）；俯瞰模式全渲染。与地形共用 cosLimit 半锥。
       if (!camera.fullWidth) {
@@ -1298,6 +1329,25 @@ abstract final class VoxelRenderer {
         camera.far,
         pushFace,
       );
+      // G9：名字标签——对带 label 的实体，投影头部上方坐标存入 nameLabels，
+      // 画家在所有内容之上绘制（与太阳月亮同坐标系，转视角/远端移动随世界更新）。
+      if (en.label != null && en.label!.isNotEmpty) {
+        final ScreenPoint? lp = VoxelCamera.projectWith(
+          en.position.x,
+          en.position.y + 2.35 * en.scale, // 头顶（2.0*s）上方一点
+          en.position.z,
+          b,
+          proj,
+        );
+        if (lp != null) {
+          nameLabels.add(VoxelNameLabel(
+            sx: lp.x,
+            sy: lp.y,
+            text: en.label!,
+            color: en.color,
+          ));
+        }
+      }
     }
 
     // R26b：世界空间方块云（不透明、自北向南漂移）——进统一投影/深度排序。
@@ -1432,6 +1482,7 @@ abstract final class VoxelRenderer {
       moonSX: moonSX,
       moonSY: moonSY,
       moonVisible: moonVisible,
+      nameLabels: nameLabels,
       columnsVisited: columns,
       facesCollected: collected,
       chunkHits: chunkHits,
