@@ -170,7 +170,11 @@ abstract final class AppVersion {
   /// 日志/更新/协议等纯 Flutter 图示）；「个性化」直接选全局画面预设四档、
   /// 「游戏画质」直接选游戏画质档（即时写入 provider）；**老用户不再反复打扰**
   /// ——无完成版本记录或已处理过当前版本都不再弹升级询问。
-  static const int buildCount = 58;
+  /// cl59：OOBE 交互细化——隐私/安全【索要权限】、通知【索要通知权限】、
+  /// 实验性功能【同意/不同意】、版本日志【拉取本地日志前 3 条】、版本检查
+  /// 【按流程检查，有更新提示/超时提示继续】、用户协议【贴 GitHub 仓库与
+  /// LICENSE 链接】；设置-关于 加 GitHub 仓库行（含分支标注 main）。
+  static const int buildCount = 59;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -226,6 +230,19 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl59',
+    title: 'OOBE 交互细化：权限 / 实验 / 更新检查 / 协议链接 + 关于页 GitHub 入口',
+    details: <String>[
+      '隐私与安全步骤可「索要权限」；通知步骤可「索要通知权限」',
+      '实验性功能步骤可选择「同意 / 不同意」（持久化，可随时在设置实验管理改）',
+      '版本日志步骤拉取本地更新日志（展示最近 3 条）',
+      '版本检查步骤按流程走一遍：有更新提示更新，超时/无更新提示继续初始化',
+      '用户协议步骤贴 GitHub 仓库与开源协议链接',
+      '设置 → 关于 新增 GitHub 仓库行（含主分支 main 标注）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl58',

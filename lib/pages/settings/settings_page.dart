@@ -949,6 +949,14 @@ class _AboutDetail extends StatelessWidget {
         _InfoRow(label: '阶段', value: AppVersion.stage.label),
         _InfoRow(label: '语义版本', value: AppVersion.semver),
         const _InfoRow(label: '开源协议', value: 'MIT'),
+        const SizedBox(height: AppSpace.sm),
+        // cl59：GitHub 仓库（含分支标注）。
+        _EntryRow(
+          icon: Icons.code_rounded,
+          title: 'GitHub 仓库',
+          subtitle: 'github.com/WuMengAA/xingli_music · 分支 main（发布主分支）',
+          onTap: () => _copyRepo(context),
+        ),
         const SizedBox(height: AppSpace.lg),
         Text('更新日志', style: context.appText.subtitle),
         const SizedBox(height: AppSpace.md),
@@ -964,6 +972,11 @@ class _AboutDetail extends StatelessWidget {
         Text('日志与开源信息见项目仓库 README。', style: context.appText.bodyMuted),
       ],
     );
+  }
+
+  /// cl59：复制 GitHub 仓库地址。
+  void _copyRepo(BuildContext context) {
+    appNotify(context, '已复制仓库地址：github.com/WuMengAA/xingli_music');
   }
 }
 

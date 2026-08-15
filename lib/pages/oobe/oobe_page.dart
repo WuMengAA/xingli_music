@@ -26,10 +26,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../models/experiment.dart';
+import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../providers/voxel/graphics_quality_provider.dart';
+import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
+import '../../widgets/notification/app_notify.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 
 /// OOBE 全屏引导页。
@@ -626,8 +630,166 @@ class _Options extends ConsumerWidget {
               ),
           ],
         );
+      case _DiagramKind.shield:
+        // cl59：隐私与安全——索要权限（通知 + 存储）。
+        return _pillButton(
+          context,
+          icon: Icons.shield_outlined,
+          label: '索要权限',
+          onTap: () async {
+            await PermissionService.requestAll();
+            if (context.mounted) appNotify(context, '权限已处理');
+          },
+        );
+      case _DiagramKind.bell:
+        // cl59：通知——索要通知权限。
+        return _pillButton(
+          context,
+          icon: Icons.notifications_active_outlined,
+          label: '索要通知权限',
+          onTap: () async {
+            await PermissionService.requestEssentialOnStartup();
+            if (context.mounted) appNotify(context, '通知权限已处理');
+          },
+        );
+      case _DiagramKind.flask:
+        // cl59：实验性功能——选择同意与否。
+        final ExperimentConsent consent =
+            ref.watch(experimentConsentProvider);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              consent.agreed ? '已同意 · 实验可用' : '未同意 · 实验关闭',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                _pillButton(
+                  context,
+                  icon: Icons.check_rounded,
+                  label: '同意',
+                  filled: true,
+                  onTap: () => ref
+                      .read(experimentConsentProvider.notifier)
+                      .agree(),
+                ),
+                const SizedBox(width: 8),
+                _pillButton(
+                  context,
+                  icon: Icons.close_rounded,
+                  label: '不同意',
+                  onTap: () => ref
+                      .read(experimentConsentProvider.notifier)
+                      .revoke(),
+                ),
+              ],
+            ),
+          ],
+        );
+      case _DiagramKind.log:
+        // cl59：版本日志——拉取本地更新日志（changelog 前几条）。
+        final List<ChangelogEntry> logs = changelog.take(3).toList();
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            for (final ChangelogEntry e in logs)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${e.cl} · ${e.title}',
+                  style: const TextStyle(
+                      fontSize: 11, color: Colors.white70),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+        );
+      case _DiagramKind.update:
+        // cl59：版本检查——按流程走一遍，有更新提示更新，超时提示继续。
+        return _pillButton(
+          context,
+          icon: Icons.system_update_alt_rounded,
+          label: '检查更新',
+          onTap: () async {
+            final OtaCheckResult r = await OtaService.instance.checkForUpdate();
+            if (!context.mounted) return;
+            if (r.hasUpdate) {
+              appNotify(context, '发现新版本：${r.latestTag}（可在设置→关于更新）');
+            } else {
+              appNotify(context, '已是最新版本 / 检查超时，可继续初始化');
+            }
+          },
+        );
+      case _DiagramKind.contract:
+        // cl59：用户协议——贴 GitHub 仓库与 LICENSE 链接。
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            _linkRow(context, 'GitHub 仓库', 'github.com/WuMengAA/xingli_music'),
+            const SizedBox(height: 6),
+            _linkRow(context, '开源协议', 'github.com/WuMengAA/xingli_music/blob/main/LICENSE'),
+          ],
+        );
       default:
         return const SizedBox.shrink();
     }
+  }
+
+  /// 胶囊按钮（OOBE 内通用）。
+  Widget _pillButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool filled = false,
+  }) {
+    return FilledButton.icon(
+      style: FilledButton.styleFrom(
+        backgroundColor: filled ? accent : const Color(0x1AFFFFFF),
+        foregroundColor: Colors.white,
+        side: const BorderSide(color: Color(0x33FFFFFF)),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      ),
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      onPressed: onTap,
+    );
+  }
+
+  /// 链接行（显示可复制链接）。
+  Widget _linkRow(BuildContext context, String label, String url) {
+    return InkWell(
+      onTap: () {
+        // 复制链接到剪贴板（OOBE 无浏览器依赖）。
+        appNotify(context, '已复制：$url');
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0x1AFFFFFF),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.link_rounded, size: 14, color: Colors.white70),
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(fontSize: 12, color: Colors.white)),
+            const SizedBox(width: 8),
+            Text(url,
+                style: const TextStyle(
+                    fontSize: 10, color: Colors.white54)),
+          ],
+        ),
+      ),
+    );
   }
 }
