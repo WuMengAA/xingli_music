@@ -181,7 +181,11 @@ abstract final class AppVersion {
   /// 百分比/已下载-总量/实时网速）；②**挂后台下载**（全局 otaDownloadProvider 单例，
   /// 关闭更新页下载继续，完成/失败由 AppShell 常驻监听弹全局通知）；③版本号按日期
   /// 推进 day 14→15、buildCount 60→61（0.26.8.15_alpha_cl61），从此版起 OTA 可自动更新。
-  static const int buildCount = 61;
+  /// cl62：G9 多人联机地基——①零依赖 P2P 网络层（dart:io WebSocket 传输 + UDP 局域网
+  /// 发现，无第三方库）；②大厅页（创建主机 / 输入 IP 加入 / 局域网扫描）；③VoxelWorldView3D
+  /// 接入联机：同步方块编辑 + 玩家机位（位置/朝向/视角模式）；一起听（主机为 DJ）架构就位，
+  /// 待下一版接通；buildCount 61→62（0.26.8.15_alpha_cl62）。
+  static const int buildCount = 62;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -237,6 +241,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl62',
+    title: 'G9 多人联机地基：P2P 网络层 + 大厅 + 世界视图接入',
+    details: <String>[
+      '零依赖联网：dart:io WebSocket 传输 + RawDatagramSocket UDP 局域网发现（无第三方库）',
+      '大厅页：创建主机（种子 + 世界选项 + 生存/创造）/ 输入 IP 端口加入 / 局域网扫描列表',
+      'VoxelWorldView3D 接入联机：同步方块编辑 + 玩家机位（位置/朝向/视角模式）',
+      '一起听（主机为 DJ）架构就位，下一版接通播放同步',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl61',

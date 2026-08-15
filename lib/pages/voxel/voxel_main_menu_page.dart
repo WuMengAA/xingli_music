@@ -19,7 +19,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../pages/settings/voxel_game_settings_page.dart';
 import '../../pages/settings/voxel_save_manager_page.dart';
-import '../../providers/settings/notification_providers.dart';
+import '../../pages/voxel/voxel_lobby_page.dart';
 
 /// 星璃世界游戏主菜单页。
 class VoxelMainMenuPage extends ConsumerWidget {
@@ -106,13 +106,17 @@ class VoxelMainMenuPage extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    // E3：多人联机 → 开放世界（开发中占位，走全局通知）。
+                    // E3：多人联机 → 开放世界（G9 联机大厅：创建/加入/局域网）。
                     _MenuButton(
                       icon: Icons.language_rounded,
                       label: '开放世界',
                       accent: accent,
                       ink: ink,
-                      onTap: () => _notify(ref, '开放世界', '开发中，敬请期待'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const VoxelLobbyPage(),
+                        ),
+                      ),
                     ),
                     _MenuButton(
                       icon: Icons.settings_outlined,
@@ -137,11 +141,6 @@ class VoxelMainMenuPage extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  /// D 通知：统一走全局通知（右上角 ≤1/3 宽，不占全屏）。
-  void _notify(WidgetRef ref, String title, String msg) {
-    ref.read(recentNotificationsProvider.notifier).append(title, msg);
   }
 }
 

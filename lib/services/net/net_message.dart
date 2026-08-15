@@ -1,0 +1,60 @@
+/// ════════════════════════════════════════════════════════════════════════
+/// 联机消息协议（G9 多人联机 · 主机-客户端 + WebSocket）
+/// ════════════════════════════════════════════════════════════════════════
+///
+/// 世界地形按 seed 确定性重现，故联机只同步**玩家编辑层 + 玩家位置/视角 +
+/// 状态 + 聊天 + 一起听**，不传地形。消息统一 JSON 信封。
+library;
+
+import 'dart:convert';
+
+/// 消息类型。索引即线上编码（勿重排，否则旧包不兼容）。
+enum NetMsgType {
+  hello, // 加入：上报昵称 / 是否主机
+  welcome, // 主机→新成员：分配 id + 世界 seed/选项 + 成员列表
+  peerJoin, // 广播：有新成员
+  peerLeave, // 广播：成员离开
+  transform, // 玩家位置 / 视角
+  edit, // 方块编辑（破坏 / 放置），payload: x,y,z,v(方块枚举索引)
+  vitals, // 生命 / 饥饿 / 经验
+  chat, // 聊天
+  listenState, // 一起听：当前曲目 + 播放态 + 进度
+  requestListen, // 客户端请求主机当前一起听状态
+  bye, // 主动离开
+  ping, // 心跳
+}
+
+/// 一条网络消息（JSON 信封：t=类型 f=发送方 to=接收方(可选) p=负载）。
+class NetMessage {
+  NetMessage({
+    required this.type,
+    required this.from,
+    this.to,
+    required this.payload,
+  });
+
+  final NetMsgType type;
+  final String from;
+  final String? to;
+  final Map<String, dynamic> payload;
+
+  factory NetMessage.fromJson(Map<String, dynamic> j) => NetMessage(
+        type: NetMsgType.values[(j['t'] as int?) ?? 0],
+        from: j['f'] as String? ?? '',
+        to: j['to'] as String?,
+        payload:
+            (j['p'] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{},
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        't': type.index,
+        'f': from,
+        'to': to,
+        'p': payload,
+      };
+
+  String encode() => jsonEncode(toJson());
+
+  static NetMessage decode(String s) =>
+      NetMessage.fromJson(jsonDecode(s) as Map<String, dynamic>);
+}

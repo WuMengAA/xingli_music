@@ -82,6 +82,7 @@ import 'voxel_save.dart';
 import 'view_mode_button.dart';
 import 'world_audio_engine.dart';
 import '../../widgets/notification/app_notify.dart';
+import '../../providers/net/session_provider.dart';
 
 /// 相机移动方向（D-pad / 键盘按住时累积）。
 enum _Nav { forward, back, left, right, up, down }
@@ -152,6 +153,7 @@ class VoxelWorldView3D extends ConsumerStatefulWidget {
     this.survival = false,
     this.initialSaveData,
     this.readOnly = false,
+    this.multiplayer = false,
   });
 
   final VoxelWorld world;
@@ -172,6 +174,9 @@ class VoxelWorldView3D extends ConsumerStatefulWidget {
 
   /// 是否显示面数 / 列数调试角标（同时是「遮挡剔除」开关）。
   final bool showStats;
+
+  /// G9：是否开启联机模式（注册远端编辑/变换回调、广播本地机位）。
+  final bool multiplayer;
 
   /// H1r2：进入即自动开始游玩（不再显示首屏菜单——主菜单已独立成页）。
   /// false 仅用于测试（停在未开始态）。
@@ -314,6 +319,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // R26r11：走路摇摆——相位按水平位移推进，静止平滑归零（玩家模型四肢摆动）。
   double _walkPhase = 0;
   double _walkSwing = 0;
+
+  // G9：联机远端玩家快照（id → 状态）；收到远端 transform 即更新。
+  final Map<String, PeerInfo> _remotePlayers = <String, PeerInfo>{};
+  // G9：位置广播定时器（~100ms 上报自身机位 / 视角）。
+  Timer? _netBroadcastTimer;
 
   // R26r5：视角 Y 缓冲——跳跃 / 蹲下 / 上升下降时相机高度平滑跟随（不硬切）。
   double _eyeSmoothY = 0;
@@ -677,6 +687,33 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         unawaited(_saveNow());
       });
     }
+
+    // G9：联机模式——注册远端编辑/变换回调，启动 ~100ms 位置广播。
+    if (widget.multiplayer) {
+      final NetSessionNotifier net = ref.read(netSessionProvider.notifier);
+      net.onRemoteEdit = (int x, int y, int z, int v) {
+        widget.world.setVoxel(x, y, z, Voxel.values[v]);
+        _invalidateChunkAt(x, z);
+        _dirty = true;
+      };
+      net.onRemoteTransform = (String id, double x, double y, double z,
+          double yaw, double pitch, int vm) {
+        _remotePlayers[id] = PeerInfo(
+          id: id,
+          x: x,
+          y: y,
+          z: z,
+          yaw: yaw,
+          pitch: pitch,
+          viewMode: vm,
+        );
+        _dirty = true;
+      };
+      _netBroadcastTimer = Timer.periodic(
+        const Duration(milliseconds: 100),
+        (_) => _broadcastMyTransform(),
+      );
+    }
   }
 
   /// 世界空间音效的最终增益（#170）：世界通道音量 × 主音量。
@@ -815,6 +852,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // cl38 P1：_vitals 生命周期由 playerVitalsProvider 管理（ref.onDispose 清理），
     // 此处不再 dispose，避免与 provider 双重 dispose。
     _mobs.clear();
+    // G9：联机清理——取消位置广播并解绑远端回调（世界退出后不再接收远端推送）。
+    _netBroadcastTimer?.cancel();
+    _netBroadcastTimer = null;
+    if (widget.multiplayer) {
+      final NetSessionNotifier net = ref.read(netSessionProvider.notifier);
+      net.onRemoteEdit = null;
+      net.onRemoteTransform = null;
+    }
     super.dispose();
   }
 
@@ -1157,6 +1202,48 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     ];
   }
 
+  /// G9：上报自身机位 / 视角给会话层（~100ms 定时器调用）。
+  void _broadcastMyTransform() {
+    if (!widget.multiplayer) return;
+    final Vec3 p = (_viewMode == _ViewMode.firstPerson ||
+            _viewMode == _ViewMode.thirdPerson)
+        ? _fpPos
+        : _camera.position;
+    ref.read(netSessionProvider.notifier).broadcastTransform(
+          p.x,
+          p.y,
+          p.z,
+          _camera.yaw,
+          _camera.pitch,
+          _viewModeIndex,
+        );
+  }
+
+  /// G9：本地视角模式 → 网络索引（与 [PeerInfo.viewMode] 对齐：
+  /// 0=2.5D 等距 / 1=俯瞰 / 2=第一人称 / 3=第三人称）。
+  int get _viewModeIndex {
+    switch (_viewMode) {
+      case _ViewMode.iso2d5:
+        return 0;
+      case _ViewMode.orbit:
+        return 1;
+      case _ViewMode.firstPerson:
+        return 2;
+      case _ViewMode.thirdPerson:
+        return 3;
+    }
+  }
+
+  /// G9：依 peer id 稳定取色（哈希 → 色相），多人互相区分。
+  Color _peerColor(String id) {
+    int h = 0;
+    for (final int c in id.codeUnits) {
+      h = (h * 31 + c) & 0xffffffff;
+    }
+    final double hue = (h % 360).toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.55, 0.6).toColor();
+  }
+
   /// 组装本帧实体列表：玩家方块人（#169）+ AI 小人 + 僵尸/掉落物。
   ///
   /// 玩家在 [orbit] / [thirdPerson] 下渲染（脚底=_fpPos；orbit 无第一人称位移，
@@ -1182,6 +1269,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     }
     if (_companionEntities.isNotEmpty) ents.addAll(_companionEntities);
     if (!_mobs.isEmpty) ents.addAll(_mobs.toEntities());
+    // G9：联机远端玩家——始终渲染为彩色方块人（本地第一人称不显示自身，
+    // 但其他玩家应可见彼此；依 id 稳定取色区分多人）。
+    for (final PeerInfo peer in _remotePlayers.values) {
+      if (peer.x == null || peer.y == null || peer.z == null) continue;
+      ents.add(VoxelEntity(
+        position: Vec3(peer.x!, peer.y!, peer.z!),
+        color: _peerColor(peer.id),
+        scale: 1.0,
+        lookYaw: peer.yaw,
+        lookPitch: peer.pitch,
+      ));
+    }
     return ents;
   }
 
@@ -1861,6 +1960,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       _lastBreakAt = now;
     }
     w.setVoxel(hit.$1, hit.$2, hit.$3, Voxel.air);
+    if (widget.multiplayer) {
+      ref.read(netSessionProvider.notifier).broadcastEdit(
+        hit.$1, hit.$2, hit.$3, Voxel.values.indexOf(Voxel.air),
+      );
+    }
     _invalidateChunkAt(hit.$1, hit.$3);
     // G4（用户确认「海洋水不会流动」）：破坏方块后，若 4 邻或下方有**任何水**
     // （含海洋/河流天然水），登记该水为水源 → 20tps 扩散流入空腔（MC 海水会
@@ -2737,6 +2841,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final Voxel toPlace = held.item;
     if (toPlace == Voxel.air) return;
     widget.world.setVoxel(px, py, pz, toPlace);
+    if (widget.multiplayer) {
+      ref.read(netSessionProvider.notifier).broadcastEdit(
+        px, py, pz, Voxel.values.indexOf(toPlace),
+      );
+    }
     _invalidateChunkAt(px, pz);
     // G4：放置水 → 登记水源，后续由 20tps 扩散（MC 式，四周 9 格）。
     if (toPlace == Voxel.water) {
@@ -5100,6 +5209,7 @@ class VoxelWorld3DPage extends StatefulWidget {
     this.options,
     this.openCamera = false,
     this.initialSaveData,
+    this.multiplayer = false,
   });
 
   final int seed;
@@ -5109,6 +5219,9 @@ class VoxelWorld3DPage extends StatefulWidget {
 
   /// H1r2：autoStart 时的模式（true=生存 / false=创造）。
   final bool survival;
+
+  /// G9：联机模式（大厅进入时 true）。
+  final bool multiplayer;
 
   /// cl29：新建世界选项（作弊 / 结构 / 浮空岛等）；null = 回落默认全开。
   final WorldOptions? options;
@@ -5185,6 +5298,7 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                 autoStart: widget.autoStart,
                 survival: widget.survival,
                 initialSaveData: widget.initialSaveData,
+                multiplayer: widget.multiplayer,
               ),
             ),
             SafeArea(
