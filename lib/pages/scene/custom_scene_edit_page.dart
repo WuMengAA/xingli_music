@@ -10,11 +10,12 @@ import '../../providers/scene/scene_custom_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/notification/app_notify.dart';
+import '../../widgets/scene/scene_color_panel.dart';
 
 /// 自定义场景编辑（v2 M5-3 · P0-M5-3）。
 ///
 /// 编辑：名称 / 描述（心情文案）/ 心情 / 图标选择 / 显示开关 /
-/// **默认 BGM 选曲（从曲库选曲）**。
+/// **默认 BGM 选曲（从曲库选曲）** / **配色面板（cl53-B 迁入）**。
 ///
 /// 新场景：`id = 'custom_<毫秒>'`，默认视觉取内置「星夜」。
 class CustomSceneEditPage extends ConsumerStatefulWidget {
@@ -150,6 +151,29 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
                       onSelected: (_) => setState(() => _icon = icon),
                     ),
                 ],
+              ),
+              const SizedBox(height: AppSpace.md),
+
+              // cl53-B：配色面板迁入「编辑场景」——自定义主色 / 强调色 /
+              // 背景渐变（原主页四宫格入口已移除）。
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.palette_outlined,
+                    color: context.appColors.iconPrimary),
+                title: Text('配色面板', style: context.appText.body),
+                subtitle: Text('自定义场景主色 / 强调色 / 背景渐变',
+                    style: context.appText.artist),
+                onTap: () => showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: context.appColors.bgSurface,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(AppRadius.lg),
+                    ),
+                  ),
+                  builder: (_) => SceneColorPanel(scene: base),
+                ),
               ),
               const SizedBox(height: AppSpace.md),
 

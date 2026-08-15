@@ -13,7 +13,6 @@ import '../../providers/settings/performance_providers.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
-import '../../widgets/scene/scene_color_panel.dart';
 import '../../widgets/playback/music_card.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
@@ -21,7 +20,6 @@ import '../../pages/voxel/voxel_main_menu_page.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
-import '../../services/log_service.dart';
 
 /// 主页 · 场景内容（原场景页合并进主页，R1/R2）
 ///
@@ -63,7 +61,8 @@ class HomeSceneContent extends ConsumerWidget {
             ref.read(sceneBgAnimProvider.notifier).state = next;
           },
         ),
-        _GlowEntryButton(onTap: () => _showEntrySheet(context, ref)),
+        // cl53-B：去掉主页上方四宫格（3D 世界 + 配色面板）入口——
+        // 3D 世界从「世界」Tab 进入；配色面板迁入「长按场景卡 → 编辑场景」页。
         // cl29·②：相机功能迁入 Scene 模块——场景页直接可达「拍照取景」。
         // 用户确认：进入前询问「基于哪个存档/世界进入」——拍照取景基于
         // 存档的种子世界，避免总是新建一个空白默认世界。
@@ -88,12 +87,10 @@ class HomeSceneContent extends ConsumerWidget {
           // ⚠️ 仅场景页/播放器背景；3D 游戏内不放视频（用户明确要求）。
           if (capture != null && bgOn)
             Positioned.fill(
-              // cl52-E：主页视频背景顶部圆角（与其它页面玻璃表面一致），
-              // 避免直角贴顶显得突兀。
+              // cl53-F1：主页视频背景四角圆角（与 ContentContainer 玻璃表面
+              // 一致），顶部底部都圆角，避免直角贴边显得突兀。
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.xl),
-                ),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
                 child: SceneVideoBackground(
                   fallback: VoxelSceneBackground(
                     key: ValueKey(capture),
@@ -229,79 +226,6 @@ class HomeSceneContent extends ConsumerWidget {
     );
   }
 
-  /// R26fix：进入 3D 世界必须选存档（修复「绕过存档管理直接进全新世界」）。
-  /// R26skel：改为跳转**游戏主菜单**——游戏唯一入口，跳转最远到主菜单；
-  /// 存档经主菜单「世界存档」进入，其他地方不允许新建/跳转/恢复存档。
-  Future<void> _openWorldWithSaveChoice(
-      BuildContext context, WidgetRef ref) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const VoxelMainMenuPage()),
-    );
-  }
-
-  Future<void> _showEntrySheet(BuildContext context, WidgetRef ref) async {
-    LogService.instance.i('ui', '场景入口弹层：开始打开');
-    try {
-      await showModalBottomSheet<void>(
-        context: context,
-        backgroundColor: context.appColors.bgSurface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-        ),
-        builder: (BuildContext sheetContext) {
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                ListTile(
-                  leading: Icon(
-                    Icons.auto_awesome,
-                    color: context.appColors.iconPrimary,
-                  ),
-                  title: Text('3D 世界', style: context.appText.body),
-                  subtitle: Text('全屏进入体素世界（经典方块人 / 自由探索）', style: context.appText.artist),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _openWorldWithSaveChoice(context, ref);
-                  },
-                ),
-                // M5-4 新增第三项：配色面板（P0-M5-4）
-                ListTile(
-                  leading: Icon(
-                    Icons.palette_outlined,
-                    color: context.appColors.iconPrimary,
-                  ),
-                  title: Text('配色面板', style: context.appText.body),
-                  subtitle: Text('自定义当前场景主色 / 强调色 / 背景渐变', style: context.appText.artist),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    final Scene scene = ref.read(activeSceneProvider);
-                    showModalBottomSheet<void>(
-                      context: context,
-                      backgroundColor: context.appColors.bgSurface,
-                      isScrollControlled: true,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(AppRadius.lg),
-                        ),
-                      ),
-                      builder: (_) => SceneColorPanel(scene: scene),
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      );
-      LogService.instance.d('ui', '场景入口弹层：已关闭');
-    } catch (e) {
-      // 弹层期间任何 Dart 异常：记录不静默（native 崩溃则进程直接消失，
-      // 此时只有「开始打开」一条日志，可据此二分）。
-      LogService.instance.e('ui', '场景入口弹层异常: $e');
-    }
-  }
-
   /// cl29·②：场景评估底部弹层——展示当前场景取景快照的评估信息。
   Future<void> _showEvalSheet(BuildContext context, WidgetRef ref) async {
     final Scene scene = ref.read(activeSceneProvider);
@@ -378,49 +302,6 @@ class _VoxelBgToggle extends StatelessWidget {
               color: enabled
                   ? context.appColors.accent
                   : context.appColors.iconPrimary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlowEntryButton extends StatelessWidget {
-  const _GlowEntryButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: AppSize.touchMin,
-      height: AppSize.touchMin,
-      alignment: Alignment.center,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: context.appColors.bgSurface,
-              border: Border.all(color: context.appColors.accentSoft, width: 1.5),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: context.appColors.accentSoft,
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.grid_view_rounded,
-              size: AppSize.iconSm,
-              color: context.appColors.iconPrimary,
             ),
           ),
         ),

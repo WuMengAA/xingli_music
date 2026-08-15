@@ -200,10 +200,23 @@ class _AppShellState extends ConsumerState<AppShell> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.only(bottom: bottomPad),
-                            child: IndexedStack(
-                              index: pageIndex,
-                              children: _pages,
-                            ),
+                            // cl53-E：非主页内容区底部做圆角（与音乐卡/玻璃
+                            // 表面衔接），主页内容自带场景视频背景不裁。
+                            child: pageIndex == ShellPage.home
+                                ? IndexedStack(
+                                    index: pageIndex,
+                                    children: _pages,
+                                  )
+                                : ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(
+                                      bottom:
+                                          Radius.circular(AppRadius.lg),
+                                    ),
+                                    child: IndexedStack(
+                                      index: pageIndex,
+                                      children: _pages,
+                                    ),
+                                  ),
                           ),
                         ),
                         if (pageIndex != ShellPage.home) ...<Widget>[

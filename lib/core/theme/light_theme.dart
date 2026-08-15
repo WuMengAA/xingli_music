@@ -15,11 +15,52 @@
 /// `Theme(data: buildAppTheme(primary))` 局部覆盖。
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app_theme_colors.dart';
 import 'light_tokens.dart';
+
+/// cl53-F3：全局统一页面过渡（淡入 + 轻微上滑），浅/深主题共用。
+///
+/// 所有 `MaterialPageRoute` 自动套用，消灭各页手写转场的差异，
+/// 建立一致的「动效系统」基础；后续可在此扩展其它统一动效。
+const PageTransitionsTheme kAppPageTransitions = PageTransitionsTheme(
+  builders: <TargetPlatform, PageTransitionsBuilder>{
+    TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+    TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
+    TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+    TargetPlatform.linux: FadeForwardsPageTransitionsBuilder(),
+  },
+);
+
+/// 页面过渡构建器：淡入 + 轻微上滑（2%），比默认 Zoom 更克制、统一。
+class FadeForwardsPageTransitionsBuilder extends PageTransitionsBuilder {
+  const FadeForwardsPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (route.settings.name == Navigator.defaultRouteName) return child;
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.02),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
+    );
+  }
+}
 
 
 /// 全局唯一浅色主题实例（一次性构建，不随任何 Provider 变化）。
@@ -72,6 +113,8 @@ ThemeData buildLightTheme() {
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: kLightColorScheme,
+    // cl53-F3：统一页面过渡动效（浅色主题）。
+    pageTransitionsTheme: kAppPageTransitions,
     // R16：全局语义色（浅色值）
     extensions: const <ThemeExtension<dynamic>>[AppThemeColors.light],
     scaffoldBackgroundColor: AppColors.bgPage,
@@ -383,6 +426,8 @@ ThemeData buildDarkTheme(Color primary) {
 
   return ThemeData(
     useMaterial3: true,
+    // cl53-F3：统一页面过渡动效（深色主题）。
+    pageTransitionsTheme: kAppPageTransitions,
     // R16：全局语义色（深色值 + 皮肤主色）
     extensions: <ThemeExtension<dynamic>>[
       AppThemeColors.dark.withSkin(primary, Brightness.dark),

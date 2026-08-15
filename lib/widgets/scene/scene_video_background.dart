@@ -63,12 +63,30 @@ class _SceneVideoBackgroundState extends ConsumerState<SceneVideoBackground> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _sync());
     // 周期性校正：进度同步 + 变速适配（默认 500ms）。
     _syncTimer = Timer.periodic(const Duration(milliseconds: 500), _onTick);
+    // cl53-F6：跟随音乐播放状态——暂停时视频暂停，播放时继续，停止则回退。
+    _playingSub = ref.read(audioServiceProvider).playingStream.listen(
+          _onPlayingChanged,
+        );
+  }
+
+  StreamSubscription<bool>? _playingSub;
+
+  void _onPlayingChanged(bool playing) {
+    if (!mounted || !_videoReady || _player == null) return;
+    final Player p = _player!;
+    if (playing) {
+      unawaited(p.play());
+    } else {
+      unawaited(p.pause());
+    }
   }
 
   @override
   void dispose() {
     _syncTimer?.cancel();
     _syncTimer = null;
+    _playingSub?.cancel();
+    _playingSub = null;
     _teardown();
     super.dispose();
   }
@@ -194,10 +212,9 @@ class _SceneVideoBackgroundState extends ConsumerState<SceneVideoBackground> {
       }
     }
     if (tempo) {
-      final Duration? vDur = p.state.duration;
+      final Duration vDur = p.state.duration;
       final Duration? mDur = ref.read(musicDurationProvider).value;
-      if (vDur != null &&
-          mDur != null &&
+      if (mDur != null &&
           vDur.inSeconds > 0 &&
           mDur.inSeconds > 0) {
         // 时长相差 > 5s 才调速，避免轻微差异引发速率抖动。

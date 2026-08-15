@@ -255,7 +255,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'lodMaxChunks', title: 'LOD 最远距离', kind: SettingKind.slider),
             SettingItem(id: 'outlineToggle', title: '方块描边', kind: SettingKind.toggle),
             SettingItem(id: 'boundaryFog', title: '边界雾', kind: SettingKind.toggle),
-            SettingItem(id: 'engineBackend', title: '图形后端', kind: SettingKind.chips),
             SettingItem(id: 'renderPrecision', title: '几何精度（面数）', kind: SettingKind.chips),
             SettingItem(id: 'faceCull', title: '侧面剔除', kind: SettingKind.toggle),
             SettingItem(id: 'occlusionCull', title: '遮挡剔除', kind: SettingKind.toggle),
@@ -265,7 +264,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'flashlight', title: '手电筒模式', kind: SettingKind.toggle),
             SettingItem(id: 'waterFlow', title: '水流动', kind: SettingKind.toggle),
             SettingItem(id: 'aoRender', title: '环境光屏蔽（AO）', kind: SettingKind.toggle),
-            SettingItem(id: 'fxNoise', title: '噪点纹理', kind: SettingKind.toggle),
           ],
         ),
         // 机制：存档机制 / 世界机制 / 自定义世界机制。
@@ -319,6 +317,21 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'sceneBgWater', title: '水波动画', kind: SettingKind.toggle),
             SettingItem(id: 'sceneBgSky', title: '天空渐变', kind: SettingKind.toggle),
             SettingItem(id: 'sceneBgAnim', title: '动画', kind: SettingKind.toggle),
+          ],
+        ),
+        // cl53-F2：把误排在「游戏 · 渲染高级」里的**全局个性**迁回本合集
+        // （图形后端 / 噪点 / 玻璃模糊 / 背景动画 / 液态玻璃 / 全局画面预设），
+        // 它们影响的是整个 App 的界面质感，不属于游戏预设。
+        SettingGroup(
+          id: 'visual_fx',
+          name: '画面特效',
+          items: <SettingItem>[
+            SettingItem(id: 'picturePreset', title: '全局画面预设'),
+            SettingItem(id: 'engineBackend', title: '图形后端', kind: SettingKind.chips),
+            SettingItem(id: 'fxNoise', title: '噪点纹理', kind: SettingKind.toggle),
+            SettingItem(id: 'fxBlur', title: '玻璃模糊', kind: SettingKind.toggle),
+            SettingItem(id: 'fxBg', title: '背景动画', kind: SettingKind.toggle),
+            SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）', kind: SettingKind.toggle),
           ],
         ),
       ],

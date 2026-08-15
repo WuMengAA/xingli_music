@@ -295,11 +295,9 @@ class _TimeSinkPage extends ConsumerWidget {
 
   Future<void> _play(WidgetRef ref, BuildContext context, Track? t) async {
     if (t == null || !context.mounted) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('曲库中找不到该曲目', style: context.appText.caption),
-        ));
-      }
+      // cl53-F5：报错通知走全局通知（与全局通知一致，多并行竖向排布），
+      // 不再用 SnackBar（样式割裂、单条易被吞）。
+      if (context.mounted) appNotify(context, '曲库中找不到该曲目');
       return;
     }
     final String msg = await ref.read(playbackActionsProvider).playTrack(t);

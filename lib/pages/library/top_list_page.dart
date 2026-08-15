@@ -11,6 +11,7 @@ import '../../models/track_stats.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/notification/app_notify.dart';
 
 class TopListPage extends ConsumerWidget {
   const TopListPage({super.key});
@@ -134,13 +135,9 @@ class TopListPage extends ConsumerWidget {
                         onTap: () async {
                           final Track? t = await _match(
                               ref, s.title, s.artist, s.sourceId);
+                          // cl53-F5：报错通知走全局通知（与全局通知一致）。
                           if (t == null || !c.mounted) {
-                            if (c.mounted) {
-                              ScaffoldMessenger.of(c).showSnackBar(SnackBar(
-                                content: Text('曲库中找不到该曲目',
-                                    style: context.appText.caption),
-                              ));
-                            }
+                            if (c.mounted) appNotify(c, '曲库中找不到该曲目');
                             return;
                           }
                           await ref.read(audioServiceProvider).playMusic(t);
