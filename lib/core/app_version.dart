@@ -201,6 +201,15 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl71：渲染性能优化·消除云层 _cloudQuad 每帧堆分配（cl68-O4/cl69/cl70 同源收尾）——
+  /// 云层每帧约 100 面（默认 cloudChunks=3 → ±48 格 / 7 格间距，噪声筛掉约半数），
+  /// 原每云面经 `<double>[12]`（4 角世界坐标）+ `Float32List(8)`（投影缓冲）两次堆分配，
+  /// 每帧约 200 次小分配（GC 压力，虽小于地形/实体但属同序列残留）。改为复用模块级
+  /// 单例 scratch（_cloudQuadScratch / _cloudXyScratch），发射路径零堆分配。
+  /// _cloudQuad 同步消费两缓冲（projectWith 投影 → pushFace 首行即取标量拷贝入批量缓冲、
+  /// 不持有引用；_emitClouds 顺序调用、每面同步消费完才返回），复用安全、视觉零变化；
+  /// 至此地形 / LOD / 实体 / 云四类每帧发射路径的每帧堆分配已全部清零；
+  /// buildCount 70→71（0.26.8.15_alpha_cl71）。
   /// cl70：渲染性能优化·消除实体 _emitBox / _skinUV 每帧堆分配（cl68-O4/cl69 同源收尾）——
   /// 实体（玩家/同伴/掉落物）每个 _emitBox 原每 box 分配 8 角 list + 6 个 12 元素
   /// quad list + faceOrder list + 每面 Float32List(8) 投影缓冲；_skinUV 每皮肤面
@@ -235,7 +244,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 70;
+  static const int buildCount = 71;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -291,6 +300,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl71',
+    title: '渲染性能优化：消除云层 _cloudQuad 每帧堆分配',
+    details: <String>[
+      '云层每帧约 100 面（默认 cloudChunks=3 → ±48 格 / 7 格间距，噪声筛掉约半数），原每云面经 <double>[12]（4 角世界坐标）+ Float32List(8)（投影缓冲）两次堆分配，每帧约 200 次小分配',
+      '改为复用模块级单例 scratch（_cloudQuadScratch / _cloudXyScratch），发射路径零堆分配',
+      '_cloudQuad 同步消费两缓冲（projectWith 投影 → pushFace 首行即取标量拷贝入批量缓冲、不持有引用；_emitClouds 顺序调用、每面同步消费完才返回），复用安全、视觉零变化（cl68-O4/cl69/cl70 同源收尾）',
+      '至此地形 / LOD / 实体 / 云四类每帧发射路径的每帧堆分配已全部清零；buildCount 70→71（0.26.8.15_alpha_cl71）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl70',

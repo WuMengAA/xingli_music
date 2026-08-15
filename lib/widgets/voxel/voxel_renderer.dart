@@ -1966,8 +1966,15 @@ abstract final class VoxelRenderer {
     void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
     int argb,
   ) {
-    final List<double> c = <double>[x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1];
-    final Float32List xy = Float32List(8);
+    // cl71：4 角世界坐标直接写入复用缓冲 _cloudQuadScratch（不再每云面分配
+    // <double>[12]）；xy 复用 _cloudXyScratch（与 _lodXyScratch 同 lineage），
+    // 发射路径零堆分配。
+    final Float64List c = _cloudQuadScratch;
+    c[0] = x0; c[1] = y; c[2] = z0;
+    c[3] = x1; c[4] = y; c[5] = z0;
+    c[6] = x1; c[7] = y; c[8] = z1;
+    c[9] = x0; c[10] = y; c[11] = z1;
+    final Float32List xy = _cloudXyScratch;
     double depthSum = 0;
     bool clipped = false;
     for (int i = 0; i < 4; i++) {
@@ -3137,6 +3144,11 @@ abstract final class VoxelRenderer {
     (1.0, 1.0),
     (0.0, 1.0),
   ];
+
+  // cl71：云层 _cloudQuad 复用缓冲（与 _lodXyScratch / _boxXyScratch 同 lineage，
+  // 消除每云面 <double>[12] + Float32List(8) 的每帧堆分配）。
+  static final Float64List _cloudQuadScratch = Float64List(12); // 4 角世界坐标
+  static final Float32List _cloudXyScratch = Float32List(8);
 
   static Float64List _fillLodQuad(
     double x0, double y0, double z0,
