@@ -151,7 +151,12 @@ abstract final class AppVersion {
   /// ④视频背景跟随音乐播放状态（暂停/播放同步）+ 四角圆角。
   /// ⑤报错通知统一走全局通知（多并行竖向）。⑥非主页内容区底部圆角衔接
   /// 音乐卡。
-  static const int buildCount = 53;
+  /// cl54：①B站视频画质默认 360p，可选 720/1080/大会员 1080 60fps（DASH
+  /// 按清晰度 id 精确选档）；②修复播放顺序无法应用（recordPlayOrderProvider
+  /// 首帧 .valueOrNull 为 null 导致回退字母序，改 await future）；
+  /// ③全局画面预设重构四档（省电/流畅/标准/高质，含简介与省电提醒、帧率联动）；
+  /// ④设置-关于-存储（软件占用空间统计）。
+  static const int buildCount = 54;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -207,6 +212,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl54',
+    title: '视频画质档扩展 + 播放顺序修复 + 全局预设四档 + 存储统计',
+    details: <String>[
+      'B站背景视频画质默认 360p，可选 720 / 1080 / 大会员 1080 60fps（DASH 按清晰度 id 精确选档，未命中自动回退最接近高档）',
+      '修复「播放顺序无法应用」：播放记录顺序首帧读取为 null 导致回退字母序，改为等待真实记录顺序',
+      '全局画面预设重构为四档：省电（关动效/帧率 24fps/提醒省电）、流畅（无特效+低模糊）、标准（标准特效+毛玻璃）、高质（全特效+液态玻璃），切换时展示档位简介',
+      '设置 → 关于 → 存储：查看软件占用空间（数据 / 日志 / 临时文件分类统计）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl53',

@@ -106,10 +106,13 @@ class BilibiliSource implements MusicSource {
 
   /// 解析 B站视频的**画面流**（场景背景用；背景视频默认静音，只听主音乐）。
   ///
-  /// [qualityIndex] 透传 [BilibiliApi.resolveVideoUrl]（0=最高/自动）。
-  Future<String> resolveVideoUrl(String bvid, {int qualityIndex = 0}) async {
+  /// [qualityIndex] 透传 [BilibiliApi.resolveVideoUrl]（0=最高/自动）；
+  /// [preferDashId]（cl54-G1）按清晰度 id 精确选档（16/64/80/116）。
+  Future<String> resolveVideoUrl(String bvid,
+      {int qualityIndex = 0, int? preferDashId}) async {
     try {
-      return await api.resolveVideoUrl(bvid, qualityIndex: qualityIndex);
+      return await api.resolveVideoUrl(bvid,
+          qualityIndex: qualityIndex, preferDashId: preferDashId);
     } on BilibiliApiException catch (e) {
       throw BilibiliResolveException(
         e.isAuthFailure ? 'B站登录态已失效，请重新登录' : 'B站视频画面获取失败（${e.code}）',

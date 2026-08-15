@@ -37,10 +37,9 @@ class PlaybackActions {
     if (library.isEmpty) return '曲库为空，请先在曲库设置添加音乐';
     final Track? current = ref.read(nowPlayingProvider);
     // cl51-A：默认下一首按播放记录（最近播放在前），可后续手动排序。
-    final List<String> order = ref
-        .read(recordPlayOrderProvider)
-        .valueOrNull ??
-        const <String>[];
+    // cl54-G4：修复「播放顺序无法应用」——FutureProvider 用 .valueOrNull
+    // 首帧为 null 导致永远回退字母序；改为 await future 拿到真实记录顺序。
+    final List<String> order = await ref.read(recordPlayOrderProvider.future);
     final Track? chosen;
     if (current != null &&
         library.any((t) => t.uri == current.uri)) {
@@ -69,14 +68,15 @@ class PlaybackActions {
     final List<Track> library =
         await ref.read(effectiveMusicLibraryProvider.future);
     if (library.isEmpty) return '曲库为空，请先在曲库设置添加音乐';
-    final Track target = _sceneDefaultTrack(library);
+    final Track target = await _sceneDefaultTrack(library);
     return _play(target);
   }
 
   /// 取「当前场景默认曲目」：场景 `track` 名称在曲库中匹配到则用它，
   /// 否则按播放记录顺序取最近播过的曲目；都没有回退 `library.first`
   /// （R6，避免无脑正序第一首；cl51-A 增加记录顺序）。
-  Track _sceneDefaultTrack(List<Track> library) {
+  /// cl54-G4：await recordPlayOrderProvider.future（.valueOrNull 首帧为 null）。
+  Future<Track> _sceneDefaultTrack(List<Track> library) async {
     final Scene scene = ref.read(activeSceneProvider);
     final String name = scene.track;
     if (name.isNotEmpty) {
@@ -86,10 +86,7 @@ class PlaybackActions {
         }
       }
     }
-    final List<String> order = ref
-            .read(recordPlayOrderProvider)
-            .valueOrNull ??
-        const <String>[];
+    final List<String> order = await ref.read(recordPlayOrderProvider.future);
     if (order.isNotEmpty) {
       for (final String key in order) {
         for (final Track t in library) {

@@ -92,19 +92,16 @@ class _MusicQualitySheet extends ConsumerWidget {
                 for (final BiliVideoQuality q in BiliVideoQuality.values)
                   ChoiceChip(
                     label: Text(
+                      // cl54-G1：1080p60（116）需大会员。
                       q.label +
-                          ((q == BiliVideoQuality.ultra ||
-                                  q == BiliVideoQuality.uhd4k) &&
-                                  !biVip
+                          (q == BiliVideoQuality.p1080p60 && !biVip
                               ? ' · 需大会员'
                               : ''),
                       style: context.appText.caption,
                     ),
                     selected: bq == q,
                     onSelected:
-                        (q == BiliVideoQuality.ultra ||
-                                q == BiliVideoQuality.uhd4k) &&
-                                !biVip
+                        (q == BiliVideoQuality.p1080p60 && !biVip)
                             ? null
                             : (_) =>
                                 ref.read(biliVideoQualityProvider.notifier).state = q,

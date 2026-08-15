@@ -154,16 +154,11 @@ class _SceneVideoBackgroundState extends ConsumerState<SceneVideoBackground> {
           return;
         }
         final BiliVideoQuality bq = ref.read(biliVideoQualityProvider);
-        // 清晰度档 → DASH 档位索引（0=最高；smooth 取最低=大索引被 api 夹到末档）。
-        final int qIdx = switch (bq) {
-          BiliVideoQuality.auto || BiliVideoQuality.uhd4k => 0,
-          BiliVideoQuality.ultra => 1,
-          BiliVideoQuality.hd => 2,
-          BiliVideoQuality.smooth => 16,
-        };
+        // cl54-G1：按清晰度 id 精确选档（16=360p / 64=720p / 80=1080p /
+        // 116=1080p60），未命中由 API 回退最接近高档。
         final String url = await ref
             .read(bilibiliSourceProvider)
-            .resolveVideoUrl(vids.first.bvid, qualityIndex: qIdx);
+            .resolveVideoUrl(vids.first.bvid, preferDashId: bq.dashId);
         if (!mounted || key != _currentKey) return;
         final Player p = Player();
         final VideoController vc = VideoController(p);

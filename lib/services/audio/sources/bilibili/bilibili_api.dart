@@ -434,7 +434,15 @@ class BilibiliApi {
   ///
   /// [qualityIndex]：0 = 最高可用（自动）；越大取越低档（1 = 次高、
   /// 2 = 三档…）。自动夹到可用档数内。
-  Future<String> resolveVideoUrl(String bvid, {int qualityIndex = 0}) async {
+  ///
+  /// [preferDashId]（cl54-G1）：指定 DASH 清晰度 id（16=360p / 64=720p /
+  /// 80=1080p / 116=1080p60），命中则精确选该档；未命中回退到最接近的高档。
+  /// 与 [qualityIndex] 二选一，preferDashId 优先。
+  Future<String> resolveVideoUrl(
+    String bvid, {
+    int qualityIndex = 0,
+    int? preferDashId,
+  }) async {
     final dynamic body = await _getJson(
       await _signedPlayUrl(bvid),
       withCookie: true,
@@ -455,8 +463,25 @@ class BilibiliApi {
       ..sort((dynamic a, dynamic b) =>
           ((b as Map)['bandwidth'] as num? ?? 0)
               .compareTo(((a as Map)['bandwidth'] as num? ?? 0)));
-    final int idx = qualityIndex.clamp(0, sorted.length - 1);
-    final dynamic pick = sorted[idx];
+
+    // cl54-G1：优先按清晰度 id 精确匹配；未命中回退到最接近的高档。
+    dynamic pick;
+    if (preferDashId != null) {
+      final List<dynamic> byId = List<dynamic>.of(sorted).where(
+        (dynamic v) => ((v as Map)['id'] as num? ?? 0) == preferDashId,
+      ).toList();
+      if (byId.isNotEmpty) {
+        pick = byId.first;
+      } else {
+        // 无精确档：选「不低于目标」的最低档，否则取最高档。
+        final List<dynamic> ge = sorted.where((dynamic v) =>
+            ((v as Map)['id'] as num? ?? 0) >= preferDashId).toList();
+        pick = ge.isNotEmpty ? ge.last : sorted.first;
+      }
+    } else {
+      final int idx = qualityIndex.clamp(0, sorted.length - 1);
+      pick = sorted[idx];
+    }
     final String? base = (pick as Map)['baseUrl'] as String?;
     if (base != null && base.isNotEmpty) return base;
     final dynamic backups = pick['backupUrl'];

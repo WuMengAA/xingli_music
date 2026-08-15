@@ -356,64 +356,99 @@ final renderPrecisionScaleProvider = StateProvider<double>((ref) => 1.0);
 /// 几何精度（面数倍率 0.5×/1×/1.5×/2×；乘 maxFaces，与渲染分辨率无关）。
 final renderPrecisionProvider = StateProvider<double>((ref) => 1.0);
 
-// ── 全局画面预设（精度 + 模糊 + 噪点 + 动画 一键套用）──────────────
+// ── 全局画面预设（精度 + 模糊 + 噪点 + 动画 + 液态玻璃 + 帧率 一键套用）──
 
-/// 全局画面预设。
+/// 全局画面预设（cl54-G5：四档——省电 / 流畅 / 标准 / 高质）。
 enum PicturePreset {
-  eco('省电'),
-  standard('标准'),
-  high('高画质'),
-  ultra('极致');
+  powerSave(
+    '省电',
+    '关闭所有动效、保留不透明、限制全局帧率 24fps，并提醒省电',
+  ),
+  smooth(
+    '流畅',
+    '无特效 + 低特效毛玻璃，但毛玻璃限制帧率 5fps',
+  ),
+  standard(
+    '标准',
+    '标准特效 + 标准毛玻璃，限制毛玻璃模糊 24fps',
+  ),
+  high(
+    '高质',
+    '开启所有特效 + 液态玻璃，模糊 30fps',
+  );
 
-  const PicturePreset(this.label);
+  const PicturePreset(this.label, this.blurb);
   final String label;
+
+  /// 档位简介（OOBE / 设置页展示）。
+  final String blurb;
 
   /// 渲染精度（分辨率倍率）。
   double get precision => const <PicturePreset, double>{
-        PicturePreset.eco: 0.5,
+        PicturePreset.powerSave: 0.5,
+        PicturePreset.smooth: 0.75,
         PicturePreset.standard: 1.0,
-        PicturePreset.high: 1.0,
-        PicturePreset.ultra: 1.5,
+        PicturePreset.high: 1.25,
       }[this]!;
 
   /// 噪点纹理覆盖（null = 跟随档位）。
   bool? get noise => const <PicturePreset, bool?>{
-        PicturePreset.eco: false,
-        PicturePreset.standard: null,
-        PicturePreset.high: false,
-        PicturePreset.ultra: false,
+        PicturePreset.powerSave: false,
+        PicturePreset.smooth: false,
+        PicturePreset.standard: true,
+        PicturePreset.high: true,
       }[this]!;
 
   /// 玻璃模糊强度覆盖（null = 跟随档位）。
   double? get blur => const <PicturePreset, double?>{
-        PicturePreset.eco: 0.0,
-        PicturePreset.standard: null,
-        PicturePreset.high: 12.0,
-        PicturePreset.ultra: 16.0,
+        PicturePreset.powerSave: 0.0,
+        PicturePreset.smooth: 4.0,
+        PicturePreset.standard: 8.0,
+        PicturePreset.high: 14.0,
+      }[this]!;
+
+  /// 玻璃模糊渲染帧率（毛玻璃采样上限；省电=关模糊，不适用）。
+  int get blurFps => const <PicturePreset, int>{
+        PicturePreset.powerSave: 0,
+        PicturePreset.smooth: 5,
+        PicturePreset.standard: 24,
+        PicturePreset.high: 30,
       }[this]!;
 
   /// 背景动画覆盖（null = 跟随档位）。
   bool? get anim => const <PicturePreset, bool?>{
-        PicturePreset.eco: false,
-        PicturePreset.standard: null,
+        PicturePreset.powerSave: false,
+        PicturePreset.smooth: false,
+        PicturePreset.standard: true,
         PicturePreset.high: true,
-        PicturePreset.ultra: true,
       }[this]!;
 
   /// 液态玻璃覆盖（null = 跟随档位）。
   bool? get liquid => const <PicturePreset, bool?>{
-        PicturePreset.eco: false,
-        PicturePreset.standard: null,
+        PicturePreset.powerSave: false,
+        PicturePreset.smooth: false,
+        PicturePreset.standard: false,
         PicturePreset.high: true,
-        PicturePreset.ultra: true,
       }[this]!;
+
+  /// 全局帧率限制（0 = 不覆盖，跟随现有档位）。
+  FpsLimit? get fps => const <PicturePreset, FpsLimit?>{
+        PicturePreset.powerSave: FpsLimit.fps24,
+        PicturePreset.smooth: FpsLimit.fps30,
+        PicturePreset.standard: FpsLimit.fps45,
+        PicturePreset.high: null,
+      }[this]!;
+
+  /// 是否「省电」档（套用时提醒）。
+  bool get isPowerSave => this == PicturePreset.powerSave;
 }
 
 /// 当前画面预设（纯 UI 状态；套用预设会一次性写入各特效 override）。
 final picturePresetProvider =
     StateProvider<PicturePreset>((ref) => PicturePreset.standard);
 
-/// 套用画面预设：一次设好 渲染精度 + 模糊 + 噪点 + 背景动画 + 液态玻璃。
+/// 套用画面预设：一次设好 渲染精度 + 模糊 + 噪点 + 背景动画 + 液态玻璃 +
+/// 全局帧率（cl54-G5）。
 void applyPicturePreset(WidgetRef ref, PicturePreset p) {
   ref.read(picturePresetProvider.notifier).state = p;
   ref.read(renderPrecisionScaleProvider.notifier).state = p.precision;
@@ -421,6 +456,10 @@ void applyPicturePreset(WidgetRef ref, PicturePreset p) {
   ref.read(glassBlurOverrideProvider.notifier).state = p.blur;
   ref.read(bgAnimationOverrideProvider.notifier).state = p.anim;
   ref.read(liquidGlassOverrideProvider.notifier).state = p.liquid;
+  final FpsLimit? fps = p.fps;
+  if (fps != null) {
+    ref.read(fpsLimitProvider.notifier).state = fps;
+  }
 }
 
 /// OOBE 完成标记（首次启动欢迎页；完成后不再显示）。

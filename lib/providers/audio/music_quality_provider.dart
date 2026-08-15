@@ -26,26 +26,28 @@ enum MusicQuality {
   final String label;
 }
 
-/// B站清晰度档。
+/// B站清晰度档（cl54-G1：默认 360p；可选 720 / 1080 / 大会员 1080 60fps）。
 enum BiliVideoQuality {
-  auto('自动'),
-  smooth('流畅'),
-  hd('高清'),
-  ultra('超清'),
-  uhd4k('4K');
+  p360('360p', 16),
+  p720('720p', 64),
+  p1080('1080p', 80),
+  p1080p60('大会员 1080 60fps', 116);
 
-  const BiliVideoQuality(this.label);
+  const BiliVideoQuality(this.label, this.dashId);
 
   final String label;
+
+  /// B站 DASH 视频流清晰度 id（16=360p / 64=720p / 80=1080p / 116=1080p60）。
+  final int dashId;
 }
 
 /// 网易云音质档（默认「高」；无损需 VIP）。
 final musicQualityProvider =
     StateProvider<MusicQuality>((ref) => MusicQuality.high);
 
-/// B站清晰度档（默认「自动」= 按登录态取最高可用）。
+/// B站清晰度档（cl54-G1：默认 360p，节省流量、稳定）。
 final biliVideoQualityProvider =
-    StateProvider<BiliVideoQuality>((ref) => BiliVideoQuality.auto);
+    StateProvider<BiliVideoQuality>((ref) => BiliVideoQuality.p360);
 
 /// 网易云 VIP（自动识别；未登录 false）。
 final neteaseVipProvider = Provider<bool>(

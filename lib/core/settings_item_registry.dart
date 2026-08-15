@@ -45,6 +45,7 @@ import '../widgets/common/state_chip.dart';
 import '../widgets/notification/notification_center.dart';
 import '../widgets/settings/llm_settings_sheet.dart';
 import '../widgets/settings/log_upload_sheet.dart';
+import '../widgets/settings/storage_usage_sheet.dart';
 import '../widgets/sources/netease_login_sheet.dart';
 import '../widgets/sources/bilibili_login_sheet.dart';
 import 'app_version.dart';
@@ -520,20 +521,15 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
             value: ref.watch(biliVideoQualityProvider),
             values: BiliVideoQuality.values,
             labels: <String>[
+              // cl54-G1：1080p60（116）需大会员。
               for (final BiliVideoQuality q in BiliVideoQuality.values)
                 q.label +
-                    ((q == BiliVideoQuality.ultra ||
-                            q == BiliVideoQuality.uhd4k) &&
-                            !vip
+                    (q == BiliVideoQuality.p1080p60 && !vip
                         ? ' · 需大会员'
                         : ''),
             ],
             onChanged: (BiliVideoQuality q) {
-              if ((q == BiliVideoQuality.ultra ||
-                      q == BiliVideoQuality.uhd4k) &&
-                  !vip) {
-                return;
-              }
+              if (q == BiliVideoQuality.p1080p60 && !vip) return;
               ref.read(biliVideoQualityProvider.notifier).state = q;
             },
           ),
@@ -1418,15 +1414,31 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('全局画面预设 · 一键套用（精度 + 模糊 + 噪点 + 动画）',
+          Text('全局画面预设 · 一键套用（精度 + 模糊 + 噪点 + 动画 + 帧率）',
               style: Theme.of(context).textTheme.bodyMedium),
           const SizedBox(height: 6),
           _chips<PicturePreset>(
             ref: ref,
             value: p,
             values: PicturePreset.values,
-            labels: <String>[for (final PicturePreset x in PicturePreset.values) x.label],
-            onChanged: (PicturePreset x) => applyPicturePreset(ref, x),
+            labels: <String>[
+              for (final PicturePreset x in PicturePreset.values) x.label,
+            ],
+            onChanged: (PicturePreset x) {
+              // cl54-G5：切「省电」档提醒省电（套用预设一次到位）。
+              if (x.isPowerSave) {
+                appNotify(context, '已套用「省电」：关闭动效、帧率限 24fps');
+              }
+              applyPicturePreset(ref, x);
+            },
+          ),
+          const SizedBox(height: 8),
+          // cl54-G5：当前档位效果简介（OOBE 同样展示）。
+          Text(
+            p.blurb,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.appColors.textSecondary,
+                ),
           ),
         ],
       );
@@ -1578,6 +1590,18 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       contentPadding: EdgeInsets.zero,
       title: Text('星璃音乐空间', style: Theme.of(context).textTheme.bodyMedium),
       subtitle: Text(AppVersion.display, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  ),
+  // cl54-G6：存储占用（软件占用空间统计）。
+  'storageUsage': SettingItemDef(
+    title: '存储',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.storage_outlined,
+      title: '存储',
+      subtitle: '查看软件占用空间（数据 / 日志 / 临时文件）',
+      onTap: () => showStorageUsageSheet(context),
     ),
   ),
   'logUpload': SettingItemDef(
