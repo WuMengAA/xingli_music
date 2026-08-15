@@ -201,6 +201,14 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl69：渲染性能优化·消除 LOD 发射路径每帧堆分配（cl68-O4 同源收尾）——
+  /// LOD 马赛克从满精度带外覆盖到地平线，单元数可达数千，原每单元每面经
+  /// `_emitLodQuad(Float64List.fromList(...))` 堆分配 12 元组 + 内部
+  /// `Float32List(8)` 投影缓冲，每帧数万次分配（GC 压力）。改为复用模块级
+  /// 单例 scratch（_lodQuadScratch / _lodXyScratch）+ _fillLodQuad 填充辅助，
+  /// 发射路径零堆分配；`_emitLodQuad` 同步消费两缓冲（pushFace 首行即取标量
+  /// 拷贝入批量缓冲、不持有引用），复用安全、视觉零变化；buildCount 68→69
+  /// （0.26.8.15_alpha_cl69）。
   /// cl68：渲染性能优化·消除每帧冗余 RenderFace 分配与扫描浪费——
   /// 体素渲染统一走 8 深度桶批量提交（GPU drawVertices），移除每帧为回退路径
   /// 分配的万级 RenderFace 对象及其 O(n) 排序/裁剪（回退仅在桶全空时触发，
@@ -218,7 +226,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 68;
+  static const int buildCount = 69;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -274,6 +282,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl69',
+    title: '渲染性能优化：消除 LOD 发射路径每帧堆分配',
+    details: <String>[
+      'LOD 马赛克（满精度带外→地平线，单元数可达数千）原每单元每面经 Float64List.fromList 堆分配 12 元组 + _emitLodQuad 内部 Float32List(8) 投影缓冲，每帧数万次分配（GC 压力）',
+      '改为复用模块级单例 scratch（_lodQuadScratch / _lodXyScratch）+ _fillLodQuad 填充辅助，发射路径零堆分配',
+      '_emitLodQuad 同步消费两缓冲（投影→着色→pushFace 首行即取标量拷贝入批量缓冲、不持有引用），复用安全、视觉零变化（cl68-O4 同源收尾）',
+      'buildCount 68→69（0.26.8.15_alpha_cl69）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl68',

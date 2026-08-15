@@ -3024,9 +3024,9 @@ abstract final class VoxelRenderer {
       final double yT = cell.displayH[0];
       final double x0 = cx0, z0 = cz0;
       final double x1 = cx0 + size, z1 = cz0 + size;
-      _emitLodQuad(Float64List.fromList(<double>[
+      _emitLodQuad(_fillLodQuad(
         x0, yT, z0, x1, yT, z0, x1, yT, z1, x0, yT, z1,
-      ]), 0, 1, 0, cell.vGrid[0], BlockFace.top, b, proj, sky, config,
+      ), 0, 1, 0, cell.vGrid[0], BlockFace.top, b, proj, sky, config,
           fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       // 边界裙边（外环最高侧；邻更低才露）。
       double nTop = 0, sTop = 0, wTop = 0, eTop = 0;
@@ -3041,27 +3041,27 @@ abstract final class VoxelRenderer {
         if (et > eTop) eTop = et;
       }
       if (nTop < yT) {
-        _emitLodQuad(Float64List.fromList(<double>[
-          x0, nTop, z0, x1, nTop, z0, x1, yT, z0, x0, yT, z0,
-        ]), 0, 0, -1, cell.majority, BlockFace.north, b, proj, sky, config,
+      _emitLodQuad(_fillLodQuad(
+        x0, nTop, z0, x1, nTop, z0, x1, yT, z0, x0, yT, z0,
+      ), 0, 0, -1, cell.majority, BlockFace.north, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (sTop < yT) {
-        _emitLodQuad(Float64List.fromList(<double>[
-          x0, sTop, z1, x0, yT, z1, x1, yT, z1, x1, sTop, z1,
-        ]), 0, 0, 1, cell.majority, BlockFace.south, b, proj, sky, config,
+      _emitLodQuad(_fillLodQuad(
+        x0, sTop, z1, x0, yT, z1, x1, yT, z1, x1, sTop, z1,
+      ), 0, 0, 1, cell.majority, BlockFace.south, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (wTop < yT) {
-        _emitLodQuad(Float64List.fromList(<double>[
-          x0, wTop, z0, x0, yT, z0, x0, yT, z1, x0, wTop, z1,
-        ]), -1, 0, 0, cell.majority, BlockFace.west, b, proj, sky, config,
+      _emitLodQuad(_fillLodQuad(
+        x0, wTop, z0, x0, yT, z0, x0, yT, z1, x0, wTop, z1,
+      ), -1, 0, 0, cell.majority, BlockFace.west, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (eTop < yT) {
-        _emitLodQuad(Float64List.fromList(<double>[
-          x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
-        ]), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
+      _emitLodQuad(_fillLodQuad(
+        x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
+      ), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       return;
@@ -3096,9 +3096,9 @@ abstract final class VoxelRenderer {
         final double cx2 = cx0 + i1 * step;
         final double cz = cz0 + j * step;
         final double cz2 = cz + step;
-        _emitLodQuad(Float64List.fromList(<double>[
+        _emitLodQuad(_fillLodQuad(
           cx, h, cz, cx2, h, cz, cx2, h, cz2, cx, h, cz2,
-        ]), 0, 1, 0, vTop, BlockFace.top, b, proj, sky, config,
+        ), 0, 1, 0, vTop, BlockFace.top, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
         // 侧面：每列独立（暴露处才发，法线指向较低侧）。
         for (int ci = i; ci < i1; ci++) {
@@ -3109,39 +3109,58 @@ abstract final class VoxelRenderer {
           // 西（邻列 i-1）
           final double hw = cell.hPad[(j + 1) * gp + ci];
           if (hw < h) {
-            _emitLodQuad(Float64List.fromList(<double>[
+            _emitLodQuad(_fillLodQuad(
               ccx, hw, cz, ccx, h, cz, ccx, h, cz2, ccx, hw, cz2,
-            ]), -1, 0, 0, vSide, BlockFace.west, b, proj, sky, config,
+            ), -1, 0, 0, vSide, BlockFace.west, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 东（邻列 i+1）
           final double he = cell.hPad[(j + 1) * gp + ci + 2];
           if (he < h) {
-            _emitLodQuad(Float64List.fromList(<double>[
+            _emitLodQuad(_fillLodQuad(
               ccx2, he, cz, ccx2, he, cz2, ccx2, h, cz2, ccx2, h, cz,
-            ]), 1, 0, 0, vSide, BlockFace.east, b, proj, sky, config,
+            ), 1, 0, 0, vSide, BlockFace.east, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 北（邻行 j-1）
           final double hn = cell.hPad[j * gp + ci + 1];
           if (hn < h) {
-            _emitLodQuad(Float64List.fromList(<double>[
+            _emitLodQuad(_fillLodQuad(
               ccx, hn, cz, ccx2, hn, cz, ccx2, h, cz, ccx, h, cz,
-            ]), 0, 0, -1, vSide, BlockFace.north, b, proj, sky, config,
+            ), 0, 0, -1, vSide, BlockFace.north, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 南（邻行 j+1）
           final double hs = cell.hPad[(j + 2) * gp + ci + 1];
           if (hs < h) {
-            _emitLodQuad(Float64List.fromList(<double>[
+            _emitLodQuad(_fillLodQuad(
               ccx, hs, cz2, ccx, h, cz2, ccx2, h, cz2, ccx2, hs, cz2,
-            ]), 0, 0, 1, vSide, BlockFace.south, b, proj, sky, config,
+            ), 0, 0, 1, vSide, BlockFace.south, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
         }
         i = i1;
       }
     }
+  }
+
+  // cl69：复用单例 scratch，消除 LOD 发射路径每帧堆分配（与 cl68-O4 同 lineage）。
+  // `_emitLodQuad` 同步消费 `c`（投影→着色→pushFace 拷贝入批量缓冲，不持有引用）
+  // 与 `xy`（pushFace 首行即取标量追加到缓冲，亦不持有），故两处复用安全。
+  static final Float64List _lodQuadScratch = Float64List(12);
+  static final Float32List _lodXyScratch = Float32List(8);
+  static Float64List _fillLodQuad(
+    double x0, double y0, double z0,
+    double x1, double y1, double z1,
+    double x2, double y2, double z2,
+    double x3, double y3, double z3,
+  ) {
+    final Float64List s = _lodQuadScratch;
+    s[0] = x0; s[1] = y0; s[2] = z0;
+    s[3] = x1; s[4] = y1; s[5] = z1;
+    s[6] = x2; s[7] = y2; s[8] = z2;
+    s[9] = x3; s[10] = y3; s[11] = z3;
+    return s;
   }
 
   /// 投影并发射单个 LOD 面（顶面或台阶）：背面剔除 + 地形着色 + 雾 +
@@ -3167,7 +3186,7 @@ abstract final class VoxelRenderer {
     List<PointLight> lights,
     void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
   ) {
-    final Float32List xy = Float32List(8);
+    final Float32List xy = _lodXyScratch;
     double depthSum = 0;
     bool clipped = false;
     for (int i = 0; i < 4; i++) {
