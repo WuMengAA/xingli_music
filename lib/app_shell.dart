@@ -23,6 +23,7 @@ import 'providers/settings/settings_persistence_providers.dart';
 import 'providers/settings/settings_layout_provider.dart';
 import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
+import 'repositories/settings_repository.dart';
 import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
@@ -105,13 +106,17 @@ class _AppShellState extends ConsumerState<AppShell> {
     });
   }
 
-  /// F4：版本升级检测——上次完成 OOBE 的构建号 < 当前构建号 → 弹询问。
+  /// F4：版本升级检测——仅当「已完成 OOBE 且记录过上次构建号」且
+  /// 上次构建号 < 当前构建号时才弹询问（cl58：老用户无记录 / 已跳过
+  /// 当前版本 → 不再打扰，避免每次启动反复弹）。
   Future<void> _maybeAskReOobe(BuildContext context) async {
     try {
       final bool done = ref.read(oobeDoneProvider);
       if (!done) return; // 首次走 OOBE，不弹。
-      final int? last = ref.read(settingsRepositoryProvider).oobeLastBuild;
-      if (last != null && last >= AppVersion.buildCount) return; // 无升级。
+      final SettingsRepository repo = ref.read(settingsRepositoryProvider);
+      final int? last = repo.oobeLastBuild;
+      // cl58：老用户（从未记录过完成版本）不弹；已处理过当前版本不弹。
+      if (last == null || last >= AppVersion.buildCount) return;
       if (!mounted) return;
       // 延迟片刻，避免与冷启动动画抢屏。
       await Future<void>.delayed(const Duration(milliseconds: 600));
@@ -138,6 +143,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           ],
         ),
       );
+      // cl58：无论用户选跳过还是重走，都记录「当前版本已处理过」，
+      // 避免下次启动再次弹窗打扰。
+      repo.setOobeLastBuild(AppVersion.buildCount);
       if (!mounted || go != true) return;
       await Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const OobePage()),
