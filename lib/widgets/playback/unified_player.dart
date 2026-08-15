@@ -75,9 +75,6 @@ class UnifiedPlayer extends ConsumerStatefulWidget {
 
 class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
   bool _volOpen = false;
-  bool _seeking = false;
-  double? _seekMs;
-
   /// cl52-B：歌词内嵌开关——歌词按钮（音量右、上一首左）点击展开/收起。
   bool _lyricsOpen = false;
 
@@ -209,23 +206,10 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           const SizedBox(height: 8),
-                          _buildProgressSlider(
-                            ref,
-                            _seeking,
-                            _seekMs,
-                            (double v) => setState(() {
-                              _seeking = true;
-                              _seekMs = v;
-                            }),
-                            (double v) {
-                              setState(() {
-                                _seeking = false;
-                                _seekMs = null;
-                              });
-                              unawaited(ref
-                                  .read(audioServiceProvider)
-                                  .seek(Duration(milliseconds: v.round())));
-                            },
+                          _ProgressSlider(
+                            onSeek: (double v) => unawaited(ref
+                                .read(audioServiceProvider)
+                                .seek(Duration(milliseconds: v.round()))),
                           ),
                           const SizedBox(height: 4),
                           _buildTransportRow(
@@ -245,7 +229,7 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                               unawaited(toggleFavoriteTrack(ref, now));
                             },
                           ),
-                          _buildVolumePanel(ref, _volOpen),
+                          Consumer(builder: (BuildContext context, WidgetRef ref, _) => _buildVolumePanel(ref, _volOpen)),
                           // cl52-B：内嵌歌词（按钮展开后显示在传输行下方）。
                           AnimatedSize(
                             duration: const Duration(milliseconds: 250),
@@ -461,24 +445,8 @@ Widget _buildTransportRow(
 }
 
 /// 进度条（主题感知色）。
-Widget _buildProgressSlider(
-  WidgetRef ref,
-  bool seeking,
-  double? seekMs,
-  ValueChanged<double> onChanged,
-  ValueChanged<double> onEnd,
-) {
-  final Duration? pos = ref.watch(musicPositionProvider).valueOrNull;
-  final Duration? dur = ref.watch(musicDurationProvider).valueOrNull;
-  return _ProgressSlider(
-    pos: pos,
-    dur: dur,
-    seeking: seeking,
-    seekMs: seekMs,
-    onChanged: onChanged,
-    onEnd: onEnd,
-  );
-}
+// cl73：进度条已改为自包含 _ProgressSlider（ConsumerStatefulWidget），
+// 内部 watch 播放进度/时长并持有拖动态，不再需要本中转函数。
 
 /// 音量面板（#170：主音量总输出 + 六大声音分类各自独立控制）。
 ///
@@ -870,8 +838,6 @@ class _FullscreenPlaybackOverlayState
     extends ConsumerState<_FullscreenPlaybackOverlay> {
   bool _visible = false;
   bool _volOpen = false; // 全局液态玻璃卡片：默认展开的音量面板关闭
-  bool _seeking = false;
-  double? _seekMs;
 
   /// R23j：面板尺寸比例（相对屏幕宽度，0.5~1.0，可右下角拖拽调整）。
   double _scale = 0.85;
@@ -1040,23 +1006,10 @@ class _FullscreenPlaybackOverlayState
           ],
         ),
         const SizedBox(height: 16),
-        _buildProgressSlider(
-          ref,
-          _seeking,
-          _seekMs,
-          (double v) => setState(() {
-            _seeking = true;
-            _seekMs = v;
-          }),
-          (double v) {
-            setState(() {
-              _seeking = false;
-              _seekMs = null;
-            });
-            unawaited(ref
-                .read(audioServiceProvider)
-                .seek(Duration(milliseconds: v.round())));
-          },
+        _ProgressSlider(
+          onSeek: (double v) => unawaited(ref
+              .read(audioServiceProvider)
+              .seek(Duration(milliseconds: v.round()))),
         ),
         const SizedBox(height: 8),
         _buildTransportRow(
@@ -1079,7 +1032,7 @@ class _FullscreenPlaybackOverlayState
             unawaited(toggleFavoriteTrack(ref, now));
           },
         ),
-        _buildVolumePanel(ref, _volOpen),
+        Consumer(builder: (BuildContext context, WidgetRef ref, _) => _buildVolumePanel(ref, _volOpen)),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
@@ -1134,22 +1087,24 @@ class _FullscreenPlaybackOverlayState
 }
 
 /// 紧凑可拖拽进度条（主题感知色）。
-class _ProgressSlider extends StatelessWidget {
-  const _ProgressSlider({
-    required this.pos,
-    required this.dur,
-    required this.seeking,
-    required this.seekMs,
-    required this.onChanged,
-    required this.onEnd,
-  });
+///
+/// cl73（UI 流畅度优化）：改为自包含 ConsumerStatefulWidget——
+/// 内部 watch 播放进度/时长、持有拖动态（_seeking/_seekMs），拖动与
+/// 进度 tick 只重建自身，不再连累上层 1219 行播放器整树重建（此前
+/// 拖动每帧 setState 重建整树是卡顿主因）。视觉与交互行为完全不变。
+class _ProgressSlider extends ConsumerStatefulWidget {
+  const _ProgressSlider({required this.onSeek});
 
-  final Duration? pos;
-  final Duration? dur;
-  final bool seeking;
-  final double? seekMs;
-  final ValueChanged<double> onChanged;
-  final ValueChanged<double> onEnd;
+  /// 拖动结束回调（毫秒），由上层执行实际 seek。
+  final ValueChanged<double> onSeek;
+
+  @override
+  ConsumerState<_ProgressSlider> createState() => _ProgressSliderState();
+}
+
+class _ProgressSliderState extends ConsumerState<_ProgressSlider> {
+  bool _seeking = false;
+  double? _seekMs;
 
   String _fmt(Duration d) {
     final int mm = d.inMilliseconds ~/ 60000;
@@ -1159,8 +1114,11 @@ class _ProgressSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Duration? pos = ref.watch(musicPositionProvider).valueOrNull;
+    final Duration? dur = ref.watch(musicDurationProvider).valueOrNull;
     final double durMs = dur?.inMilliseconds.toDouble() ?? 0;
-    final double curMs = seekMs ?? (pos?.inMilliseconds.toDouble() ?? 0);
+    final double curMs =
+        _seeking ? (_seekMs ?? 0) : (pos?.inMilliseconds.toDouble() ?? 0);
     final bool enabled = durMs > 0;
 
     return Row(
@@ -1175,9 +1133,9 @@ class _ProgressSlider extends StatelessWidget {
         Expanded(
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              trackHeight: seeking ? 8 : 3,
+              trackHeight: _seeking ? 8 : 3,
               thumbShape: RoundSliderThumbShape(
-                enabledThumbRadius: seeking ? 10 : 5,
+                enabledThumbRadius: _seeking ? 10 : 5,
               ),
               activeTrackColor: context.appColors.accent,
               inactiveTrackColor: context.appColors.progressTrack,
@@ -1186,8 +1144,23 @@ class _ProgressSlider extends StatelessWidget {
             child: Slider(
               value: enabled ? curMs.clamp(0.0, durMs) : 0,
               max: enabled ? durMs : 1,
-              onChanged: enabled ? onChanged : null,
-              onChangeEnd: enabled ? onEnd : null,
+              onChanged: enabled
+                  ? (double v) {
+                      setState(() {
+                        _seeking = true;
+                        _seekMs = v;
+                      });
+                    }
+                  : null,
+              onChangeEnd: enabled
+                  ? (double v) {
+                      setState(() {
+                        _seeking = false;
+                        _seekMs = null;
+                      });
+                      widget.onSeek(v);
+                    }
+                  : null,
             ),
           ),
         ),

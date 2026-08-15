@@ -201,6 +201,17 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl73：UI 流畅度优化·消除 UnifiedPlayer 进度/音量拖动整树重建——
+  /// UnifiedPlayer 是 1219 行 ConsumerStatefulWidget，原进度条/音量拖动都放在
+  /// 父级 setState 中执行 → 拖动时每帧重建整棵小部件树（含 3D 场景背景、歌词、
+  /// 列表等无关子树），是播放器交互卡顿主因。最低风险隔离：①进度条抽成自包含
+  /// _ProgressSlider（ConsumerStatefulWidget），进度/时长 watch 与拖动态内移、
+  /// 只重建自身，onSeek 回调执行实际 seek；两处调用点（紧凑态/全屏态）改为
+  /// _ProgressSlider(onSeek: (double v) => unawaited(ref.read(audioServiceProvider)
+  /// .seek(...)))；从两个 State 移除 _seeking/_seekMs、删除 _buildProgressSlider
+  /// 中转函数；②音量面板两处调用点外包 Consumer，使 8 个音量 provider watch 下沉
+  /// 到廉价子树、音量拖动只重建小面板而非整树（_VolRow 滑块逻辑字节级不变）。
+  /// 两者均不改 UI/交互、回归风险近零；buildCount 72→73（0.26.8.15_alpha_cl73）。
   /// cl72：UI 流畅度优化·液态玻璃模糊层 RepaintBoundary 隔离——
   /// LiquidGlass(frosted) 的 BackdropFilter 此前未做任何图层隔离：内容区内的
   /// 逐帧重绘（歌词滚动 / 进度条 tick / Dock 指示器 AnimatedContainer / 页面
@@ -254,7 +265,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 72;
+  static const int buildCount = 73;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -310,6 +321,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl73',
+    title: 'UI 流畅度优化：消除播放器进度/音量拖动整树重建',
+    details: <String>[
+      'UnifiedPlayer 是 1219 行 ConsumerStatefulWidget，原进度条/音量拖动都在父级 setState 中执行 → 拖动时每帧重建整棵小部件树（含 3D 场景背景、歌词、列表等无关子树），是播放器交互卡顿主因',
+      '进度条抽成自包含 _ProgressSlider（ConsumerStatefulWidget）：进度/时长 watch 与拖动态内移、只重建自身，onSeek 回调执行实际 seek；两处调用点（紧凑态/全屏态）改用 _ProgressSlider，删除原 _buildProgressSlider 中转函数与两个 State 的 _seeking/_seekMs',
+      '音量面板两处调用点外包 Consumer，使 8 个音量 provider watch 下沉到廉价子树、音量拖动只重建小面板而非整树（_VolRow 滑块逻辑字节级不变）',
+      '两者均不改 UI/交互、回归风险近零；buildCount 72→73（0.26.8.15_alpha_cl73）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl72',
