@@ -1,0 +1,61 @@
+# ═══════════════════════════════════════════════════════════════════════
+# 星璃音乐 · xingli_music（GitHub 开源 + OTA 更新）
+# ═══════════════════════════════════════════════════════════════════════
+# 自动构建 Android APK 并发布 GitHub Release（G7 开源 + OTA 基础）。
+#
+# 触发：
+#   - push 到 master 且打 tag `cl*` / `v*`（如 cl55、v0.26.8.14）→ 发布 Release
+#   - 手动 workflow_dispatch → 可选 tag 构建
+#
+# 产物：app-release.apk（Android）+ sha256 校验文件（OTA 哈希校验用）。
+# 应用内「设置 → 关于 → 版本更新」通过 GitHub API 读取 Releases：
+#   tag 高于当前 buildCount → 提示更新；hotfix 标记（tag 含 -hotfix）→ 直接下载。
+name: build-release
+
+on:
+  push:
+    tags:
+      - 'cl*'
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Flutter
+        run: flutter --version
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK (release)
+        run: flutter build apk --release --no-tree-shake-icons
+
+      - name: Generate SHA-256 checksum
+        working-directory: build/app/outputs/flutter-apk
+        run: sha256sum app-release.apk > app-release.apk.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: 星璃音乐 ${{ github.ref_name }}
+          body: |
+            ## 星璃音乐 ${{ github.ref_name }}
+            自动构建发布（由 GitHub Actions 生成）。
+
+            > 应用内「设置 → 关于 → 版本更新」可自动检测本 Release 并 OTA 更新。
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/flutter-apk/app-release.apk.sha256
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-hotfix') }}

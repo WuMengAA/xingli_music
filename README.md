@@ -67,7 +67,16 @@ flutter build apk --release       # 产物 build/app/outputs/flutter-apk/app-rel
 
 ## 当前版本
 
-- `0.26.8.14_alpha_cl35`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
+- `0.26.8.14_alpha_cl55`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
+
+## 开源与更新
+
+- **开源协议**：MIT（见 `LICENSE`），第三方音源（网易云 / B站）仅供个人学习研究，版权归原平台。
+- **OTA 更新**：应用内「设置 → 关于 → 版本更新」通过 GitHub Releases 检测新版本：
+  - tag（`cl*` / `v*`）高于当前构建 → 提示更新；
+  - `-hotfix` 标记的 Release 直接下载；
+  - 下载后校验 SHA-256 哈希，通过才提示安装（见 `.github/workflows/build-release.yml`）。
+- **发布流程**：打 tag（如 `cl55`）即触发 Actions 自动构建 APK + 生成校验文件并发布 Release。
 
 ## 说明
 
