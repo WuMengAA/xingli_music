@@ -174,7 +174,10 @@ abstract final class AppVersion {
   /// 实验性功能【同意/不同意】、版本日志【拉取本地日志前 3 条】、版本检查
   /// 【按流程检查，有更新提示/超时提示继续】、用户协议【贴 GitHub 仓库与
   /// LICENSE 链接】；设置-关于 加 GitHub 仓库行（含分支标注 main）。
-  static const int buildCount = 59;
+  /// cl60：GitHub 开源 + OTA 发布链路打通——代码推送 github.com/WuMengAA/xingli_music
+  /// main 分支，打 tag（cl*/v*）触发 GitHub Actions 自动构建 APK + sha256 并发布
+  /// Release；应用内「设置→关于→版本更新」即可检测 / 下载 / 哈希校验 / 安装新版本。
+  static const int buildCount = 60;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -230,6 +233,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.14',
+    cl: 'cl60',
+    title: 'GitHub 开源 + OTA 自动更新链路打通',
+    details: <String>[
+      '代码已推送开源仓库 github.com/WuMengAA/xingli_music（main 分支，MIT 协议）',
+      '打 tag（cl*/v*）自动触发 GitHub Actions 构建 APK + SHA-256 校验文件并发布 Release',
+      '应用内「设置 → 关于 → 版本更新」接入 OTA：自动检查 GitHub Releases，发现新版本可下载',
+      '下载后校验 SHA-256 哈希，防篡改；hotfix 版本（tag 含 -hotfix）免确认直接下载',
+      '本机 git 凭据已自动配置（Windows 凭据管理器 OAuth token），推送无需手动输密码',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.14',
     cl: 'cl59',
