@@ -201,6 +201,12 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl68：渲染性能优化·消除每帧冗余 RenderFace 分配与扫描浪费——
+  /// 体素渲染统一走 8 深度桶批量提交（GPU drawVertices），移除每帧为回退路径
+  /// 分配的万级 RenderFace 对象及其 O(n) 排序/裁剪（回退仅在桶全空时触发，
+  /// 视觉零变化）；场景背景画家同步迁移到桶路径。LOD 开启时满精度扫描半径
+  /// 收紧到 kFullBand（带外由 LOD 马赛克覆盖、循环守卫已限制），消除
+  /// (vd²-kFullBand²) 区块空遍历；buildCount 67→68（0.26.8.15_alpha_cl68）。
   /// cl67：G9 多人联机·编辑层按玩家位置范围同步——在 cl66 全量快照基础上细化
   /// 为「只同步自身周围 N 格区块」：主机按请求者机位就近裁剪回发，客户端加入/
   /// 重连/机位跨 chunk 时按需拉取与卸载，大世界不再全量淹没；新增
@@ -212,7 +218,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 67;
+  static const int buildCount = 68;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -268,6 +274,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl68',
+    title: '渲染性能优化：消除每帧冗余 RenderFace 分配与扫描浪费',
+    details: <String>[
+      '体素渲染统一走 8 深度桶批量提交（GPU drawVertices）；移除每帧为回退路径分配的万级 RenderFace 对象与其 O(n) 排序/裁剪（回退仅在桶全空时触发，视觉零变化）',
+      '场景背景（音乐播放器体素场景）画家同步迁移到桶路径，与原顶点色平涂视觉一致',
+      'LOD 开启时满精度扫描半径收紧到 kFullBand：带外由 LOD 马赛克覆盖、循环守卫已限制在内，消除 (vd²-kFullBand²) 区块空遍历',
+      'buildCount 67→68（0.26.8.15_alpha_cl68）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl67',

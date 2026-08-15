@@ -501,7 +501,20 @@ class VoxelFrame {
   final List<VoxelMeshBatch?> opaqueTexturedBuckets;
   final List<VoxelMeshBatch?> waterBuckets;
 
-  int get faceCount => opaque.length + translucent.length;
+  // O4：面计数来自批量桶（opaque/translucent 列表已不再逐帧填充）。
+  int get faceCount {
+    int n = 0;
+    for (final VoxelMeshBatch? b in opaquePlainBuckets) {
+      if (b != null) n += b.positions.length ~/ 12;
+    }
+    for (final VoxelMeshBatch? b in opaqueTexturedBuckets) {
+      if (b != null) n += b.positions.length ~/ 12;
+    }
+    for (final VoxelMeshBatch? b in waterBuckets) {
+      if (b != null) n += b.positions.length ~/ 12;
+    }
+    return n;
+  }
 
   static const VoxelFrame empty = VoxelFrame(
     sky: SkyPalette(
@@ -614,8 +627,6 @@ abstract final class VoxelRenderer {
         moonVisible = true;
       }
     }
-
-    final List<RenderFace> allFaces = <RenderFace>[];
 
     // R25 批量缓冲：把每面顶点拼进「按相机深度分 8 桶」的列表，画家逐桶
     // 远→近提交并与描边桶交错（见 _drawBatched）——画家算法正确，消除
@@ -905,7 +916,11 @@ abstract final class VoxelRenderer {
     final int kFullBand = math.min(config.fullBandChunks, enclosed ? 1 : 2);
     // R26r20·D2：遍历半径与「满精度带」解耦——视距(vd)只决定满精度带切换阈值，
     // 遍历半径至少覆盖 kFullBand 满精度方阵（低视距 vd<2 时正前方不再一刀切）。
-    final int loopVd = math.max(vd, kFullBand);
+    // cl68-O3：LOD 开启时满精度带外由 LOD 马赛克覆盖（_emitLodPass 的
+    // cdist<=ring0 守卫从满精度带外起绘），下方循环又被 `dxc>kFullBand` 守卫
+    // 限制在该范围内，继续向 vd 遍历是纯浪费 → 遍历半径直接取 kFullBand，
+    // 省去 (vd²-kFullBand²) 区块空遍历；LOD 关时维持 max(vd, kFullBand)。
+    final int loopVd = config.lodEnabled ? kFullBand : math.max(vd, kFullBand);
     // R26r20·D2：S2 可见集洪泛半径与视距解耦——必须覆盖到渲染最远（maxDist），
     // 否则低视距下 LOD 外环被 visible 守卫整片剔除 → 正前方最远一刀切。
     // cl46 性能修复：洪泛半径改为「满精度带 + 视距」即可——满精度带守卫只
@@ -913,7 +928,9 @@ abstract final class VoxelRenderer {
     // 改由视锥剔除 + 面数预算 + enclosed 守卫控制）。原 floodVd=17（LOD 地平线）
     // 令低视距也每帧洪泛 17×17=289 区块（BFS 开销随半径平方增长），正是
     // 「两区块反而卡」的主因之一。降为 max(vd, kFullBand) 后洪泛开销降 ~11 倍。
-    final int floodVd = math.max(vd, kFullBand);
+    // cl68-O3：LOD 开启时满精度带外区块被守卫跳过、可见集超出 kFullBand 的部分
+    // 不被使用，BFS 无需遍历到 vd → 洪泛半径同步收紧到 kFullBand。
+    final int floodVd = config.lodEnabled ? kFullBand : math.max(vd, kFullBand);
 
     // S2：区块级连通 flood-fill 可见集（cave culling）。仅当相机区块几何已缓存
     // （稳态）才启用——加载期相机区块未建好时退化为全方阵遍历，避免黑屏。
@@ -1206,19 +1223,7 @@ abstract final class VoxelRenderer {
             cf.ao![3] = 1;
           }
           if (clippedFace.n == 4) {
-            final RenderFace rf = RenderFace(
-              xy: clippedFace.xy,
-              argb: argb,
-              depth: depth,
-              voxel: cf.voxel,
-              face: cf.face,
-              uv: tileUv,
-              tint: tint,
-            );
-            // R24c：单桶深度排序（opaque + translucent 合并），保证水被前方
-            // 不透明地形正确遮挡（画家算法下透明面必须参与全局远→近排序）。
-            allFaces.add(rf);
-            // R25：同时拼入批量缓冲（画家一次性提交，GPU 加速）。
+            // R25：拼入批量缓冲（画家一次性提交，GPU 加速）。
             // R26j：逐顶点 AO × 斜度烘焙进颜色。
             // R26l：不透明面按轮廓边掩码描边（内部边不描）。
             // cl45：描边半径按「玩家（相机）水平距离」判定——5 格内实描，
@@ -1239,16 +1244,6 @@ abstract final class VoxelRenderer {
             final double avgAo =
                 (cf.ao[0] + cf.ao[1] + cf.ao[2] + cf.ao[3]) * 0.25 * cf.tilt;
             final int cMod = _modulate(argb, avgAo);
-            final RenderFace rf = RenderFace(
-              xy: clippedFace.xy,
-              argb: cMod,
-              depth: depth,
-              voxel: cf.voxel,
-              face: cf.face,
-              uv: clippedFace.uv,
-              tint: tint,
-            );
-            allFaces.add(rf);
             pushPolygon(clippedFace.xy, clippedFace.uv, clippedFace.n, cMod,
                 tint, cf.voxel.isTransparent, depth);
           }
@@ -1270,7 +1265,6 @@ abstract final class VoxelRenderer {
       }
 
       _emitLodPass(
-        allFaces,
         world,
         cache,
         config,
@@ -1317,8 +1311,6 @@ abstract final class VoxelRenderer {
         }
       }
       _emitEntity(
-        allFaces,
-        allFaces,
         en,
         b,
         proj,
@@ -1354,7 +1346,6 @@ abstract final class VoxelRenderer {
     // S3：封闭空间内天空不可见，跳过云层发射（避免室内绘出飘云）。
     if (!enclosed) {
       _emitClouds(
-      allFaces,
       world,
       b,
       proj,
@@ -1365,11 +1356,7 @@ abstract final class VoxelRenderer {
     );
     }
 
-    final int collected = allFaces.length;
-
     // 画家算法：远 → 近（单桶，水/地形/实体统一）。
-    // R23q：128 桶桶排序替代全量 sort——按相机深度分桶（桶内保序），O(n)。
-    _bucketSortByDepth(allFaces, camera.far);
 
     // 面数预算：超限时丢最远的（视觉损失被雾掩盖）。
     // R23o：预算随视距放大——固定上限在视距大时会把近处面也裁掉，
@@ -1384,8 +1371,6 @@ abstract final class VoxelRenderer {
           math.max(1, (config.viewDistanceChunks + 2) ~/ 3),
       fullBandCols * 3,
     );
-    _trimFarthest(allFaces, faceBudget);
-
     // R25：把累积的批量缓冲固化为类型化数组（空则 null，画家回退逐面绘制）。
     // R26p-camera：地形面按深度 8 桶固化（远→近），与描边桶交错绘制。
     // R26q：固化前先在桶内按深度远→近排序——画家算法正确性的关键。
@@ -1465,9 +1450,21 @@ abstract final class VoxelRenderer {
         uvB: waterUVB, depthB: waterDepthB, budget: faceBudget);
     // R26r8：描边已并入 plain 批次（见 pushFace），不再有独立 edge 桶。
 
+    // O4：面计数直接来自批量桶（不再维护冗余 RenderFace 列表）。
+    int _sumFaces(List<VoxelMeshBatch?> buckets) {
+      int n = 0;
+      for (final VoxelMeshBatch? b in buckets) {
+        if (b != null) n += b.positions.length ~/ 12;
+      }
+      return n;
+    }
+    final int collected = _sumFaces(opaquePlainBuckets) +
+        _sumFaces(opaqueTexturedBuckets) +
+        _sumFaces(waterBuckets);
+
     return VoxelFrame(
       sky: sky,
-      opaque: allFaces,
+      opaque: const <RenderFace>[],
       translucent: const <RenderFace>[],
       opaquePlainBuckets: opaquePlainBuckets,
       opaqueTexturedBuckets: opaqueTexturedBuckets,
@@ -1868,7 +1865,6 @@ abstract final class VoxelRenderer {
   // 决定密度（>阈值成云、留空为天），密度驱动亮度 → 蓬松无缝；每帧重定心 +
   // 时间漂移 = 无限且无接缝。
   static void _emitClouds(
-    List<RenderFace> out,
     VoxelWorld world,
     ViewBasis b,
     ProjectionParams proj,
@@ -1919,7 +1915,6 @@ abstract final class VoxelRenderer {
         final int th = world.terrainHeightAt(wx.floor(), wz.floor());
         final double cloudY = cloudBaseY + ((th - 64) / 64.0).clamp(-1.0, 1.0);
         _cloudQuad(
-          out,
           wx - cell * 0.46,
           cloudY,
           wz - cell * 0.46,
@@ -1960,7 +1955,6 @@ abstract final class VoxelRenderer {
 
   /// 投影一个半透明单顶面（云），并入批次与深度排序。
   static void _cloudQuad(
-    List<RenderFace> out,
     double x0,
     double y,
     double z0,
@@ -1996,13 +1990,6 @@ abstract final class VoxelRenderer {
     final double depth = depthSum / 4;
     if (depth > far) return;
     pushFace(xy, null, argb, argb, false, depth);
-    out.add(RenderFace(
-      xy: xy,
-      argb: argb,
-      depth: depth,
-      voxel: Voxel.stone,
-      face: BlockFace.top,
-    ));
   }
 
   /// 把一个实体（默认一个 6 盒的小人）拆成方块盒，并入对应 Pass。
@@ -2010,8 +1997,6 @@ abstract final class VoxelRenderer {
   /// 发光实体走半透明 Pass（自带 alpha），否则走不透明 Pass，与地形共用
   /// 同一套投影 / 分面亮度 / 雾，保证视觉连续。
   static void _emitEntity(
-    List<RenderFace> opaque,
-    List<RenderFace> translucent,
     VoxelEntity en,
     ViewBasis b,
     ProjectionParams proj,
@@ -2032,7 +2017,6 @@ abstract final class VoxelRenderer {
     final bool glow = en.glow;
     final double alpha = glow ? 0.6 : 1.0;
     final Voxel vmat = glow ? Voxel.water : Voxel.stone;
-    final List<RenderFace> target = glow ? translucent : opaque;
     final bool skin = en.useSkin;
 
     // R26r12：MC 官方标准比例（16px = 1 格）——头 8×8×8、躯干 8×12×4、
@@ -2057,20 +2041,20 @@ abstract final class VoxelRenderer {
     // 模型中心；否则侧身时腿会绕错轴小幅外飘（与躯干脱离）。
     // R26skel：旋转后髋 Z = pz - dx·sin(yawA) = pz + dx·sin(rotYaw)（yawA=-rotYaw）。
     // legL 髋 dx=-0.25 → +0.25·sin；legR dx=+0.25 → -0.25·sin（左右对称）。
-    _emitBox(target, px - lw * 2, py, pz - ld, px, py + leg, pz + ld,
+    _emitBox(px - lw * 2, py, pz - ld, px, py + leg, pz + ld,
         limb, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'legL' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
         rotX: -en.swing, pivotY: py + leg,
         swingPivotZ: pzYaw + 0.25 * math.sin(en.lookYaw));
-    _emitBox(target, px, py, pz - ld, px + lw * 2, py + leg, pz + ld,
+    _emitBox(px, py, pz - ld, px + lw * 2, py + leg, pz + ld,
         limb, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'legR' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
         rotX: en.swing, pivotY: py + leg,
         swingPivotZ: pzYaw - 0.25 * math.sin(en.lookYaw));
     // 躯干（8×12×4）—— 居中，swingPivot 与 yaw pivot 同点。
-    _emitBox(target, px - bw, py + leg, pz - bd, px + bw, py + torsoTop,
+    _emitBox(px - bw, py + leg, pz - bd, px + bw, py + torsoTop,
         pz + bd, body, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'torso' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
@@ -2078,7 +2062,7 @@ abstract final class VoxelRenderer {
     // 头（8×8×8）：额外绕头部中心 X 轴倾斜跟随视线俯仰。
     // 旋转角 = -lookPitch：相机 pitch<0=俯视，头的正面对应朝下；
     // rotX=+pitch 会让头反过来倾斜（看地抬头、看天低头）。
-    _emitBox(target, px - hw, py + torsoTop, pz - hw, px + hw, py + headTop,
+    _emitBox(px - hw, py + torsoTop, pz - hw, px + hw, py + headTop,
         pz + hw, head, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'head' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
@@ -2087,13 +2071,13 @@ abstract final class VoxelRenderer {
     // 双臂（R26r11：走路摇摆，绕肩支点 py+torsoTop 前后摆动，与腿交叉；
     // swingPivotZ 用旋转后的肩部 Z，与腿同处理）。
     // R26skel：armL 肩 dx=-0.375 → +0.375·sin；armR dx=+0.375 → -0.375·sin。
-    _emitBox(target, px - lw * 4, py + leg, pz - ld, px - lw * 2, py + torsoTop,
+    _emitBox(px - lw * 4, py + leg, pz - ld, px - lw * 2, py + torsoTop,
         pz + ld, limb, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'armL' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
         rotX: en.swing, pivotY: py + torsoTop,
         swingPivotZ: pzYaw + 0.375 * math.sin(en.lookYaw));
-    _emitBox(target, px + lw * 2, py + leg, pz - ld, px + lw * 4, py + torsoTop,
+    _emitBox(px + lw * 2, py + leg, pz - ld, px + lw * 4, py + torsoTop,
         pz + ld, limb, alpha, sky, config, fogStart, fogSpan, far, b, proj, vmat,
         pushFace: pushFace, skinPart: skin ? 'armR' : null,
         rotYaw: en.lookYaw, pivotX: pyYaw, pivotZ: pzYaw,
@@ -2107,7 +2091,6 @@ abstract final class VoxelRenderer {
   /// 导致批量模式下不绘制，现已修正。[skinPart] 非空且贴图开启/有皮肤时，
   /// 该盒各面按 MC 2× 皮肤布局映射图集 UV（走贴图批次），失败回退纯色。
   static void _emitBox(
-    List<RenderFace> out,
     double x0,
     double y0,
     double z0,
@@ -2262,13 +2245,6 @@ abstract final class VoxelRenderer {
           (fb * l).round().clamp(0, 255);
       // 入批量缓冲（贴图 / 纯色两路），保证批量模式可见。
       pushFace(xy, uv, argb, tintArgb, alpha < 1, depth);
-      out.add(RenderFace(
-        xy: xy,
-        argb: argb,
-        depth: depth,
-        voxel: vmat,
-        face: f,
-      ));
     }
   }
 
@@ -2889,7 +2865,6 @@ abstract final class VoxelRenderer {
   /// 映射到对齐粗格发射——无缝、无重叠、跨档高度一致（恒定采样步长，P5 无接缝）。
   /// P3 区块级视锥剔除（FP/TP 下远景面数约减半）。迟滞（1.15× 升 / 0.87× 降）防移动闪烁。
   static void _emitLodPass(
-    List<RenderFace> allFaces,
     VoxelWorld world,
     VoxelChunkCache? cache,
     RenderConfig config,
@@ -3004,7 +2979,7 @@ abstract final class VoxelRenderer {
               : _buildLodCell(world, gx0, gz0, T.cell);
           cache?.lodCellPut(tier, gci, gcj, cell);
         }
-        _emitLodCell(allFaces, cell, gx0, gz0, T.cell, b, proj, sky, config,
+        _emitLodCell(cell, gx0, gz0, T.cell, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights,
             pushFace);
       }
@@ -3017,7 +2992,6 @@ abstract final class VoxelRenderer {
   /// （邻列/外环更低才露，法线指向较低侧）→ 块状剪影、侧壁实心、多色、云上无
   /// 漂浮平板。geomorph：displayH 每帧朝 hGrid lerp（邻列同步缓动，不撕裂）。
   static void _emitLodCell(
-    List<RenderFace> allFaces,
     _LodCell cell,
     double cx0,
     double cz0,
@@ -3050,7 +3024,7 @@ abstract final class VoxelRenderer {
       final double yT = cell.displayH[0];
       final double x0 = cx0, z0 = cz0;
       final double x1 = cx0 + size, z1 = cz0 + size;
-      _emitLodQuad(allFaces, Float64List.fromList(<double>[
+      _emitLodQuad(Float64List.fromList(<double>[
         x0, yT, z0, x1, yT, z0, x1, yT, z1, x0, yT, z1,
       ]), 0, 1, 0, cell.vGrid[0], BlockFace.top, b, proj, sky, config,
           fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3067,25 +3041,25 @@ abstract final class VoxelRenderer {
         if (et > eTop) eTop = et;
       }
       if (nTop < yT) {
-        _emitLodQuad(allFaces, Float64List.fromList(<double>[
+        _emitLodQuad(Float64List.fromList(<double>[
           x0, nTop, z0, x1, nTop, z0, x1, yT, z0, x0, yT, z0,
         ]), 0, 0, -1, cell.majority, BlockFace.north, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (sTop < yT) {
-        _emitLodQuad(allFaces, Float64List.fromList(<double>[
+        _emitLodQuad(Float64List.fromList(<double>[
           x0, sTop, z1, x0, yT, z1, x1, yT, z1, x1, sTop, z1,
         ]), 0, 0, 1, cell.majority, BlockFace.south, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (wTop < yT) {
-        _emitLodQuad(allFaces, Float64List.fromList(<double>[
+        _emitLodQuad(Float64List.fromList(<double>[
           x0, wTop, z0, x0, yT, z0, x0, yT, z1, x0, wTop, z1,
         ]), -1, 0, 0, cell.majority, BlockFace.west, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       if (eTop < yT) {
-        _emitLodQuad(allFaces, Float64List.fromList(<double>[
+        _emitLodQuad(Float64List.fromList(<double>[
           x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
         ]), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3122,7 +3096,7 @@ abstract final class VoxelRenderer {
         final double cx2 = cx0 + i1 * step;
         final double cz = cz0 + j * step;
         final double cz2 = cz + step;
-        _emitLodQuad(allFaces, Float64List.fromList(<double>[
+        _emitLodQuad(Float64List.fromList(<double>[
           cx, h, cz, cx2, h, cz, cx2, h, cz2, cx, h, cz2,
         ]), 0, 1, 0, vTop, BlockFace.top, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3135,7 +3109,7 @@ abstract final class VoxelRenderer {
           // 西（邻列 i-1）
           final double hw = cell.hPad[(j + 1) * gp + ci];
           if (hw < h) {
-            _emitLodQuad(allFaces, Float64List.fromList(<double>[
+            _emitLodQuad(Float64List.fromList(<double>[
               ccx, hw, cz, ccx, h, cz, ccx, h, cz2, ccx, hw, cz2,
             ]), -1, 0, 0, vSide, BlockFace.west, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3143,7 +3117,7 @@ abstract final class VoxelRenderer {
           // 东（邻列 i+1）
           final double he = cell.hPad[(j + 1) * gp + ci + 2];
           if (he < h) {
-            _emitLodQuad(allFaces, Float64List.fromList(<double>[
+            _emitLodQuad(Float64List.fromList(<double>[
               ccx2, he, cz, ccx2, he, cz2, ccx2, h, cz2, ccx2, h, cz,
             ]), 1, 0, 0, vSide, BlockFace.east, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3151,7 +3125,7 @@ abstract final class VoxelRenderer {
           // 北（邻行 j-1）
           final double hn = cell.hPad[j * gp + ci + 1];
           if (hn < h) {
-            _emitLodQuad(allFaces, Float64List.fromList(<double>[
+            _emitLodQuad(Float64List.fromList(<double>[
               ccx, hn, cz, ccx2, hn, cz, ccx2, h, cz, ccx, h, cz,
             ]), 0, 0, -1, vSide, BlockFace.north, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3159,7 +3133,7 @@ abstract final class VoxelRenderer {
           // 南（邻行 j+1）
           final double hs = cell.hPad[(j + 2) * gp + ci + 1];
           if (hs < h) {
-            _emitLodQuad(allFaces, Float64List.fromList(<double>[
+            _emitLodQuad(Float64List.fromList(<double>[
               ccx, hs, cz2, ccx, h, cz2, ccx2, h, cz2, ccx2, hs, cz2,
             ]), 0, 0, 1, vSide, BlockFace.south, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
@@ -3173,7 +3147,6 @@ abstract final class VoxelRenderer {
   /// 投影并发射单个 LOD 面（顶面或台阶）：背面剔除 + 地形着色 + 雾 +
   /// 并入统一画家桶（与全精度地形同深度排序，正确遮挡）。
   static void _emitLodQuad(
-    List<RenderFace> allFaces,
     Float64List c,
     double nx,
     double ny,
@@ -3243,15 +3216,6 @@ abstract final class VoxelRenderer {
     );
     final Float32List? uv =
         config.textureEnabled ? VoxelTextureAtlas.tileUV(voxel.index) : null;
-    allFaces.add(RenderFace(
-      xy: xy,
-      argb: argb,
-      depth: depth,
-      voxel: voxel,
-      face: face,
-      uv: uv,
-      tint: tint,
-    ));
     pushFace(xy, uv, argb, tint, voxel.isTransparent, depth);
   }
 }

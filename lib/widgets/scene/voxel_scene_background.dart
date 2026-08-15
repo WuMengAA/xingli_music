@@ -258,43 +258,25 @@ class _BackgroundPainter extends CustomPainter {
     }
     canvas.drawRect(rect, sky);
 
-    _drawFaces(canvas, f.opaque);
-    _drawFaces(canvas, f.translucent);
+    // R26/O4：批量桶（与游戏渲染同路径），远→近逐桶提交，画家算法正确。
+    // 原为逐面 RenderFace 列表（每帧分配 RenderFace 对象）；现统一走 8 桶
+    // drawVertices，消除每帧冗余对象分配。背景沿用「顶点色平涂」（忽略贴图
+    // UV），与原视觉效果一致。
+    for (int i = 7; i >= 0; i--) {
+      final VoxelMeshBatch? plain = f.opaquePlainBuckets[i];
+      if (plain != null) _drawBatch(canvas, plain);
+      final VoxelMeshBatch? tex = f.opaqueTexturedBuckets[i];
+      if (tex != null) _drawBatch(canvas, tex);
+      final VoxelMeshBatch? water = f.waterBuckets[i];
+      if (water != null) _drawBatch(canvas, water);
+    }
   }
 
-  void _drawFaces(Canvas canvas, List<RenderFace> faces) {
-    final int n = faces.length;
-    if (n == 0) return;
-    final Float32List positions = Float32List(n * 12);
-    final Int32List colors = Int32List(n * 6);
-    int p = 0;
-    int c = 0;
-    for (int i = 0; i < n; i++) {
-      final RenderFace f = faces[i];
-      final Float32List v = f.xy;
-      final int argb = f.argb;
-      // 三角 1：0-1-2
-      positions[p++] = v[0];
-      positions[p++] = v[1];
-      positions[p++] = v[2];
-      positions[p++] = v[3];
-      positions[p++] = v[4];
-      positions[p++] = v[5];
-      // 三角 2：0-2-3
-      positions[p++] = v[0];
-      positions[p++] = v[1];
-      positions[p++] = v[4];
-      positions[p++] = v[5];
-      positions[p++] = v[6];
-      positions[p++] = v[7];
-      for (int k = 0; k < 6; k++) {
-        colors[c++] = argb;
-      }
-    }
+  void _drawBatch(Canvas canvas, VoxelMeshBatch b) {
     final ui.Vertices vertices = ui.Vertices.raw(
       ui.VertexMode.triangles,
-      positions,
-      colors: colors,
+      b.positions,
+      colors: b.colors,
     );
     canvas.drawVertices(vertices, ui.BlendMode.modulate, _vertexPaint);
     vertices.dispose();
