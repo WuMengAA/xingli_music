@@ -292,6 +292,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   int _chunkInvalidSerial = 0; // 递增计数器（_invalidateChunkAt 自增）
   int _lastChunkSerial = 0; // 上次重建时记录的 _chunkInvalidSerial 快照
   bool _firstBuild = true;
+  // G9：远端事件强制重建标志——远端编辑/玩家变换时置真并清静态快照，确保
+  // 本地相机静止（已录 _staticPicture）时也能即时重绘远端变化。
+  bool _forceRebuild = false;
 
   // G4：水流动按 20tps（1s=20 tick）驱动——独立 tick 累计器，与帧率解耦。
   double _waterTickAcc = 0;
@@ -694,6 +697,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       net.onRemoteEdit = (int x, int y, int z, int v) {
         widget.world.setVoxel(x, y, z, Voxel.values[v]);
         _invalidateChunkAt(x, z);
+        _staticPicture = null; // 清静态快照：远端编辑必须即时重绘
+        _forceRebuild = true; // 计入重建门控（即便本地相机静止）
         _dirty = true;
       };
       net.onRemoteTransform = (String id, double x, double y, double z,
@@ -707,6 +712,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           pitch: pitch,
           viewMode: vm,
         );
+        _staticPicture = null; // 清静态快照：远端玩家移动必须即时重绘
+        _forceRebuild = true; // 计入重建门控
         _dirty = true;
       };
       _netBroadcastTimer = Timer.periodic(
@@ -1032,8 +1039,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 也在做 8 区块遍历 + 面数预算裁剪的纯 CPU 浪费（5090 卡死主因之一）。水波动画
     // 本身是顶点级小成本，重绘由 _dirty 门控即可，无需每帧重建整条管线。
     final bool clAnim = clPhaseAbs > 1e-7;
-    final bool clReal =
-        _firstBuild || clMotion || clAnim || clChunkChanged || clScale;
+    final bool clReal = _firstBuild ||
+        clMotion ||
+        clAnim ||
+        clChunkChanged ||
+        clScale ||
+        _forceRebuild;
     final DateTime clNow = DateTime.now();
     final DateTime? clLastAt = _lastBuildAt; // 本地副本便于空安全提升
     final bool clWithinInterval = clLastAt != null &&
@@ -1094,6 +1105,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _lastBuildAt = clNow;
     _lastChunkSerial = _chunkInvalidSerial;
     _firstBuild = false;
+    _forceRebuild = false; // 已消费强制重建信号
     // R26r7：自适应分辨率——重建耗时 >13ms 连续 3 帧 → 降倍率（0.85×，下限 0.5）；
     // 持续 <6ms 30 帧 → 回升（1.1×，上限 1.0）。只影响分辨率，不动逻辑。
     final double buildMs = sw.elapsedMicroseconds / 1000.0;
@@ -3974,6 +3986,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         ),
       );
 
+    // G9：联机 HUD（同伴列表 + 一起听 + 离开），仅联机模式显示。
+    if (widget.multiplayer) controls.add(_buildMultiplayerHud());
+
     // 坐标 HUD（第一人称，R26d：位置可自定义）
     if (fp && _showCoords)
       controls.add(
@@ -4243,6 +4258,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         );
     }
 
+    // G9：断线覆盖层——连接丢失（status==error）时居中提示并引导返回大厅；
+    // 置于折叠态 clear 之后，确保即便 UI 折叠也可见。仅联机模式。
+    if (widget.multiplayer) controls.add(_buildDisconnectOverlay());
+
     // R26 修复：_viewport 此前从未被赋值（恒为 Size.zero），导致 _onTick 里
     // `_viewport.isEmpty` 永远为 true → buildFrame 永不执行 → 帧恒为 empty，
     // 画面只剩天空+云（用户反馈「3D 渲染不出来 / 天空盒盖在前面」的根因）。
@@ -4406,6 +4425,157 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         },
       ),
       ),
+      ),
+    );
+  }
+
+  // ── G9：联机 HUD / 断线覆盖层 ──────────────────────────
+
+  /// 离开联机会话并返回大厅（遵循 PopScope 闸门，确保真正 pop）。
+  void _leaveSession() {
+    ref.read(netSessionProvider.notifier).leave();
+    if (!mounted) return;
+    _allowPop = true;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  /// 世界内联机 HUD：角色 / 房主地址 / 同伴列表 / 一起听状态 / 离开按钮。
+  Widget _buildMultiplayerHud() {
+    final NetSessionState net = ref.watch(netSessionProvider);
+    final bool isHost = net.role == NetRole.host;
+    final String roleLabel = isHost ? '房主' : '玩家';
+    final String addr = isHost
+        ? (net.port != null ? '本机 · 端口 ${net.port}' : '本机')
+        : (net.hostIp != null
+            ? '${net.hostIp}${net.port != null ? ':' + net.port.toString() : ''}'
+            : '连接中…');
+    final List<PeerInfo> peers = net.peers;
+    final String peerText = peers.isEmpty
+        ? '暂无同伴'
+        : '同伴 ${peers.length}：${peers.map((p) => p.name).join('、')}';
+    return Positioned(
+      left: AppSpace.md,
+      top: 56,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xAA0A1018),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x33FFFFFF)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.group, size: 16, color: Color(0xFF7CC8FF)),
+                const SizedBox(width: 6),
+                Text(roleLabel,
+                    style: const TextStyle(
+                        color: Color(0xFFEFF3FA),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(width: 8),
+                Text(addr,
+                    style: const TextStyle(
+                        color: Color(0x99F2F5FA),
+                        fontSize: 11,
+                        fontFamily: 'monospace')),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(peerText,
+                style: const TextStyle(color: Color(0xCCF2F5FA), fontSize: 12)),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.music_note, size: 14, color: Color(0xFFFFD66B)),
+                const SizedBox(width: 4),
+                Text(isHost ? '一起听 · 你为 DJ' : '一起听 · 跟随房主',
+                    style: const TextStyle(
+                        color: Color(0xCCFFF2DA), fontSize: 11)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: _leaveSession,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5484D),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('离开联机',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 断线覆盖层：连接状态为 error 时全屏提示并引导返回大厅。
+  Widget _buildDisconnectOverlay() {
+    final NetSessionState net = ref.watch(netSessionProvider);
+    if (net.status != ConnStatus.error) return const SizedBox.shrink();
+    return Positioned.fill(
+      child: Container(
+        color: const Color(0xCC000000),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            margin: const EdgeInsets.symmetric(horizontal: 32),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2230),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                const Icon(Icons.wifi_off, size: 48, color: Color(0xFFFF6B6B)),
+                const SizedBox(height: 16),
+                const Text('连接已断开',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(net.error ?? '与房主的连接已丢失',
+                    style: const TextStyle(
+                        color: Color(0xCCF2F5FA), fontSize: 13),
+                    textAlign: TextAlign.center),
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: _leaveSession,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F7CFF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Text('返回大厅',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

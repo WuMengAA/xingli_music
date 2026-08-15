@@ -185,7 +185,12 @@ abstract final class AppVersion {
   /// 发现，无第三方库）；②大厅页（创建主机 / 输入 IP 加入 / 局域网扫描）；③VoxelWorldView3D
   /// 接入联机：同步方块编辑 + 玩家机位（位置/朝向/视角模式）；一起听（主机为 DJ）架构就位，
   /// 待下一版接通；buildCount 61→62（0.26.8.15_alpha_cl62）。
-  static const int buildCount = 62;
+  /// cl63：G9 多人联机功能打通——①修复静止快照下远端编辑/玩家不重绘（清 _staticPicture
+  /// + 新增 _forceRebuild 并入重建门控，本地相机静止也能即时重绘）；②世界内联机 HUD
+  /// （角色/房主地址/同伴列表/一起听状态 + 一键离开）；③断线覆盖层（status==error 居中
+  /// 提示 + 返回大厅）；一起听（主机为 DJ）客户端跟随播放随地基接通；buildCount 62→63
+  /// （0.26.8.15_alpha_cl63）。
+  static const int buildCount = 63;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -241,6 +246,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl63',
+    title: 'G9 多人联机功能打通：即时重绘 + 联机 HUD + 断线处理',
+    details: <String>[
+      '修复静止快照下远端方块编辑/玩家移动不重绘（清 _staticPicture + 强制重建门控 _forceRebuild）',
+      '世界内联机 HUD：角色 / 房主地址 / 同伴列表 / 一起听状态 + 一键离开',
+      '断线覆盖层：连接丢失（status==error）时居中提示并引导返回大厅',
+      '一起听（主机为 DJ）客户端跟随播放随地基接通，无需人工操作',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl62',
