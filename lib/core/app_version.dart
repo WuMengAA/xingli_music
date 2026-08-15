@@ -201,6 +201,16 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl72：UI 流畅度优化·液态玻璃模糊层 RepaintBoundary 隔离——
+  /// LiquidGlass(frosted) 的 BackdropFilter 此前未做任何图层隔离：内容区内的
+  /// 逐帧重绘（歌词滚动 / 进度条 tick / Dock 指示器 AnimatedContainer / 页面
+  /// 滚动）会污染其所在图层，迫使每帧对整片背景重新采样 + 高斯模糊（ContentContainer
+  /// 的毛玻璃铺满整屏、影响最大，是中低端机 UI 卡顿主因之一）。在唯一一处
+  /// BackdropFilter（liquid_glass.dart）的 child 外包 RepaintBoundary，使模糊层
+  /// 只在背景（AppShell 玻璃层 / 场景背景，二者本身已各自 RepaintBoundary 化）
+  /// 变化时重算、内容动画不再连累模糊；一次性覆盖全部 7 个调用点（ContentContainer
+  /// / AppDock / ThemeSwitchButton / UnifiedPlayer×2 / AlbumCard / CardStack），
+  /// 视觉零变化；buildCount 71→72（0.26.8.15_alpha_cl72）。
   /// cl71：渲染性能优化·消除云层 _cloudQuad 每帧堆分配（cl68-O4/cl69/cl70 同源收尾）——
   /// 云层每帧约 100 面（默认 cloudChunks=3 → ±48 格 / 7 格间距，噪声筛掉约半数），
   /// 原每云面经 `<double>[12]`（4 角世界坐标）+ `Float32List(8)`（投影缓冲）两次堆分配，
@@ -244,7 +254,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 71;
+  static const int buildCount = 72;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -300,6 +310,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl72',
+    title: 'UI 流畅度优化：液态玻璃模糊层 RepaintBoundary 隔离',
+    details: <String>[
+      'LiquidGlass(frosted) 的 BackdropFilter 此前未做任何图层隔离：内容区内的逐帧重绘（歌词滚动 / 进度条 tick / Dock 指示器 AnimatedContainer / 页面滚动）会污染其所在图层，迫使每帧对整片背景重新采样 + 高斯模糊',
+      '在唯一一处 BackdropFilter（liquid_glass.dart）的 child 外包 RepaintBoundary，使模糊层只在背景变化时重算；一次性覆盖全部 7 个调用点（ContentContainer 全屏 / AppDock / ThemeSwitchButton / UnifiedPlayer×2 / AlbumCard / CardStack），视觉零变化',
+      'ContentContainer 的毛玻璃铺满整屏、影响最大，隔离后滚动歌词 / 拖动进度条不再每帧触发全屏重模糊，中低端机 UI 卡顿主因之一消除',
+      'buildCount 71→72（0.26.8.15_alpha_cl72）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl71',

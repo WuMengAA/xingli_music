@@ -140,7 +140,14 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: child,
+        // 隔离：把玻璃内容放进独立图层（RepaintBoundary）。
+        // 否则内容区内的逐帧重绘（歌词滚动 / 进度条 tick / Dock 指示器
+        // AnimatedContainer / 页面滚动）会污染 BackdropFilter 所在图层，
+        // 迫使每帧对整片背景重新采样 + 高斯模糊——这是中低端机 UI 卡顿的
+        // 主因之一（ContentContainer 的毛玻璃铺满整屏，影响最大）。
+        // 隔离后模糊层只在背景（AppShell 玻璃层 / 场景背景，二者本身已各自
+        // RepaintBoundary 化）变化时重算，内容动画不再连累模糊，视觉零变化。
+        child: RepaintBoundary(child: child),
       ),
     );
   }
