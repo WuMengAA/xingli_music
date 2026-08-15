@@ -38,7 +38,10 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (release)
-        run: flutter build apk --release --no-tree-shake-icons
+        # --android-skip-build-dependency-validation：CI 的 Flutter stable(3.47)
+        # 要求 Gradle ≥ 8.14，而项目 wrapper 为 8.10.2（本机旧 Flutter 可构建）。
+        # 项目侧暂不升 gradle（避免影响本机），CI 用官方 bypass 开关跳过依赖校验。
+        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
       - name: Generate SHA-256 checksum
         working-directory: build/app/outputs/flutter-apk
