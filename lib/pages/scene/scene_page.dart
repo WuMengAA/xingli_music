@@ -10,6 +10,7 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
 import '../../providers/settings/performance_providers.dart';
+import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
@@ -41,6 +42,9 @@ class HomeSceneContent extends ConsumerWidget {
     final bool bgAnim = ref.watch(sceneBgAnimProvider);
     // 实时渲染 = 实时开关 或 动画开关（二者联动取并集，显示与实际不再不同步）。
     final bool bgRealtime = bgLive || bgAnim;
+    // cl76：视频背景改按「视听」开关——开启即按当前曲目播 B站背景视频，
+    // 不再要求先「拍摄场景」；关闭时回退体素取景 / 深色渐变。
+    final bool visualOn = ref.watch(biliVisualEnabledProvider);
 
     return PageScaffold(
       title: '主页',
@@ -81,23 +85,44 @@ class HomeSceneContent extends ConsumerWidget {
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          // H2：开关关闭或该场景无取景 → 回退原有深色渐变背景。
-          // R26skel-b4：B站视频源可作场景背景——当前曲目来自 B站时，
-          // 背景切为视频画面（静音随音乐播放）；否则照旧体素取景。
+          // cl76：视频背景按「视听」开关——开启（默认）即按当前曲目自动匹配
+          // B站视频作背景画面（静音随音乐播），无匹配/失败回退体素取景（有取景
+          // 且开启时）或深色渐变；视听关闭时照旧体素取景。
           // ⚠️ 仅场景页/播放器背景；3D 游戏内不放视频（用户明确要求）。
-          if (capture != null && bgOn)
+          if (visualOn)
             Positioned.fill(
               // cl53-F1：主页视频背景四角圆角（与 ContentContainer 玻璃表面
               // 一致），顶部底部都圆角，避免直角贴边显得突兀。
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 child: SceneVideoBackground(
-                  fallback: VoxelSceneBackground(
-                    key: ValueKey(capture),
-                    capture: capture,
-                    forceLive: bgRealtime,
-                  ),
+                  fallback: (capture != null && bgOn)
+                      ? VoxelSceneBackground(
+                          key: ValueKey(capture),
+                          capture: capture,
+                          forceLive: bgRealtime,
+                        )
+                      : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: <Color>[
+                                context.appColors.bgSurfaceSunken,
+                                context.appColors.bgSurface,
+                              ],
+                            ),
+                          ),
+                        ),
                 ),
+              ),
+            )
+          else if (capture != null && bgOn)
+            Positioned.fill(
+              child: VoxelSceneBackground(
+                key: ValueKey(capture),
+                capture: capture,
+                forceLive: bgRealtime,
               ),
             ),
           Positioned.fill(

@@ -46,12 +46,13 @@ class GameGraphicsPage extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpace.lg),
         children: <Widget>[
           Text(
-            '与游戏内设置共享，改动即时生效、重启保留。',
+            '与游戏内设置共享，改动即时生效、重启保留。'
+            '低画质已足够：无贴图、无光影，纯色平铺 + 雾 + 远景 LOD。',
             style: context.appText.artist,
           ),
           const SizedBox(height: AppSpace.lg),
 
-          // ═══ 画质档 ═══
+          // ═══ 画质档（四档预设）═══
           _Card(
             title: '画质档',
             child: Column(
@@ -72,104 +73,14 @@ class GameGraphicsPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpace.sm),
                 Text(
-                  q.renderScale < 1.0
-                      ? '${q.label}：0.5 倍分辨率渲染 + 放大显示（帧率翻倍），'
-                          '视距 ${q.viewDistanceChunks} 区块、关雾关水波。'
-                      : '${q.label}：纯色平铺'
-                          '${q.fog ? ' + 雾' : ''}${q.water ? ' + 水波' : ''}，'
-                          '视距 ${q.viewDistanceChunks} 区块。',
+                  q == GraphicsQuality.auto
+                      ? '自动：按真实帧率调节（目标 ≥30fps），不足则逐档下调'
+                          '主视距区块（4→2）；默认开启，≤60fps。'
+                      : '${q.label}：视距 ${q.viewDistanceChunks} 区块 + '
+                          'LOD ${q.lodMaxChunks} 区块，共 '
+                          '${q.viewDistanceChunks + q.lodMaxChunks} 区块 · '
+                          '${q.fpsCap}fps。',
                   style: context.appText.artist,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpace.md),
-
-          // ═══ 视距 ═══
-          _Card(
-            title: '视距',
-            child: _Stepper(
-              label: '视距',
-              value: vd,
-              min: 2,
-              max: 12,
-              hint: '区块（1 区块 = 16 格）。越大看得越远、面数越多',
-              onChanged: (int v) =>
-                  ref.read(viewDistanceChunksProvider.notifier).state = v,
-            ),
-          ),
-          const SizedBox(height: AppSpace.md),
-
-          // ═══ 云层区块视距（R26p2）═══
-          _Card(
-            title: '云层区块视距',
-            child: _Stepper(
-              label: '云层视距',
-              value: ref.watch(cloudViewDistanceProvider),
-              min: 1,
-              max: 8,
-              hint: '区块（1 区块 = 16 格）。云场覆盖半径，越大云铺越远、云胞越多',
-              onChanged: (int v) =>
-                  ref.read(cloudViewDistanceProvider.notifier).state = v,
-            ),
-          ),
-          const SizedBox(height: AppSpace.md),
-
-          // ═══ LOD ═══
-          _Card(
-            title: '细节层次（LOD）',
-            child: Column(
-              children: <Widget>[
-                _Stepper(
-                  label: 'LOD 起始',
-                  value: lodStart,
-                  min: 0,
-                  max: 6,
-                  hint: '距相机多少区块外开始降精度（0 = 全程满精度）',
-                  onChanged: (int v) =>
-                      ref.read(lodStartChunksProvider.notifier).state = v,
-                ),
-                const SizedBox(height: AppSpace.xs),
-                _Stepper(
-                  label: 'LOD 步长',
-                  value: lodStep,
-                  min: 1,
-                  max: 4,
-                  hint: '每 N 区块降一级精度（步长 ×2）',
-                  onChanged: (int v) =>
-                      ref.read(lodStepChunksProvider.notifier).state = v,
-                ),
-                const SizedBox(height: AppSpace.sm),
-                Text('LOD 质量', style: context.appText.bodyMuted),
-                const SizedBox(height: AppSpace.xs),
-                Wrap(
-                  spacing: AppSpace.xs,
-                  children: <Widget>[
-                    for (final LodQuality lq in LodQuality.values)
-                      ChoiceChip(
-                        label: Text(_lodQualityLabel(lq)),
-                        selected: lodQuality == lq,
-                        onSelected: (_) =>
-                            ref.read(lodQualityProvider.notifier).state = lq,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpace.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(
-                        'LOD 视锥剔除（关闭远景后半球，省面）',
-                        style: context.appText.artist,
-                      ),
-                    ),
-                    Switch(
-                      value: lodFrustumCull,
-                      onChanged: (bool v) =>
-                          ref.read(lodFrustumCullProvider.notifier).state = v,
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -196,41 +107,144 @@ class GameGraphicsPage extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpace.sm),
                 Text(
-                  '限制体素动画 / 可视化刷新率；24 最低耗、120 最流畅'
-                  '（低端机建议 24）。',
+                  '省电档预设 24fps、其余 60fps；低端机建议 24。',
                   style: context.appText.artist,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpace.lg),
+          const SizedBox(height: AppSpace.md),
 
-          // ═══ 方块描边（cl45）═══
-          _Card(
-            title: '方块描边',
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    '玩家 5 格内实描边 + 5~12 格极淡渐隐；'
-                    '关闭后不描边（更省面数、画面更干净）',
-                    style: context.appText.artist,
-                  ),
+          // ═══ 高级（cl76：默认折叠，收纳繁琐画质选项）═══
+          ExpansionTile(
+            initiallyExpanded: false,
+            shape: const Border(),
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: EdgeInsets.zero,
+            title: Text('高级（视距 / LOD / 云层 / 描边）',
+                style: context.appText.body),
+            children: <Widget>[
+              const SizedBox(height: AppSpace.sm),
+
+              // 视距
+              _Card(
+                title: '视距',
+                child: _Stepper(
+                  label: '视距',
+                  value: vd,
+                  min: 2,
+                  max: 12,
+                  hint: '区块（1 区块 = 16 格）。越大看得越远、面数越多',
+                  onChanged: (int v) =>
+                      ref.read(viewDistanceChunksProvider.notifier).state = v,
                 ),
-                Switch(
-                  value: ref.watch(outlineEnabledProvider),
-                  onChanged: (bool v) => ref
-                      .read(outlineEnabledProvider.notifier)
-                      .state = v,
+              ),
+              const SizedBox(height: AppSpace.md),
+
+              // 云层区块视距（R26p2）
+              _Card(
+                title: '云层区块视距',
+                child: _Stepper(
+                  label: '云层视距',
+                  value: ref.watch(cloudViewDistanceProvider),
+                  min: 1,
+                  max: 8,
+                  hint: '区块（1 区块 = 16 格）。云场覆盖半径，越大云铺越远、云胞越多',
+                  onChanged: (int v) =>
+                      ref.read(cloudViewDistanceProvider.notifier).state = v,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: AppSpace.md),
+
+              // LOD
+              _Card(
+                title: '细节层次（LOD）',
+                child: Column(
+                  children: <Widget>[
+                    _Stepper(
+                      label: 'LOD 起始',
+                      value: lodStart,
+                      min: 0,
+                      max: 6,
+                      hint: '距相机多少区块外开始降精度（0 = 全程满精度）',
+                      onChanged: (int v) =>
+                          ref.read(lodStartChunksProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _Stepper(
+                      label: 'LOD 步长',
+                      value: lodStep,
+                      min: 1,
+                      max: 4,
+                      hint: '每 N 区块降一级精度（步长 ×2）',
+                      onChanged: (int v) =>
+                          ref.read(lodStepChunksProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    Text('LOD 质量', style: context.appText.bodyMuted),
+                    const SizedBox(height: AppSpace.xs),
+                    Wrap(
+                      spacing: AppSpace.xs,
+                      children: <Widget>[
+                        for (final LodQuality lq in LodQuality.values)
+                          ChoiceChip(
+                            label: Text(_lodQualityLabel(lq)),
+                            selected: lodQuality == lq,
+                            onSelected: (_) =>
+                                ref.read(lodQualityProvider.notifier).state = lq,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        Expanded(
+                          child: Text(
+                            'LOD 视锥剔除（关闭远景后半球，省面）',
+                            style: context.appText.artist,
+                          ),
+                        ),
+                        Switch(
+                          value: lodFrustumCull,
+                          onChanged: (bool v) =>
+                              ref.read(lodFrustumCullProvider.notifier).state = v,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+
+              // 方块描边（cl45）
+              _Card(
+                title: '方块描边',
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        '玩家 5 格内实描边 + 5~12 格极淡渐隐；'
+                        '关闭后不描边（更省面数、画面更干净）',
+                        style: context.appText.artist,
+                      ),
+                    ),
+                    Switch(
+                      value: ref.watch(outlineEnabledProvider),
+                      onChanged: (bool v) => ref
+                          .read(outlineEnabledProvider.notifier)
+                          .state = v,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpace.lg),
           Text(
-            '说明：默认纯色平铺；选「高清」启用 16×16 程序化贴图（图集已修复黑渲染）。'
-            '性能档以 0.5 倍分辨率渲染换取帧率。',
+            '说明：画质预设一键套用（视距 / LOD / 帧率随档位）；'
+            '繁琐参数已收进「高级」与主页「渲染 · 高级」折叠区。',
             style: context.appText.bodyMuted,
           ),
         ],

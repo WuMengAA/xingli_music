@@ -376,22 +376,51 @@ class _LayoutDrivenBody extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: AppSpace.sm),
                 for (final SettingGroup g in selected.groups) ...<Widget>[
-                  if (g.name.isNotEmpty) ...<Widget>[
-                    // cl42·⑦：分组标题放大（原 labelMedium ~12px 偏小）。
-                    // 用 titleSmall + 加粗，与集合名(titleMedium)形成清晰层级。
-                    Text(
-                      g.name,
-                      style: Theme.of(context)
-                              .textTheme
-                              .titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700) ??
-                          context.appText.subtitle,
-                    ),
-                    const SizedBox(height: 6),
-                  ],
-                  for (final SettingItem item in g.items) ...<Widget>[
-                    buildSettingItem(context, ref, item.id),
-                    const Divider(height: 1),
+                  // cl76：收纳折叠——「渲染·高级」组默认折叠，主界面保持简洁；
+                  // 需微调视距/LOD/剔除时再展开（或进「游戏画面 · 高级设置」）。
+                  if (g.id == 'game_render_advanced')
+                    Theme(
+                      data: Theme.of(context)
+                          .copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        initiallyExpanded: false,
+                        shape: const Border(),
+                        tilePadding: EdgeInsets.zero,
+                        childrenPadding: EdgeInsets.zero,
+                        title: Text(
+                          g.name,
+                          style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700) ??
+                              context.appText.subtitle,
+                        ),
+                        children: <Widget>[
+                          for (final SettingItem item in g.items) ...<Widget>[
+                            buildSettingItem(context, ref, item.id),
+                            const Divider(height: 1),
+                          ],
+                        ],
+                      ),
+                    )
+                  else ...<Widget>[
+                    if (g.name.isNotEmpty) ...<Widget>[
+                      // cl42·⑦：分组标题放大（原 labelMedium ~12px 偏小）。
+                      // 用 titleSmall + 加粗，与集合名(titleMedium)形成清晰层级。
+                      Text(
+                        g.name,
+                        style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700) ??
+                            context.appText.subtitle,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    for (final SettingItem item in g.items) ...<Widget>[
+                      buildSettingItem(context, ref, item.id),
+                      const Divider(height: 1),
+                    ],
                   ],
                   const SizedBox(height: AppSpace.md),
                 ],

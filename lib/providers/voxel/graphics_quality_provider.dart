@@ -9,7 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/voxel/voxel_world_view3d.dart';
 
-/// 当前 3D 画质档（性能 / 流畅 / 标准；R26o 起以低画质纯色为基础，无贴图档）。
+/// 当前 3D 画质档（cl76：省电 / 流畅 / 地平线 / 自动，默认「自动」——运行时
+/// 按 FPS 自动降档，10 秒窗口 ≥30fps 不降、不足逐档下调主视距区块）。
 final graphicsQualityProvider = StateProvider<GraphicsQuality>(
-  (ref) => GraphicsQuality.smooth,
+  (ref) => GraphicsQuality.auto,
 );

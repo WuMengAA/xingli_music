@@ -90,36 +90,75 @@ enum _Nav { forward, back, left, right, up, down }
 /// 视角模式（R23：2.5D 等距 / 3D 俯瞰 / 3D 第一人称；R23k + 第三人称跟随）。
 enum _ViewMode { iso2d5, orbit, firstPerson, thirdPerson }
 
-/// 画面精度档（R24c；R26x 恢复贴图高画质——图集改用原始 RGBA 重解码，
-/// 跨 Impeller/D3D11 可靠采样，不再黑渲染）。
+/// 画面精度档（cl76：收纳折叠——只留控制游戏画质的四档预设）。
+///
+/// 低画质已足够：**无贴图 / 无水波 / 无光影（阴影+AO 渲染配置强制关闭）**，
+/// 纯色平铺 + 雾 + 远景 LOD。高画质不再堆复杂度——最远只到「地平线」档。
 enum GraphicsQuality {
-  /// R26fx3 极低：所有剔除拉满 + 0.25 倍分辨率渲染（帧率最大化），
-  /// 视距/面数最低、特效全关。能拉最低拉最低。
-  perf('极低', viewDistanceChunks: 2, lodStartChunks: 1, lodStepChunks: 1,
-      maxFaces: 4000, fog: false, water: false, texture: false, renderScale: 0.25),
+  /// 省电：2 主区块 + 2 LOD 区块（共 4 区块），24fps。最轻量。
+  powerSave('省电',
+      viewDistanceChunks: 2,
+      lodMaxChunks: 2,
+      lodStartChunks: 1,
+      lodStepChunks: 1,
+      maxFaces: 4000,
+      fpsCap: 24,
+      fog: false,
+      water: false,
+      texture: false,
+      renderScale: 0.5),
 
-  /// 流畅：默认。纯色平铺 + 雾（水波动画默认关，见 R27：仅「高」画质启用水面）。
-  /// R26r33：maxFaces 12000→9000——1050 等弱 GPU 上原 10-25FPS，降预算约 25%
-  /// 面数即可明显提帧；远处面由 maxFaces 预算收敛（最远面优先裁、雾掩盖），
-  /// 视觉损失小。要更流畅可选手动切「性能」档（0.5× 分辨率 + 6000 面）。
-  smooth('低', viewDistanceChunks: 4, lodStartChunks: 2, lodStepChunks: 2,
-      maxFaces: 9000, fog: true, water: false, texture: false, renderScale: 0.5),
+  /// 流畅：4 主区块 + 4 LOD 区块（共 8 区块），60fps。默认基线。
+  smooth('流畅',
+      viewDistanceChunks: 4,
+      lodMaxChunks: 4,
+      lodStartChunks: 2,
+      lodStepChunks: 2,
+      maxFaces: 12000,
+      fpsCap: 60,
+      fog: true,
+      water: false,
+      texture: false,
+      renderScale: 1.0),
 
-  /// 标准：更远视距 + 更大面数预算（纯色）。水面动画默认关（仅「高」开启）。
-  standard('中', viewDistanceChunks: 6, lodStartChunks: 3, lodStepChunks: 2,
-      maxFaces: 18000, fog: true, water: false, texture: false, renderScale: 0.8),
+  /// 地平线：4 主区块 + 28 LOD 区块（共 32 区块），60fps。
+  /// 远景山脉/立体地形靠 LOD 渲染；视距上限 4 区块、LOD 最远可到 60 区块
+  /// （极值共 64 区块）。帧率上限 60fps。
+  horizon('地平线',
+      viewDistanceChunks: 4,
+      lodMaxChunks: 28,
+      lodStartChunks: 2,
+      lodStepChunks: 2,
+      maxFaces: 24000,
+      fpsCap: 60,
+      fog: true,
+      water: false,
+      texture: false,
+      renderScale: 1.0),
 
-  /// R26fx3 高：启用 16×16 程序化贴图图集（独家效果），最高视距/面数预算，
-  /// 1.0 分辨率 + AO/阴影。
-  high('高', viewDistanceChunks: 8, lodStartChunks: 4, lodStepChunks: 2,
-      maxFaces: 24000, fog: true, water: true, texture: true, renderScale: 1.0);
+  /// 自动：默认开启。基线 4+4（流畅档），运行时 10 秒窗口采样真实帧率，
+  /// ≥30fps 不降 LOD 区块；不足则主视距区块逐档下调（4→2）直至满足。
+  /// 帧率上限 60fps。
+  auto('自动',
+      viewDistanceChunks: 4,
+      lodMaxChunks: 4,
+      lodStartChunks: 2,
+      lodStepChunks: 2,
+      maxFaces: 12000,
+      fpsCap: 60,
+      fog: true,
+      water: false,
+      texture: false,
+      renderScale: 1.0);
 
   const GraphicsQuality(
     this.label, {
     required this.viewDistanceChunks,
+    required this.lodMaxChunks,
     required this.lodStartChunks,
     required this.lodStepChunks,
     required this.maxFaces,
+    required this.fpsCap,
     required this.fog,
     required this.water,
     required this.texture,
@@ -128,14 +167,20 @@ enum GraphicsQuality {
 
   final String label;
   final int viewDistanceChunks;
+
+  /// LOD 最远区块（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
+  final int lodMaxChunks;
   final int lodStartChunks;
   final int lodStepChunks;
   final int maxFaces;
+
+  /// 档位帧率上限（省电 24 / 其余 60）。
+  final int fpsCap;
   final bool fog;
   final bool water;
   final bool texture;
 
-  /// R26o：渲染分辨率倍率（性能档 0.5 = 半分辨率渲染 + 放大，帧率翻倍）。
+  /// 渲染分辨率倍率（省电 0.5 = 半分辨率渲染 + 放大，帧率翻倍）。
   final double renderScale;
 }
 
@@ -304,10 +349,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   final Map<(int, int), double> _allowMaskDotCache = <(int, int), double>{};
 
   static const Map<GraphicsQuality, int> _minRebuildMs = <GraphicsQuality, int>{
-    GraphicsQuality.perf: 50, // 20fps 重建（"干脆不刷新"）
-    GraphicsQuality.smooth: 33, // 30fps
-    GraphicsQuality.standard: 22, // ~45fps
-    GraphicsQuality.high: 16, // 60fps 上限（几乎不节流）
+    GraphicsQuality.powerSave: 42, // 24fps 重建（"干脆不刷新"）
+    GraphicsQuality.smooth: 16, // 60fps 上限（几乎不节流）
+    GraphicsQuality.horizon: 16, // 60fps 上限
+    GraphicsQuality.auto: 16, // 60fps 上限（降档由 FPS 监测器处理）
   };
   Duration _minIntervalFor(GraphicsQuality q) =>
       Duration(milliseconds: _minRebuildMs[q] ?? 33);
@@ -366,7 +411,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // ── R24c 画面精度 / 16×16 纹理图集 ──────────────────
   /// 画面精度档（流畅 / 标准 / 高清），影响视距 / LOD / 面数 / 雾 / 水波 / 贴图。
   // R26o：默认画质 = 流畅（低画质纯色为基础）；initState 里再按 provider 覆盖。
-  GraphicsQuality _quality = GraphicsQuality.smooth;
+  GraphicsQuality _quality = GraphicsQuality.auto;
+
+  // ── cl76：自动画质档——运行时 FPS 监测（10s 滚动窗口）────────
+  /// 自动档当前主视距区块（基线 4，不足 30fps 逐档下调 → 最小 2）。
+  int _autoChunks = 4;
+  Duration _autoWindowStart = Duration.zero;
+  int _autoFrames = 0;
 
   /// 16×16 纹理图集（异步构建；null = 尚未就绪，回退纯色）。
   ui.Image? _atlas;
@@ -943,6 +994,24 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         ? 1 / 60
         : ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.25);
     _lastTick = elapsed;
+
+    // cl76：自动画质——10 秒滚动窗口采样真实帧率；≥30fps 不降 LOD 区块，
+    // 不足则主视距区块逐档下调（4→2）直至满足，再等 10s 复测。
+    if (_quality == GraphicsQuality.auto) {
+      _autoFrames++;
+      if (_autoWindowStart == Duration.zero) _autoWindowStart = elapsed;
+      final Duration win = elapsed - _autoWindowStart;
+      if (win >= const Duration(seconds: 10)) {
+        final double fps = _autoFrames / (win.inMilliseconds / 1000.0);
+        _autoWindowStart = elapsed;
+        _autoFrames = 0;
+        if (fps < 30 && _autoChunks > 2) {
+          _autoChunks--;
+          _config = _configFor(_quality);
+          _dirty = true;
+        }
+      }
+    }
 
     // H1r2：游戏暂停——整个世界冻结（物理/时间/玩法/音效推进全停，仅菜单活）。
     if (!_paused) {
@@ -3790,11 +3859,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       RenderConfig.chunkSize.toDouble();
 
   RenderConfig _configFor(GraphicsQuality q) => RenderConfig(
-        // P0(性能合集)：视距以**档位自身值为硬上限**——切「性能」档就跑 2 区块，
+        // P0(性能合集)：视距以**档位自身值为硬上限**——切「省电」档就跑 2 区块，
         // 不再被全局 provider 的历史值（可能 8/12）顶高 → 低档不再 5090 卡死。
         // 用户在设置页手动调小仍生效（min 取小）；想调大必须切更高档位。
-        viewDistanceChunks: math.min(
-            q.viewDistanceChunks, ref.read(viewDistanceChunksProvider)),
+        // cl76：自动档用运行时 _autoChunks（FPS 监测器逐档下调）。
+        viewDistanceChunks: q == GraphicsQuality.auto
+            ? _autoChunks
+            : math.min(
+                q.viewDistanceChunks, ref.read(viewDistanceChunksProvider)),
         lodStartChunks: ref.read(lodStartChunksProvider),
         lodStepChunks: ref.read(lodStepChunksProvider),
         // R26lod：LOD 参数体系——开关/步长格/采样 2 幂/最远区块（可 > 视距）。
@@ -3806,7 +3878,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         boundaryFog: ref.read(boundaryFogEnabledProvider),
         // 性能受限时近处也 LOD：perf/smooth 满精度带收窄到 3×3（fullBand=1），
         // 带外更近就开始合成大方块（配合 lodStart 调小）。
-        fullBandChunks: q == GraphicsQuality.perf || q == GraphicsQuality.smooth
+        fullBandChunks: q == GraphicsQuality.powerSave ||
+                q == GraphicsQuality.smooth
             ? 1
             : 2,
         // R26p2：云层区块视距独立可调（与首页「游戏画面」同源）。
@@ -3836,9 +3909,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         lodFrustumCull: ref.read(lodFrustumCullProvider),
         // R26fl：手电筒模式（完整视线窄锥剔除 + 边界黑化 + 泛光）。
         flashlight: ref.read(flashlightEnabledProvider),
-        // R26fx：阴影渲染 / 环境光屏蔽（画面设置）。
-        shadowRender: ref.read(shadowRenderProvider),
-        aoEnabled: ref.read(aoEnabledProvider),
+        // cl76：收纳折叠——去掉复杂光影：阴影 / 环境光屏蔽强制关闭（低画质已
+        // 足够，纯色平铺 + 雾 + 远景 LOD 即可）。手电筒属玩法机制，保留开关。
+        shadowRender: false,
+        aoEnabled: false,
         // cl45：方块描边总开关（玩家 5 格内实描边 + 5~12 格极淡渐隐）。
         outlineEnabled: ref.read(outlineEnabledProvider),
         skyGradient: true,
@@ -3861,6 +3935,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         q.lodStartChunks.clamp(0, 6);
     ref.read(lodStepChunksProvider.notifier).state =
         q.lodStepChunks.clamp(1, 4);
+    // cl76：LOD 最远区块随档位写回（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
+    ref.read(lodMaxChunksProvider.notifier).state =
+        q.lodMaxChunks.clamp(2, 64);
+    // cl76：自动档重置监测基线（下次 10s 窗口重新采样）。
+    if (q == GraphicsQuality.auto) {
+      _autoChunks = q.viewDistanceChunks;
+      _autoWindowStart = Duration.zero;
+      _autoFrames = 0;
+    }
     _config = _configFor(q);
     _minRebuildInterval = _minIntervalFor(q); // cl30：重建限频随档位调整
     _dirty = true;

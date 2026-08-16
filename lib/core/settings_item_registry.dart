@@ -176,11 +176,11 @@ class _QualityPresetCard extends StatelessWidget {
     );
   }
 
-  static String _summary(GraphicsQuality g) =>
-      '视距 ${g.viewDistanceChunks} 区块 · 渲染 ${(g.renderScale * 100).round()}%\n'
-      '面数 ${g.maxFaces ~/ 1000}k · '
-      '${g.texture ? '贴图' : '纯色'}${g.water ? ' · 水面' : ''}'
-      '${g.fog ? ' · 雾' : ''}';
+  static String _summary(GraphicsQuality g) => g == GraphicsQuality.auto
+      ? '自动：按真实帧率调节（目标 ≥30fps）\n'
+          '${g.viewDistanceChunks + g.lodMaxChunks} 区块基线 · ≤60fps'
+      : '视距 ${g.viewDistanceChunks} 区块 + LOD ${g.lodMaxChunks} 区块\n'
+          '共 ${g.viewDistanceChunks + g.lodMaxChunks} 区块 · ${g.fpsCap}fps';
 }
 
 /// cl46：自定义世界机制——偏移率滑块行（0.0~1.0）。
@@ -538,6 +538,19 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         ],
       );
     },
+  ),
+  // cl76：视听结合（B站背景视频）开关——长按播放器「视听」可设模糊/同步/变速。
+  'biliVisual': SettingItemDef(
+    title: '视听结合（B站背景视频）',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '视听结合（B站背景视频）',
+      subtitle: '当前曲目自动匹配 B站视频作背景画面（默认静音）；'
+          '长按播放器上的「视听」可设置模糊/同步/变速',
+      value: ref.watch(biliVisualEnabledProvider),
+      onChanged: (bool v) =>
+          ref.read(biliVisualEnabledProvider.notifier).state = v,
+    ),
   ),
   'musicEngine': SettingItemDef(
     title: '播放引擎',
@@ -1122,28 +1135,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           ref.read(flashlightEnabledProvider.notifier).state = v,
     ),
   ),
-  'shadowRender': SettingItemDef(
-    title: '阴影渲染',
-    builder: (context, ref) => _toggle(
-      context,
-      title: '阴影渲染',
-      subtitle: '太阳投影硬阴影（开=真实立体；关=省面数）',
-      value: ref.watch(shadowRenderProvider),
-      onChanged: (bool v) =>
-          ref.read(shadowRenderProvider.notifier).state = v,
-    ),
-  ),
-  'aoRender': SettingItemDef(
-    title: '环境光屏蔽（AO）',
-    builder: (context, ref) => _toggle(
-      context,
-      title: '环境光屏蔽（AO）',
-      subtitle: '方块角落/缝隙变暗增强立体感；关 = 均匀亮度更省',
-      value: ref.watch(aoEnabledProvider),
-      onChanged: (bool v) =>
-          ref.read(aoEnabledProvider.notifier).state = v,
-    ),
-  ),
+  // cl76：收纳折叠——删掉复杂光影设置项（阴影 / 环境光屏蔽），渲染配置强制
+  // 关闭，纯色平铺即可；保留手电筒（玩法机制）与水下滤镜。
   'underwaterFilter': SettingItemDef(
     title: '水下滤镜',
     builder: (context, ref) => _toggle(
@@ -1728,10 +1721,13 @@ Future<void> _autoPlayBilibiliForCurrent(
 /// R26fx：画质预设一键应用——把整套画面参数（画质档/视距/LOD/分辨率/特效/
 /// 帧率）一次设齐，避免「画质档、性能预设、视距、LOD、渲染参数各自独立
 /// 叠加生效、出了问题不知道是哪一层」的混乱。
+///
+/// cl76：四档预设——省电(2+2·24fps) / 流畅(4+4·60fps) / 地平线(4+28·60fps) /
+/// 自动(基线 4+4·≤60fps，FPS 监测降档)。
 void _applyQualityPreset(WidgetRef ref, GraphicsQuality q) {
   ref.read(graphicsQualityProvider.notifier).state = q;
   ref.read(performanceModeProvider.notifier).state =
-      q == GraphicsQuality.perf || q == GraphicsQuality.smooth
+      q == GraphicsQuality.powerSave || q == GraphicsQuality.smooth
           ? PerformanceMode.performance
           : PerformanceMode.quality;
   ref.read(viewDistanceChunksProvider.notifier).state = q.viewDistanceChunks;
@@ -1740,25 +1736,23 @@ void _applyQualityPreset(WidgetRef ref, GraphicsQuality q) {
   ref.read(lodEnabledProvider.notifier).state = true;
   ref.read(lodStepBlocksProvider.notifier).state = 16;
   ref.read(lodSampleBaseProvider.notifier).state = 4;
-  ref.read(lodMaxChunksProvider.notifier).state =
-      q == GraphicsQuality.perf
-          ? 4
-          : (q == GraphicsQuality.smooth ? 6 : 8);
-  // R26fx3：渲染分辨率倍率重置为 1.0（档位默认 renderScale 已含 0.25/0.5/0.8/1.0，
-  // painter = q.renderScale × 手动倍率；不再双乘）。
+  // cl76：LOD 最远区块随档位（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
+  ref.read(lodMaxChunksProvider.notifier).state = q.lodMaxChunks;
+  // 渲染分辨率倍率重置为 1.0（painter = q.renderScale × 手动倍率；不再双乘）。
   ref.read(renderPrecisionScaleProvider.notifier).state = 1.0;
   ref.read(renderPrecisionProvider.notifier).state = 1.0;
   // 画面预设重置为标准（跟随档位）。
   ref.read(picturePresetProvider.notifier).state = PicturePreset.standard;
+  // cl76：帧率随档位（省电 24fps，其余 60fps）。
   ref.read(fpsLimitProvider.notifier).state =
-      q == GraphicsQuality.perf ? FpsLimit.fps24 : FpsLimit.fps60;
-  // R26fx3：极低档「所有剔除拉满」——视锥剔除也开（其他档位默认关）。
+      q.fpsCap <= 24 ? FpsLimit.fps24 : FpsLimit.fps60;
+  // 省电档「所有剔除拉满」——视锥剔除也开（其他档位默认关）。
   ref.read(frustumCullEnabledProvider.notifier).state =
-      q == GraphicsQuality.perf;
+      q == GraphicsQuality.powerSave;
   ref.read(faceCullEnabledProvider.notifier).state = true;
   ref.read(occlusionCullEnabledProvider.notifier).state = true;
   ref.read(backFaceCullEnabledProvider.notifier).state = true;
-  final bool low = q == GraphicsQuality.perf || q == GraphicsQuality.smooth;
+  final bool low = q == GraphicsQuality.powerSave || q == GraphicsQuality.smooth;
   ref.read(noiseOverrideProvider.notifier).state = low ? false : null;
   ref.read(glassBlurOverrideProvider.notifier).state = low ? 0.0 : null;
   ref.read(bgAnimationOverrideProvider.notifier).state = low ? false : null;

@@ -202,6 +202,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             // R26skel-b6：音乐源音质/清晰度（VIP/大会员自动识别）。
             SettingItem(id: 'musicQuality', title: '网易云音质', kind: SettingKind.chips),
             SettingItem(id: 'biliQuality', title: 'B站清晰度', kind: SettingKind.chips),
+            // cl76：视听结合（B站背景视频）开关——长按播放器「视听」可设模糊/同步/变速。
+            SettingItem(id: 'biliVisual', title: '视听结合（B站背景视频）', kind: SettingKind.toggle),
           ],
         ),
         SettingGroup(
@@ -237,7 +239,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'perfPreset', title: '画质预设（低 / 中 / 高）'),
             SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
             SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
-            SettingItem(id: 'shadowRender', title: '阴影（真阴影）', kind: SettingKind.toggle),
             SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
           ],
         ),
@@ -261,9 +262,7 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'backFaceCull', title: '背面剔除', kind: SettingKind.toggle),
             SettingItem(id: 'frustumCull', title: '视锥剔除', kind: SettingKind.toggle),
             SettingItem(id: 'underwaterFilter', title: '水下滤镜', kind: SettingKind.toggle),
-            SettingItem(id: 'flashlight', title: '手电筒模式', kind: SettingKind.toggle),
             SettingItem(id: 'waterFlow', title: '水流动', kind: SettingKind.toggle),
-            SettingItem(id: 'aoRender', title: '环境光屏蔽（AO）', kind: SettingKind.toggle),
           ],
         ),
         // 机制：存档机制 / 世界机制 / 自定义世界机制。
