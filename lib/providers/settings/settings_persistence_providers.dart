@@ -17,6 +17,7 @@ import '../session/session_providers.dart';
 import '../storage/storage_providers.dart';
 import '../theme/theme_providers.dart';
 import '../voxel/graphics_quality_provider.dart';
+import 'oobe_choice_providers.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import 'log_upload_providers.dart';
 import 'llm_providers.dart';
@@ -190,6 +191,12 @@ Future<void> restoreSettings(WidgetRef ref) async {
   // 第三方大模型（地址/模型名普通持久化；API Key 从 SecureBox 密文恢复）
   ref.read(llmBaseUrlProvider.notifier).state = repo.llmBaseUrl;
   ref.read(llmModelProvider.notifier).state = repo.llmModel;
+  // OOBE 选择/询问（cl75）：初始化收集的用户偏好灌回。
+  ref.read(audioQualityProvider.notifier).state = repo.audioQuality;
+  ref.read(analyticsConsentProvider.notifier).state = repo.analyticsConsent;
+  ref.read(listenSourcesProvider.notifier).state = repo.listenSources.isEmpty
+      ? <String>{}
+      : repo.listenSources.split(',').toSet();
   await restoreLlmApiKey(ref.read);
 
   // 当前场景（按 id 映射到会话顺序中的索引）
@@ -369,6 +376,13 @@ final settingsSyncProvider = Provider<void>((ref) {
   });
   ref.listen<String>(llmBaseUrlProvider, (_, v) => repo.setLlmBaseUrl(v));
   ref.listen<String>(llmModelProvider, (_, v) => repo.setLlmModel(v));
+  // OOBE 选择/询问（cl75）：运行期写回。
+  ref.listen<int>(audioQualityProvider, (_, v) => repo.setAudioQuality(v));
+  ref.listen<bool>(
+      analyticsConsentProvider, (_, v) => repo.setAnalyticsConsent(v));
+  ref.listen<Set<String>>(listenSourcesProvider, (_, v) {
+    repo.setListenSources(v.isEmpty ? '' : v.join(','));
+  });
   ref.listen<int>(currentSceneIndexProvider, (_, idx) {
     final List<Scene> scenes = ref.read(sceneOrderProvider);
     if (idx >= 0 && idx < scenes.length) {

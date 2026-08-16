@@ -390,4 +390,23 @@ class SettingsRepository {
 
   String get llmModel => _prefs.getString(kLlmModel) ?? '';
   Future<void> setLlmModel(String v) => _prefs.setString(kLlmModel, v);
+
+  // ── OOBE 选择 / 询问（cl75：初始化「选择·询问」即时落库）──
+  static const String kAudioQuality = 'settings.audioQuality';
+  static const String kAnalyticsConsent = 'settings.analyticsConsent';
+  static const String kListenSources = 'settings.listenSources'; // 多选逗号拼接
+
+  /// 音频质量偏好（0=高品 · 1=标准 · 2=省流；默认 1=标准）。
+  /// 对应网易云 `level`（standard/higher/exhigh/lossless），源层可据此选档。
+  int get audioQuality => _prefs.getInt(kAudioQuality) ?? 1;
+  Future<void> setAudioQuality(int v) => _prefs.setInt(kAudioQuality, v);
+
+  /// 是否允许匿名体验改进（默认 false = 不发送任何统计）。
+  bool get analyticsConsent => _prefs.getBool(kAnalyticsConsent) ?? false;
+  Future<void> setAnalyticsConsent(bool v) =>
+      _prefs.setBool(kAnalyticsConsent, v);
+
+  /// 主要聆听场景（多选，逗号拼接；空串 = 未选）。
+  String get listenSources => _prefs.getString(kListenSources) ?? '';
+  Future<void> setListenSources(String v) => _prefs.setString(kListenSources, v);
 }

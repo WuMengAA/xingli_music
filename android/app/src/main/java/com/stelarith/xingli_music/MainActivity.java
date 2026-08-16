@@ -43,6 +43,7 @@ public class MainActivity extends AudioServiceActivity {
     private static final String WEBVIEW_CHANNEL = "com.stelarith.xingli_music/webview_login";
     private static final String OTA_CHANNEL = "com.stelarith.xingli_music/ota_install";
     private static final String OTA_AUTHORITY = "com.stelarith.xingli_music.fileprovider";
+    private static final String OPEN_URL_CHANNEL = "com.stelarith.xingli_music/open_url";
     private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
@@ -93,6 +94,16 @@ public class MainActivity extends AudioServiceActivity {
                         result.notImplemented();
                     }
                 });
+
+        // 外部链接：Dart 侧拉起系统浏览器打开 http(s) 链接（OOBE 协议链接用）。
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), OPEN_URL_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if ("open".equals(call.method)) {
+                        openUrl(call.arguments(), result);
+                    } else {
+                        result.notImplemented();
+                    }
+                });
     }
 
     /** 调系统安装器安装已下载的 APK（[args] 为 APK 绝对路径）。 */
@@ -116,6 +127,23 @@ public class MainActivity extends AudioServiceActivity {
             result.success(true);
         } catch (Exception e) {
             result.error("install_failed", e.getMessage(), null);
+        }
+    }
+
+    /** 调系统浏览器打开外部链接（[args] 为完整 URL 字符串）。 */
+    private void openUrl(Object args, MethodChannel.Result result) {
+        if (!(args instanceof String)) {
+            result.error("bad_args", "url 必须是字符串", null);
+            return;
+        }
+        try {
+            final Uri uri = Uri.parse((String) args);
+            final Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            result.success(true);
+        } catch (Exception e) {
+            result.error("open_failed", e.getMessage(), null);
         }
     }
 

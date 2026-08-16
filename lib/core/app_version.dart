@@ -201,6 +201,19 @@ abstract final class AppVersion {
   /// 「welcome/Snapshot 早于视图回调注册」竞态，与主机主动下发幂等互不影响；
   /// 重连沿用同一通道（主机视重连为全新连接，快照再次下发）。buildCount 65→66
   /// （0.26.8.15_alpha_cl66）。
+  /// cl75：OOBE 初始化流程重做·六支柱（内容/展示/选择/询问/意见采纳/合同）——
+  /// ①结构重构：欢迎 + 内容（核心价值）+ 展示（能力卡片）+ 选择（音质/外观/皮肤/
+  ///   画质即时落库）+ 询问（常听场景多选 + 匿名体验改进同意）+ 意见采纳（选择
+  ///   汇总可回改）+ 合同（条款可展开 + 真链接可点 + 必勾同意）+ 完成，共 8 页；
+  /// ②全程去除内部标识：欢迎与各步骤不再出现版本号、构建号、changelog 等自报内容；
+  /// ③协议链接真正可点开：新增 open_url 原生通道（零新依赖，呼应 cl74 ota_install
+  ///   思路），合同页链接经 Intent.ACTION_VIEW 调系统浏览器，非 Android 回退复制；
+  /// ④新增 OOBE 选择/询问持久化：audioQuality / analyticsConsent / listenSources
+  ///   三字段落 SettingsRepository，冷启动 restoreSettings 灌回、运行期 settingsSync
+  ///   写回；选择即时写入对应 provider（非摆设）；
+  /// ⑤修复完成页不可达（原 off-by-one：完成页被错当协议页直接结束）；权限申请
+  ///   移入完成流程末尾静默请求（requestEssentialOnStartup）；buildCount 74→75
+  ///   （0.26.8.15_alpha_cl75）。
   /// cl74：OTA 端到端打通·启动自动检查 + 下载后真安装——
   /// ①自动检查：AppShell.initState 启动后自动查一次 GitHub Releases（仅已完
   /// 成 OOBE 的老用户），有新版本弹全局提示引导去 设置→关于→版本更新；
@@ -277,7 +290,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 74;
+  static const int buildCount = 75;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -333,6 +346,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl75',
+    title: 'OOBE 初始化流程重做：内容·展示·选择·询问·意见采纳·合同',
+    details: <String>[
+      '六支柱重构：欢迎 + 内容（核心价值）+ 展示（能力卡片）+ 选择（音质/外观/皮肤/画质即时落库）+ 询问（常听场景多选 + 匿名体验改进同意）+ 意见采纳（选择汇总可回改）+ 合同（条款可展开 + 真链接可点 + 必勾同意）+ 完成，共 8 页',
+      '全程去除内部标识：欢迎与各步骤不再出现版本号、构建号、changelog 等自报内容',
+      '协议链接真正可点开：新增 open_url 原生通道（零新依赖，呼应 cl74 ota_install），合同页链接经 Intent.ACTION_VIEW 调系统浏览器，非 Android 复制兜底',
+      '新增 OOBE 选择/询问持久化：audioQuality / analyticsConsent / listenSources 三字段落 SettingsRepository，冷启动 restoreSettings 灌回、运行期 settingsSync 写回；选择即时写 provider（非摆设）',
+      '修复完成页不可达（原 off-by-one：完成页被错当协议页直接结束）；权限申请移入完成流程末尾静默请求；buildCount 74→75（0.26.8.15_alpha_cl75）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl74',
