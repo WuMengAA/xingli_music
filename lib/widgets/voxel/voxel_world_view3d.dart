@@ -413,9 +413,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // R26o：默认画质 = 流畅（低画质纯色为基础）；initState 里再按 provider 覆盖。
   GraphicsQuality _quality = GraphicsQuality.auto;
 
-  // ── cl76：自动画质档——运行时 FPS 监测（10s 滚动窗口）────────
-  /// 自动档当前主视距区块（基线 4，不足 30fps 逐档下调 → 最小 2）。
-  int _autoChunks = 4;
+  // ── cl76_hotfix2：自动画质档——运行时 FPS 监测（10s 滚动窗口）──
+  /// 自动档主视距区块（固定上限 4；帧率不足先降 LOD、LOD 到底再降此值，最小 2）。
+  int _autoViewChunks = 4;
+  /// 自动档 LOD 区块（基线 4，帧率富足上调 +4 → 上限 64）。
+  int _autoLodChunks = 4;
   Duration _autoWindowStart = Duration.zero;
   int _autoFrames = 0;
 
@@ -995,8 +997,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         : ((elapsed - _lastTick).inMicroseconds / 1e6).clamp(0.0, 0.25);
     _lastTick = elapsed;
 
-    // cl76：自动画质——10 秒滚动窗口采样真实帧率；≥30fps 不降 LOD 区块，
-    // 不足则主视距区块逐档下调（4→2）直至满足，再等 10s 复测。
+    // cl76_hotfix2：自动画质——10 秒滚动窗口采样真实帧率，**双向**调节：
+    // - 帧率富足（≥45fps）→ LOD 上调 4+4+n（上限 64 区块），看得更远；
+    // - 不足（<30fps）→ 先降 LOD（≥2），LOD 到底再降主视距区块（≥2）；
+    // - 中间区间保持；视距固定上限 4、LOD 上限 64（最大渲染约束）。
     if (_quality == GraphicsQuality.auto) {
       _autoFrames++;
       if (_autoWindowStart == Duration.zero) _autoWindowStart = elapsed;
@@ -1005,8 +1009,20 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         final double fps = _autoFrames / (win.inMilliseconds / 1000.0);
         _autoWindowStart = elapsed;
         _autoFrames = 0;
-        if (fps < 30 && _autoChunks > 2) {
-          _autoChunks--;
+        bool changed = false;
+        if (fps >= 45 && _autoLodChunks < 64) {
+          _autoLodChunks = math.min(64, _autoLodChunks + 4);
+          changed = true;
+        } else if (fps < 30) {
+          if (_autoLodChunks > 2) {
+            _autoLodChunks = math.max(2, _autoLodChunks - 4);
+            changed = true;
+          } else if (_autoViewChunks > 2) {
+            _autoViewChunks--;
+            changed = true;
+          }
+        }
+        if (changed) {
           _config = _configFor(_quality);
           _dirty = true;
         }
@@ -3860,11 +3876,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   RenderConfig _configFor(GraphicsQuality q) => RenderConfig(
         // P0(性能合集)：视距以**档位自身值为硬上限**——切「省电」档就跑 2 区块，
-        // 不再被全局 provider 的历史值（可能 8/12）顶高 → 低档不再 5090 卡死。
-        // 用户在设置页手动调小仍生效（min 取小）；想调大必须切更高档位。
-        // cl76：自动档用运行时 _autoChunks（FPS 监测器逐档下调）。
+        // 不再被全局 provider 的历史值顶高 → 低档不再卡死。用户在设置页手动调小
+        // 仍生效（min 取小）；想调大必须切更高档位。
+        // cl76_hotfix2：自动档用运行时 _autoViewChunks（FPS 监测双向调节），
+        // 视距固定上限 4、LOD 上限 64（最大渲染约束）。
         viewDistanceChunks: q == GraphicsQuality.auto
-            ? _autoChunks
+            ? _autoViewChunks
             : math.min(
                 q.viewDistanceChunks, ref.read(viewDistanceChunksProvider)),
         lodStartChunks: ref.read(lodStartChunksProvider),
@@ -3873,7 +3890,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         lodMasterEnabled: ref.read(lodEnabledProvider),
         lodStepBlocks: ref.read(lodStepBlocksProvider),
         lodSampleBase: ref.read(lodSampleBaseProvider),
-        lodMaxChunks: ref.read(lodMaxChunksProvider),
+        lodMaxChunks: q == GraphicsQuality.auto
+            ? _autoLodChunks
+            : ref.read(lodMaxChunksProvider),
         // cl45：边界雾（可选，与 LOD 互斥）——开=传统视距雾，关=LOD 远景。
         boundaryFog: ref.read(boundaryFogEnabledProvider),
         // 性能受限时近处也 LOD：perf/smooth 满精度带收窄到 3×3（fullBand=1），
@@ -3930,7 +3949,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 使首页「游戏画面」页的滑块与游戏内状态始终一致（修复「参数不同步」）。
     // provider 变更由 settings_persistence_providers 的 listener 自动落盘。
     ref.read(viewDistanceChunksProvider.notifier).state =
-        q.viewDistanceChunks.clamp(2, 12);
+        q.viewDistanceChunks.clamp(2, 4); // cl76_hotfix2：视距上限 4
     ref.read(lodStartChunksProvider.notifier).state =
         q.lodStartChunks.clamp(0, 6);
     ref.read(lodStepChunksProvider.notifier).state =
@@ -3938,9 +3957,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // cl76：LOD 最远区块随档位写回（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
     ref.read(lodMaxChunksProvider.notifier).state =
         q.lodMaxChunks.clamp(2, 64);
-    // cl76：自动档重置监测基线（下次 10s 窗口重新采样）。
+    // cl76_hotfix2：自动档重置监测基线（视距 4 / LOD 4，下次 10s 窗口重新采样）。
     if (q == GraphicsQuality.auto) {
-      _autoChunks = q.viewDistanceChunks;
+      _autoViewChunks = q.viewDistanceChunks;
+      _autoLodChunks = q.lodMaxChunks;
       _autoWindowStart = Duration.zero;
       _autoFrames = 0;
     }

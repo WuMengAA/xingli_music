@@ -134,8 +134,8 @@ class GameGraphicsPage extends ConsumerWidget {
                   label: '视距',
                   value: vd,
                   min: 2,
-                  max: 12,
-                  hint: '区块（1 区块 = 16 格）。越大看得越远、面数越多',
+                  max: 4,
+                  hint: '区块（1 区块 = 16 格）。上限 4，远景由 LOD 延伸',
                   onChanged: (int v) =>
                       ref.read(viewDistanceChunksProvider.notifier).state = v,
                 ),

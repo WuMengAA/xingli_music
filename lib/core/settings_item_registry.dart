@@ -1238,15 +1238,16 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
-          '视距 · 当前 ${ref.watch(viewDistanceChunksProvider)} 区块',
+          '视距 · 当前 ${ref.watch(viewDistanceChunksProvider)} 区块（上限 4）',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 6),
+        // cl76_hotfix2：视距全局上限 4 区块（远景由 LOD 延伸，LOD 上限 64）。
         Slider(
           value: ref.watch(viewDistanceChunksProvider).toDouble(),
           min: 2,
-          max: 12,
-          divisions: 10,
+          max: 4,
+          divisions: 2,
           label: '${ref.watch(viewDistanceChunksProvider)} 区块',
           onChanged: (double v) => ref
               .read(viewDistanceChunksProvider.notifier)
