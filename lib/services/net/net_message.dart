@@ -51,7 +51,7 @@ class NetMessage {
   Map<String, dynamic> toJson() => <String, dynamic>{
         't': type.index,
         'f': from,
-        'to': to,
+        if (to != null) 'to': to,
         'p': payload,
       };
 
@@ -64,3 +64,11 @@ class NetMessage {
   NetMessage withTo(String to) =>
       NetMessage(type: type, from: from, to: to, payload: payload);
 }
+
+/// 构造 vitals（生命/饥饿/经验）广播消息（纯函数，cl79 供会话层广播复用与单测）。
+NetMessage buildVitalsMessage(String from, int health, int hunger, int xp) =>
+    NetMessage(
+      type: NetMsgType.vitals,
+      from: from,
+      payload: <String, dynamic>{'hp': health, 'hg': hunger, 'xp': xp},
+    );

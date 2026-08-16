@@ -17,6 +17,38 @@ import 'net_message.dart';
 /// 默认联机端口（与日志/发现服务区分）。
 const int kNetDefaultPort = 8765;
 
+/// 中转服务器默认地址（自建部署）。部署位置变化时改这里，
+/// 或由用户在客户端「高级设置」中修改一次（会记忆，优先于本默认值）。
+const String kDefaultRelayUrl = 'ws://192.168.1.248:8765/ws';
+
+/// 中转服务器连接错误 → 终端用户可读的中文提示。
+///
+/// dart:io WebSocket.connect 的异常类型不固定（HandshakeException /
+/// WebSocketException / SocketException / TimeoutException），统一按文本
+/// 特征匹配归类；未知错误保留原文以便排查。
+String friendlyRelayError(Object error) {
+  final String s = error.toString();
+  if (s.contains('WRONG_VERSION_NUMBER') || s.contains('HandshakeException')) {
+    return '中转服务器地址协议填错了：请用 ws:// 开头（不要用 wss://），'
+        '例如 ws://192.168.1.248:8765/ws';
+  }
+  if (s.contains('Connection refused')) {
+    return '无法连接到中转服务器：请确认服务器已启动，且地址、端口正确';
+  }
+  if (s.contains('Failed host lookup') ||
+      s.contains('Failed to resolve') ||
+      s.contains('Host not found')) {
+    return '中转服务器地址无法解析：请检查地址是否填错';
+  }
+  if (s.contains('not upgraded to websocket')) {
+    return '该地址不是中转服务器：请检查地址是否正确';
+  }
+  if (s.contains('timed out') || s.contains('TimeoutException')) {
+    return '连接中转服务器超时：请检查网络后重试';
+  }
+  return s;
+}
+
 /// 传输层事件（连接 / 断开 / 消息）。
 class NetEvent {
   const NetEvent();
@@ -73,6 +105,10 @@ class NetNode {
 
   /// 中转模式：等待服务器回 `ready`（分配 peerId）。超时由调用方处理。
   Future<void> get ready => (_readyCompleter ??= Completer<void>()).future;
+
+  /// 中转模式：服务器 `ctl:error` 返回的错误（如 room required / room full）。
+  /// ready 完成后由调用方读取；null = 无错误（cl79 起透传，供中文提示映射）。
+  String? relayError;
 
   static Future<NetNode> host({int port = kNetDefaultPort}) async {
     final HttpServer server = await HttpServer.bind(
@@ -185,6 +221,12 @@ class NetNode {
               case 'peerLeave':
                 final String id = (c['id'] as String?) ?? '';
                 if (id.isNotEmpty) node._events.add(NetPeerDisconnected(id));
+                return;
+              case 'error':
+                // 服务器拒绝（如房间号无效 / 房间已满）：记录错误并完成 ready，
+                // 由调用方读取 [relayError] 转中文提示（cl79）。
+                node.relayError = (c['msg'] as String?) ?? '中转服务器错误';
+                node._readyCompleter?.complete();
                 return;
               default:
                 return;

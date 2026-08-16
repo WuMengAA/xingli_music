@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/track.dart';
@@ -127,6 +128,23 @@ class ChatLine {
   final DateTime at;
 }
 
+/// 纯函数（cl79）：把收到的 vitals 负载（hp/hg/xp，缺省保留原值）合并进
+/// 成员列表，供 vitals 接收分支复用与单测（不碰网络/引擎）。
+List<PeerInfo> applyVitalsToPeers(
+  List<PeerInfo> peers,
+  String from,
+  Map<String, dynamic> payload,
+) =>
+    peers
+        .map((pp) => pp.id == from
+            ? pp.copyWith(
+                health: payload['hp'] as int? ?? pp.health,
+                hunger: payload['hg'] as int? ?? pp.hunger,
+                xp: payload['xp'] as int? ?? pp.xp,
+              )
+            : pp)
+        .toList();
+
 /// 联机会话整体状态（Riverpod 真相源）。
 class NetSessionState {
   const NetSessionState({
@@ -224,6 +242,17 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   bool _djListeners = false;
   Completer<void>? _joined;
 
+  /// 测试缝隙（cl79）：fake 传输层——`_node` 未建连时广播消息转交此回调，
+  /// 供单测断言信封（t/f/to/p）正确，不碰真实网络/引擎。
+  @visibleForTesting
+  void Function(NetMessage message)? debugOnSend;
+
+  /// 测试缝隙（cl79）：直接设置本地 id（正常流程由建连/欢迎消息写入）。
+  @visibleForTesting
+  void debugSetLocalIdForTest(String id) {
+    state = state.copyWith(localId: id);
+  }
+
   // ── 断线重连（G9 cl65，仅客户端）──
   bool _reconnecting = false;
   int _reconnectAttempt = 0;
@@ -280,6 +309,9 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         _node =
             await NetNode.relay(relayUrl, roomCode, name, isHostGame: true);
         await _node!.ready.timeout(const Duration(seconds: 6));
+        // cl79：服务器 ctl:error（如 room full）经 [NetNode.relayError] 透传。
+        final String? relayErr = _node!.relayError;
+        if (relayErr != null) throw Exception(relayErr);
         state = state.copyWith(
           role: NetRole.host,
           status: ConnStatus.connected,
@@ -305,7 +337,10 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       _sendHello();
       return true;
     } catch (e) {
-      state = state.copyWith(status: ConnStatus.error, error: '主持失败：$e');
+      state = state.copyWith(
+        status: ConnStatus.error,
+        error: '主持失败：${relayUrl != null ? friendlyRelayError(e) : e}',
+      );
       await _node?.close();
       _node = null;
       return false;
@@ -344,6 +379,9 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           isHostGame: false,
         );
         await _node!.ready.timeout(const Duration(seconds: 6));
+        // cl79：服务器 ctl:error（room required / room full）经 relayError 透传。
+        final String? relayErr = _node!.relayError;
+        if (relayErr != null) throw Exception(relayErr);
         state = state.copyWith(
           role: NetRole.client,
           status: ConnStatus.connected,
@@ -367,7 +405,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     } catch (e) {
       state = state.copyWith(
         status: ConnStatus.error,
-        error: '连接失败：$e',
+        error: '连接失败：${relayUrl != null ? friendlyRelayError(e) : e}',
       );
       await _node?.close();
       _node = null;
@@ -608,18 +646,9 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         break;
 
       case NetMsgType.vitals:
-        final PeerInfo? p = state.peer(from);
-        if (p != null) {
+        if (state.peer(from) != null) {
           state = state.copyWith(
-            peers: state.peers
-                .map((pp) => pp.id == from
-                    ? pp.copyWith(
-                        health: msg.payload['hp'] as int? ?? pp.health,
-                        hunger: msg.payload['hg'] as int? ?? pp.hunger,
-                        xp: msg.payload['xp'] as int? ?? pp.xp,
-                      )
-                    : pp)
-                .toList(),
+            peers: applyVitalsToPeers(state.peers, from, msg.payload),
           );
         }
         break;
@@ -701,14 +730,16 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     ));
   }
 
-  /// 广播生命 / 饥饿 / 经验。
+  /// 广播生命 / 饥饿 / 经验（cl79 起复用 [buildVitalsMessage] 纯函数；
+  /// 未建连时转交 [debugOnSend] 测试缝隙）。
   void broadcastVitals(int health, int hunger, int xp) {
-    if (_node == null) return;
-    _node!.send(NetMessage(
-      type: NetMsgType.vitals,
-      from: state.localId ?? '',
-      payload: <String, dynamic>{'hp': health, 'hg': hunger, 'xp': xp},
-    ));
+    final NetMessage msg =
+        buildVitalsMessage(state.localId ?? '', health, hunger, xp);
+    if (_node == null) {
+      debugOnSend?.call(msg);
+      return;
+    }
+    _node!.send(msg);
   }
 
   /// G9 cl67：客户端按自身机位请求主机编辑层快照（范围同步）。

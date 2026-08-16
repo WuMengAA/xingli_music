@@ -15,6 +15,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
@@ -23,6 +24,7 @@ import '../../services/net/lan_discovery.dart';
 import '../../services/net/net_node.dart';
 import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
+import 'relay_input_validation.dart';
 
 /// 开放世界联机大厅。
 class VoxelLobbyPage extends ConsumerStatefulWidget {
@@ -54,9 +56,38 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
 
   /// 连接方式：false=局域网（UDP 发现 + IP 直连），true=中转服务器（跨公网，凭房间号加入）。
   bool _useRelay = false;
-  final TextEditingController _relayCtrl =
-      TextEditingController(text: 'wss://relay.xingli.app/ws');
+  final TextEditingController _relayCtrl = TextEditingController();
   final TextEditingController _roomCtrl = TextEditingController();
+  static const String _relayUrlPrefsKey = 'relay_url';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRelayUrl();
+  }
+
+  /// 加载记忆的中转地址（无则用内置默认，保证普通用户免填）。
+  Future<void> _loadRelayUrl() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? saved = prefs.getString(_relayUrlPrefsKey);
+    if (!mounted) return;
+    setState(() {
+      _relayCtrl.text =
+          (saved == null || saved.isEmpty) ? kDefaultRelayUrl : saved;
+    });
+  }
+
+  /// 中转地址变更即记忆，下次打开免填。
+  Future<void> _saveRelayUrl(String value) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_relayUrlPrefsKey, value.trim());
+  }
+
+  /// 中转地址取值：为空时回退内置默认，保证「一键建房」不因空地址失败。
+  String get _effectiveRelayUrl {
+    final String t = _relayCtrl.text.trim();
+    return t.isEmpty ? kDefaultRelayUrl : t;
+  }
 
   @override
   void dispose() {
@@ -74,6 +105,18 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
 
   Future<void> _startHost() async {
     if (_busy) return;
+    // cl79：中转模式前置校验（说人话，不等服务器报英文错）。
+    if (_useRelay) {
+      final String? relayErr = validateRelayInput(
+        _effectiveRelayUrl,
+        _roomCtrl.text,
+        isHost: true,
+      );
+      if (relayErr != null) {
+        setState(() => _error = relayErr);
+        return;
+      }
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -88,7 +131,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
       structures: _structures,
       floatingIslands: _floatingIslands,
     );
-    final String? relayUrl = _useRelay ? _relayCtrl.text.trim() : null;
+    final String? relayUrl = _useRelay ? _effectiveRelayUrl : null;
     final String? room =
         _useRelay ? _roomCtrl.text.trim().toUpperCase() : null;
     final bool ok = await ref
@@ -103,8 +146,10 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
-      setState(() =>
-          _error = ref.read(netSessionProvider).error ?? '创建房间失败');
+      // cl79：relay 英文错误（room required / room full）映射中文人话。
+      final String raw =
+          ref.read(netSessionProvider).error ?? '创建房间失败';
+      setState(() => _error = mapRelayErrorText(raw) ?? raw);
       return;
     }
     if (_useRelay) {
@@ -124,6 +169,18 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
 
   Future<void> _join({LanHost? host}) async {
     if (_busy) return;
+    // cl79：中转模式前置校验（说人话，不等服务器报英文错）。
+    if (_useRelay) {
+      final String? relayErr = validateRelayInput(
+        _effectiveRelayUrl,
+        _roomCtrl.text,
+        isHost: false,
+      );
+      if (relayErr != null) {
+        setState(() => _error = relayErr);
+        return;
+      }
+    }
     final String ip = host?.ip ?? _ipCtrl.text.trim();
     final int port =
         host?.port ?? (int.tryParse(_portCtrl.text.trim()) ?? kNetDefaultPort);
@@ -137,7 +194,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     });
     final String name =
         _nameCtrl.text.trim().isEmpty ? '玩家' : _nameCtrl.text.trim();
-    final String? relayUrl = _useRelay ? _relayCtrl.text.trim() : null;
+    final String? relayUrl = _useRelay ? _effectiveRelayUrl : null;
     final String? room =
         _useRelay ? _roomCtrl.text.trim().toUpperCase() : null;
     final bool ok = await ref
@@ -146,7 +203,9 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
-      setState(() => _error = ref.read(netSessionProvider).error ?? '连接失败');
+      // cl79：relay 英文错误（room required / room full）映射中文人话。
+      final String raw = ref.read(netSessionProvider).error ?? '连接失败';
+      setState(() => _error = mapRelayErrorText(raw) ?? raw);
       return;
     }
     // 客户端：world seed / options 由主机 welcome 消息下发，二者必须一致。
@@ -369,7 +428,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         ],
       ];
 
-  /// 中转模式共用字段：房间号 + 中转地址。
+  /// 中转模式共用字段：房间号 + 高级设置（中转地址，默认折叠免打扰）。
   List<Widget> _relayFields(Color ink, bool isHost) => <Widget>[
         _Field(
           label: isHost ? '房间号（留空随机生成）' : '房间号（好友提供）',
@@ -377,13 +436,47 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
           hint: '如 ABC234',
         ),
         const SizedBox(height: AppSpace.sm),
-        _Field(
-          label: '中转服务器地址',
-          controller: _relayCtrl,
-          hint: 'wss://relay.xingli.app/ws',
+        _ExpansionSetting(
+          ink: ink,
+          title: '高级设置：中转服务器地址（一般不用改）',
+          child: _Field(
+            label: '中转服务器地址',
+            controller: _relayCtrl,
+            hint: '如 ws://192.168.1.248:8765/ws',
+            onChanged: _saveRelayUrl,
+          ),
         ),
         const SizedBox(height: AppSpace.sm),
       ];
+}
+
+/// 可折叠设置项（默认收起，普通用户无需展开）。
+class _ExpansionSetting extends StatelessWidget {
+  const _ExpansionSetting({
+    required this.title,
+    required this.child,
+    required this.ink,
+  });
+
+  final String title;
+  final Widget child;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          iconTheme: const IconThemeData(color: Colors.white54),
+        ),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(vertical: 2),
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          title: Text(title,
+              style: AppTextStyles.body.copyWith(
+                  color: Colors.white54, fontSize: 13)),
+          children: <Widget>[child],
+        ),
+      );
 }
 
 /// 文本输入行。
@@ -393,12 +486,14 @@ class _Field extends StatelessWidget {
     required this.controller,
     this.hint,
     this.keyboard,
+    this.onChanged,
   });
 
   final String label;
   final TextEditingController controller;
   final String? hint;
   final TextInputType? keyboard;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -409,6 +504,7 @@ class _Field extends StatelessWidget {
           TextField(
             controller: controller,
             keyboardType: keyboard,
+            onChanged: onChanged,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: hint,

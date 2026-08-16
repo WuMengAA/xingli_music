@@ -83,6 +83,8 @@ import 'view_mode_button.dart';
 import 'world_audio_engine.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../providers/net/session_provider.dart';
+import '../../pages/voxel/voxel_lobby_page.dart';
+import 'voxel_net_broadcast.dart';
 
 /// 相机移动方向（D-pad / 键盘按住时累积）。
 enum _Nav { forward, back, left, right, up, down }
@@ -372,6 +374,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   final Map<String, PeerInfo> _remotePlayers = <String, PeerInfo>{};
   // G9：位置广播定时器（~100ms 上报自身机位 / 视角）。
   Timer? _netBroadcastTimer;
+  // cl79：机位广播节流状态——上次已广播的机位/视角（null = 首次，必发）与
+  // 最近广播时刻（静止 ≥5s 仍发一次心跳，让新加入的同伴能看到静止玩家）。
+  double? _lastNetTxX, _lastNetTxY, _lastNetTxZ, _lastNetTxYaw, _lastNetTxPitch;
+  DateTime? _lastNetTxAt;
+  // cl79：vitals 联机广播状态——上次已广播的数值与时刻（数值变化且间隔 ≥1s
+  // 才发，避免战斗/回血高频刷包）。
+  int _lastSentHp = -1, _lastSentHunger = -1, _lastSentXp = -1;
+  DateTime? _lastVitalsAt;
   // G9 cl67：编辑层快照按玩家位置范围同步——最近一次拉取快照时本地所在 chunk，
   // 用于「机位跨 chunk 时重新拉取」（游走加载/卸载）。初始化为不可能命中的哨兵值，
   // 强制首帧即拉取一次。
@@ -816,6 +826,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       if (ref.read(netSessionProvider).role == NetRole.client) {
         _requestSnapshotAroundMe();
       }
+      // cl79：生存数值变化 → 低频联机广播（vitals 互见；间隔 ≥1s 防高频刷包）。
+      _vitals.addListener(_broadcastVitalsIfChanged);
       _netBroadcastTimer = Timer.periodic(
         const Duration(milliseconds: 100),
         (_) => _broadcastMyTransform(),
@@ -962,6 +974,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // G9：联机清理——取消位置广播并解绑远端回调（世界退出后不再接收远端推送）。
     _netBroadcastTimer?.cancel();
     _netBroadcastTimer = null;
+    // cl79：解除 vitals 广播监听（PlayerVitals 为 provider 单例，跨世界存活）。
+    _vitals.removeListener(_broadcastVitalsIfChanged);
     if (widget.multiplayer) {
       final NetSessionNotifier net = ref.read(netSessionProvider.notifier);
       net.onRemoteEdit = null;
@@ -1367,6 +1381,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   }
 
   /// G9：上报自身机位 / 视角给会话层（~100ms 定时器调用）。
+  /// cl79：位移/视角未超阈值不发（带宽节流）；静止 ≥5s 发一次心跳兜底，
+  /// 让新加入的同伴能看到静止玩家。跨 chunk 快照拉取不受节流影响。
   void _broadcastMyTransform() {
     if (!widget.multiplayer) return;
     final Vec3 p = (_viewMode == _ViewMode.firstPerson ||
@@ -1384,6 +1400,31 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _requestSnapshotAroundMe();
       }
     }
+    // cl79 节流：静止/微动不发，静止 ≥5s 心跳补发一次。
+    final DateTime now = DateTime.now();
+    final bool heartbeat = _lastNetTxAt != null &&
+        now.difference(_lastNetTxAt!) >= const Duration(seconds: 5);
+    if (!heartbeat &&
+        !shouldBroadcastTransform(
+          _lastNetTxX,
+          _lastNetTxY,
+          _lastNetTxZ,
+          _lastNetTxYaw,
+          _lastNetTxPitch,
+          p.x,
+          p.y,
+          p.z,
+          _camera.yaw,
+          _camera.pitch,
+        )) {
+      return;
+    }
+    _lastNetTxAt = now;
+    _lastNetTxX = p.x;
+    _lastNetTxY = p.y;
+    _lastNetTxZ = p.z;
+    _lastNetTxYaw = _camera.yaw;
+    _lastNetTxPitch = _camera.pitch;
     ref.read(netSessionProvider.notifier).broadcastTransform(
           p.x,
           p.y,
@@ -1392,6 +1433,29 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           _camera.pitch,
           _viewModeIndex,
         );
+  }
+
+  /// cl79：生存数值变化 → 低频联机广播（vitals 互见）。数值未变不重复发；
+  /// 数值已变但距上次广播 <1s 则推迟到下一变化（间隔节流，防战斗高频刷包）。
+  void _broadcastVitalsIfChanged() {
+    if (!widget.multiplayer) return;
+    if (_vitals.hp == _lastSentHp &&
+        _vitals.hunger == _lastSentHunger &&
+        _vitals.xp == _lastSentXp) {
+      return;
+    }
+    final DateTime now = DateTime.now();
+    if (_lastVitalsAt != null &&
+        now.difference(_lastVitalsAt!) < const Duration(seconds: 1)) {
+      return;
+    }
+    _lastVitalsAt = now;
+    _lastSentHp = _vitals.hp;
+    _lastSentHunger = _vitals.hunger;
+    _lastSentXp = _vitals.xp;
+    ref
+        .read(netSessionProvider.notifier)
+        .broadcastVitals(_vitals.hp, _vitals.hunger, _vitals.xp);
   }
 
   /// G9：本地视角模式 → 网络索引（与 [PeerInfo.viewMode] 对齐：
@@ -4591,7 +4655,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                       onResume: () => _setPaused(false),
                       // R26fx：第二项「我的存档」（合并 手动存档 + 恢复备份 + 详情）。
                       onRestore: _openMySaves,
-                      onOpenWorld: () => _snack('开放世界（联机）开发中，敬请期待'),
+                      // cl79：开放世界入口收尾——联机中提示，单机跳转联机大厅。
+                      onOpenWorld: _openWorldFromPause,
                       // R26skel：游戏设置（原顶栏「设置」）移入菜单——
                       // 打开全局设置页「游戏」合集（唯一入口，不再独立弹窗）。
                       onOpenSettings: _openGlobalGameSettings,
@@ -4622,6 +4687,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) Navigator.of(context).pop();
     });
+  }
+
+  /// cl79：暂停菜单「开放世界」入口收尾——已在本世界联机 → 提示；
+  /// 单机 → 跳转联机大厅（可建房/加入；回来时世界仍保持暂停态）。
+  void _openWorldFromPause() {
+    if (widget.multiplayer) {
+      _snack('已在联机世界中');
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => const VoxelLobbyPage(),
+    ));
   }
 
   /// 世界内联机 HUD：角色 / 房主地址 / 同伴列表 / 一起听状态 / 离开按钮。
