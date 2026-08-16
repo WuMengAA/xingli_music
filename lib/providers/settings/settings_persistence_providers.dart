@@ -94,7 +94,7 @@ Future<void> restoreSettings(WidgetRef ref) async {
   throttledFps = ref.read(fpsLimitProvider).value;
   // 体素区块 / LOD（R23m）
   ref.read(viewDistanceChunksProvider.notifier).state =
-      repo.viewDistanceChunks.clamp(2, 12);
+      repo.viewDistanceChunks.clamp(2, 4); // cl76_hotfix3：视距上限 4
   ref.read(lodStartChunksProvider.notifier).state =
       repo.lodStartChunks.clamp(0, 6);
   ref.read(lodStepChunksProvider.notifier).state =
@@ -157,7 +157,10 @@ Future<void> restoreSettings(WidgetRef ref) async {
   );
   ref.read(renderPrecisionProvider.notifier).state =
       repo.renderPrecision?.clamp(0.5, 2.0) ?? ref.read(renderPrecisionProvider);
-  ref.read(oobeDoneProvider.notifier).state = repo.oobeDone ?? false;
+  // cl76_hotfix：OOBE 仅对新人开放——无 oobeDone 记录时按「是否有历史设置键」
+  // 判断：老用户升级视为已完成（跳过 OOBE 开屏），全新安装才走 OOBE。
+  ref.read(oobeDoneProvider.notifier).state =
+      repo.oobeDone ?? repo.hasLegacySettings;
   ref.read(glassBlurOverrideProvider.notifier).state = repo.glassBlurOverride;
   ref.read(bgAnimationOverrideProvider.notifier).state =
       repo.bgAnimationOverride;

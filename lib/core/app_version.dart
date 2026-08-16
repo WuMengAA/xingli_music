@@ -356,6 +356,26 @@ class ChangelogEntry {
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
     version: '0.26.8.15',
+    cl: 'cl76_hotfix3',
+    title: '自动档双向调节 + 视距上限 4',
+    details: <String>[
+      '自动档（默认 4+4）：帧率富足（≥45fps）→ LOD 上调 4+4+n 至上限 64 区块；不足（<30fps）→ 先降 LOD、到底再降主视距；每 10 秒复测',
+      '最大渲染约束：视距上限 4 区块、LOD 上限 64 区块（远景由 LOD 延伸）',
+      '手动改设置 = 转自定义不受档约束；切预设回档',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl76_hotfix2',
+    title: 'LOD 修复：远景悬空平板 + 上限 64 + 可调 LOD 视距',
+    details: <String>[
+      'LOD 高度改用生成地形地表（不含浮空岛/树冠/世界边缘 clamp），根治「远景 LOD 平板悬空」',
+      'LOD 最远距离上限 32→64；游戏画面页新增「LOD 最远距离」调节',
+      'LOD 开关默认开启（旧持久化 false 时切一次画质档即恢复）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.15',
     cl: 'cl76_hotfix',
     title: '热更新修复：OTA 安装「未找到安装包」+ hotfix 识别',
     details: <String>[

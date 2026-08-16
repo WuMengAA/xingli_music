@@ -308,6 +308,10 @@ class SettingsRepository {
   Future<void> setPicturePreset(String? v) => v == null
       ? _prefs.remove(kPicturePreset)
       : _prefs.setString(kPicturePreset, v);
+  /// cl76_hotfix：是否存在升级前（cl75 之前）的历史设置——用于判断「老用户」。
+  /// 有历史键 = 老用户升级（跳过 OOBE）；全新安装 = 新人（走 OOBE）。
+  bool get hasLegacySettings => _prefs.containsKey(kGraphicsQuality);
+
   bool? get oobeDone => _prefs.getBool(kOobeDone);
   Future<void> setOobeDone(bool? v) => v == null
       ? _prefs.remove(kOobeDone)
