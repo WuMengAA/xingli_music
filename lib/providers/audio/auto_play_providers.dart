@@ -50,6 +50,7 @@ class AutoPlayTracker {
   Future<void> _onCompleted() async {
     if (_transitioning) return; // 淡出切歌中，避免重复触发
     if (!_ref.read(autoPlayProvider)) return;
+    if (_audio?.suppressAutoAdvance ?? false) return; // #486：睡眠「本曲结束」生效时不自动续播
     _transitioning = true;
     try {
       await _ref.read(playbackActionsProvider).next();

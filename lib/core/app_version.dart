@@ -303,7 +303,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 77;
+  static const int buildCount = 78;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -362,6 +362,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.16',
+    cl: 'cl78',
+    title: '播放体验逻辑优化：倍速收敛 + 睡眠定时修复',
+    details: <String>[
+      '倍速补偿收口：playMusic / togglePlay / resume 三处起播逻辑统一走单一入口 _ensureSpeedOnPlay，避免后端切换/续播漏补偿倍速',
+      '睡眠定时「本曲结束」修复：绑定当前曲目 uri + 启用抑制自动续播标志，当前曲自然完成后仅暂停不切下一首（根治与 cl46 自动播放的竞态闪烁）',
+      '倍速偏好持久化：重启后记住上次倍速（SettingsRepository 新增 musicSpeed 字段，冷启动灌回 + 运行期实时写回）',
+      '倒计时跟随播放状态：暂停时冻结倒计时、恢复后续计，不再空跑',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.16',
     cl: 'cl77',

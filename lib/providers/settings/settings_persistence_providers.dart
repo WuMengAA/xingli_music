@@ -38,6 +38,7 @@ Future<void> restoreSettings(WidgetRef ref) async {
 
   // 音量
   ref.read(musicVolumeProvider.notifier).state = repo.musicVolume;
+  ref.read(musicSpeedProvider.notifier).state = repo.musicSpeed;
   ref.read(soundscapeVolumeProvider.notifier).state = repo.soundscapeVolume;
   ref.read(masterVolumeProvider.notifier).state = repo.masterVolume;
   ref.read(sfxVolumeProvider.notifier).state = repo.sfxVolume;
@@ -229,6 +230,7 @@ Future<void> restoreSettings(WidgetRef ref) async {
   await audio.setMasterVolume(repo.masterVolume);
   await audio.setSfxVolume(repo.sfxVolume);
   await audio.setMusicVolume(repo.musicVolume);
+  await audio.setMusicSpeed(repo.musicSpeed);
   await audio.setSoundscapeVolume(repo.soundscapeVolume);
   await audio.setMusicMuted(repo.musicMuted);
   await audio.setSoundscapeMuted(repo.soundscapeMuted);
@@ -250,6 +252,7 @@ final settingsSyncProvider = Provider<void>((ref) {
   final SettingsRepository repo = ref.watch(settingsRepositoryProvider);
 
   ref.listen<double>(musicVolumeProvider, (_, v) => repo.setMusicVolume(v));
+  ref.listen<double>(musicSpeedProvider, (_, v) => repo.setMusicSpeed(v));
   ref.listen<double>(soundscapeVolumeProvider, (_, v) => repo.setSoundscapeVolume(v));
   ref.listen<double>(masterVolumeProvider, (_, v) {
     repo.setMasterVolume(v);

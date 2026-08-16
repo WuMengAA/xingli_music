@@ -32,6 +32,7 @@ class SettingsRepository {
   static const String kSoundscapeVolume = 'settings.soundscapeVolume';
   static const String kMasterVolume = 'settings.masterVolume';
   static const String kSfxVolume = 'settings.sfxVolume';
+  static const String kMusicSpeed = 'settings.musicSpeed';
   static const String kMusicMuted = 'settings.musicMuted';
   static const String kSoundscapeMuted = 'settings.soundscapeMuted';
   static const String kWhiteNoiseEnabled = 'settings.whiteNoiseEnabled';
@@ -95,6 +96,11 @@ class SettingsRepository {
   // ── 音量 ─────────────────────────────────────────
   double get musicVolume => _prefs.getDouble(kMusicVolume) ?? 0.7;
   Future<void> setMusicVolume(double v) => _prefs.setDouble(kMusicVolume, v);
+
+  /// 倍速（R26skel：播放体验优化，默认 1.0 = 原速）。
+  double get musicSpeed => _prefs.getDouble(kMusicSpeed) ?? 1.0;
+  Future<void> setMusicSpeed(double v) =>
+      _prefs.setDouble(kMusicSpeed, v.clamp(0.25, 4.0));
 
   double get soundscapeVolume => _prefs.getDouble(kSoundscapeVolume) ?? 0.12;
   Future<void> setSoundscapeVolume(double v) =>

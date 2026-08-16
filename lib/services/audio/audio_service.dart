@@ -273,6 +273,16 @@ class AudioService {
   double _musicSpeed = 1.0;
   double get musicSpeed => _musicSpeed;
 
+  /// 睡眠定时「本曲结束」模式生效时为 true：抑制 cl46 自动播放的自动续播，
+  /// 使当前曲自然完成后仅暂停、不切下一首（#486）。
+  bool _suppressAutoAdvance = false;
+  bool get suppressAutoAdvance => _suppressAutoAdvance;
+  void setSuppressAutoAdvance(bool v) {
+    if (_suppressAutoAdvance == v) return;
+    _suppressAutoAdvance = v;
+    LogService.instance.i('audio', '抑制自动续播: $v');
+  }
+
   /// 音效（SFX）通道音量（R23i：独立于音乐/背景/白噪，默认 0.5）。
   double _sfxVol = 0.5;
   double get sfxVolume => _sfxVol;
@@ -450,7 +460,7 @@ class AudioService {
     // 直接落到目标音量再播放：规避部分 Android 解码器「先设 0 再 play」会锁死
     // 静音、必须手动拖一下音量才有声的问题（用户反馈「须拖动主音量才有声」）。
     await _safe(() => _activeBackend.setVolume(target), tag: 'setVolume');
-    await _applySpeed();
+    await _ensureSpeedOnPlay();
     await _safe(() => _activeBackend.play(), tag: 'play');
     _state = PlaybackState.playing;
     LogService.instance.i('audio', '播放开始: ${track.title}');
@@ -565,7 +575,7 @@ class AudioService {
           () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
           tag: '音量恢复',
         );
-        await _applySpeed();
+        await _ensureSpeedOnPlay();
         await _safe(() => _activeBackend.play(), tag: 'play');
         _state = PlaybackState.playing;
         LogService.instance.i('audio', '继续播放');
@@ -596,7 +606,7 @@ class AudioService {
         () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: '音量恢复',
       );
-      await _applySpeed();
+      await _ensureSpeedOnPlay();
       await _safe(() => _activeBackend.play(), tag: 'resume');
       _state = PlaybackState.playing;
       LogService.instance.i('audio', '续播（系统）');
@@ -701,7 +711,7 @@ class AudioService {
   /// 倍速播放（R26skel：播放体验优化）。[rate] = 1.0 为原速，0.25~4.0。
   ///
   /// 仅在播放中即时下发；未播放时只记忆，下次 [playMusic]/[resume] 自动套用。
-  /// 后端切换（[MusicBackend] 会重置为 1.0）也由播放时 [_applySpeed] 补偿。
+  /// 后端切换（[MusicBackend] 会重置为 1.0）也由播放时 [_ensureSpeedOnPlay] 补偿。
   Future<void> setMusicSpeed(double rate) async {
     _musicSpeed = rate.clamp(0.25, 4.0);
     LogService.instance.i('audio', '倍速: ${_musicSpeed}x');
@@ -710,8 +720,11 @@ class AudioService {
     }
   }
 
-  /// 把当前倍速应用到活跃后端（切歌/续播后确保倍速不丢；后端切换会重置为 1.0）。
-  Future<void> _applySpeed() =>
+  /// 播放/续播时套用倍速的单一入口（#483：收口 playMusic / togglePlay / resume）。
+  ///
+  /// 后端切换（[MusicBackend] 会重置为 1.0）也由播放时这里补偿。三处起播/续播
+  /// 调用点统一走 [_ensureSpeedOnPlay]，避免遗漏或重复实现。
+  Future<void> _ensureSpeedOnPlay() =>
       _safe(() => _activeBackend.setSpeed(_musicSpeed), tag: 'applySpeed');
 
   /// 音效（SFX）通道音量（R23i：独立于音乐/背景/白噪）。
