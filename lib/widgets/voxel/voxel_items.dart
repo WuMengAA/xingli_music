@@ -95,19 +95,31 @@ enum ToolCategory {
 
 /// 工具材质等级。
 enum ToolTier {
-  none(1.0, 0, '徒手'),
-  wood(2.0, 1, '木'),
-  stone(4.0, 2, '石'),
-  iron(6.0, 3, '铁'),
-  diamond(8.0, 4, '钻石');
+  none(1.0, 0, '徒手', attackDamage: 1, durability: 0),
+  wood(2.0, 1, '木', attackDamage: 3, durability: 60),
+  stone(4.0, 2, '石', attackDamage: 4, durability: 132),
+  iron(6.0, 3, '铁', attackDamage: 5, durability: 251),
+  diamond(8.0, 4, '钻石', attackDamage: 7, durability: 1562);
 
-  const ToolTier(this.speed, this.level, this.label);
+  const ToolTier(
+    this.speed,
+    this.level,
+    this.label, {
+    this.attackDamage = 1,
+    this.durability = 0,
+  });
 
   /// 挖掘倍率（对"对口"的方块生效）。
   final double speed;
 
   /// 采集等级（低于方块要求时挖了也不掉落）。
   final int level;
+
+  /// 攻击伤害（手持该等级工具对实体造成的伤害基准，数据驱动）。
+  final int attackDamage;
+
+  /// 耐久度（数据驱动属性，供后续装备系统使用）。
+  final int durability;
 
   final String label;
 }
@@ -166,6 +178,41 @@ int harvestLevelOf(Voxel v) => switch (v) {
         1,
       _ => 0,
     };
+
+/// 手持工具的攻击伤害（数据驱动：取工具等级对应的攻击力）。
+int weaponDamage(ToolKind tool) => tool.tier.attackDamage;
+
+/// ════════════════════════════════════════════════════════════════════════
+/// 装备 / 护甲（数据驱动，R23w · GDD §5.2）
+/// ════════════════════════════════════════════════════════════════════════
+
+/// 护甲材质等级（决定提供的防护点数 EP）。
+enum ArmorTier {
+  none(0),
+  leather(7),
+  gold(11),
+  chain(12),
+  iron(15),
+  diamond(20);
+
+  const ArmorTier(this.points);
+
+  /// 完整一套该材质提供的防护点数（满护甲 = 20 EP）。
+  final int points;
+}
+
+/// 某材质护甲的防护点数。
+int armorPointsOf(ArmorTier t) => t.points;
+
+/// 按护甲点数减免伤害（MC 公式：减免 = 伤害 × min(20, EP) × 4%，上限 80%）。
+int mitigateDamage(int raw, int armorPoints) {
+  if (raw <= 0) return 0;
+  if (armorPoints <= 0) return raw;
+  final int ep = armorPoints > 20 ? 20 : armorPoints;
+  final int reduction = (raw * ep * 0.04).round();
+  final int dmg = raw - reduction;
+  return dmg < 0 ? 0 : dmg;
+}
 
 /// 方块硬度（徒手挖掉的基准秒数；0 = 瞬破，负 = 不可破坏）。
 double blockHardness(Voxel v) => switch (v) {

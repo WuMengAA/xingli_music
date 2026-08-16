@@ -2181,7 +2181,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (_mobs.hitNearest(
       from,
       _camera.forwardVector(),
-      damage: 4 + _inv.tool.tier.level,
+      damage: weaponDamage(_inv.tool),
     )) {
       _attackCd = 0.45;
       _dirty = true;

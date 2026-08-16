@@ -32,6 +32,19 @@ class PlayerVitals extends ChangeNotifier {
   int _xp = 0;
   int _level = 0;
 
+  /// 护甲防护点数（0~20，由装备系统写入；伤害按比例减免）。
+  int _armorPoints = 0;
+
+  int get armorPoints => _armorPoints;
+
+  /// 设置护甲防护点数（数据驱动，由装备系统调用）。
+  void setArmorPoints(int p) {
+    final int v = p.clamp(0, 20);
+    if (v == _armorPoints) return;
+    _armorPoints = v;
+    notifyListeners();
+  }
+
   /// 回血 / 掉血计时器（秒）。
   double _regenTimer = 0;
 
@@ -91,10 +104,11 @@ class PlayerVitals extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  /// 受伤。
+  /// 受伤（先经护甲减免，再扣血）。
   void damage(int d) {
     if (d <= 0 || _hp <= 0) return;
-    _hp = (_hp - d).clamp(0, maxHp);
+    final int mitigated = mitigateDamage(d, _armorPoints);
+    _hp = (_hp - mitigated).clamp(0, maxHp);
     notifyListeners();
   }
 
@@ -151,6 +165,7 @@ class PlayerVitals extends ChangeNotifier {
         'sat': _saturation,
         'xp': _xp,
         'lv': _level,
+        'arm': _armorPoints,
       };
 
   void loadJson(Map<String, dynamic> j) {
@@ -159,6 +174,7 @@ class PlayerVitals extends ChangeNotifier {
     _saturation = ((j['sat'] as num?)?.toDouble() ?? 5).clamp(0.0, 20.0);
     _xp = (j['xp'] as num?)?.toInt() ?? 0;
     _level = (j['lv'] as num?)?.toInt() ?? 0;
+    _armorPoints = ((j['arm'] as num?)?.toInt() ?? 0).clamp(0, 20);
     notifyListeners();
   }
 }
