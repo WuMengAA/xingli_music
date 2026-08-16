@@ -34,7 +34,8 @@ class VoxelTextureAtlas {
   static double _skinScale = 2; // 皮肤图宽 / 64（2× → 2）
   static bool _hasSkin = false;
 
-  static int get rows => ((Voxel.values.length + cols - 1) / cols).ceil();
+  static int get rows =>
+      ((Voxel.values.length * kVoxelVariantSlots + cols - 1) / cols).ceil();
 
   static int get width => math.max(cols * tile, skinW);
 
@@ -45,9 +46,11 @@ class VoxelTextureAtlas {
 
   /// 返回某方块瓦片在图集中的 UV（图集像素坐标，角序对齐 [_fillCorners]：
   /// 0=(minX,minZ) 1=(maxX,minZ) 2=(maxX,maxZ) 3=(minX,maxZ)）。
-  static Float32List tileUV(int index) {
-    final int col = index % cols;
-    final int row = index ~/ cols;
+  static Float32List tileUV(int index, [int variant = 0]) {
+    final int slot =
+        index * kVoxelVariantSlots + variant.clamp(0, kVoxelVariantSlots - 1);
+    final int col = slot % cols;
+    final int row = slot ~/ cols;
     final double x0 = (col * tile).toDouble();
     final double y0 = (row * tile).toDouble();
     final double x1 = x0 + tile;
@@ -71,7 +74,13 @@ class VoxelTextureAtlas {
     _skinExtraH = 0;
     final int n = Voxel.values.length;
     for (int i = 0; i < n; i++) {
-      _drawTile(canvas, i % cols, i ~/ cols, Voxel.values[i]);
+      final Voxel v = Voxel.values[i];
+      final int vc = variantCountOf(v);
+      for (int k = 0; k < kVoxelVariantSlots; k++) {
+        final int slot = i * kVoxelVariantSlots + k;
+        // 超出实际变体数的槽位复用变体 0（永不采样，仅占位避免空洞）。
+        _drawTile(canvas, slot % cols, slot ~/ cols, v, k < vc ? k : 0);
+      }
     }
     if (skinBytes != null) {
       try {
@@ -245,12 +254,12 @@ class VoxelTextureAtlas {
     ]);
   }
 
-  static void _drawTile(ui.Canvas c, int col, int row, Voxel v) {
+  static void _drawTile(ui.Canvas c, int col, int row, Voxel v, int variant) {
     final double ox = col * tile.toDouble();
     final double oy = row * tile.toDouble();
     for (int py = 0; py < tile; py++) {
       for (int px = 0; px < tile; px++) {
-        final ui.Color pix = _pixel(v, px, py);
+        final ui.Color pix = _pixel(v, px, py, variant);
         c.drawRect(
           ui.Rect.fromLTWH(ox + px, oy + py, 1, 1),
           ui.Paint()..color = pix,
@@ -260,8 +269,9 @@ class VoxelTextureAtlas {
   }
 
   /// 单像素颜色（确定性：同坐标恒同，避免闪烁）。
-  static ui.Color _pixel(Voxel v, int px, int py) {
-    final double n = _noise(px, py, v.index * 131 + 7);
+  static ui.Color _pixel(Voxel v, int px, int py, int variant) {
+    // 变体影响散列种子 → 每种变体纹理/抖动 pattern 不同（纹理变体）。
+    final double n = _noise(px, py, v.index * 131 + 7 + variant * 917);
     final double f = 1.0 + (n - 0.5) * 0.18; // ±9% 亮度抖动，去平涂感
     switch (v) {
       case Voxel.grass:

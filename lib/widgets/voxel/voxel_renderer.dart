@@ -1177,7 +1177,11 @@ abstract final class VoxelRenderer {
           // 不再整面硬丢，而是 clip 出 3~5 边形薄片；n==4 走原逐角 AO/描边快
           // 路径，n!=4（薄片）走 pushPolygon（均匀色、无描边，面积极小不可辨）。
           final Float32List? tileUv = config.textureEnabled
-              ? VoxelTextureAtlas.tileUV(cf.voxel.index)
+              ? VoxelTextureAtlas.tileUV(
+                  cf.voxel.index,
+                  blockVariant(
+                      cf.bx.floor(), cf.by.floor(), cf.bz.floor(), cf.voxel),
+                )
               : null;
           final ClippedFace? clippedFace =
               VoxelCamera.projectFaceClipped(corners, tileUv, b, proj);
@@ -3239,8 +3243,17 @@ abstract final class VoxelRenderer {
       fy: (c[1] + c[4] + c[7] + c[10]) * 0.25,
       fz: (c[2] + c[5] + c[8] + c[11]) * 0.25,
     );
-    final Float32List? uv =
-        config.textureEnabled ? VoxelTextureAtlas.tileUV(voxel.index) : null;
+    final Float32List? uv = config.textureEnabled
+        ? VoxelTextureAtlas.tileUV(
+            voxel.index,
+            blockVariant(
+              ((c[0] + c[3] + c[6] + c[9]) * 0.25).floor(),
+              ((c[1] + c[4] + c[7] + c[10]) * 0.25).floor(),
+              ((c[2] + c[5] + c[8] + c[11]) * 0.25).floor(),
+              voxel,
+            ),
+          )
+        : null;
     pushFace(xy, uv, argb, tint, voxel.isTransparent, depth);
   }
 }

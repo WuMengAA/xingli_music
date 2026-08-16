@@ -177,6 +177,7 @@ class VoxelSpec {
     this.transparent = false,
     this.solid = true,
     this.pattern = VoxelPattern.none,
+    this.variantCount = 1,
   });
 
   final Voxel id;
@@ -203,6 +204,10 @@ class VoxelSpec {
   /// 自绘材质图案（R23k，painter 层叠加）。
   final VoxelPattern pattern;
 
+  /// 纹理变体数（数据驱动：同一种方块在不同位置显示不同纹理，增加丰富度）。
+  /// 实际采样时 clamp 到 [1, kVoxelVariantSlots]；1 = 无变体（向后兼容）。
+  final int variantCount;
+
   bool get isAir => id == Voxel.air;
 }
 
@@ -210,6 +215,37 @@ class VoxelSpec {
 ///
 /// 颜色一律写满 8 位（含 alpha）：6 位写法的 alpha 会被当成 0x00（全透明），
 /// 半透明由 [VoxelSpec.transparent] + 渲染层的 alpha 参数控制，不靠基色带透明度。
+/// ════════════════════════════════════════════════════════════════════════
+/// 纹理变体（数据驱动 · 生存模式大跃进）
+/// ════════════════════════════════════════════════════════════════════════
+
+/// 每个方块在图集预留的纹理变体槽位数（变体上限）。
+///
+/// 图集为每种方块预留 [kVoxelVariantSlots] 个连续瓦片；实际使用的变体数由
+/// [VoxelSpec.variantCount] 决定（<= 此值）。变体 0 恒为「基准纹理」，向后兼容。
+const int kVoxelVariantSlots = 4;
+
+/// 方块实际纹理变体数（clamp 到 [1, kVoxelVariantSlots]）。
+int variantCountOf(Voxel v) =>
+    kVoxelSpecs[v]!.variantCount.clamp(1, kVoxelVariantSlots);
+
+/// 确定性纹理变体选择：同世界坐标恒同（不闪烁、随 seed 复现）。
+///
+/// 用于「纹理变体」——让同一种方块在不同位置显示不同纹理，增加世界丰富度。
+/// 选择由世界坐标散列决定（与地形/存档同一套确定性风格），变体数由
+/// [VoxelSpec.variantCount] 控制；[variantCount]<=1 时恒返回 0。
+int blockVariant(int x, int y, int z, Voxel v) {
+  final int vc = variantCountOf(v);
+  if (vc <= 1) return 0;
+  int n = (x * 374761393) ^
+      (y * 668265263) ^
+      (z * 982451653) ^
+      (v.index * 1274126177);
+  n = (n ^ (n >> 13)) * 1274126177;
+  n = n ^ (n >> 16);
+  return (n & 0x7fffffff) % vc;
+}
+
 const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
   Voxel.air: VoxelSpec(
     id: Voxel.air,
@@ -222,22 +258,26 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     base: Color(0xFF6E8B3D),
     top: Color(0xFF7CC85A),
     displayName: '草方块',
+    variantCount: 2,
   ),
   Voxel.dirt: VoxelSpec(
     id: Voxel.dirt,
     base: Color(0xFF8A6240),
     displayName: '泥土',
+    variantCount: 3,
   ),
   Voxel.stone: VoxelSpec(
     id: Voxel.stone,
     base: Color(0xFF8C8C92),
     displayName: '石头',
+    variantCount: 4,
   ),
   Voxel.sand: VoxelSpec(
     id: Voxel.sand,
     base: Color(0xFFE2D2A0),
     pattern: VoxelPattern.sandDots,
     displayName: '沙子',
+    variantCount: 3,
   ),
   Voxel.water: VoxelSpec(
     id: Voxel.water,
@@ -249,6 +289,7 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     id: Voxel.wood,
     base: Color(0xFF6E4B2A),
     displayName: '原木',
+    variantCount: 2,
   ),
   Voxel.leaves: VoxelSpec(
     id: Voxel.leaves,
@@ -257,12 +298,14 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     // 「走平地被顶到树冠」已由 groundHeightAt 加 startY（从脚底往下扫）根治，
     // 不再需要靠透明来绕。
     displayName: '树叶',
+    variantCount: 3,
   ),
   Voxel.snow: VoxelSpec(
     id: Voxel.snow,
     base: Color(0xFFF2F6FB),
     top: Color(0xFFFFFFFC),
     displayName: '雪',
+    variantCount: 2,
   ),
   // ── R23k 新增（自绘材质）──────────────────────────
   Voxel.planks: VoxelSpec(
@@ -270,18 +313,21 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     base: Color(0xFFB08954),
     pattern: VoxelPattern.planks,
     displayName: '木板',
+    variantCount: 3,
   ),
   Voxel.brick: VoxelSpec(
     id: Voxel.brick,
     base: Color(0xFF9C4F4A),
     pattern: VoxelPattern.brick,
     displayName: '红砖',
+    variantCount: 3,
   ),
   Voxel.cobble: VoxelSpec(
     id: Voxel.cobble,
     base: Color(0xFF7A7E85),
     pattern: VoxelPattern.cobble,
     displayName: '圆石',
+    variantCount: 4,
   ),
   Voxel.glass: VoxelSpec(
     id: Voxel.glass,
