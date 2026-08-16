@@ -356,6 +356,17 @@ class ChangelogEntry {
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
     version: '0.26.8.15',
+    cl: 'cl76_hotfix',
+    title: '热更新修复：OTA 安装「未找到安装包」+ hotfix 识别',
+    details: <String>[
+      'OTA 安装修复：FileProvider 白名单显式覆盖 files/app_flutter 子目录（path_provider 2.3+ 的 getApplicationDocumentsDirectory 落盘目录，此前可能命中不了 root 导致「未找到安装包」）',
+      'hotfix 命名兼容 `_hotfix`（同时识别 -hotfix/_hotfix）；hotfix 与当前同 build 号也判定有更新（否则补丁包检测不到）',
+      '安装失败错误信息附文件存在性/大小，便于定位',
+      'buildCount 保持 76：补丁不升版本号，OTA 靠 hotfix 标记识别',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.15',
     cl: 'cl76',
     title: '画质体系收纳折叠：四档预设（省电/流畅/地平线/自动）+ 自动帧率调节 + 视频按视听开关',
     details: <String>[

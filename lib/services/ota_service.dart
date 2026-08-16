@@ -46,7 +46,7 @@ class OtaCheckResult {
   /// 最新 Release 的构建号（从 tag 解析；解析失败为 -1）。
   final int latestBuild;
 
-  /// 是否 hotfix（tag 含 `-hotfix`）→ 直接下载。
+  /// 是否 hotfix（tag 含 `-hotfix` / `_hotfix`）→ 直接下载。
   final bool isHotfix;
 
   /// 是否有可应用的新版本（latestBuild > 当前 buildCount）。
@@ -121,13 +121,16 @@ class OtaService {
         if (build > bestBuild) {
           bestBuild = build;
           bestTag = tag;
-          bestHotfix = tag.contains('-hotfix');
+          // cl76_hotfix：兼容 `-hotfix` 与 `_hotfix` 两种命名。
+          bestHotfix = tag.contains('-hotfix') || tag.contains('_hotfix');
           bestNotes = (r['body'] as String?) ?? '';
         }
       }
       if (bestTag.isEmpty || bestBuild < 0) return OtaCheckResult.none;
       final int current = AppVersion.buildCount;
-      final bool hasUpdate = bestBuild > current;
+      // cl76_hotfix：hotfix 与当前同 build 号也必须提示更新（修复缺陷的补丁包）。
+      final bool hasUpdate = bestBuild > current ||
+          (bestHotfix && bestBuild >= current);
       LogService.instance.i('ota',
           '检查更新: 最新=$bestTag build=$bestBuild 当前=$current hotfix=$bestHotfix 有更新=$hasUpdate');
       return OtaCheckResult(

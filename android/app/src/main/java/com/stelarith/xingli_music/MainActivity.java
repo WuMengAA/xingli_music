@@ -126,7 +126,14 @@ public class MainActivity extends AudioServiceActivity {
             startActivity(intent);
             result.success(true);
         } catch (Exception e) {
-            result.error("install_failed", e.getMessage(), null);
+            // cl76_hotfix：附上文件存在性/大小，便于定位「未找到安装包」类问题
+            // （FileProvider 未命中白名单 root 时抛 IllegalArgumentException）。
+            result.error("install_failed",
+                    "安装失败: " + e.getMessage()
+                            + " (file=" + args
+                            + ", exists=" + apk.exists()
+                            + ", len=" + apk.length() + ")",
+                    null);
         }
     }
 
