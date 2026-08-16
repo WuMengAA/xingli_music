@@ -1,23 +1,28 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// 星璃音乐 · 版本规范（R18/R19/R20）
+/// 星璃音乐 · 版本规范（R18/R19/R20 + 2026-08-17 渠道化定版）
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 规则（用户 2026-08-09 定版）：
-///   `0.26.8.9_alpha_cl01`
+/// 规则（用户 2026-08-09 定版 + 2026-08-17 渠道化修正）：
+///   `0.26.8.9_beta_cl01`
 ///    └┬─┘└┬┘└┬┘└┬┘ └┬┘ └┬┘
-///    大版本 年 月 日 阶段 构建次数
+///    大版本 年 月 日 渠道 构建次数
 ///
 ///  - 大版本：0（早期）
 ///  - 年/月/日：当日日期（YY.MM.DD）
-///  - 阶段：alpha = 阿尔法/早期内测；beta = 内测；rc = 候选；release = 正式
-///  - clNN：当日构建次数（01 起，同日每次构建 +1）
+///  - 渠道：beta = 较稳定版（**默认**）；alpha = 尝鲜版；渠道可切换（设置→更新渠道）
+///  - clNN：**当天该渠道**的构建次数（01 起；beta/alpha 各自独立计数）
+///  - **cl 不作为日常版本更新/版本号升级标准**：OTA 按 (日期, cl) 判断新旧，
+///    跨天 cl 清零不会误判回退（历史坑：cl78 > cl01 误判"有更新"）
+///  - Windows 渠道：版本串 cl 后加 `_pc`（如 `0.26.8.17_beta_cl01_pc`）
 ///  - 版本代号 [codename]：发版命名（如「星辉」），未定稿为「待定」
 ///
 /// pubspec 的 `version` 字段仍是合法语义版本 `0.YY.MM+DD`，
 /// 展示串由本文件统一生成，设置页「关于」展示完整串。
 library;
 
-/// 版本阶段。
+import 'dart:io' show Platform;
+
+/// 版本阶段（保留枚举；当前版本号渠道段由 [UpdateChannel] 决定）。
 enum AppStage {
   alpha('alpha', '阿尔法（早期内测）'),
   beta('beta', '贝塔（内测）'),
@@ -27,6 +32,23 @@ enum AppStage {
   const AppStage(this.tag, this.label);
   final String tag;
   final String label;
+}
+
+/// 更新渠道（用户 2026-08-17 定版）：beta=较稳定（默认）、alpha=尝鲜。
+/// 独立于版本号升级标准；OTA 只检查当前渠道的版本。
+enum UpdateChannel {
+  beta('beta', 'Beta（稳定）'),
+  alpha('alpha', 'Alpha（尝鲜）');
+
+  const UpdateChannel(this.tag, this.label);
+  final String tag;
+  final String label;
+
+  /// 从 tag 文本解析渠道（未知回落默认 beta）。
+  static UpdateChannel fromTag(String tag) => switch (tag.toLowerCase()) {
+        'alpha' => UpdateChannel.alpha,
+        _ => UpdateChannel.beta,
+      };
 }
 
 /// 版本信息（编译期常量，发版时手动维护）。
@@ -53,10 +75,11 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 16;
+  static const int day = 17;
 
-  /// 阶段。
-  static const AppStage stage = AppStage.alpha;
+  /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
+  /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
+  static const UpdateChannel channel = UpdateChannel.beta;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -303,7 +326,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 78;
+  static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -312,23 +335,29 @@ abstract final class AppVersion {
   /// 语义版本（pubspec version 的展示版）：`0.26.8+11`。
   static String get semver => '$major.$year.$month+$day';
 
-  /// 完整展示串：`0.26.08.15_alpha_cl76_hotfix6`。
-  /// 规范（用户 2026-08-16 定版）：日常更新用小版本号（day 字段递增），
-  /// 构建号 clXX（过百用三位 clXXX），热修复加 `_hotfixN` 后缀。
-  static String get display =>
-      '$major.$_yy.$_mm.$_dd${_stageSuffix}_cl${buildCount.toString().padLeft(2, '0')}'
-      '${hotfix != null ? '_hotfix$hotfix' : ''}';
+  /// 完整展示串：`0.26.08.17_beta_cl01`（Windows 桌面渠道 cl 后加 `_pc`）。
+  /// 规范（用户 2026-08-16 定版 + 2026-08-17 渠道化）：日常更新用小版本号
+  /// （day 字段递增），渠道段 = 更新渠道（beta 默认 / alpha），构建号 clXX
+  /// 为**当天该渠道**的构建次数，热修复加 `_hotfixN` 后缀。
+  static String get display {
+    final String pcSuffix = Platform.isWindows ? '_pc' : '';
+    return '$major.$_yy.$_mm.$_dd$_channelSuffix'
+        '_cl${buildCount.toString().padLeft(2, '0')}$pcSuffix'
+        '${hotfix != null ? '_hotfix$hotfix' : ''}';
+  }
 
   /// 品牌式展示：`星璃音乐·星尘初聚`。
   static String get brand => '星璃音乐·$codename';
 
-  /// 设置页/关于页短展示（无 cl）：`0.26.8.10_alpha`。
-  static String get displayShort => '$major.$_yy.$_mm.$_dd$_stageSuffix';
+  /// 设置页/关于页短展示（无 cl）：`0.26.8.17_beta`。
+  static String get displayShort => '$major.$_yy.$_mm.$_dd$_channelSuffix';
 
   static String get _yy => year.toString().padLeft(2, '0');
   static String get _mm => month.toString().padLeft(2, '0');
   static String get _dd => day.toString().padLeft(2, '0');
-  static String get _stageSuffix => stage == AppStage.release ? '' : '_${stage.tag}';
+
+  /// 版本号渠道段（beta/alpha），由 [channel] 决定。
+  static String get _channelSuffix => '_${channel.tag}';
 }
 
 /// ════════════════════════════════════════════════════════════════════════

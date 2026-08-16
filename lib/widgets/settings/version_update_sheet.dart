@@ -16,6 +16,7 @@ import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/ota_download_provider.dart';
+import '../../providers/settings/settings_persistence_providers.dart';
 import '../../services/ota_service.dart';
 import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
@@ -46,22 +47,31 @@ Future<void> showVersionUpdateSheet(BuildContext context) {
   );
 }
 
-/// 版本日志面板：列出全部更新日志，最新在前。
-class _VersionLogPanel extends StatelessWidget {
+/// 版本日志面板：展示启动时拉取并缓存的网络更新日志（当前渠道），
+/// 无缓存（首次 / 离线）时给出提示。
+class _VersionLogPanel extends ConsumerStatefulWidget {
   const _VersionLogPanel();
+
+  @override
+  ConsumerState<_VersionLogPanel> createState() => _VersionLogPanelState();
+}
+
+class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
+  Future<String?>? _notesFuture;
+  Future<String?>? _tagFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _notesFuture = OtaService.cachedNotes();
+    _tagFuture = OtaService.cachedNotesTag();
+  }
 
   @override
   Widget build(BuildContext context) {
     final AppThemeColors colors = context.appColors;
-    // 自动获取最新日志：changelog 按时间倒序（最新在前），首条即最新。
-    final ChangelogEntry latest = changelog.isEmpty
-        ? const ChangelogEntry(
-            version: '',
-            cl: '',
-            title: '暂无日志',
-            details: <String>[],
-          )
-        : changelog.first;
+    final UpdateChannel ch =
+        ref.read(settingsRepositoryProvider).updateChannel;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
@@ -77,7 +87,8 @@ class _VersionLogPanel extends StatelessWidget {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('版本日志', style: context.appText.subtitle),
+                  child: Text('更新日志（${ch.label}）',
+                      style: context.appText.subtitle),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -87,29 +98,68 @@ class _VersionLogPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: AppSpace.xs),
-            // 最新版本徽标（自动取最新日志）。
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.sm,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: colors.accentSoft,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                '最新 ${latest.cl} · ${latest.version}',
-                style: context.appText.caption
-                    .copyWith(color: colors.accent),
-              ),
-            ),
-            const SizedBox(height: AppSpace.md),
             Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                children: <Widget>[
-                  for (final ChangelogEntry e in changelog) _LogTile(entry: e),
-                ],
+              child: FutureBuilder<String?>(
+                future: _notesFuture,
+                builder: (BuildContext c, AsyncSnapshot<String?> snap) {
+                  final String? notes = snap.data;
+                  if (notes == null || notes.trim().isEmpty) {
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(AppSpace.md),
+                      decoration: BoxDecoration(
+                        color: colors.bgCard,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                      child: Text(
+                        '暂无更新日志。联网启动应用后会自动获取当前渠道'
+                        '（${ch.label}）的最新日志并保存本地。',
+                        style: context.appText.bodyMuted,
+                      ),
+                    );
+                  }
+                  return FutureBuilder<String?>(
+                    future: _tagFuture,
+                    builder: (BuildContext c2, AsyncSnapshot<String?> tagSnap) {
+                      final String? tag = tagSnap.data;
+                      return ListView(
+                        shrinkWrap: true,
+                        children: <Widget>[
+                          if (tag != null && tag.isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpace.sm,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.accentSoft,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.pill),
+                              ),
+                              child: Text(
+                                '最新 $tag',
+                                style: context.appText.caption
+                                    .copyWith(color: colors.accent),
+                              ),
+                            ),
+                          const SizedBox(height: AppSpace.sm),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(AppSpace.md),
+                            decoration: BoxDecoration(
+                              color: colors.bgCard,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                            ),
+                            child: SelectableText(
+                              notes,
+                              style: context.appText.body,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ],
@@ -132,10 +182,13 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   bool _checking = false;
   bool _installing = false;
 
-  /// G7：检查 GitHub Releases → 有更新 → 询问/直接下载 →（后台）哈希校验 → 提示。
+  /// G7：检查 GitHub Releases（当前渠道）→ 有更新 → 询问/直接下载 →（后台）哈希校验 → 提示。
   Future<void> _check() async {
     setState(() => _checking = true);
-    final OtaCheckResult r = await OtaService.instance.checkForUpdate();
+    final UpdateChannel ch =
+        ref.read(settingsRepositoryProvider).updateChannel;
+    final OtaCheckResult r =
+        await OtaService.instance.checkForUpdate(channel: ch);
     if (!mounted) return;
     setState(() => _checking = false);
 
@@ -238,7 +291,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    changelog.isEmpty ? '暂无日志' : changelog.first.title,
+                    '更新渠道：${ref.read(settingsRepositoryProvider).updateChannel.label}',
                     style: context.appText.artist,
                   ),
                 ],
@@ -421,55 +474,4 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   static String _fmtSpeed(double bs) => bs >= 1048576
       ? '${(bs / 1048576).toStringAsFixed(1)} MB/s'
       : '${(bs / 1024).toStringAsFixed(0)} KB/s';
-}
-
-/// 单条版本日志。
-class _LogTile extends StatelessWidget {
-  const _LogTile({required this.entry});
-
-  final ChangelogEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors colors = context.appColors;
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpace.sm),
-      padding: const EdgeInsets.all(AppSpace.md),
-      decoration: BoxDecoration(
-        color: colors.accentSoft,
-        borderRadius: AppRadius.brMd,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(entry.title, style: context.appText.body),
-              ),
-              Text(
-                '${entry.version} · ${entry.cl}',
-                style: context.appText.caption
-                    .copyWith(color: colors.textSecondary),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          for (final String d in entry.details)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('· ', style: context.appText.bodyMuted),
-                  Expanded(
-                    child: Text(d, style: context.appText.bodyMuted),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }

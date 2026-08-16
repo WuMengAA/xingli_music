@@ -1,15 +1,16 @@
 /// 网易云登录底部弹层（I 域 · P1-6 接线 + 内嵌网页登录）。
 ///
-/// 双路径：
-/// - **应用内登录**（默认，仅 Android）：拉起原生 [CookieWebViewActivity] 内嵌
-///   网易云登录页，手机 App 扫码并确认后自动抓取完整 cookie（含 httpOnly
-///   MUSIC_U）→ 加密落盘。无依赖、不弹外部浏览器、不手动复制。
+/// 双路径（2026-08-17 去扫码定版）：
+/// - **网页登录**（默认）：Android 拉起原生 [CookieWebViewActivity] 内嵌
+///   网易云登录页，登录后自动抓取完整 cookie（含 httpOnly MUSIC_U）→
+///   加密落盘；Windows 调系统浏览器登录后复制 Cookie 回填。
 /// - **粘贴 Cookie**：手动粘贴 `MUSIC_U=...; __csrf=...`，[loginWithCookie]
 ///   校验并加密落盘（Windows / 其它平台的主要路径）。
 ///
 /// cookie 加密落盘走既有 [SecureBox]，绝不明文进 SharedPreferences。
 library;
 
+import 'dart:async';
 import 'dart:io' show Platform, Process;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -21,8 +22,6 @@ import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../services/audio/sources/netease/netease_api.dart';
 import '../../services/audio/sources/netease/netease_webview_login.dart';
-import 'dart:async';
-import 'package:qr_flutter/qr_flutter.dart';
 
 /// 打开网易云登录弹层；返回 `true` 表示登录成功。
 Future<bool?> showNeteaseLoginSheet(BuildContext context) {
@@ -39,7 +38,7 @@ Future<bool?> showNeteaseLoginSheet(BuildContext context) {
   );
 }
 
-enum _LoginTab { qr, web, cookie }
+enum _LoginTab { web, cookie }
 
 class _NeteaseLoginSheet extends ConsumerStatefulWidget {
   const _NeteaseLoginSheet();
@@ -49,7 +48,7 @@ class _NeteaseLoginSheet extends ConsumerStatefulWidget {
 }
 
 class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
-  _LoginTab _tab = _LoginTab.qr;
+  _LoginTab _tab = _LoginTab.web;
   final TextEditingController _cookieCtrl = TextEditingController();
   // C1（用户确认）：Cookie 分开填——MUSIC_U 与 __csrf 两个输入框，自动拼头。
   final TextEditingController _musicUCtrl = TextEditingController();
@@ -98,7 +97,7 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
     final String? cookie = await startNeteaseWebviewLogin();
     if (!mounted) return;
     if (cookie == null || cookie.isEmpty) {
-      setState(() => _status = '未获取到登录状态（已取消或未完成扫码）');
+      setState(() => _status = '未获取到登录状态（已取消或未完成登录）');
       return;
     }
     final bool ok =
@@ -176,18 +175,11 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
               if (auth.isLoggedIn)
                 _LoggedInPanel(account: auth.account, onLogout: _logout)
               else ...<Widget>[
-                // 双路径切换（与 app 全局 ChoiceChip 风格一致）
+                // 双路径切换（与 app 全局 ChoiceChip 风格一致；2026-08-17 去扫码）
                 Row(
                   children: <Widget>[
                     ChoiceChip(
-                      label: const Text('扫码登录'),
-                      selected: _tab == _LoginTab.qr,
-                      onSelected: (_) => setState(() => _tab = _LoginTab.qr),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    const SizedBox(width: AppSpace.sm),
-                    ChoiceChip(
-                      label: const Text('应用内登录'),
+                      label: const Text('网页登录'),
                       selected: _tab == _LoginTab.web,
                       onSelected: (_) => setState(() => _tab = _LoginTab.web),
                       visualDensity: VisualDensity.compact,
@@ -204,23 +196,18 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                 const SizedBox(height: AppSpace.md),
                 AnimatedSwitcher(
                   duration: AppMotion.tab,
-                  child: _tab == _LoginTab.qr
-                      ? _QrLoginPanel(
+                  child: _tab == _LoginTab.web
+                      ? _WebLoginPanel(
                           busy: auth.busy,
-                          onSuccess: () => Navigator.of(context).pop(true),
+                          status: _status,
+                          onLogin: _webLogin,
                         )
-                      : _tab == _LoginTab.web
-                          ? _WebLoginPanel(
-                              busy: auth.busy,
-                              status: _status,
-                              onLogin: _webLogin,
-                            )
-                          : _CookiePanel(
-                              musicUCtrl: _musicUCtrl,
-                              csrfCtrl: _csrfCtrl,
-                              busy: auth.busy,
-                              onLogin: _loginCookie,
-                            ),
+                      : _CookiePanel(
+                          musicUCtrl: _musicUCtrl,
+                          csrfCtrl: _csrfCtrl,
+                          busy: auth.busy,
+                          onLogin: _loginCookie,
+                        ),
                 ),
                 if (auth.error != null) ...<Widget>[
                   const SizedBox(height: AppSpace.sm),
@@ -414,117 +401,4 @@ class _CookiePanel extends StatelessWidget {
   }
 }
 
-/// 扫码登录：本地渲染网易云登录二维码，官方 App 扫码并在手机上确认后自动登录。
-///
-/// xingli_music 自身不需要相机权限——二维码内容（`state.qrUrl`）由官方
-/// 网易云 App 扫描，本面板只负责渲染 + 轮询 [NeteaseAuthNotifier.pollQrLogin]。
-class _QrLoginPanel extends ConsumerStatefulWidget {
-  const _QrLoginPanel({required this.busy, required this.onSuccess});
-
-  final bool busy;
-  final VoidCallback onSuccess;
-
-  @override
-  ConsumerState<_QrLoginPanel> createState() => _QrLoginPanelState();
-}
-
-class _QrLoginPanelState extends ConsumerState<_QrLoginPanel> {
-  Timer? _timer;
-  bool _done = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // 挂载即申请二维码并开始轮询。
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(neteaseAuthProvider.notifier).startQrLogin();
-      _startPolling();
-    });
-  }
-
-  void _startPolling() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) async {
-      if (!mounted || _done) return;
-      final NeteaseQrStatus? st =
-          await ref.read(neteaseAuthProvider.notifier).pollQrLogin();
-      if (st?.authorized == true && mounted && !_done) {
-        _done = true;
-        widget.onSuccess();
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Text(
-          '用网易云音乐 App 扫描下方二维码，在手机上确认即可登录。',
-          style: context.appText.artist,
-        ),
-        const SizedBox(height: AppSpace.md),
-        if (auth.qrUrl != null)
-          Center(
-            child: QrImageView(
-              data: auth.qrUrl!,
-              version: QrVersions.auto,
-              size: 220,
-              backgroundColor: Colors.white,
-              padding: const EdgeInsets.all(AppSpace.md),
-            ),
-          )
-        else if (widget.busy || auth.busy)
-          const Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          )
-        else
-          const SizedBox.shrink(),
-        const SizedBox(height: AppSpace.sm),
-        if (auth.error != null) ...<Widget>[
-          Text(
-            auth.error!,
-            style: context.appText.artist.copyWith(color: context.appColors.danger),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          FilledButton.icon(
-            onPressed: () {
-              _done = false;
-              ref.read(neteaseAuthProvider.notifier).startQrLogin();
-              _startPolling();
-            },
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('刷新二维码'),
-          ),
-        ] else if (auth.qrMessage != null) ...<Widget>[
-          // C1：扫码进行中提示（802 已确认 → 明确「正在完成」，不再无反应）。
-          Text(
-            auth.qrMessage!,
-            style: context.appText.artist.copyWith(
-                color: context.appColors.accent),
-            textAlign: TextAlign.center,
-          ),
-        ] else
-          Text(
-            '二维码有效期约 2 分钟，过期后点「刷新二维码」。',
-            style: context.appText.caption,
-            textAlign: TextAlign.center,
-          ),
-      ],
-    );
-  }
-}
+/// 扫码登录面板已移除（2026-08-17 用户定版：网易云去扫码，统一网页登录 + 粘贴 Cookie）。

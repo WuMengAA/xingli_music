@@ -31,8 +31,10 @@ import '../providers/audio/music_quality_provider.dart';
 import '../models/experiment.dart';
 import '../models/track.dart';
 import '../providers/explore/experiment_providers.dart';
+import '../repositories/settings_repository.dart';
 import '../providers/settings/performance_providers.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
+import '../providers/settings/settings_persistence_providers.dart';
 import '../providers/sources/netease_provider.dart';
 import '../providers/sources/bilibili_provider.dart';
 import '../services/audio/sources/bilibili/bilibili_api.dart';
@@ -88,6 +90,60 @@ Widget _entry(
       onTap: onTap,
     ),
   );
+}
+
+/// 切换更新渠道（Beta 稳定 / Alpha 尝鲜）：写渠道 + 待重启标记，
+/// 重启后 App 进入 OOBE·升级阶段（说明渠道变更并提示检查更新）。
+Future<void> _pickUpdateChannel(BuildContext context, WidgetRef ref) async {
+  final SettingsRepository repo = ref.read(settingsRepositoryProvider);
+  final UpdateChannel current = repo.updateChannel;
+  final UpdateChannel? picked = await showModalBottomSheet<UpdateChannel>(
+    context: context,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (BuildContext c) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('更新渠道', style: Theme.of(c).textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  '渠道决定 OTA 更新来源与更新日志；切换后重启生效',
+                  style: Theme.of(c).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          for (final UpdateChannel ch in UpdateChannel.values)
+            RadioListTile<UpdateChannel>(
+              title: Text(ch.label),
+              subtitle: Text(
+                ch == UpdateChannel.beta
+                    ? '较稳定，默认推荐'
+                    : '尝鲜，功能更新更早',
+              ),
+              value: ch,
+              groupValue: current,
+              onChanged: (_) => Navigator.of(c).pop(ch),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    ),
+  );
+  if (picked == null || picked == current) return;
+  await repo.setUpdateChannel(picked);
+  await repo.setChannelSwitchPending(true);
+  if (context.mounted) {
+    appNotify(context, '已切换到 ${picked.label} 渠道，重启后生效并进入升级引导');
+  }
 }
 
 /// 单选 chips。
@@ -1610,6 +1666,19 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '版本日志',
       subtitle: '自动获取最新日志（当前 ${AppVersion.display}）',
       onTap: () => showVersionLogSheet(context),
+    ),
+  ),
+  // 2026-08-17 渠道化：更新渠道（Beta 稳定 默认 / Alpha 尝鲜；切换后重启生效）。
+  'updateChannel': SettingItemDef(
+    title: '更新渠道',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.layers_outlined,
+      title: '更新渠道',
+      subtitle:
+          '${ref.read(settingsRepositoryProvider).updateChannel.label} · 切换后重启生效',
+      onTap: () => _pickUpdateChannel(context, ref),
     ),
   ),
   // cl55：版本更新（OTA 入口；G7 接入真实检查）。

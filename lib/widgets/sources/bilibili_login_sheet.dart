@@ -1,12 +1,9 @@
-/// 哔哩哔哩登录底部弹层（内嵌桌面模式网页登录 + 粘贴 cookie）。
+/// 哔哩哔哩登录底部弹层（内嵌网页登录 + 粘贴 cookie；2026-08-17 与网易云对齐）。
 ///
 /// 双路径：
-/// - **应用内登录**（默认，仅 Android）：拉起原生 [CookieWebViewActivity]
-///   （bilibili 类型）内嵌 B站官方桌面登录页，用户扫码（页面自带标准 Web
-///   二维码，B站 App 可正常识别）或输账号登录后，原生层自动抓取完整 cookie
-///   （含 httpOnly SESSDATA）→ 加密落盘。无依赖、不弹外部浏览器、不手动复制。
-///   —— 取代原先「qr_flutter 渲染 h5/app/passport 二维码」方案（手机 App 扫
-///   描后报「没有此界面」）。
+/// - **网页登录**（默认）：Android 拉起原生 [CookieWebViewActivity]
+///   （bilibili 类型）内嵌 B站官方桌面登录页，登录后原生层自动抓取完整 cookie
+///   （含 httpOnly SESSDATA）→ 加密落盘。无依赖、**不弹外部浏览器**、不手动复制。
 /// - **粘贴 Cookie**：手动粘贴 `SESSDATA=...; bili_jct=...; DedeUserID=...`，
 ///   [loginWithCookie] 校验并加密落盘（Windows / 其它平台的主要路径）。
 ///
@@ -163,7 +160,7 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
                 Row(
                   children: <Widget>[
                     ChoiceChip(
-                      label: const Text('应用内登录'),
+                      label: const Text('网页登录'),
                       selected: _tab == _Tab.web,
                       onSelected: (_) => setState(() => _tab = _Tab.web),
                       visualDensity: VisualDensity.compact,

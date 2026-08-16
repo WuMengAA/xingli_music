@@ -24,15 +24,15 @@ echo "==> 构建 release APK（可能耗时 1-3 分钟）"
 "$FLUTTER" build apk --release --no-tree-shake-icons
 
 SRC="build/app/outputs/flutter-apk/app-release.apk"
-# 从 AppVersion 读取展示版本与代号（与设置页一致）
+# 从 AppVersion 读取展示版本与代号（与设置页一致；2026-08-17 渠道化：channel 替代 stage）
 VERSION=$(grep -oP "static const int day = \K\d+" lib/core/app_version.dart)
 BUILD=$(grep -oP "static const int buildCount = \K\d+" lib/core/app_version.dart)
-STAGE=$(grep -oP "static const AppStage stage = AppStage\.\K\w+" lib/core/app_version.dart)
+CHANNEL=$(grep -oP "static const UpdateChannel channel = UpdateChannel\.\K\w+" lib/core/app_version.dart)
 CODENAME=$(grep -oP "static const String codename = '\K[^']+" lib/core/app_version.dart)
 YEAR=$(grep -oP "static const int year = \K\d+" lib/core/app_version.dart)
 MONTH=$(grep -oP "static const int month = \K\d+" lib/core/app_version.dart)
 
-NAME="星璃音乐_0.${YEAR}.${MONTH}.${VERSION}_${STAGE}_cl$(printf '%02d' "$BUILD")_${CODENAME}.apk"
+NAME="星璃音乐_0.${YEAR}.${MONTH}.${VERSION}_${CHANNEL}_cl$(printf '%02d' "$BUILD")_${CODENAME}.apk"
 mkdir -p "$RELEASE_DIR"
 cp "$SRC" "$RELEASE_DIR/$NAME"
 

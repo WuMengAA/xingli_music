@@ -19,6 +19,7 @@ import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/settings/settings_ui_providers.dart';
+import '../../services/ota_service.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../providers/shell/shell_providers.dart';
 import '../../providers/sources/netease_provider.dart';
@@ -984,7 +985,7 @@ class _AboutDetail extends StatelessWidget {
           label: '今日累计构建',
           value: '${AppVersion.buildCount} 次 · ${AppVersion.display}',
         ),
-        _InfoRow(label: '阶段', value: AppVersion.stage.label),
+        _InfoRow(label: '更新渠道', value: AppVersion.channel.label),
         _InfoRow(label: '语义版本', value: AppVersion.semver),
         const _InfoRow(label: '开源协议', value: 'MIT'),
         const SizedBox(height: AppSpace.sm),
@@ -998,7 +999,27 @@ class _AboutDetail extends StatelessWidget {
         const SizedBox(height: AppSpace.lg),
         Text('更新日志', style: context.appText.subtitle),
         const SizedBox(height: AppSpace.md),
-        ...changelog.map((ChangelogEntry e) => _ChangelogTile(e)),
+        FutureBuilder<String?>(
+          future: OtaService.cachedNotes(),
+          builder: (BuildContext c, AsyncSnapshot<String?> snap) {
+            final String? notes = snap.data;
+            if (notes == null || notes.trim().isEmpty) {
+              return Text(
+                '暂无日志：联网启动后自动获取（${AppVersion.channel.label} 渠道）',
+                style: context.appText.bodyMuted,
+              );
+            }
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpace.md),
+              decoration: BoxDecoration(
+                color: context.appColors.bgCard,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: SelectableText(notes, style: context.appText.body),
+            );
+          },
+        ),
         const SizedBox(height: AppSpace.lg),
         _EntryRow(
           icon: Icons.cloud_upload_outlined,
@@ -1015,58 +1036,6 @@ class _AboutDetail extends StatelessWidget {
   /// cl59：复制 GitHub 仓库地址。
   void _copyRepo(BuildContext context) {
     appNotify(context, '已复制仓库地址：github.com/WuMengAA/xingli_music');
-  }
-}
-
-/// 关于页更新日志单条。
-class _ChangelogTile extends StatelessWidget {
-  const _ChangelogTile(this.entry);
-
-  final ChangelogEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpace.md),
-      padding: const EdgeInsets.all(AppSpace.md),
-      decoration: BoxDecoration(
-        color: context.appColors.accentSoft,
-        borderRadius: AppRadius.brMd,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Expanded(
-                child: Text(entry.title, style: context.appText.subtitle),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${entry.version} · ${entry.cl}',
-                style: context.appText.bodyMuted,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ...entry.details.map(
-            (String d) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text('· ', style: context.appText.bodyMuted),
-                  Expanded(
-                    child: Text(d, style: context.appText.bodyMuted),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

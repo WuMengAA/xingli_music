@@ -107,6 +107,11 @@ class _AppShellState extends ConsumerState<AppShell> {
       unawaited(loadSettingsLayoutAsset(ref));
       // F4：版本升级后弹询问是否重走初始化流程（仅当已完成为 true 且版本变高）。
       unawaited(_maybeAskReOobe(context));
+      // 2026-08-17 渠道化：重启后检测渠道切换标记 → OOBE·升级阶段引导。
+      unawaited(_maybeAskChannelGuide(context));
+      // 2026-08-17 渠道化：每次启动拉取当前渠道最新更新日志并缓存本地。
+      unawaited(OtaService.instance
+          .refreshCachedNotes(channel: ref.read(settingsRepositoryProvider).updateChannel));
       // cl74：启动自动检查 OTA（仅已完成为 true 的老用户；首次走 OOBE 不弹）。
       // 有新版本弹全局提示，用户可前往 设置 → 关于 → 版本更新 处理。
       if (ref.read(oobeDoneProvider)) {
@@ -164,11 +169,50 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  /// 2026-08-17 渠道化：重启后检测到「渠道切换待确认」→ 弹 OOBE·升级阶段引导
+  /// （说明渠道变更 + 提示检查更新），确认后清除标记。
+  Future<void> _maybeAskChannelGuide(BuildContext context) async {
+    try {
+      final SettingsRepository repo = ref.read(settingsRepositoryProvider);
+      if (!repo.channelSwitchPending) return;
+      final UpdateChannel ch = repo.updateChannel;
+      if (!mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext c) => AlertDialog(
+          title: const Text('更新渠道已切换'),
+          content: Text(
+            '已切换到「${ch.label}」。\n\n'
+            '渠道决定 OTA 更新来源与更新日志：\n'
+            '· Beta（稳定）：较稳定，默认推荐\n'
+            '· Alpha（尝鲜）：功能更新更早\n\n'
+            '可前往 设置 → 关于 → 版本更新 检查该渠道的最新版本。',
+            style: const TextStyle(fontSize: 13),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(),
+              child: const Text('知道了'),
+            ),
+          ],
+        ),
+      );
+      await repo.setChannelSwitchPending(false);
+    } catch (_) {
+      // 引导失败不阻塞启动。
+    }
+  }
+
   /// cl74：启动自动检查 OTA（initState 的 post-frame 回调里调用一次）。
   /// 有新版本仅弹全局提示，不自动下载/安装；失败静默（不阻塞启动）。
   Future<void> _autoCheckOta(BuildContext context) async {
     try {
-      final OtaCheckResult r = await OtaService.instance.checkForUpdate();
+      final UpdateChannel ch =
+          ref.read(settingsRepositoryProvider).updateChannel;
+      final OtaCheckResult r =
+          await OtaService.instance.checkForUpdate(channel: ch);
       if (!context.mounted) return;
       if (r.hasUpdate && r.latestTag.isNotEmpty) {
         appNotify(context, '发现新版本 ${r.latestTag}，可前往 设置 → 关于 → 版本更新');

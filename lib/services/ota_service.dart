@@ -19,6 +19,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/app_version.dart';
 import 'log_service.dart';
@@ -43,6 +44,8 @@ class OtaCheckResult {
     required this.isHotfix,
     required this.hasUpdate,
     required this.releaseNotes,
+    this.latestDateKey = -1,
+    this.latestChannel = UpdateChannel.beta,
   });
 
   final String latestTag;
@@ -50,13 +53,19 @@ class OtaCheckResult {
   /// 最新 Release 的构建号（从 tag 解析；解析失败为 -1）。
   final int latestBuild;
 
+  /// 最新 Release 的日期键（YYMMDD 数字，新格式 tag；旧格式为 -1）。
+  final int latestDateKey;
+
+  /// 最新 Release 的渠道（新格式 tag 解析）。
+  final UpdateChannel latestChannel;
+
   /// 是否 hotfix（tag 含 `-hotfix` / `_hotfix`）→ 直接下载。
   final bool isHotfix;
 
-  /// 是否有可应用的新版本（latestBuild > 当前 buildCount）。
+  /// 是否有可应用的新版本（渠道内按「日期优先、同日比 cl」判定）。
   final bool hasUpdate;
 
-  /// Release 说明（body）。
+  /// Release 说明（body，即该版本更新日志）。
   final String releaseNotes;
 
   static const OtaCheckResult none = OtaCheckResult(
@@ -65,6 +74,61 @@ class OtaCheckResult {
     isHotfix: false,
     hasUpdate: false,
     releaseNotes: '',
+  );
+}
+
+/// 新格式 tag 解析结果：`0.26.8.17_beta_cl01` / `0.26.8.17_beta_cl01_hotfix1`。
+class OtaTagInfo {
+  OtaTagInfo({
+    required this.tag,
+    required this.dateKey,
+    required this.channel,
+    required this.build,
+    this.hotfix,
+    this.notes = '',
+  });
+
+  final String tag;
+  /// 日期键：`year*10000 + month*100 + day`（如 2026-08-17 → 20260817）。
+  final int dateKey;
+  final UpdateChannel channel;
+  final int build;
+  final int? hotfix;
+  String notes;
+
+  /// 是否比当前版本新（2026-08-17 渠道化定版）：**先比日期、同日再比 cl**，
+  /// cl 不再单独决定新旧（跨天 cl 清零不会误判）；hotfix 与当前同版本也算
+  /// 有更新（修复缺陷的补丁包）。
+  bool newerThanCurrent(int currentDateKey, int currentBuild) {
+    if (dateKey > currentDateKey) return true;
+    if (dateKey == currentDateKey) {
+      if (build > currentBuild) return true;
+      if (build >= currentBuild && hotfix != null) return true;
+    }
+    return false;
+  }
+}
+
+/// 解析新格式 tag：`0.26.8.17_beta_cl01` / `0.26.8.17_beta_cl01_hotfix1`。
+/// 非新格式（历史 `cl*`/`v*`、缺渠道段）返回 null。
+OtaTagInfo? parseOtaTag(String tag) {
+  final RegExp re = RegExp(
+    r'^0\.(\d+)\.(\d+)\.(\d+)_(beta|alpha)_cl(\d+)(?:_hotfix(\d+))?$',
+    caseSensitive: false,
+  );
+  final Match? m = re.firstMatch(tag.trim());
+  if (m == null) return null;
+  final int year = int.tryParse(m.group(1)!) ?? 0;
+  final int month = int.tryParse(m.group(2)!) ?? 0;
+  final int day = int.tryParse(m.group(3)!) ?? 0;
+  final int build = int.tryParse(m.group(5)!) ?? -1;
+  if (build < 0) return null;
+  return OtaTagInfo(
+    tag: tag,
+    dateKey: year * 10000 + month * 100 + day,
+    channel: UpdateChannel.fromTag(m.group(4)!),
+    build: build,
+    hotfix: int.tryParse(m.group(6) ?? ''),
   );
 }
 
@@ -92,11 +156,16 @@ class OtaService {
 
   final http.Client _client = http.Client();
 
-  /// 检查 GitHub Releases 是否有新版本。
+  /// 检查 GitHub Releases 是否有新版本（仅当前渠道）。
   ///
-  /// 失败（网络 / 无 Release / 解析失败）返回 [OtaCheckResult.none]，
-  /// 不向上抛——更新检查是附属能力，绝不能因它崩溃或阻塞。
-  Future<OtaCheckResult> checkForUpdate() async {
+  /// 新旧判断（2026-08-17 渠道化定版）：tag 需为新格式
+  /// `0.26.8.<day>_<channel>_cl<NN>`；**只比较 [channel] 渠道**的 Release；
+  /// **先比日期、同日再比 cl**——cl 不再单独决定新旧，跨天 cl 清零不会误判
+  /// （历史坑：cl78 > cl01 误判"有更新"）。历史 `cl*`/`v*` tag（无日期）忽略。
+  /// 失败（网络 / 无 Release / 解析失败）返回 [OtaCheckResult.none]，不抛。
+  Future<OtaCheckResult> checkForUpdate({
+    UpdateChannel channel = UpdateChannel.beta,
+  }) async {
     try {
       final http.Response resp = await _client
           .get(Uri.parse(kOtaReleaseApi))
@@ -108,41 +177,39 @@ class OtaService {
       final List<dynamic> releases =
           jsonDecode(utf8.decode(resp.bodyBytes)) as List<dynamic>;
       if (releases.isEmpty) return OtaCheckResult.none;
-      // 遍历所有非 draft 的 Release，取构建号最大者（不再依赖 GitHub 返回顺序，
-      // 避免 hotfix / 重发导致顺序变化取错版本；cl* 体系优先，语义版本 tag 解析
-      // 为 -1 会被跳过）。
-      String bestTag = '';
-      int bestBuild = -1;
-      bool bestHotfix = false;
-      String bestNotes = '';
+      // 遍历所有非 draft 的 Release：只取「当前渠道 + 新格式 tag」中
+      // (日期, cl) 最大者（日期大者新；同日 cl 大者新；不依赖返回顺序）。
+      OtaTagInfo? best;
       for (final dynamic item in releases) {
         final Map<String, dynamic> r = item as Map<String, dynamic>;
         if (r['draft'] == true) continue;
         final String tag = (r['tag_name'] as String?)?.trim() ?? '';
         if (tag.isEmpty) continue;
-        final int build = _parseBuild(tag);
-        if (build < 0) continue;
-        if (build > bestBuild) {
-          bestBuild = build;
-          bestTag = tag;
-          // cl76_hotfix：兼容 `-hotfix` 与 `_hotfix` 两种命名。
-          bestHotfix = tag.contains('-hotfix') || tag.contains('_hotfix');
-          bestNotes = (r['body'] as String?) ?? '';
+        final OtaTagInfo? info = parseOtaTag(tag);
+        if (info == null || info.channel != channel) continue;
+        if (best == null ||
+            info.dateKey > best.dateKey ||
+            (info.dateKey == best.dateKey && info.build > best.build)) {
+          best = info..notes = (r['body'] as String?) ?? '';
         }
       }
-      if (bestTag.isEmpty || bestBuild < 0) return OtaCheckResult.none;
-      final int current = AppVersion.buildCount;
-      // cl76_hotfix：hotfix 与当前同 build 号也必须提示更新（修复缺陷的补丁包）。
-      final bool hasUpdate = bestBuild > current ||
-          (bestHotfix && bestBuild >= current);
-      LogService.instance.i('ota',
-          '检查更新: 最新=$bestTag build=$bestBuild 当前=$current hotfix=$bestHotfix 有更新=$hasUpdate');
+      if (best == null) return OtaCheckResult.none;
+      final int currentDateKey = _currentDateKey;
+      final int currentBuild = AppVersion.buildCount;
+      final bool hasUpdate = best.newerThanCurrent(currentDateKey, currentBuild);
+      LogService.instance.i(
+          'ota',
+          '检查更新: 最新=${best.tag} date=${best.dateKey} cl=${best.build} '
+          '渠道=${best.channel.tag} | 当前 date=$currentDateKey '
+          'cl=$currentBuild 渠道=${channel.tag} 有更新=$hasUpdate');
       return OtaCheckResult(
-        latestTag: bestTag,
-        latestBuild: bestBuild,
-        isHotfix: bestHotfix,
+        latestTag: best.tag,
+        latestBuild: best.build,
+        latestDateKey: best.dateKey,
+        latestChannel: best.channel,
+        isHotfix: best.hotfix != null,
         hasUpdate: hasUpdate,
-        releaseNotes: bestNotes,
+        releaseNotes: best.notes,
       );
     } catch (e) {
       LogService.instance.w('ota', '检查更新失败: $e');
@@ -150,20 +217,59 @@ class OtaService {
     }
   }
 
-  /// 从 Release tag 解析构建号：`cl55` → 55、`v0.26.8.14` → 0（语义版本走
-  /// 数字比较兜底），`cl55-hotfix` → 55。
-  int _parseBuild(String tag) {
-    final RegExp cl = RegExp(r'cl(\d+)', caseSensitive: false);
-    final Match? m = cl.firstMatch(tag);
-    if (m != null) return int.tryParse(m.group(1)!) ?? -1;
-    // 语义版本：取最后一段数字（v0.26.8.14 → 14 只是演示；真实比较应拆四位）。
-    final RegExp sem = RegExp(r'(\d+)\.(\d+)\.(\d+)(?:\.(\d+))?');
-    final Match? sm = sem.firstMatch(tag);
-    if (sm != null) {
-      // 简化：cl 体系为主，语义版本暂不参与 OTA 比较。
-      return -1;
+  /// 当前版本日期键（YYMMDD 数字）。
+  static int get _currentDateKey =>
+      AppVersion.year * 10000 + AppVersion.month * 100 + AppVersion.day;
+
+  // ── 更新日志本地缓存（2026-08-17 渠道化：网络拉取、按渠道分离）──
+  static const String _kCachedNotesKey = 'ota_cached_notes';
+  static const String _kCachedNotesTagKey = 'ota_cached_notes_tag';
+
+  /// 启动时拉取当前渠道最新 Release 的说明（更新日志）并缓存本地。
+  /// 供设置页「更新日志」查看；网络失败沿用旧缓存。返回是否拉到新内容。
+  Future<bool> refreshCachedNotes({
+    UpdateChannel channel = UpdateChannel.beta,
+  }) async {
+    try {
+      final http.Response resp = await _client
+          .get(Uri.parse(kOtaReleaseApi))
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return false;
+      final List<dynamic> releases =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as List<dynamic>;
+      OtaTagInfo? best;
+      for (final dynamic item in releases) {
+        final Map<String, dynamic> r = item as Map<String, dynamic>;
+        if (r['draft'] == true) continue;
+        final String tag = (r['tag_name'] as String?)?.trim() ?? '';
+        final OtaTagInfo? info = parseOtaTag(tag);
+        if (info == null || info.channel != channel) continue;
+        if (best == null ||
+            info.dateKey > best.dateKey ||
+            (info.dateKey == best.dateKey && info.build > best.build)) {
+          best = info..notes = (r['body'] as String?) ?? '';
+        }
+      }
+      if (best == null || best.notes.trim().isEmpty) return false;
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kCachedNotesKey, best.notes);
+      await prefs.setString(_kCachedNotesTagKey, best.tag);
+      return true;
+    } catch (_) {
+      return false;
     }
-    return -1;
+  }
+
+  /// 读取本地缓存的更新日志（无缓存返回 null）。
+  static Future<String?> cachedNotes() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kCachedNotesKey);
+  }
+
+  /// 读取本地缓存的更新日志对应版本 tag（无缓存返回 null）。
+  static Future<String?> cachedNotesTag() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_kCachedNotesTagKey);
   }
 
   /// 下载 Release 资产并校验 SHA-256。

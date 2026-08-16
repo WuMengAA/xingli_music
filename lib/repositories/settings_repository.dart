@@ -4,6 +4,7 @@ import 'dart:io' show Platform;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/app_version.dart' show UpdateChannel;
 import '../widgets/voxel/voxel_renderer.dart' show LodQuality;
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -78,6 +79,10 @@ class SettingsRepository {
   static const String kOobeDone = 'settings.oobeDone';
   /// F4：最近一次完成 OOBE 的构建号（升级检测用——版本升级后弹询问是否重走）。
   static const String kOobeLastBuild = 'settings.oobeLastBuild';
+  /// 2026-08-17 渠道化：当前更新渠道（beta 稳定 默认 / alpha 尝鲜）。
+  static const String kUpdateChannel = 'settings.updateChannel';
+  /// 渠道切换待重启标记：切换渠道后置 true，重启后 App 进入 OOBE·升级阶段。
+  static const String kChannelSwitchPending = 'settings.channelSwitchPending';
   static const String kEngineBackend = 'settings.engineBackend';
   static const String kNoiseOverride = 'settings.effects.noise';
   static const String kGlassBlurOverride = 'settings.effects.glassBlur';
@@ -328,6 +333,17 @@ class SettingsRepository {
   Future<void> setOobeLastBuild(int? v) => v == null
       ? _prefs.remove(kOobeLastBuild)
       : _prefs.setInt(kOobeLastBuild, v);
+
+  /// 当前更新渠道（默认 beta 稳定版；2026-08-17 渠道化）。
+  UpdateChannel get updateChannel =>
+      UpdateChannel.fromTag(_prefs.getString(kUpdateChannel) ?? '');
+  Future<void> setUpdateChannel(UpdateChannel c) =>
+      _prefs.setString(kUpdateChannel, c.tag);
+
+  /// 渠道切换待重启标记（重启后进入 OOBE·升级阶段）。
+  bool get channelSwitchPending => _prefs.getBool(kChannelSwitchPending) ?? false;
+  Future<void> setChannelSwitchPending(bool v) =>
+      _prefs.setBool(kChannelSwitchPending, v);
 
   double? get glassBlurOverride => _prefs.getDouble(kGlassBlurOverride);
   Future<void> setGlassBlurOverride(double? v) => v == null

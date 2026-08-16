@@ -3,23 +3,23 @@ $root  = "D:\Stellara\Music\xingli_music"
 $rel   = "D:\Stellara\Music\release"
 $log   = "$root\build_windows.log"
 $cmake = "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin"
-
 $env:ANDROID_HOME = "D:\Android\Sdk"
 $env:Path = "$cmake;" + $env:Path
-
 "=== windows build start $(Get-Date) ===" | Tee-Object -FilePath $log -Append
 Set-Location $root
 $fl = "D:\flutter\bin\flutter.bat"
 
-# parse AppVersion (mirror build_release.sh)
-$txt      = Get-Content "$root\lib\core\app_version.dart" -Raw
+# parse AppVersion（UTF-8 显式读取，避免 PS5.1 中文乱码；2026-08-17 渠道化：
+# channel 替代 stage；Windows 产物名在 cl 后加 _pc，如 0.26.8.17_beta_cl01_pc）
+$txt      = [System.IO.File]::ReadAllText("$root\lib\core\app_version.dart", [System.Text.Encoding]::UTF8)
 $year     = [regex]::Match($txt,'static const int year = (\d+)').Groups[1].Value
 $month    = [regex]::Match($txt,'static const int month = (\d+)').Groups[1].Value
 $day      = [regex]::Match($txt,'static const int day = (\d+)').Groups[1].Value
-$stage    = [regex]::Match($txt,'static const AppStage stage = AppStage\.(\w+)').Groups[1].Value
+$channel  = [regex]::Match($txt,'static const UpdateChannel channel = UpdateChannel\.(\w+)').Groups[1].Value
 $build    = [regex]::Match($txt,'static const int buildCount = (\d+)').Groups[1].Value
 $codename = [regex]::Match($txt,"static const String codename = '([^']+)'").Groups[1].Value
-$name     = "星璃音乐_0." + $year + "." + $month + "." + $day + "_" + $stage + "_cl" + $build + "_" + $codename
+$buildPad = $build.PadLeft(2, '0')
+$name     = "星璃音乐_0.$year.$month.$day" + "_" + $channel + "_cl" + $buildPad + "_pc_" + $codename
 "version name = $name" | Tee-Object -FilePath $log -Append
 "cmake = $((Get-Command cmake -ErrorAction SilentlyContinue).Source)" | Tee-Object -FilePath $log -Append
 
