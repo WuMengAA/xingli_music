@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/desktop_sqflite_init.dart';
 import 'core/throttled_binding.dart';
 import 'core/theme/light_theme.dart';
 import 'providers/color_memory/color_memory_providers.dart';
@@ -21,6 +22,11 @@ Future<void> main() async {
   // 会让 ServicesBinding._defaultBinaryMessenger（late final）重复赋值
   // → LateInitializationError → 启动即崩（04:21 实测双端无法启动的根因）。
   ThrottledWidgetsBinding();
+
+  // v2 M1 · 桌面端 sqflite 原生工厂注册：Windows/Linux/macOS 必须先初始化
+  // FFI 才能使用全局 openDatabase API，否则启动即报
+  // "databaseFactory not initialized"（Windows 桌面版实测）。
+  initDesktopSqflite();
 
   // 首帧之前就把系统栏切成「透明底 + 深色图标」，避免浅色 UI 上出现
   // 白字状态栏的一帧闪烁（配合 app.dart 的 AnnotatedRegion 双保险）。
