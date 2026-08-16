@@ -22,6 +22,8 @@ import 'package:path_provider/path_provider.dart';
 
 import '../core/app_version.dart';
 import 'log_service.dart';
+import 'ota/bspatch.dart';
+import 'ota/ota_patch.dart';
 
 /// OTA 仓库（开源 + Releases 源）。
 const String kOtaRepoOwner = 'WuMengAA';
@@ -30,6 +32,8 @@ const String kOtaReleaseApi =
     'https://api.github.com/repos/$kOtaRepoOwner/$kOtaRepoName/releases';
 const String kOtaAssetName = 'app-release.apk';
 const String kOtaShaAssetName = 'app-release.apk.sha256';
+/// cl76_hotfix5：增量差分包资产名（bsdiff 补丁，几 MB 而非整包 71MB）。
+const String kOtaPatchAssetName = 'app-release.apk.patch';
 
 /// 一次更新检查的结果。
 class OtaCheckResult {
@@ -181,9 +185,30 @@ class OtaService {
 
     // 1) 下载 sha256 期望值。
     final String expected = await _fetchSha256(shaUrl);
-    // 2) 下载 apk（流式，回调进度）。
+
+    // 2) 增量补丁路径（cl76_hotfix5）：本地有基线 + Release 附带 .patch →
+    //    下载几 MB 补丁 + 基线合成新包 → SHA-256 校验；任一步失败回退整包。
+    final String? baseApk = await OtaPatchBase.ensureBase();
+    final String? patchUrl = await _findPatchAsset(tag);
+    if (baseApk != null && patchUrl != null && patchUrl.isNotEmpty) {
+      try {
+        final String patchPath = p.join(dir.path, 'ota_$tag.patch');
+        await _download(patchUrl, patchPath, onProgress: onProgress);
+        await bspatch(baseApk, apkPath, patchPath);
+        final String actual = await _sha256OfFile(apkPath);
+        if (expected.isEmpty || actual == expected) {
+          await OtaPatchBase.promoteBase(apkPath); // 新包提升为新基线
+          return apkPath;
+        }
+        LogService.instance.w('ota', '补丁合成校验失败，回退整包（$tag）');
+      } catch (e) {
+        LogService.instance.w('ota', '补丁合成失败，回退整包: $e');
+      }
+    }
+
+    // 3) 整包下载（流式，回调进度）。
     await _download(url, apkPath, onProgress: onProgress);
-    // 3) 校验。
+    // 4) 校验。
     final String actual = await _sha256OfFile(apkPath);
     if (expected.isNotEmpty && actual != expected) {
       throw OtaException(
@@ -191,6 +216,28 @@ class OtaService {
       );
     }
     return apkPath;
+  }
+
+  /// 查询 Release 是否附带补丁资产（`app-release.apk.patch`），返回其下载 URL。
+  Future<String?> _findPatchAsset(String tag) async {
+    try {
+      final http.Response resp = await _client
+          .get(Uri.parse(
+              'https://api.github.com/repos/$kOtaRepoOwner/$kOtaRepoName/releases/tags/$tag'))
+          .timeout(const Duration(seconds: 10));
+      if (resp.statusCode != 200) return null;
+      final dynamic d = jsonDecode(utf8.decode(resp.bodyBytes));
+      final List<dynamic> assets = (d as Map<String, dynamic>)['assets']
+              as List<dynamic>? ??
+          const <dynamic>[];
+      for (final dynamic a in assets) {
+        final Map<String, dynamic> m = a as Map<String, dynamic>;
+        if (m['name'] == kOtaPatchAssetName) {
+          return m['browser_download_url'] as String?;
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<String> _fetchSha256(String url) async {

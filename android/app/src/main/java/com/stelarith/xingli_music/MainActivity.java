@@ -44,6 +44,7 @@ public class MainActivity extends AudioServiceActivity {
     private static final String OTA_CHANNEL = "com.stelarith.xingli_music/ota_install";
     private static final String OTA_AUTHORITY = "com.stelarith.xingli_music.fileprovider";
     private static final String OPEN_URL_CHANNEL = "com.stelarith.xingli_music/open_url";
+    private static final String APP_INFO_CHANNEL = "com.stelarith.xingli_music/app_info";
     private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
@@ -100,6 +101,21 @@ public class MainActivity extends AudioServiceActivity {
                 .setMethodCallHandler((call, result) -> {
                     if ("open".equals(call.method)) {
                         openUrl(call.arguments(), result);
+                    } else {
+                        result.notImplemented();
+                    }
+                });
+
+        // cl76_hotfix5：应用自身安装包路径——OTA 增量补丁的「基线留存」用
+        // （首次复制 sourceDir 到私有 files，补丁合成时 基线+patch = 新包）。
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), APP_INFO_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if ("sourceDir".equals(call.method)) {
+                        try {
+                            result.success(getApplicationInfo().sourceDir);
+                        } catch (Exception e) {
+                            result.error("no_source_dir", e.getMessage(), null);
+                        }
                     } else {
                         result.notImplemented();
                     }
