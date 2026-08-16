@@ -2673,13 +2673,15 @@ abstract final class VoxelRenderer {
 
   /// 返回 (x,z) 列最高的**非空**方块顶面 y（世界坐标；0 = 全空气）。
   /// 含水面——海洋顶部显示水面而非海床。越界钳制（世界边缘列重复采样）。
+  /// cl76_hotfix：LOD 高度采样改用「生成地形地表」——根治「远景 LOD 平板浮空」。
+  ///
+  /// 此前从 maxY 往下找最高非空方块：世界生成含**浮空岛/树冠**（_infiniteColumn），
+  /// 会采到岛顶/树顶导致 LOD 平板悬在半空；且无限地形被 clamp 到世界基础边缘列，
+  /// 远处 LOD 采样异常。改用 `terrainHeightAt`（纯山脉地表、任意坐标、无限地形，
+  /// 不含树/浮空岛/玩家建造）→ LOD 严格贴合地面剪影。返回地表方块顶高度（y+1，
+  /// 与满精度方块顶一致）。
   static double _topNonAirAt(VoxelWorld world, double x, double z) {
-    final int xi = x.floor().clamp(0, world.sizeX - 1);
-    final int zi = z.floor().clamp(0, world.sizeZ - 1);
-    for (int y = world.maxY - 1; y >= 0; y--) {
-      if (!world.get(xi, y, zi).isEmpty) return y + 1.0;
-    }
-    return 0;
+    return world.terrainHeightAt(x.floor(), z.floor()).toDouble() + 1.0;
   }
 
   /// R26r20：构建一个 LOD 马赛克单元（相机无关 → 缓存）——DH 风格逐列立方体数据。
@@ -2718,8 +2720,10 @@ abstract final class VoxelRenderer {
         hGrid[k] = t;
         if (t > topY) topY = t;
         if (t > 0) {
-          final int xi = x.floor().clamp(0, world.sizeX - 1);
-          final int zi = z.floor().clamp(0, world.sizeZ - 1);
+          // cl76_hotfix：无限地形不 clamp 到世界基础边缘（get 越界走
+          // _infiniteColumn），避免远处 LOD 采到边缘列导致平板异常。
+          final int xi = x.floor();
+          final int zi = z.floor();
           final int yiTop = (t - 1).floor().clamp(0, world.maxY - 1);
           final Voxel vt = world.get(xi, yiTop, zi);
           vGrid[k] = vt;
@@ -2783,8 +2787,9 @@ abstract final class VoxelRenderer {
         sum += t;
         n++;
         if (t > 0) {
-          final int xi = x.floor().clamp(0, world.sizeX - 1);
-          final int zi = z.floor().clamp(0, world.sizeZ - 1);
+          // cl76_hotfix：无限地形不 clamp 边缘（同 _buildLodCell）。
+          final int xi = x.floor();
+          final int zi = z.floor();
           final int yi = (t - 1).floor().clamp(0, world.maxY - 1);
           final Voxel v = world.get(xi, yi, zi);
           tally[v] = (tally[v] ?? 0) + 1;

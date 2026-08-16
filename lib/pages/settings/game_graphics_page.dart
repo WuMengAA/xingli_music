@@ -30,6 +30,7 @@ class GameGraphicsPage extends ConsumerWidget {
     final int vd = ref.watch(viewDistanceChunksProvider);
     final int lodStart = ref.watch(lodStartChunksProvider);
     final int lodStep = ref.watch(lodStepChunksProvider);
+    final int lodMax = ref.watch(lodMaxChunksProvider);
     final LodQuality lodQuality = ref.watch(lodQualityProvider);
     final bool lodFrustumCull = ref.watch(lodFrustumCullProvider);
     final FpsLimit fps = ref.watch(fpsLimitProvider);
@@ -179,6 +180,18 @@ class GameGraphicsPage extends ConsumerWidget {
                       hint: '每 N 区块降一级精度（步长 ×2）',
                       onChanged: (int v) =>
                           ref.read(lodStepChunksProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    // cl76_hotfix：可调 LOD 视距（最远 60/上限 64 区块）。
+                    _Stepper(
+                      label: 'LOD 最远距离',
+                      value: lodMax,
+                      min: 2,
+                      max: 64,
+                      hint: '区块（1 区块 = 16 格）。可超视距，远景大方块看得更远'
+                          '（地平线档 28）',
+                      onChanged: (int v) =>
+                          ref.read(lodMaxChunksProvider.notifier).state = v,
                     ),
                     const SizedBox(height: AppSpace.sm),
                     Text('LOD 质量', style: context.appText.bodyMuted),

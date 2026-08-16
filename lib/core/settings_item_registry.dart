@@ -1353,9 +1353,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         ),
         Slider(
           value: ref.watch(lodMaxChunksProvider).toDouble(),
-          min: 4,
-          max: 32,
-          divisions: 28,
+          min: 2,
+          max: 64,
+          divisions: 62,
           onChanged: (double v) =>
               ref.read(lodMaxChunksProvider.notifier).state = v.round(),
         ),
