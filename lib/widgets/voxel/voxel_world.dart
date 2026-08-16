@@ -53,6 +53,13 @@ class WorldOptions {
   }
 }
 
+/// 结构种类（数据驱动：决定模板与生成群系，大跃进扩展）。
+enum StructureKind {
+  sandcastle,
+  villageHut,
+  desertTemple,
+}
+
 class VoxelWorld {
   VoxelWorld({
     this.sizeX = 24,
@@ -485,7 +492,7 @@ class VoxelWorld {
     // 结构（沙漠沙堡）：确定性散列后处理，覆盖在列生成之上。
     // cl29：受 options.structures 开关控制（默认开）。
     if (options.structures) {
-      for (int y = h + 1; y <= h + 2 && y < maxY; y++) {
+      for (int y = h + 1; y <= h + 4 && y < maxY; y++) {
         final Voxel? sv = _structureBlock(x, z, y, h);
         if (sv != null) col[y] = sv;
       }
@@ -765,24 +772,73 @@ class VoxelWorld {
     return (true, base);
   }
 
-  /// R26e 沙漠结构（沙堡）：确定性 hash + 沙漠群系 → 底座 3×3（cobble）+
-  /// 四角柱（brick）。返回本列 (x,z) 在高度 [y] 处的结构方块；无则 null。
-  /// O(9 邻域 × hash) 每列一次（列重建时），符合「结构=确定性散列后处理」。
+  /// 各结构 footprint 半径（方块数 = (2r+1)²），结构种类见顶层 [StructureKind]。
+  static const Map<StructureKind, int> _structFootprint =
+      <StructureKind, int>{
+    StructureKind.sandcastle: 1, // 3×3
+    StructureKind.villageHut: 2, // 5×5
+    StructureKind.desertTemple: 3, // 7×7
+  };
+
+  /// 结构模板：相对偏移 (dx, dy, dz)（dy=0 为地表上方第一格）→ 方块。
+  static Voxel? _templateBlock(
+      StructureKind kind, int dx, int dy, int dz, int radius) {
+    switch (kind) {
+      case StructureKind.sandcastle:
+        if (dy == 0) return Voxel.cobble;
+        if (dy == 1 && dx.abs() == 1 && dz.abs() == 1) return Voxel.brick;
+        return null;
+      case StructureKind.villageHut:
+        if (dy > 3) return null;
+        final bool edge = dx.abs() == radius || dz.abs() == radius;
+        if (dy < 3) {
+          if (!edge) return null;
+          if (dz == radius && dx == 0 && dy < 2) return null; // 门洞
+          return Voxel.planks;
+        }
+        return Voxel.planks; // 顶板
+      case StructureKind.desertTemple:
+        if (dy > radius) return null;
+        final int r = radius - dy; // 逐层收缩
+        if (dx.abs() <= r && dz.abs() <= r) {
+          final bool shell = dx.abs() == r || dz.abs() == r;
+          return shell ? Voxel.sand : null; // 砂岩外壳 + 中空内腔
+        }
+        return null;
+    }
+  }
+
+  /// 该列坐标是否中签为某结构原点 + 群系匹配（确定性散列）。
+  StructureKind? _structureKindAt(int cx, int cz) {
+    if (_hash(cx * 7 + 3, cz * 7 + 11) >= 0.04) return null; // ~1/25
+    final Biome b = _biomeAt(cx, cz);
+    if (b == Biome.desert) {
+      final double k = _hash(cx * 13 + 5, cz * 13 + 9);
+      return k < 0.3 ? StructureKind.desertTemple : StructureKind.sandcastle;
+    }
+    if (b == Biome.plains || b == Biome.forest) return StructureKind.villageHut;
+    return null;
+  }
+
+  /// R26e+大跃进：结构（沙堡 / 村庄小屋 / 沙漠神庙）。确定性散列后处理，
+  /// 扫描邻域找中签原点，再按相对偏移取模板方块覆盖到列上。
   Voxel? _structureBlock(int x, int z, int y, int h) {
-    if (_biomeAt(x, z) != Biome.desert) return null;
     if (h <= waterLevel) return null;
-    for (int dx = -1; dx <= 1; dx++) {
-      for (int dz = -1; dz <= 1; dz++) {
+    const int R = 3; // 最大 footprint 半径
+    for (int dx = -R; dx <= R; dx++) {
+      for (int dz = -R; dz <= R; dz++) {
         final int cx = x + dx;
         final int cz = z + dz;
-        if (_hash(cx * 7 + 3, cz * 7 + 11) >= 0.04) continue; // ~1/25 中签
+        final StructureKind? kind = _structureKindAt(cx, cz);
+        if (kind == null) continue;
         final int ch = _heightCached(cx, cz);
-        if (_biomeAt(cx, cz) != Biome.desert || ch <= waterLevel) continue;
-        if (y == ch + 1) {
-          if ((x - cx).abs() <= 1 && (z - cz).abs() <= 1) return Voxel.cobble;
-        } else if (y == ch + 2) {
-          if ((x - cx).abs() == 1 && (z - cz).abs() == 1) return Voxel.brick;
-        }
+        if (ch <= waterLevel) continue;
+        final int radius = _structFootprint[kind]!;
+        if (dx.abs() > radius || dz.abs() > radius) continue;
+        final int ry = y - ch - 1;
+        if (ry < 0) continue;
+        final Voxel? b = _templateBlock(kind, dx, ry, dz, radius);
+        if (b != null) return b;
       }
     }
     return null;
