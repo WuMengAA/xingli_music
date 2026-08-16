@@ -177,7 +177,7 @@ class _ToastCardState extends State<_ToastCard>
   @override
   Widget build(BuildContext context) {
     // 滑入/滑出用 SlideTransition（偏移 = 相对自身尺寸的比例，而非屏幕全宽平移），
-    // 绝不占满屏幕；宽度固定（≤1/3 屏，至多 240）。
+    // 绝不占满屏幕；宽度 = 屏幕 1/2，内容放大 200%（cl76·热更新测试便于观察）。
     return Positioned(
       right: AppSpace.md,
       top: widget.topOffset(),
@@ -189,15 +189,13 @@ class _ToastCardState extends State<_ToastCard>
             child: SlideTransition(
               position: _offset,
               child: Container(
-                width: MediaQuery.sizeOf(context).width / 3 < 240
-                    ? MediaQuery.sizeOf(context).width / 3
-                    : 240,
+                width: MediaQuery.sizeOf(context).width / 2,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
                   color:
                       context.appColors.bgCard.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(color: context.appColors.border),
                   boxShadow: <BoxShadow>[
                     BoxShadow(
@@ -207,43 +205,48 @@ class _ToastCardState extends State<_ToastCard>
                     ),
                   ],
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: context.appColors.accent,
+                // 放大 200%：文字用 2.0 textScaler，圆点/间距/padding 同步加倍。
+                child: MediaQuery(
+                  data: MediaQuery.of(context)
+                      .copyWith(textScaler: const TextScaler.linear(2.0)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: context.appColors.accent,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text.rich(
-                        TextSpan(
-                          children: <InlineSpan>[
-                            TextSpan(
-                              text: widget.event.title,
-                              style: context.appText.caption.copyWith(
-                                color: context.appColors.textPrimary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (widget.event.message.isNotEmpty)
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text.rich(
+                          TextSpan(
+                            children: <InlineSpan>[
                               TextSpan(
-                                text: ' · ${widget.event.message}',
+                                text: widget.event.title,
                                 style: context.appText.caption.copyWith(
-                                  color: context.appColors.textSecondary,
+                                  color: context.appColors.textPrimary,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                          ],
+                              if (widget.event.message.isNotEmpty)
+                                TextSpan(
+                                  text: ' · ${widget.event.message}',
+                                  style: context.appText.caption.copyWith(
+                                    color: context.appColors.textSecondary,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
