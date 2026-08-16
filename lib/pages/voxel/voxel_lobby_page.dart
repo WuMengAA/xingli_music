@@ -13,6 +13,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
@@ -51,6 +52,12 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
   List<LanHost> _scanHosts = <LanHost>[];
   StreamSubscription<LanHost>? _scanSub;
 
+  /// 连接方式：false=局域网（UDP 发现 + IP 直连），true=中转服务器（跨公网，凭房间号加入）。
+  bool _useRelay = false;
+  final TextEditingController _relayCtrl =
+      TextEditingController(text: 'wss://relay.xingli.app/ws');
+  final TextEditingController _roomCtrl = TextEditingController();
+
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -58,6 +65,8 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     _ipCtrl.dispose();
     _portCtrl.dispose();
     _scanSub?.cancel();
+    _relayCtrl.dispose();
+    _roomCtrl.dispose();
     super.dispose();
   }
 
@@ -79,15 +88,36 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
       structures: _structures,
       floatingIslands: _floatingIslands,
     );
+    final String? relayUrl = _useRelay ? _relayCtrl.text.trim() : null;
+    final String? room =
+        _useRelay ? _roomCtrl.text.trim().toUpperCase() : null;
     final bool ok = await ref
         .read(netSessionProvider.notifier)
-        .host(seed: seed, options: opts.toJson(), name: name);
+        .host(
+          seed: seed,
+          options: opts.toJson(),
+          name: name,
+          relayUrl: relayUrl,
+          room: room,
+        );
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
       setState(() =>
           _error = ref.read(netSessionProvider).error ?? '创建房间失败');
       return;
+    }
+    if (_useRelay) {
+      final String code = ref.read(netSessionProvider).roomCode ?? '';
+      await Clipboard.setData(ClipboardData(text: code));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('房间已创建，房间号：$code（已复制，发给好友）'),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
     }
     _enterWorld(seed, opts);
   }
@@ -107,9 +137,12 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     });
     final String name =
         _nameCtrl.text.trim().isEmpty ? '玩家' : _nameCtrl.text.trim();
+    final String? relayUrl = _useRelay ? _relayCtrl.text.trim() : null;
+    final String? room =
+        _useRelay ? _roomCtrl.text.trim().toUpperCase() : null;
     final bool ok = await ref
         .read(netSessionProvider.notifier)
-        .join(ip, port, name: name);
+        .join(ip, port, name: name, relayUrl: relayUrl, room: room);
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
@@ -195,6 +228,23 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                 ),
               ),
             ),
+            // 连接方式切换：局域网 / 中转服务器（跨公网）。
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpace.md),
+              child: SegmentedButton<bool>(
+                segments: const <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(value: false, label: Text('局域网')),
+                  ButtonSegment<bool>(value: true, label: Text('中转服务器')),
+                ],
+                selected: <bool>{_useRelay},
+                onSelectionChanged: (Set<bool> s) =>
+                    setState(() => _useRelay = s.first),
+                style: SegmentedButton.styleFrom(
+                  selectedForegroundColor: ink,
+                ),
+              ),
+            ),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(AppSpace.md),
@@ -225,6 +275,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
   }
 
   List<Widget> _hostFields(Color accent, Color ink) => <Widget>[
+        if (_useRelay) ..._relayFields(ink, true),
         _Field(
           label: '世界种子（留空随机）',
           controller: _seedCtrl,
@@ -263,45 +314,75 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
       ];
 
   List<Widget> _joinFields(Color accent, Color ink) => <Widget>[
+        if (_useRelay)
+          ...<Widget>[
+            ..._relayFields(ink, false),
+            const SizedBox(height: AppSpace.md),
+            _PrimaryButton(
+              label: _busy ? '连接中…' : '加入房间',
+              accent: accent,
+              ink: ink,
+              busy: _busy,
+              onTap: () => _join(),
+            ),
+          ]
+        else ...<Widget>[
+          _Field(
+            label: '房主 IP',
+            controller: _ipCtrl,
+            hint: '如 192.168.1.5',
+          ),
+          const SizedBox(height: AppSpace.sm),
+          _Field(
+            label: '端口',
+            controller: _portCtrl,
+            hint: kNetDefaultPort.toString(),
+            keyboard: TextInputType.number,
+          ),
+          const SizedBox(height: AppSpace.md),
+          _PrimaryButton(
+            label: _busy ? '连接中…' : '加入房间',
+            accent: accent,
+            ink: ink,
+            busy: _busy,
+            onTap: () => _join(),
+          ),
+          const SizedBox(height: AppSpace.md),
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text('局域网房间',
+                    style: AppTextStyles.body.copyWith(color: ink)),
+              ),
+              TextButton(
+                onPressed: _scanning ? null : _scanLan,
+                child: Text(_scanning ? '扫描中…' : '扫描局域网'),
+              ),
+            ],
+          ),
+          if (_scanHosts.isNotEmpty)
+            ..._scanHosts.map((LanHost h) => _HostCard(
+                  host: h,
+                  ink: ink,
+                  onTap: () => _join(host: h),
+                )),
+        ],
+      ];
+
+  /// 中转模式共用字段：房间号 + 中转地址。
+  List<Widget> _relayFields(Color ink, bool isHost) => <Widget>[
         _Field(
-          label: '房主 IP',
-          controller: _ipCtrl,
-          hint: '如 192.168.1.5',
+          label: isHost ? '房间号（留空随机生成）' : '房间号（好友提供）',
+          controller: _roomCtrl,
+          hint: '如 ABC234',
         ),
         const SizedBox(height: AppSpace.sm),
         _Field(
-          label: '端口',
-          controller: _portCtrl,
-          hint: kNetDefaultPort.toString(),
-          keyboard: TextInputType.number,
+          label: '中转服务器地址',
+          controller: _relayCtrl,
+          hint: 'wss://relay.xingli.app/ws',
         ),
-        const SizedBox(height: AppSpace.md),
-        _PrimaryButton(
-          label: _busy ? '连接中…' : '加入房间',
-          accent: accent,
-          ink: ink,
-          busy: _busy,
-          onTap: () => _join(),
-        ),
-        const SizedBox(height: AppSpace.md),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: Text('局域网房间',
-                  style: AppTextStyles.body.copyWith(color: ink)),
-            ),
-            TextButton(
-              onPressed: _scanning ? null : _scanLan,
-              child: Text(_scanning ? '扫描中…' : '扫描局域网'),
-            ),
-          ],
-        ),
-        if (_scanHosts.isNotEmpty)
-          ..._scanHosts.map((LanHost h) => _HostCard(
-                host: h,
-                ink: ink,
-                onTap: () => _join(host: h),
-              )),
+        const SizedBox(height: AppSpace.sm),
       ];
 }
 

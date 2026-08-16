@@ -59,4 +59,8 @@ class NetMessage {
 
   static NetMessage decode(String s) =>
       NetMessage.fromJson(jsonDecode(s) as Map<String, dynamic>);
+
+  /// 返回一份带 `to` 的副本（中转模式：标记定向投递目标，由中继服务器路由）。
+  NetMessage withTo(String to) =>
+      NetMessage(type: type, from: from, to: to, payload: payload);
 }

@@ -1,0 +1,15 @@
+{
+  "name": "xingli-relay",
+  "version": "1.0.0",
+  "description": "星璃音乐 中转服务器：房间感知的 WebSocket 扇出，用于「一起听」与 P2P 联机跨 NAT 互联。零业务逻辑，仅做房间路由。",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

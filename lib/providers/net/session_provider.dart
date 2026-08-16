@@ -143,6 +143,8 @@ class NetSessionState {
     this.hostOptions,
     this.dj = false,
     this.reconnectAttempt = 0,
+    this.roomCode,
+    this.relayUrl,
   });
 
   final NetRole role;
@@ -158,6 +160,8 @@ class NetSessionState {
   final Map<String, dynamic>? hostOptions;
   final bool dj; // 本端是否 DJ（一起听音源）
   final int reconnectAttempt; // 重连尝试次数（status==reconnecting 时 UI 展示）
+  final String? roomCode; // 中转模式：房间号（房主展示给好友）
+  final String? relayUrl; // 中转模式：中转服务器地址
 
   NetSessionState copyWith({
     NetRole? role,
@@ -173,6 +177,8 @@ class NetSessionState {
     Map<String, dynamic>? hostOptions,
     bool? dj,
     int? reconnectAttempt,
+    String? roomCode,
+    String? relayUrl,
   }) =>
       NetSessionState(
         role: role ?? this.role,
@@ -188,6 +194,8 @@ class NetSessionState {
         hostOptions: hostOptions ?? this.hostOptions,
         dj: dj ?? this.dj,
         reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
+        roomCode: roomCode ?? this.roomCode,
+        relayUrl: relayUrl ?? this.relayUrl,
       );
 
   PeerInfo? peer(String id) {
@@ -251,6 +259,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     required int seed,
     Map<String, dynamic>? options,
     String name = '玩家',
+    String? relayUrl,
+    String? room,
   }) async {
     if (_node != null) return false;
     try {
@@ -261,7 +271,27 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         hostSeed: seed,
         hostOptions: options,
         error: null,
+        relayUrl: relayUrl,
+        roomCode: room,
       );
+      if (relayUrl != null) {
+        // 中转模式：连中转服务器并登记房间，由服务器做星型扇出（跨 NAT）。
+        final String roomCode = (room ?? _genRoom()).toUpperCase();
+        _node =
+            await NetNode.relay(relayUrl, roomCode, name, isHostGame: true);
+        await _node!.ready.timeout(const Duration(seconds: 6));
+        state = state.copyWith(
+          role: NetRole.host,
+          status: ConnStatus.connected,
+          localId: _node!.localId,
+          dj: true,
+          roomCode: roomCode,
+        );
+        _subscribe();
+        _startDj();
+        _sendHello();
+        return true;
+      }
       _node = await NetNode.host(port: port);
       state = state.copyWith(
         role: NetRole.host,
@@ -283,7 +313,13 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   }
 
   // ── 加入 ──
-  Future<bool> join(String ip, int port, {String name = '玩家'}) async {
+  Future<bool> join(
+    String ip,
+    int port, {
+    String name = '玩家',
+    String? relayUrl,
+    String? room,
+  }) async {
     if (_node != null) return false;
     _joined = Completer<void>();
     try {
@@ -293,7 +329,31 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         port: port,
         localName: name,
         error: null,
+        relayUrl: relayUrl,
+        roomCode: room,
       );
+      if (relayUrl != null) {
+        // 中转模式：凭房间号加入，无需房主 IP。
+        if (room == null || room.isEmpty) {
+          throw Exception('房间号不能为空');
+        }
+        _node = await NetNode.relay(
+          relayUrl,
+          room.toUpperCase(),
+          name,
+          isHostGame: false,
+        );
+        await _node!.ready.timeout(const Duration(seconds: 6));
+        state = state.copyWith(
+          role: NetRole.client,
+          status: ConnStatus.connected,
+          localId: _node!.localId,
+        );
+        _subscribe();
+        _sendHello();
+        await _joined!.future.timeout(const Duration(seconds: 6));
+        return true;
+      }
       _node = await NetNode.connect(ip, port);
       state = state.copyWith(
         role: NetRole.client,
@@ -313,6 +373,18 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       _node = null;
       return false;
     }
+  }
+
+  /// 生成 6 位无歧义房间号（去除了 0/O/1/I/L 等易混字符）。
+  String _genRoom() {
+    const String alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    final math.Random r = math.Random();
+    return String.fromCharCodes(
+      Iterable<int>.generate(
+        6,
+        (_) => alphabet.codeUnitAt(r.nextInt(alphabet.length)),
+      ),
+    );
   }
 
   void _subscribe() => _node!.events.listen(_onEvent);
@@ -416,6 +488,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
 
       case NetMsgType.hello: // 昵称上报（含 id 以便转发）
         final String id = msg.payload['id'] as String? ?? from;
+        if (id == state.localId) return; // 中转模式自环过滤
         final String name = msg.payload['name'] as String? ?? '玩家';
         state = state.copyWith(
           peers: state.peers
@@ -446,6 +519,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
 
       case NetMsgType.peerJoin:
         final String id = msg.payload['id'] as String? ?? from;
+        if (id == state.localId) return; // 中转模式自环过滤
         if (state.peer(id) == null) {
           state = state.copyWith(
             peers: <PeerInfo>[...state.peers, PeerInfo(id: id)],
@@ -455,6 +529,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
 
       case NetMsgType.peerLeave:
         final String id = msg.payload['id'] as String? ?? from;
+        if (id == state.localId) return; // 中转模式自环过滤
         state = state.copyWith(
           peers: state.peers.where((p) => p.id != id).toList(),
         );
