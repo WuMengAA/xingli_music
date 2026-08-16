@@ -271,6 +271,9 @@ final musicVolumeProvider = StateProvider<double>((ref) => 0.5);
 /// 主音量（Master：全局整体音量，所有通道 × master；R26skel-b5 默认 50%）
 final masterVolumeProvider = StateProvider<double>((ref) => 0.5);
 
+/// 倍速播放（播放体验优化）：1.0 = 原速；支持 0.5/0.75/1.0/1.25/1.5/1.75/2.0 等。
+final musicSpeedProvider = StateProvider<double>((ref) => 1.0);
+
 /// 音效（SFX）通道音量（世界内音效/按钮音效/提示音；默认 50%）
 final sfxVolumeProvider = StateProvider<double>((ref) => 0.5);
 

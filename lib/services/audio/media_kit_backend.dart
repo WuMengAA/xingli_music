@@ -295,6 +295,12 @@ class MediaKitBackend implements MusicBackend {
     if (p != null) await p.setVolume(volume * 100.0);
   }
 
+  @override
+  Future<void> setSpeed(double rate) async {
+    final Player p = _ensurePlayer();
+    await p.setRate(rate);
+  }
+
   /// I（均衡器）：Windows 真 DSP——mpv `af` 滤镜链。
   ///
   /// media_kit 的 `Player.platform` 是公开的原生 `PlatformPlayer`，其

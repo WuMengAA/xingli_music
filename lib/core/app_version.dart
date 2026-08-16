@@ -53,10 +53,15 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 15;
+  static const int day = 16;
 
   /// 阶段。
   static const AppStage stage = AppStage.alpha;
+
+  /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
+  /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
+  /// 已装同构建号的用户走增量补丁升级。
+  static const int? hotfix = null;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
   /// cl36：安卓切歌防闪退补丁 + 通知系统重做(rootOverlay/多实例堆叠) +
@@ -298,7 +303,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 76;
+  static const int buildCount = 77;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -307,9 +312,12 @@ abstract final class AppVersion {
   /// 语义版本（pubspec version 的展示版）：`0.26.8+11`。
   static String get semver => '$major.$year.$month+$day';
 
-  /// 完整展示串：`0.26.8.11_alpha_cl01`。
+  /// 完整展示串：`0.26.08.15_alpha_cl76_hotfix6`。
+  /// 规范（用户 2026-08-16 定版）：日常更新用小版本号（day 字段递增），
+  /// 构建号 clXX（过百用三位 clXXX），热修复加 `_hotfixN` 后缀。
   static String get display =>
-      '$major.$_yy.$_mm.$_dd${_stageSuffix}_cl${buildCount.toString().padLeft(2, '0')}';
+      '$major.$_yy.$_mm.$_dd${_stageSuffix}_cl${buildCount.toString().padLeft(2, '0')}'
+      '${hotfix != null ? '_hotfix$hotfix' : ''}';
 
   /// 品牌式展示：`星璃音乐·星尘初聚`。
   static String get brand => '星璃音乐·$codename';
@@ -354,6 +362,29 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.16',
+    cl: 'cl77',
+    title: '播放体验优化：倍速播放 + 睡眠定时',
+    details: <String>[
+      '倍速播放：0.5×~2.0× 预设档 + 0.25~4.0× 自定义滑块；just_audio / media_kit 双后端均支持，切歌/续播自动保持当前倍速',
+      '睡眠定时：15/30/45/60/90 分钟预设 + 自定义（5~120 分钟）+「当前歌曲结束」模式，到点自动暂停播放',
+      '入口统一收纳进音乐卡片底部操作行（音质/白噪音/视听/均衡器旁），启用时实时显示当前倍速与剩余时间',
+      '版本号按日常更新推进：0.26.08.15→0.26.08.16、构建号 cl76→cl77（去掉 hotfix 后缀，作为新日常版本）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.15',
+    cl: 'cl76_hotfix6',
+    title: 'OTA 增量补丁真正可用（bsdiff 合成修复）',
+    details: <String>[
+      '修复 cl76_hotfix5 的 OTA 增量补丁在真机合成失败（此前抛「补丁文件损坏」→ 回退整包或装出损坏包报错 110）',
+      '根因：Dart 端 bspatch 未按 BSDIFF40 规范解码——控制块用 bsdiff 自定义 offtin 编码（大端幅值 + 末字节最高位为符号），原代码误当标准二进制补码，负数 seek 解析成乱值；且 Dart 标准库无 bzip2，原代码未解压三块',
+      '修复：引入 archive 包 BZip2Decoder 正确解压控制/diff/extra 三块，并按 offtin 解码控制三元组，diff 字节按有符号还原',
+      '已用纯 Dart 端到端验证：hotfix4 基线 + 4.35MB 补丁合成 hotfix5，SHA-256 完全一致',
+      'buildCount 保持 76：补丁不升版本号，OTA 靠 hotfix 标记识别；已装 cl76 系列的用户走增量补丁升级',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.15',
     cl: 'cl76_hotfix3',

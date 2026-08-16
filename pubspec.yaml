@@ -2,7 +2,7 @@ name: xingli_music
 description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
 publish_to: 'none'
 
-version: 0.26.8+14
+version: 0.26.8+77
 
 environment:
   sdk: ^3.9.0
@@ -52,6 +52,9 @@ dependencies:
 
   # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──
   crypto: ^3.0.6
+
+  # ── OTA 增量补丁解压（cl76_hotfix6：BSDIFF40 的 bzip2 三块解压）──
+  archive: ^3.6.1
 
   # ── v2 实验 F：传感器（仅按需 import，非 Android 平台降级兜底）──
   # 加速度/陀螺仪：摇晃切场景（Android/iOS 均支持，sensors_plus 自带）

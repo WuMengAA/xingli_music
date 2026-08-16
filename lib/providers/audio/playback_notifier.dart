@@ -121,6 +121,12 @@ class PlaybackActions {
   /// 设置播放模式
   void setMode(PlayMode mode) =>
       ref.read(playModeProvider.notifier).state = mode;
+
+  /// 设置倍速（0.25~4.0，1.0 为原速）。同步写入 [musicSpeedProvider] 与引擎。
+  Future<void> setSpeed(double rate) async {
+    ref.read(musicSpeedProvider.notifier).state = rate;
+    await _audio.setMusicSpeed(rate);
+  }
 }
 
 /// Module 5：播放动作 Provider（UI 统一入口）

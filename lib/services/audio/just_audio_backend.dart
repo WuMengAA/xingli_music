@@ -77,6 +77,9 @@ class JustAudioBackend implements MusicBackend {
   @override
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
+  @override
+  Future<void> setSpeed(double rate) => _player.setSpeed(rate);
+
   // I（均衡器）：just_audio 桌面无 EQ API → 不支持（返回 false，回退模拟层）。
   @override
   Future<bool> setEqualizerFilter(String afFilter) async => false;

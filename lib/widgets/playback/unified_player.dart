@@ -11,6 +11,7 @@ import '../../models/track_stats.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/audio/sleep_timer_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../services/audio/audio_service.dart';
@@ -612,6 +613,10 @@ Widget _buildBottomActions(
             ),
           ),
         ),
+        // R26skel：倍速播放（播放体验优化）。
+        _SpeedButton(),
+        // R26skel：睡眠定时（播放体验优化）。
+        _SleepTimerButton(),
       ],
     ),
   );
@@ -657,6 +662,303 @@ Future<void> showEqualizerSheet(BuildContext context) {
       ),
     ),
   );
+}
+
+/// 倍速展示（1.0→"1.0"、1.5→"1.5"、0.75→"0.75"）。
+String _fmtSpeed(double s) {
+  final String s2 = s.toStringAsFixed(2);
+  return s2.endsWith('0') ? s2.substring(0, s2.length - 1) : s2;
+}
+
+/// 倒计时展示（mm:ss 或 h:mm:ss）。
+String _fmtCountdown(Duration d) {
+  final int h = d.inHours;
+  final int m = d.inMinutes.remainder(60);
+  final int s = d.inSeconds.remainder(60);
+  final String mm = m.toString().padLeft(2, '0');
+  final String ss = s.toString().padLeft(2, '0');
+  return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
+}
+
+/// 倍速播放选择弹层（R26skel：播放体验优化）：预设档 + 自定义滑块。
+Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
+  final List<double> presets = <double>[0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: context.appColors.bgSurface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text('倍速播放', style: context.appText.subtitle),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: '关闭',
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            Consumer(builder: (BuildContext c, WidgetRef r, _) {
+              final double cur = r.watch(musicSpeedProvider);
+              return Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 8,
+                children: <Widget>[
+                  for (final double p in presets)
+                    ChoiceChip(
+                      label: Text('${_fmtSpeed(p)}×'),
+                      selected: (cur - p).abs() < 0.001,
+                      onSelected: (_) =>
+                          unawaited(r.read(playbackActionsProvider).setSpeed(p)),
+                    ),
+                ],
+              );
+            }),
+            const SizedBox(height: AppSpace.md),
+            Consumer(builder: (BuildContext c, WidgetRef r, _) {
+              final double cur = r.watch(musicSpeedProvider);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('自定义：${_fmtSpeed(cur)}×', style: context.appText.caption),
+                  Slider(
+                    value: cur,
+                    min: 0.25,
+                    max: 4.0,
+                    divisions: 15,
+                    label: '${_fmtSpeed(cur)}×',
+                    onChanged: (double v) =>
+                        unawaited(r.read(playbackActionsProvider).setSpeed(v)),
+                  ),
+                ],
+              );
+            }),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// 睡眠定时弹层（R26skel：播放体验优化）：预设时长 + 当前曲目结束 + 自定义。
+Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
+  final List<(String, Duration)> presets = <(String, Duration)>[
+    ('15 分钟', Duration(minutes: 15)),
+    ('30 分钟', Duration(minutes: 30)),
+    ('45 分钟', Duration(minutes: 45)),
+    ('60 分钟', Duration(minutes: 60)),
+    ('90 分钟', Duration(minutes: 90)),
+  ];
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: context.appColors.bgSurface,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (BuildContext sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.md,
+          AppSpace.lg,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text('睡眠定时', style: context.appText.subtitle),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: '关闭',
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            Consumer(builder: (BuildContext c, WidgetRef r, _) {
+              final SleepTimerState st = r.watch(sleepTimerProvider);
+              if (!st.active) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    st.onTrackEnd
+                        ? '已设定：当前歌曲结束后停止'
+                        : '已设定：剩余 ${_fmtCountdown(st.remaining!)} 后停止',
+                    style: context.appText.body,
+                  ),
+                  const SizedBox(height: AppSpace.sm),
+                  FilledButton.icon(
+                    onPressed: () =>
+                        r.read(sleepTimerProvider.notifier).cancel(),
+                    icon: const Icon(Icons.cancel_outlined),
+                    label: const Text('取消定时'),
+                  ),
+                  const SizedBox(height: AppSpace.md),
+                ],
+              );
+            }),
+            Text('倒计时停止', style: context.appText.caption),
+            const SizedBox(height: AppSpace.xs),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                for (final (String label, Duration d) in presets)
+                  ChoiceChip(
+                    label: Text(label),
+                    selected: false,
+                    onSelected: (_) =>
+                        ref.read(sleepTimerProvider.notifier).start(d),
+                  ),
+                ChoiceChip(
+                  label: const Text('当前歌曲结束'),
+                  selected: false,
+                  onSelected: (_) =>
+                      ref.read(sleepTimerProvider.notifier).startOnTrackEnd(),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpace.md),
+            _SleepTimerCustomSlider(),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// 睡眠定时自定义时长（5~120 分钟）。
+class _SleepTimerCustomSlider extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_SleepTimerCustomSlider> createState() =>
+      _SleepTimerCustomSliderState();
+}
+
+class _SleepTimerCustomSliderState
+    extends ConsumerState<_SleepTimerCustomSlider> {
+  int _minutes = 30;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('自定义：$_minutes 分钟', style: context.appText.caption),
+        Slider(
+          value: _minutes.toDouble(),
+          min: 5,
+          max: 120,
+          divisions: 23,
+          label: '$_minutes 分钟',
+          onChanged: (double v) => setState(() => _minutes = v.round()),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            onPressed: () => ref
+                .read(sleepTimerProvider.notifier)
+                .start(Duration(minutes: _minutes)),
+            child: const Text('开始'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 倍速播放入口按钮（R26skel：播放体验优化）。启用时高亮显示当前倍速。
+class _SpeedButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Color accent = context.appColors.accent;
+    final double spd = ref.watch(musicSpeedProvider);
+    final bool active = (spd - 1.0).abs() > 0.001;
+    return Tooltip(
+      message: '倍速播放',
+      child: InkWell(
+        onTap: () => showSpeedSheet(context, ref),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.speed_rounded,
+                  size: 18,
+                  color: active ? accent : context.appColors.textSecondary),
+              const SizedBox(width: 4),
+              Text('${_fmtSpeed(spd)}×',
+                  style: context.appText.caption
+                      .copyWith(color: active ? accent : null)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 睡眠定时入口按钮（R26skel：播放体验优化）。
+/// 启用时显示剩余时间（mm:ss）或「本曲结束」。
+class _SleepTimerButton extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final Color accent = context.appColors.accent;
+    final SleepTimerState st = ref.watch(sleepTimerProvider);
+    final String label = st.onTrackEnd
+        ? '本曲结束'
+        : st.remaining != null
+            ? _fmtCountdown(st.remaining!)
+            : '睡眠';
+    return Tooltip(
+      message: '睡眠定时',
+      child: InkWell(
+        onTap: () => showSleepTimerSheet(context, ref),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.bedtime_rounded,
+                  size: 18,
+                  color: st.active ? accent : context.appColors.textSecondary),
+              const SizedBox(width: 4),
+              Text(label,
+                  style: context.appText.caption
+                      .copyWith(color: st.active ? accent : null)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// 白噪音横向按钮（cl46）：图标 + 文字，激活态高亮描底。

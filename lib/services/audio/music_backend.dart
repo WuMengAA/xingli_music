@@ -75,6 +75,9 @@ abstract class MusicBackend {
   /// 设置音量（0~1）。
   Future<void> setVolume(double volume);
 
+  /// 倍速播放（R26skel：播放体验优化）。[rate] = 1.0 为原速，0.25~4.0。
+  Future<void> setSpeed(double rate);
+
   /// I（均衡器）：应用一条音频滤镜链（mpv `af` 语法；空串=清除）。
   ///
   /// 仅 [MediaKitBackend]（libmpv）在原生平台支持；just_audio 等其余

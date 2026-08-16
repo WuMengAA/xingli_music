@@ -968,6 +968,15 @@ class _AboutDetail extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpace.lg),
+        // 关于：应用简介（用户 2026-08-16 要求「关于页写清关于/版本/仓库」）。
+        Text('关于', style: context.appText.subtitle),
+        const SizedBox(height: AppSpace.md),
+        Text(
+          '星璃音乐（Stelarith）是一个随音乐与心情变化的沉浸式个人音乐空间：'
+          '场景无限滑动、画面随曲目流转。开源、本地优先、持续迭代。',
+          style: context.appText.bodyMuted,
+        ),
+        const SizedBox(height: AppSpace.lg),
         const _InfoRow(label: '应用名称', value: SettingsPage.appName),
         _InfoRow(label: '版本号', value: AppVersion.display),
         _InfoRow(label: '版本代号', value: AppVersion.brand),

@@ -163,6 +163,11 @@ class AudioService {
   final StreamController<Duration?> _durationCtrl =
       StreamController<Duration?>.broadcast();
 
+  /// 曲目自然播放完成流：供睡眠定时「当前曲目结束」模式监听。
+  final StreamController<void> _completedCtrl =
+      StreamController<void>.broadcast();
+  Stream<void> get trackCompletedStream => _completedCtrl.stream;
+
   /// 活跃后端状态流订阅（[_bindBackend] 切换，dispose 时取消）。
   StreamSubscription<MusicEngineState>? _stateSub;
   StreamSubscription<Duration?>? _positionSub;
@@ -187,6 +192,7 @@ class AudioService {
       // cl46 自动播放：自然播放完成（completed 且非手动暂停）。
       if (s.processing == MusicProcess.completed && !s.playing) {
         onCompleted?.call();
+        _completedCtrl.add(null);
       }
     });
     _positionSub = backend.positionStream.listen(_positionCtrl.add);
@@ -262,6 +268,10 @@ class AudioService {
   /// 主音量（Master，R23i）：全局整体音量，所有通道输出 × master。
   double _masterVol = 1.0;
   double get masterVolume => _masterVol;
+
+  /// 倍速（R26skel：播放体验优化）。1.0 = 原速，范围 0.25~4.0。
+  double _musicSpeed = 1.0;
+  double get musicSpeed => _musicSpeed;
 
   /// 音效（SFX）通道音量（R23i：独立于音乐/背景/白噪，默认 0.5）。
   double _sfxVol = 0.5;
@@ -440,6 +450,7 @@ class AudioService {
     // 直接落到目标音量再播放：规避部分 Android 解码器「先设 0 再 play」会锁死
     // 静音、必须手动拖一下音量才有声的问题（用户反馈「须拖动主音量才有声」）。
     await _safe(() => _activeBackend.setVolume(target), tag: 'setVolume');
+    await _applySpeed();
     await _safe(() => _activeBackend.play(), tag: 'play');
     _state = PlaybackState.playing;
     LogService.instance.i('audio', '播放开始: ${track.title}');
@@ -554,6 +565,7 @@ class AudioService {
           () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
           tag: '音量恢复',
         );
+        await _applySpeed();
         await _safe(() => _activeBackend.play(), tag: 'play');
         _state = PlaybackState.playing;
         LogService.instance.i('audio', '继续播放');
@@ -584,6 +596,7 @@ class AudioService {
         () => _activeBackend.setVolume(_musicMuted ? 0.0 : _effectiveVolume(_musicVol) * _masterVol),
         tag: '音量恢复',
       );
+      await _applySpeed();
       await _safe(() => _activeBackend.play(), tag: 'resume');
       _state = PlaybackState.playing;
       LogService.instance.i('audio', '续播（系统）');
@@ -684,6 +697,22 @@ class AudioService {
       );
     }
   }
+
+  /// 倍速播放（R26skel：播放体验优化）。[rate] = 1.0 为原速，0.25~4.0。
+  ///
+  /// 仅在播放中即时下发；未播放时只记忆，下次 [playMusic]/[resume] 自动套用。
+  /// 后端切换（[MusicBackend] 会重置为 1.0）也由播放时 [_applySpeed] 补偿。
+  Future<void> setMusicSpeed(double rate) async {
+    _musicSpeed = rate.clamp(0.25, 4.0);
+    LogService.instance.i('audio', '倍速: ${_musicSpeed}x');
+    if (_activeBackend.playing) {
+      await _safe(() => _activeBackend.setSpeed(_musicSpeed), tag: 'setMusicSpeed');
+    }
+  }
+
+  /// 把当前倍速应用到活跃后端（切歌/续播后确保倍速不丢；后端切换会重置为 1.0）。
+  Future<void> _applySpeed() =>
+      _safe(() => _activeBackend.setSpeed(_musicSpeed), tag: 'applySpeed');
 
   /// 音效（SFX）通道音量（R23i：独立于音乐/背景/白噪）。
   Future<void> setSfxVolume(double v) async {
@@ -993,6 +1022,7 @@ class AudioService {
     await _playingCtrl.close();
     await _positionCtrl.close();
     await _durationCtrl.close();
+    await _completedCtrl.close();
     await _trackCtrl.close();
     await _playErrorCtrl.close();
     // 双后端都要释放（#393）。
