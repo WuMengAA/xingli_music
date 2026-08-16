@@ -373,8 +373,10 @@ class VoxelWorld {
       // 且仅浅层(y>4)可挖：地下近全实心到底(y=0)，只留极少数小气穴
       //（保留挖矿趣味），矿脉（y<h-4 的 0.4 尺度噪声）不受影响。
       if (y < h - 1 &&
-          y > 4 &&
-          _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.16) > 0.62) {
+          y > 3 &&
+          (_noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.16) > 0.60 ||
+           _noise3(x.toDouble() + 137.0, y.toDouble() + 71.0, z.toDouble() + 53.0,
+                   0.085) > 0.55)) {
         continue;
       }
       Voxel v;
@@ -391,9 +393,19 @@ class VoxelWorld {
         if (y < h - 4) {
           final double ore =
               _noise3(x.toDouble(), y.toDouble(), z.toDouble(), 0.4);
-          if (ore.abs() > 0.32) {
-            final int t = ((ore * 100).abs().round()) % 3;
-            v = t == 0 ? Voxel.gold : (t == 1 ? Voxel.ironOre : Voxel.coalOre);
+          if (ore.abs() > 0.30) {
+            final int t = ((ore * 100).abs().round()) % 7;
+            final double depth = y / (h - 4); // 0=近地表 1=最深处
+            v = switch (t) {
+              0 => Voxel.coalOre,
+              1 => Voxel.ironOre,
+              2 => Voxel.gold,
+              3 => depth > 0.45 ? Voxel.redstoneOre : Voxel.ironOre,
+              4 => depth > 0.5 ? Voxel.lapisOre : Voxel.coalOre,
+              5 => depth > 0.7 ? Voxel.diamondOre : Voxel.ironOre,
+              6 => depth > 0.6 ? Voxel.emeraldOre : Voxel.coalOre,
+              _ => Voxel.coalOre,
+            };
           }
         }
       }

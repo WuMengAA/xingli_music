@@ -152,7 +152,11 @@ ToolCategory properToolFor(Voxel v) => switch (v) {
       Voxel.stairs ||
       Voxel.furnace ||
       Voxel.gold ||
-      Voxel.diamond =>
+      Voxel.diamond ||
+      Voxel.redstoneOre ||
+      Voxel.lapisOre ||
+      Voxel.emeraldOre ||
+      Voxel.diamondOre =>
         ToolCategory.pickaxe,
       Voxel.wood ||
       Voxel.planks ||
@@ -168,7 +172,9 @@ ToolCategory properToolFor(Voxel v) => switch (v) {
 /// 有效开采所需的最低工具等级（不足时可以挖掉但不掉落）。
 int harvestLevelOf(Voxel v) => switch (v) {
       Voxel.diamond => 3,
+      Voxel.diamondOre => 3,
       Voxel.gold => 2,
+      Voxel.redstoneOre || Voxel.lapisOre || Voxel.emeraldOre => 2,
       Voxel.stone ||
           Voxel.cobble ||
           Voxel.brick ||
@@ -251,6 +257,13 @@ double blockHardness(Voxel v) => switch (v) {
       Voxel.diamond => 7.5,
       Voxel.ironOre => 4.5,
       Voxel.coalOre => 4.0,
+      Voxel.redstoneOre => 4.0,
+      Voxel.lapisOre => 4.0,
+      Voxel.emeraldOre => 4.0,
+      Voxel.diamondOre => 7.5,
+      Voxel.redstone => 0.5,
+      Voxel.lapis => 0.5,
+      Voxel.emerald => 0.5,
     };
 
 /// 实际挖掘耗时（秒）。工具对口才吃倍率，不对口只给一点点加成。
@@ -281,6 +294,11 @@ List<ItemStack> dropsOf(Voxel v) => switch (v) {
       Voxel.stone => const <ItemStack>[ItemStack(Voxel.cobble)],
       // 树叶不稳定掉落，这里给"偶尔掉苹果"的确定性简化：不掉。
       Voxel.leaves => const <ItemStack>[],
+      // 矿石掉对应宝石（大跃进新增矿种）。
+      Voxel.diamondOre => const <ItemStack>[ItemStack(Voxel.diamond)],
+      Voxel.emeraldOre => const <ItemStack>[ItemStack(Voxel.emerald)],
+      Voxel.lapisOre => const <ItemStack>[ItemStack(Voxel.lapis)],
+      Voxel.redstoneOre => const <ItemStack>[ItemStack(Voxel.redstone)],
       _ => <ItemStack>[ItemStack(v)],
     };
 

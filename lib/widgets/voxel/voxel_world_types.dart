@@ -114,6 +114,27 @@ enum Voxel {
 
   /// 煤矿石（深灰 + 黑斑，R26e 矿脉生成用）。
   coalOre,
+
+  /// 红石矿石（深石 + 红点，大跃进新增）。
+  redstoneOre,
+
+  /// 青金石矿石（深石 + 蓝点，大跃进新增）。
+  lapisOre,
+
+  /// 绿宝石矿石（深石 + 绿点，大跃进新增）。
+  emeraldOre,
+
+  /// 钻石矿石（深石 + 青钻点，大跃进新增）。
+  diamondOre,
+
+  /// 红石（粉红结晶，矿石掉落物）。
+  redstone,
+
+  /// 青金石（靛蓝结晶，矿石掉落物）。
+  lapis,
+
+  /// 绿宝石（翠绿结晶，矿石掉落物）。
+  emerald,
 }
 
 /// 自绘材质图案（R23k：在纯色填充之上叠加的程序化纹理）。
@@ -476,6 +497,41 @@ const Map<Voxel, VoxelSpec> kVoxelSpecs = <Voxel, VoxelSpec>{
     id: Voxel.coalOre,
     base: Color(0xFF3B3B3B),
     displayName: '煤矿石',
+  ),
+  Voxel.redstoneOre: VoxelSpec(
+    id: Voxel.redstoneOre,
+    base: Color(0xFF5A5A5E),
+    displayName: '红石矿石',
+  ),
+  Voxel.lapisOre: VoxelSpec(
+    id: Voxel.lapisOre,
+    base: Color(0xFF5A5A5E),
+    displayName: '青金石矿石',
+  ),
+  Voxel.emeraldOre: VoxelSpec(
+    id: Voxel.emeraldOre,
+    base: Color(0xFF5A5A5E),
+    displayName: '绿宝石矿石',
+  ),
+  Voxel.diamondOre: VoxelSpec(
+    id: Voxel.diamondOre,
+    base: Color(0xFF5A5A5E),
+    displayName: '钻石矿石',
+  ),
+  Voxel.redstone: VoxelSpec(
+    id: Voxel.redstone,
+    base: Color(0xFFC0392B),
+    displayName: '红石',
+  ),
+  Voxel.lapis: VoxelSpec(
+    id: Voxel.lapis,
+    base: Color(0xFF2E5BC4),
+    displayName: '青金石',
+  ),
+  Voxel.emerald: VoxelSpec(
+    id: Voxel.emerald,
+    base: Color(0xFF2ECC71),
+    displayName: '绿宝石',
   ),
 };
 

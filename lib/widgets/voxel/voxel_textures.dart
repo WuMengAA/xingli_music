@@ -332,6 +332,24 @@ class VoxelTextureAtlas {
         return _shade(const ui.Color(0xFFF2C94C), f);
       case Voxel.diamond:
         return _shade(const ui.Color(0xFF5FE0D0), f);
+      case Voxel.coalOre:
+        return _shade(n > 0.6 ? const ui.Color(0xFF1A1A1A) : const ui.Color(0xFF6E6E72), f);
+      case Voxel.ironOre:
+        return _shade(n > 0.72 ? const ui.Color(0xFFD9A066) : const ui.Color(0xFF8A8A8E), f);
+      case Voxel.redstoneOre:
+        return _shade(n > 0.62 ? const ui.Color(0xFFC0392B) : const ui.Color(0xFF6E6E72), f);
+      case Voxel.lapisOre:
+        return _shade(n > 0.62 ? const ui.Color(0xFF2E5BC4) : const ui.Color(0xFF6E6E72), f);
+      case Voxel.emeraldOre:
+        return _shade(n > 0.62 ? const ui.Color(0xFF2ECC71) : const ui.Color(0xFF6E6E72), f);
+      case Voxel.diamondOre:
+        return _shade(n > 0.62 ? const ui.Color(0xFF5FE0D0) : const ui.Color(0xFF6E6E72), f);
+      case Voxel.redstone:
+        return _shade(const ui.Color(0xFFC0392B), f);
+      case Voxel.lapis:
+        return _shade(const ui.Color(0xFF2E5BC4), f);
+      case Voxel.emerald:
+        return _shade(const ui.Color(0xFF2ECC71), f);
       default:
         final ui.Color base =
             ui.Color(v.spec.base.toARGB32() | 0xFF000000);
