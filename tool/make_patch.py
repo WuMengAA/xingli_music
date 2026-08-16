@@ -1,45 +1,46 @@
 #!/usr/bin/env python3
-"""星璃音乐 · OTA 增量补丁生成（cl76_hotfix5 补丁式热修复）。
-
-用法：
-    python tool/make_patch.py <old_apk> <new_apk> [--tag cl76_hotfix5]
-
-生成 `app-release.apk.patch`（BSDIFF40 差分），并提示上传到目标 Release。
-
-客户端 `OtaService.downloadAndVerify` 检测到该 asset 且本地留存有基线
-（`files/ota_base.apk`）时，自动「基线 + 补丁」合成新包 → SHA-256 校验 →
-安装；补丁缺失/合成失败自动回退整包下载。
+# -*- coding: utf-8 -*-
 """
-import argparse
+生成 BSDIFF40 增量补丁（cl76_hotfix6 起，Dart 端 bspatch 正确解码）。
+
+用法:
+    python3 tool/make_patch.py <旧APK> <新APK> <输出.patch> [--tag clNN]
+
+说明:
+    - 用 bsdiff4 生成 Colin Percival 的 BSDIFF40 差分（bzip2 压缩三块）。
+    - APK 构建非字节可复现（Dex/资源顺序随小改动重排），bsdiff 的后缀对齐
+      能把 71MB 整包压到约 4~5MB；朴素逐字节 delta 压不动（实测 42MB）。
+    - Dart 端用 archive 包的 BZip2Decoder 解三块后标准 bspatch 合成。
+"""
 import os
 import sys
 
+import bsdiff4
+import hashlib
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description="生成星璃 OTA 增量补丁")
-    ap.add_argument("old_apk", help="旧版本 APK（客户端基线版本，如 cl76 的包）")
-    ap.add_argument("new_apk", help="新版本 APK（本次发布，如 cl76_hotfix5 的包）")
-    ap.add_argument("--tag", default="cl76_hotfix5", help="目标 Release tag")
-    args = ap.parse_args()
 
-    if not (os.path.exists(args.old_apk) and os.path.exists(args.new_apk)):
-        sys.exit("old_apk / new_apk 文件不存在")
-    try:
-        import bsdiff4
-    except ImportError:
-        sys.exit("需要 bsdiff4：pip install bsdiff4")
+def main() -> int:
+    args = sys.argv[1:]
+    if len(args) < 3:
+        print("用法: python3 tool/make_patch.py <旧APK> <新APK> <输出.patch> [--tag clNN]")
+        return 2
 
-    out = "app-release.apk.patch"
-    bsdiff4.file_diff(args.old_apk, args.new_apk, out)
-    old_sz = os.path.getsize(args.old_apk)
-    new_sz = os.path.getsize(args.new_apk)
-    patch_sz = os.path.getsize(out)
-    print(
-        f"old: {old_sz / 1e6:.1f} MB   new: {new_sz / 1e6:.1f} MB   "
-        f"patch: {patch_sz / 1e6:.2f} MB（省 {(1 - patch_sz / new_sz) * 100:.0f}%）"
-    )
-    print(f"→ 上传 {out} 到 Release {args.tag} 的 asset（与 app-release.apk 同 tag）")
+    old_path, new_path, out_path = args[0], args[1], args[2]
+    if not os.path.isfile(old_path):
+        print(f"旧 APK 不存在: {old_path}")
+        return 1
+    if not os.path.isfile(new_path):
+        print(f"新 APK 不存在: {new_path}")
+        return 1
+
+    bsdiff4.file_diff(old_path, new_path, out_path)
+
+    new_sha = hashlib.sha256(open(new_path, "rb").read()).hexdigest()
+    size = os.path.getsize(out_path)
+    print(f"patch 大小: {size/1024/1024:.2f} MB")
+    print(f"new SHA256: {new_sha}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
