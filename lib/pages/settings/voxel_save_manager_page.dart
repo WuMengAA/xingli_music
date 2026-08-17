@@ -252,13 +252,12 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         name.isEmpty ? '空白世界 ${_fmt(DateTime.now())}' : name;
     String? id;
     try {
-      id = await writeManualSave(data, finalName);
-      await writeVoxelSave(data);
+      id = await writeManualSave(data, finalName); // #511：捕获 id 作身份
     } catch (_) {
       _snack('新建失败');
       return;
     }
-    if (!mounted) return;
+    if (!mounted || id == null) return;
     _snack('已进入空白世界「$finalName」（种子 $seed）');
     // R28：作弊关 → 强制生存（不允许创造）；作弊开 → 默认创造（游戏内可切生存）。
     await Navigator.of(context).push(
@@ -267,6 +266,10 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           seed: seed,
           options: opt,
           survival: !opt.cheats,
+          // #511：以新建存档 id 进入、跳过恢复（不弹「已恢复」）。
+          saveId: id,
+          isNewWorld: true,
+          saveName: finalName,
         ),
       ),
     );
@@ -319,21 +322,17 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     _snack('已备份当前世界 · 在列表点「进入」可读取');
   }
 
-  /// 恢复（进入）某存档 / 备份：写入自动存档 + 带种子打开世界。
-  Future<void> _enter(Map<String, dynamic>? data, String label) async {
+  /// 恢复（进入）某存档 / 备份：以 [saveId] 身份、带种子打开世界。
+  /// [saveId] 为存档 id 或备份 bakId（驱动按 id 隔离的自动检查点）；
+  /// [data] 已优先取最新检查点（见 _enterSave/_enterBackup），直接传入恢复。
+  Future<void> _enter(Map<String, dynamic>? data, String label,
+      [String? saveId]) async {
     if (data == null || !mounted) {
       _snack('存档损坏，无法恢复');
       return;
     }
-    // Bug④（#375）：写自动存档失败（存储满 / 权限 / 文件损坏）不能再向上抛，
-    // 否则安卓「进入存档」即未捕获崩溃。降级为提示并仍允许进世界（世界自身
-    // 的 30s 周期存档会再尝试落盘，玩家可正常游玩）。
-    try {
-      await writeVoxelSave(data);
-    } catch (e) {
-      debugPrint('[voxel-save] 进入存档前写盘失败: $e');
-      _snack('存档写入失败，仍可进入（自动存档稍后重试）');
-    }
+    // #511：不再写全局自动存档——本存档身份与检查点由进入页读取 data 确立；
+    // 直接进世界，首个 30s 周期 / autoStart 落盘即写入「本存档 id 检查点」。
     final dynamic wj = data['world'];
     final int seed = (wj is Map && wj['seed'] is int)
         ? wj['seed'] as int
@@ -351,20 +350,26 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         survival: !opt.cheats,
         // R26fx：恢复玩家状态（位置/视角/编辑层/背包）——不再每次重置摄像头。
         initialSaveData: data,
+        // #511：以本存档/备份身份隔离自动检查点。
+        saveId: saveId,
       )),
     );
   }
 
   Future<void> _enterSave(String id, String name) async {
-    final Map<String, dynamic>? data = await readManualSave(id);
-    await _enter(data, name);
+    // #511：优先本存档 id 检查点（最新自动进度），缺失回退手动存档。
+    final Map<String, dynamic>? data =
+        await readVoxelSaveForId(id) ?? await readManualSave(id);
+    await _enter(data, name, id);
   }
 
   Future<void> _enterBackup(String bakId, String name) async {
     final List<String> parts = bakId.split('|');
     if (parts.length != 2) return;
-    final Map<String, dynamic>? data = await readBackup(parts[0], parts[1]);
-    await _enter(data, name);
+    // #511：优先本备份 id 检查点（最新自动进度），缺失回退备份快照。
+    final Map<String, dynamic>? data =
+        await readVoxelSaveForId(bakId) ?? await readBackup(parts[0], parts[1]);
+    await _enter(data, name, bakId);
   }
 
   /// 回滚为新存档：把某备份另存为独立命名存档（非破坏，原备份保留）。

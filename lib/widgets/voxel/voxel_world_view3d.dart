@@ -207,6 +207,9 @@ class VoxelWorldView3D extends ConsumerStatefulWidget {
     this.autoStart = true,
     this.survival = false,
     this.initialSaveData,
+    this.saveId,
+    this.isNewWorld = false,
+    this.saveName,
     this.readOnly = false,
     this.multiplayer = false,
   });
@@ -242,6 +245,16 @@ class VoxelWorldView3D extends ConsumerStatefulWidget {
 
   /// R26fx：进入时恢复的存档数据（位置/视角/编辑层/背包；null = 全新世界）。
   final Map<String, dynamic>? initialSaveData;
+
+  /// #511：本视图所属存档身份（手动存档 id / 备份 bakId / 联机会话 id）。
+  /// 驱动分块目录与按 id 隔离的自动检查点，根治串档 bug。
+  final String? saveId;
+
+  /// #511：是否为「刚新建的世界」——是则跳过恢复、不弹「已恢复上次存档」。
+  final bool isNewWorld;
+
+  /// #511：新建世界命名（写入 _meta.name）。
+  final String? saveName;
 
   /// R26skel：只读预览——不恢复存档、不起存档定时器、不自动进入世界
   /// （照片墙「进入场景」等外部预览用，避免叠加游戏/叠加存档）。
@@ -625,6 +638,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   @override
   void initState() {
     super.initState();
+    // #511：确立本页存档身份（按 id 隔离的入口；未指定则生成会话 id）。
+    _effectiveSaveId = widget.saveId ?? _genSessionId();
     // cl38 P1：玩家生存状态单一真相源（开放世界多系统共享）。
     _vitals = ref.read(playerVitalsProvider);
     // cl29·②：场景页「拍照取景」入口透传——进入即开相机取景面板。
@@ -679,10 +694,29 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _lastPx = _fpPos.x;
     _lastPz = _fpPos.z;
 
-    // R26fx：从存档进入时恢复玩家状态（位置/视角/编辑层/背包）——
-    // 不再每次重置摄像头（存档已记录视角方向）。
+    // R26fx/#511：确立当前世界身份并恢复玩家状态。
+    // - 传入 initialSaveData（管理器进档 / 进备份）：直接应用，身份取自其 _meta。
+    // - 刚新建世界：以本页 id 为身份，跳过任何恢复（不弹「已恢复」）。
+    // - 联机世界：以本页会话 id 为身份，不恢复（每次进入独立）。
+    // - 其它（兜底）：留待下方 _restoreSave 读本存档 id 检查点。
     final Map<String, dynamic>? initData = widget.initialSaveData;
-    if (initData != null) _applyInitialSave(initData);
+    if (initData != null) {
+      _applyInitialSave(initData);
+    } else if (widget.isNewWorld) {
+      _currentMeta = <String, dynamic>{
+        'id': _effectiveSaveId,
+        'name': widget.saveName ?? '我的世界',
+        'createdAt': DateTime.now().toIso8601String(),
+        'kind': 'manual',
+      };
+    } else if (widget.multiplayer) {
+      _currentMeta = <String, dynamic>{
+        'id': _effectiveSaveId,
+        'name': '联机世界',
+        'createdAt': DateTime.now().toIso8601String(),
+        'kind': 'multiplayer',
+      };
+    }
 
     // R23w：按当前模式装包（创造给满、生存给起步套装）。
     _syncInventoryForMode();
@@ -780,7 +814,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // R26skel：readOnly 预览（照片墙「进入场景」等）**不碰存档**——不恢复、
     // 不写盘，避免叠加游戏/叠加存档；仅允许主菜单·世界存档路径进入真实游戏。
     if (!widget.readOnly) {
-      unawaited(_restoreSave());
+      // #511：仅「未传 initialSaveData 且非新建世界」走兜底恢复，
+      // 读本存档 id 检查点（不再读全局 voxel_world_save.json）。
+      // 传入 initialSaveData 的（管理器进档/备份）/ 新建世界 / 联机 已在此前确立身份。
+      if (widget.initialSaveData == null && !widget.isNewWorld) {
+        unawaited(_restoreSave());
+      }
       _saveTimer = Timer.periodic(
         const Duration(seconds: 30),
         (_) => _saveNow(),
@@ -1012,7 +1051,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     unawaited(
       widget.world
           .persistLoadedChunks()
-          .then((_) => writeVoxelSave(_buildSaveData())),
+          .then((_) => writeVoxelSaveForId(_saveId, _buildSaveData())),
     );
     _audio?.dispose();
     _bgMusic?.dispose();
@@ -3325,12 +3364,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 保证「备份的备份还是备份」（平铺、不套娃）。
   Map<String, dynamic>? _currentMeta;
 
-  /// P4：当前世界的存档 ID（驱动分块存储目录 `voxel_chunks/<saveId>/`）。
-  /// 无归属存档（纯自动存档世界）时回退 'auto'。
+  /// P4/#511：当前世界的存档 ID（驱动分块目录 `voxel_chunks/<saveId>/` 与
+  /// 按 id 隔离的自动检查点 `voxel_world_save_<id>.json`）。
+  /// 优先用当前世界身份（_currentMeta.id，可经游戏内「读档」切换），
+  /// 否则回退本页 _effectiveSaveId（新建/联机/恢复时确立）。
   String get _saveId =>
       (_currentMeta is Map<String, dynamic> && _currentMeta!['id'] is String)
           ? _currentMeta!['id'] as String
-          : 'auto';
+          : _effectiveSaveId;
+
+  /// #511：本页存档身份（来自 [VoxelWorldView3D.saveId]，未指定则一次性会话 id）。
+  late final String _effectiveSaveId;
+
+  /// #511：生成本页会话级存档 id（联机 / 测试 / 未指定 saveId 时用，
+  /// 保证每次进入独立、不与任何手动存档串档）。
+  static String _genSessionId() =>
+      'sess_${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}'
+      '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
 
   Map<String, dynamic> _buildSaveData() {
     final Map<String, dynamic> data = <String, dynamic>{
@@ -3362,7 +3412,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   Future<void> _saveNow() async {
     await widget.world.persistLoadedChunks(); // P4：先落盘编辑层，toJson 才不丢
-    await writeVoxelSave(_buildSaveData());
+    await writeVoxelSaveForId(_saveId, _buildSaveData()); // #511：按 id 隔离
     // R27：游戏中保存 → 同步刷新所属手动存档的「最近保存时间」，使存档列表显示最新时间。
     if (_currentMeta is Map<String, dynamic> &&
         _currentMeta!['id'] is String) {
@@ -3376,7 +3426,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   Future<void> _restoreSave() async {
     try {
-      final Map<String, dynamic>? data = await readVoxelSave();
+      // #511：读「本存档 id」检查点（取代全局 voxel_world_save.json）。
+      // 检查点缺失时回退手动存档（首次进档、未触发过 30s 落盘的场景）。
+      Map<String, dynamic>? data = await readVoxelSaveForId(_saveId);
+      data ??= await readManualSave(_saveId);
       if (!mounted || data == null) return;
       // R27：自动存档属「上一个世界」。若存档种子与本世界不同（换种子新开世界），
       // 整份跳过——避免旧存档的机位/状态串到新世界（「新建游戏没存档」观感：
@@ -3557,12 +3610,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   // ── R26d 手动存档（可命名 + 存档菜单）───────────────
   Future<void> _loadManual(String id, String name) async {
-    final Map<String, dynamic>? data = await readManualSave(id);
+    // #511：优先读本存档 id 检查点（最新进度），缺失再回退手动存档。
+    Map<String, dynamic>? data = await readVoxelSaveForId(id);
+    data ??= await readManualSave(id);
     if (data == null || !mounted) return;
     await _applySaveData(data);
-    // 立即把读档后的世界（含 _meta 身份）落盘为「当前世界」，
+    // 立即把读档后的世界（含 _meta 身份）落盘为「当前存档 id 检查点」，
     // 保证紧接着的「备份当前世界」读到正确的所属存档。
-    await writeVoxelSave(_buildSaveData());
+    await writeVoxelSaveForId(_saveId, _buildSaveData());
     if (mounted) _snack('已读取存档「$name」');
   }
 
@@ -3573,7 +3628,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 否则归最近手动存档；都没有则新建「我的世界」。保证「备份的备份还是备份」
   /// （平铺、不套娃）。这是唯一的备份入口，语义与使用处文案完全统一。
   Future<void> _doBackupCurrent() async {
-    final Map<String, dynamic>? cur = await readVoxelSave();
+    final Map<String, dynamic>? cur = await readVoxelSaveForId(_saveId);
     if (!mounted) return;
     if (cur == null) {
       if (mounted) _snack('当前没有可备份的世界');
@@ -3585,7 +3640,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       parentId = (cur['_meta'] as Map)['parent'] as String;
     }
     if (parentId != null && (await readManualSave(parentId)) != null) {
-      await createBackup(parentId);
+      await createBackup(parentId, cur);
       if (mounted) {
         _snack('已备份当前世界 · 在存档列表点「进入」可读取');
       }
@@ -3789,20 +3844,26 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
               final String finalName =
                   rawName.isEmpty ? '世界 ${_stampNow()}' : rawName;
               final Map<String, dynamic> data = freshWorldSave(seed);
+              final String? id;
               try {
-                await writeManualSave(data, finalName);
-                await writeVoxelSave(data);
+                id = await writeManualSave(data, finalName); // #511：捕获 id 作身份
               } catch (_) {
                 if (c.mounted) _snack('新建失败');
                 return;
               }
-              if (!c.mounted) return;
+              if (!c.mounted || id == null) return;
               Navigator.of(sheetContext).pop();
               if (mounted) {
                 _snack('已新建世界「$finalName」（种子 $seed）');
                 await Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => VoxelWorld3DPage(seed: seed),
+                    builder: (_) => VoxelWorld3DPage(
+                      seed: seed,
+                      // #511：以新建存档 id 进入、跳过恢复（不弹「已恢复」）。
+                      saveId: id,
+                      isNewWorld: true,
+                      saveName: finalName,
+                    ),
                   ),
                 );
               }
@@ -5834,6 +5895,9 @@ class VoxelWorld3DPage extends StatefulWidget {
     this.options,
     this.openCamera = false,
     this.initialSaveData,
+    this.saveId,
+    this.isNewWorld = false,
+    this.saveName,
     this.multiplayer = false,
   });
 
@@ -5857,6 +5921,15 @@ class VoxelWorld3DPage extends StatefulWidget {
 
   /// R26fx：进入时恢复的存档数据（位置/视角/编辑层/背包；null = 全新世界）。
   final Map<String, dynamic>? initialSaveData;
+
+  /// #511：所属存档身份（手动存档 id / 联机会话 id）。null = 由视图生成会话 id。
+  final String? saveId;
+
+  /// #511：是否为刚新建的世界（跳过恢复、不弹「已恢复」）。
+  final bool isNewWorld;
+
+  /// #511：新建世界命名。
+  final String? saveName;
 
   @override
   State<VoxelWorld3DPage> createState() => _VoxelWorld3DPageState();
@@ -5924,6 +5997,10 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                 survival: widget.survival,
                 initialSaveData: widget.initialSaveData,
                 multiplayer: widget.multiplayer,
+                // #511：透传存档身份，使视图按 id 隔离自动检查点。
+                saveId: widget.saveId,
+                isNewWorld: widget.isNewWorld,
+                saveName: widget.saveName,
               ),
             ),
             SafeArea(

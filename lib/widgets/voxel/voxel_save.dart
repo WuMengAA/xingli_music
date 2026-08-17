@@ -206,6 +206,38 @@ Future<Map<String, dynamic>?> readVoxelSave() async {
   return null;
 }
 
+/// #511：按存档 id 隔离的自动检查点。`voxel_world_save_<id>.json` 一份，
+/// 取代原先全局共用的 `voxel_world_save.json`，根治「重进≠保存的存档」
+/// 与「新建世界误弹已恢复」两个串档 bug（同名种子/异种子都不再串）。
+Future<File> _voxelSavePathForId(String id) async {
+  final Directory dir = await _appDataDir();
+  return File('${dir.path}/voxel_world_save_$id.json');
+}
+
+/// 写入「本存档 id」的自动检查点（每 30s 周期 + 进出世界落盘）。
+Future<void> writeVoxelSaveForId(String id, Map<String, dynamic> data) async {
+  try {
+    final File f = await _voxelSavePathForId(id);
+    await f.writeAsString(const JsonEncoder().convert(data));
+    await _pushAutoBackup(data); // 沿用滚动历史（崩溃兜底）
+  } catch (_) {
+    // 磁盘不可写 / 权限不足等：静默放弃本次存档
+  }
+}
+
+/// 读取「本存档 id」的自动检查点；不存在 / 损坏返回 null。
+Future<Map<String, dynamic>?> readVoxelSaveForId(String id) async {
+  try {
+    final File f = await _voxelSavePathForId(id);
+    if (!await f.exists()) return null;
+    final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+    if (parsed is Map<String, dynamic>) return parsed;
+  } catch (_) {
+    // 损坏存档：忽略
+  }
+  return null;
+}
+
 /// 清除存档（可选：重开新世界时调用）。
 Future<void> deleteVoxelSave() async {
   try {
@@ -503,10 +535,11 @@ Future<List<VoxelManualSaveMeta>> listBackups(String id) async {
 
 /// 把「当前正在游玩的世界」（自动存档）快照为一个备份，挂到 [id] 存档下。
 /// 自动存档为空时回退用该存档自身数据；两者皆空则不产生备份。
-Future<String?> createBackup(String id) async {
-  final Map<String, dynamic>? current = await readVoxelSave();
-  final Map<String, dynamic> data =
-      current ?? await readManualSave(id) ?? <String, dynamic>{};
+Future<String?> createBackup(String id, [Map<String, dynamic>? current]) async {
+  final Map<String, dynamic> data = current ??
+      await readVoxelSave() ??
+      await readManualSave(id) ??
+      <String, dynamic>{};
   if (data.isEmpty) return null;
   final Map<String, dynamic>? main = await readManualSave(id);
   final String baseName =
