@@ -560,6 +560,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // R26r7：创造模式破坏冷却（0.5s 允许破坏一个方块）。
   DateTime? _lastBreakAt;
 
+  // R26r8：编辑限频——放置同样需要冷却，避免「速度没限制」地无限刷方块。
+  // 破坏在创造模式已有 0.5s 冷却（_lastBreakAt）；此处补放置冷却（更短，因为
+  // 放置是主要搭建动作，过快误刷、过慢卡手感）。纯常量，待 #509 装备/工具系统
+  // 接入后可按手持工具改写（如镐更快、徒手更慢）。
+  DateTime? _lastPlaceAt;
+  static const int _kPlaceCooldownMs = 200;
+
   // R26r7：自适应分辨率——望向脚下/天上等面数陡增场景自动降渲染倍率保帧。
   double _dynScale = 1.0;
   double _frameDynScale = 1.0; // 当前帧实际用的倍率（画家读取，保证帧/画一致）
@@ -3155,7 +3162,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 旧实现用独立 _mcSelected，与背包不同步）。
     final Voxel toPlace = held.item;
     if (toPlace == Voxel.air) return;
+    // R26r8：放置冷却（限频）——与破坏冷却同思路，避免「无限速刷方块」。
+    // 仅对「真正会落子」的放置计时；空手/点空气/被占格/身体重叠不消耗冷却。
+    final DateTime now = DateTime.now();
+    if (_lastPlaceAt != null &&
+        now.difference(_lastPlaceAt!).inMilliseconds < _kPlaceCooldownMs) {
+      return;
+    }
     widget.world.setVoxel(px, py, pz, toPlace);
+    _lastPlaceAt = now; // 落实冷却起点
     if (widget.multiplayer) {
       ref.read(netSessionProvider.notifier).broadcastEdit(
         px, py, pz, Voxel.values.indexOf(toPlace),
