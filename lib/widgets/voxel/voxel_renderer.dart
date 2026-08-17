@@ -2770,66 +2770,68 @@ abstract final class VoxelRenderer {
     );
   }
 
-  /// R26imp：地平线 Impostor——最外档（cell≥32）合成 flat 单元（复用
-  /// _emitLodCell 的平坦快路径：单顶面 + 4 边界裙边 = 山形剪影）。
-  /// 5×5 网格采样平均高度 + 多数方块色；外环取平均（邻单元无缝）。
+  /// #499：地平线 Impostor——最外档（cell≥32）不再塌成单色大块。
+  /// 采 2×2 象限材质 + 高度，走与 [_buildLodCell] 相同的 non-flat 发射路径
+  /// （逐列顶面 + 暴露侧裙边），保留材质身份与块状剪影；远处方块不再是
+  /// 一整块纯色。外环取最近列高度（邻单元无缝）。
   static _LodCell _buildHorizonImpostor(
     VoxelWorld world,
     double cx0,
     double cz0,
     double size,
   ) {
-    const int S = 5;
-    double sum = 0;
-    int n = 0;
-    final Map<Voxel, int> tally = <Voxel, int>{};
-    for (int j = 0; j < S; j++) {
-      for (int i = 0; i < S; i++) {
-        final double x = cx0 + (i + 0.5) * size / S;
-        final double z = cz0 + (j + 0.5) * size / S;
+    const int g = 2;
+    final int gg = g * g;
+    final Float32List hGrid = Float32List(gg);
+    final List<Voxel> vGrid = List<Voxel>.filled(gg, Voxel.stone);
+    final List<Voxel> vSide = List<Voxel>.filled(gg, Voxel.stone);
+    final Float32List hPad = Float32List((g + 2) * (g + 2));
+    double topY = 0;
+    for (int j = 0; j < g; j++) {
+      for (int i = 0; i < g; i++) {
+        final double x = cx0 + (i + 0.5) * (size / g);
+        final double z = cz0 + (j + 0.5) * (size / g);
         final double t = _topNonAirAt(world, x, z);
-        sum += t;
-        n++;
+        final int k = j * g + i;
+        hGrid[k] = t;
+        if (t > topY) topY = t;
         if (t > 0) {
           // cl76_hotfix：无限地形不 clamp 边缘（同 _buildLodCell）。
           final int xi = x.floor();
           final int zi = z.floor();
-          final int yi = (t - 1).floor().clamp(0, world.maxY - 1);
-          final Voxel v = world.get(xi, yi, zi);
-          tally[v] = (tally[v] ?? 0) + 1;
+          final int yiTop = (t - 1).floor().clamp(0, world.maxY - 1);
+          final Voxel vt = world.get(xi, yiTop, zi);
+          vGrid[k] = vt;
+          final int yiSide = (t - 2).floor().clamp(0, world.maxY - 1);
+          final Voxel vs = world.get(xi, yiSide, zi);
+          vSide[k] = vs.isEmpty ? vt : vs;
         }
       }
     }
-    if (n == 0) {
-      return _LodCell(
-        g: 1,
-        topY: 0,
-        majority: Voxel.stone,
-        hGrid: Float32List.fromList(<double>[0]),
-        vGrid: <Voxel>[Voxel.stone],
-        vSide: <Voxel>[Voxel.stone],
-        hPad: Float32List(9)..fillRange(0, 9, 0),
-        flat: true,
-      );
-    }
-    final double avg = sum / n;
-    Voxel majority = Voxel.stone;
-    int best = 0;
-    tally.forEach((Voxel v, int c) {
-      if (c > best) {
-        best = c;
-        majority = v;
+    // 外环取最近列高度（邻单元无缝，避免裙边空洞）。
+    for (int pj = 0; pj < g + 2; pj++) {
+      for (int pi = 0; pi < g + 2; pi++) {
+        final int si = (pi - 1).clamp(0, g - 1);
+        final int sj = (pj - 1).clamp(0, g - 1);
+        hPad[pj * (g + 2) + pi] = hGrid[sj * g + si];
       }
-    });
+    }
+    bool flat = true;
+    for (int k = 1; k < gg; k++) {
+      if (hGrid[k] != hGrid[0] || vGrid[k] != vGrid[0]) {
+        flat = false;
+        break;
+      }
+    }
     return _LodCell(
-      g: 1,
-      topY: avg,
-      majority: majority,
-      hGrid: Float32List.fromList(<double>[avg]),
-      vGrid: <Voxel>[majority],
-      vSide: <Voxel>[majority],
-      hPad: Float32List(9)..fillRange(0, 9, avg), // 外环平均 → 邻单元无缝
-      flat: true,
+      g: g,
+      topY: topY,
+      majority: vGrid[0],
+      hGrid: hGrid,
+      vGrid: vGrid,
+      vSide: vSide,
+      hPad: hPad,
+      flat: flat,
     );
   }
 

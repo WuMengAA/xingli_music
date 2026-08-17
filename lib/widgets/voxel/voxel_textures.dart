@@ -272,7 +272,10 @@ class VoxelTextureAtlas {
   static ui.Color _pixel(Voxel v, int px, int py, int variant) {
     // 变体影响散列种子 → 每种变体纹理/抖动 pattern 不同（纹理变体）。
     final double n = _noise(px, py, v.index * 131 + 7 + variant * 917);
-    final double f = 1.0 + (n - 0.5) * 0.18; // ±9% 亮度抖动，去平涂感
+    double f = 1.0 + (n - 0.5) * 0.26; // ±13% 亮度抖动，材质更活
+    // 顶面高光 / 底边阴影：给每种材质读出立体表面（砖块斜面感），近处一眼可辨。
+    if (py <= 1) f *= 1.10;
+    else if (py >= tile - 2) f *= 0.84;
     switch (v) {
       case Voxel.grass:
         if (py < 4) return _shade(const ui.Color(0xFF6A4A2B), 1.0); // 顶边土
@@ -337,13 +340,13 @@ class VoxelTextureAtlas {
       case Voxel.ironOre:
         return _shade(n > 0.72 ? const ui.Color(0xFFD9A066) : const ui.Color(0xFF8A8A8E), f);
       case Voxel.redstoneOre:
-        return _shade(n > 0.62 ? const ui.Color(0xFFC0392B) : const ui.Color(0xFF6E6E72), f);
+        return _shade(n > 0.5 ? const ui.Color(0xFFC0392B) : const ui.Color(0xFF6E6E72), f);
       case Voxel.lapisOre:
-        return _shade(n > 0.62 ? const ui.Color(0xFF2E5BC4) : const ui.Color(0xFF6E6E72), f);
+        return _shade(n > 0.5 ? const ui.Color(0xFF2E5BC4) : const ui.Color(0xFF6E6E72), f);
       case Voxel.emeraldOre:
-        return _shade(n > 0.62 ? const ui.Color(0xFF2ECC71) : const ui.Color(0xFF6E6E72), f);
+        return _shade(n > 0.5 ? const ui.Color(0xFF2ECC71) : const ui.Color(0xFF6E6E72), f);
       case Voxel.diamondOre:
-        return _shade(n > 0.62 ? const ui.Color(0xFF5FE0D0) : const ui.Color(0xFF6E6E72), f);
+        return _shade(n > 0.5 ? const ui.Color(0xFF5FE0D0) : const ui.Color(0xFF6E6E72), f);
       case Voxel.redstone:
         return _shade(const ui.Color(0xFFC0392B), f);
       case Voxel.lapis:
