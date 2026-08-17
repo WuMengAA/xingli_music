@@ -3928,7 +3928,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       await json.writeAsString(const JsonEncoder().convert(cap.toJson()));
       _snack('已保存截图');
     } catch (e) {
-      _snack('截图失败: $e');
+      _snack('截图失败，请稍后重试');
     }
   }
 
