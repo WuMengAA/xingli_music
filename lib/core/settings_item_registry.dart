@@ -1561,6 +1561,17 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           ref.read(liquidGlassOverrideProvider.notifier).state = v,
     ),
   ),
+  'fxTexture': SettingItemDef(
+    title: '方块贴图',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '方块贴图',
+      subtitle: '逐像素程序化纹理；关 = 回落纯色（更省 GPU，性能档默认关）',
+      value: ref.watch(textureEnabledProvider),
+      onChanged: (bool v) =>
+          ref.read(textureOverrideProvider.notifier).state = v,
+    ),
+  ),
 
   // ── 通知 ──────────────────────────────────────────────
   'permissions': SettingItemDef(

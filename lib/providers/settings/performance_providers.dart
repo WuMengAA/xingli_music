@@ -134,6 +134,9 @@ double _modeDefaultBlur(PerformanceMode m) =>
 bool _modeDefaultBg(PerformanceMode m) => m == PerformanceMode.quality;
 bool _modeDefaultGlass(PerformanceMode m) => m == PerformanceMode.quality;
 
+/// 方块贴图（图集纹理）默认：标准档开、性能档关（与噪点/模糊同思路）。
+bool _modeDefaultTexture(PerformanceMode m) => m == PerformanceMode.quality;
+
 /// 噪点纹理：null 跟随档位。
 final noiseOverrideProvider = StateProvider<bool?>((ref) => null);
 
@@ -168,6 +171,18 @@ final liquidGlassOverrideProvider = StateProvider<bool?>((ref) => null);
 final liquidGlassEnabledProvider = Provider<bool>((ref) {
   return ref.watch(liquidGlassOverrideProvider) ??
       _modeDefaultGlass(ref.watch(performanceModeProvider));
+});
+
+/// 方块贴图（图集纹理）覆盖：null 跟随档位。
+/// P7·#507：贴图从「仅高清画质档自动接图集」改为**独立可开关设置**——
+/// 不再绑死 [GraphicsQuality.texture]，用户可在「个性 · 画面特效」里手动开/关，
+/// 标准档默认开（图集生产者本身健康，仅消费闸此前卡在画质档）。
+final textureOverrideProvider = StateProvider<bool?>((ref) => null);
+
+/// 方块贴图是否启用（null = 跟随档位默认，见 [_modeDefaultTexture]）。
+final textureEnabledProvider = Provider<bool>((ref) {
+  return ref.watch(textureOverrideProvider) ??
+      _modeDefaultTexture(ref.watch(performanceModeProvider));
 });
 
 /// 动画时长缩放系数（1.0 标准 / 0.5 性能最快）。

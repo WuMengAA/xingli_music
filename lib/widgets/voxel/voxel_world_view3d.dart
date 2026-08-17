@@ -1340,7 +1340,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final Canvas cv = Canvas(rec);
     _VoxelFramePainter(
       frame,
-      _quality.texture ? _atlas : null,
+      ref.read(textureEnabledProvider) ? _atlas : null,
       renderScale: _quality.renderScale *
           ref.read(renderPrecisionScaleProvider) *
           _frameDynScale,
@@ -4673,7 +4673,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                         CustomPaint(
                           painter: _VoxelFramePainter(
                             frame,
-                            _quality.texture ? _atlas : null,
+                            ref.watch(textureEnabledProvider) ? _atlas : null,
                             staticPicture: _staticPicture,
                             // R26fx：渲染分辨率 × 渲染比例 × 动态缩放（倍率式）。
                             renderScale: _quality.renderScale *

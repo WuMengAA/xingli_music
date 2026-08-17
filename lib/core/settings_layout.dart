@@ -331,6 +331,7 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'fxBlur', title: '玻璃模糊', kind: SettingKind.toggle),
             SettingItem(id: 'fxBg', title: '背景动画', kind: SettingKind.toggle),
             SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）', kind: SettingKind.toggle),
+            SettingItem(id: 'fxTexture', title: '方块贴图', kind: SettingKind.toggle),
           ],
         ),
       ],
