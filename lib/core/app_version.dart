@@ -84,7 +84,9 @@ abstract final class AppVersion {
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
   /// 已装同构建号的用户走增量补丁升级。
-  static const int? hotfix = null;
+  /// 当前为 OTA 架构改造热修补丁（beta_cl03 首补）：hotfix=1 → 展示串
+  /// `0.26.08.17_beta_cl03_hotfix1`（buildCount 保持 3，不升构建号）。
+  static const int? hotfix = 1;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
   /// cl36：安卓切歌防闪退补丁 + 通知系统重做(rootOverlay/多实例堆叠) +
@@ -326,7 +328,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 2;
+  static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -391,6 +393,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.17',
+    cl: 'beta_cl03_hotfix1',
+    title: 'OTA 架构改造热修补丁：多版本选择 + 架构自适应 + 平台标记',
+    details: <String>[
+      '版本更新面板：本渠道多版本选择（默认最新），点按/Radio 切换选中版本',
+      '架构自适应：启动检测本机 ABI（arm64-v8a / armeabi-v7a），自动匹配对应拆分包下载',
+      '安卓只产拆分包：禁 universal 整包，CI 仅上传 arm64 + arm32 两拆分包及各自 SHA-256',
+      '版本列表平台/架构标记：每条标注「安卓·arm64 / 安卓·arm32 / Windows·x64」，区分 Windows 与安卓',
+      'Windows 版仍走官网下载（不在 OTA 内）；下载完「安装更新」、失败「重试下载」、完成后「选择其他版本」',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.17',
     cl: 'beta_cl02',
