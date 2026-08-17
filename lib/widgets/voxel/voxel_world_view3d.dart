@@ -100,7 +100,7 @@ enum GraphicsQuality {
   /// 省电：2 主区块 + 2 LOD 区块（共 4 区块），24fps。最轻量。
   powerSave('省电',
       viewDistanceChunks: 2,
-      lodMaxChunks: 16,
+      lodMaxChunks: 32,
       lodStartChunks: 1,
       lodStepChunks: 1,
       maxFaces: 4000,
@@ -113,7 +113,7 @@ enum GraphicsQuality {
   /// 流畅：4 主区块 + 4 LOD 区块（共 8 区块），60fps。默认基线。
   smooth('流畅',
       viewDistanceChunks: 4,
-      lodMaxChunks: 28,
+      lodMaxChunks: 64,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,
@@ -123,12 +123,12 @@ enum GraphicsQuality {
       texture: false,
       renderScale: 1.0),
 
-  /// 地平线：4 主区块 + 28 LOD 区块（共 32 区块），60fps。
-  /// 远景山脉/立体地形靠 LOD 渲染；视距上限 4 区块、LOD 最远可到 60 区块
-  /// （极值共 64 区块）。帧率上限 60fps。
+  /// 地平线：4 主区块 + 64 LOD 区块（共 68 区块），60fps。
+  /// 远景山脉/立体地形靠 LOD 渲染；视距上限 4 区块、LOD 最远可到 64 区块
+  /// （16 区块内近 LOD 立体柱有顶、32 区块外转双面板、64 区块为终点）。帧率上限 60fps。
   horizon('地平线',
       viewDistanceChunks: 4,
-      lodMaxChunks: 28,
+      lodMaxChunks: 64,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 24000,
@@ -143,7 +143,7 @@ enum GraphicsQuality {
   /// 帧率上限 60fps。
   auto('自动',
       viewDistanceChunks: 4,
-      lodMaxChunks: 16,
+      lodMaxChunks: 64,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,

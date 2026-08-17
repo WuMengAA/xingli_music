@@ -68,11 +68,13 @@ void main() {
     expect(far, greaterThanOrEqualTo(near ~/ 4), reason: '32 区块应覆盖 4 区块的超集区域');
   });
 
-  test('步长：3 格密档 LOD 面 ≤ 16 格疏档（步长小 = 更早降级粗 LOD = 更省面）', () {
-    // cell 按档翻倍：步长小 → 档密 → cell 涨快 → 远环更粗 → 面更少（省面意图）。
-    final int dense = _frame(_cfg(lodStepBlocks: 3)).lodFaceCount;
-    final int sparse = _frame(_cfg(lodStepBlocks: 16)).lodFaceCount;
-    expect(dense, lessThanOrEqualTo(sparse), reason: '步长小 = 更早进入粗 LOD = 更省面');
+  test('步长：基础环步长越小 → 近处 LOD 越精细 → 面越多（#506 重设计语义）', () {
+    // #506 重设计：lodStepBlocks = 基础环步长（下限 8），cell = 该档边长（随档翻倍、
+    // 封顶 64）。步长小 → 近处 LOD 单元更细 → 投影面更多；步长大 → 近处更粗 → 面更少。
+    // （旧模型「步长小=更早进粗 LOD=更省面」已被 16/32/64 三档 + cell 平铺设计取代。）
+    final int fine = _frame(_cfg(lodStepBlocks: 8)).lodFaceCount;
+    final int coarse = _frame(_cfg(lodStepBlocks: 16)).lodFaceCount;
+    expect(fine, greaterThan(coarse), reason: '步长 8 近处更精细 → 面多于步长 16');
   });
 
   test('地平线 Impostor：最外档（cell≥32）路径不崩且发射 LOD 面', () {

@@ -330,7 +330,9 @@ final lodSampleBaseProvider = StateProvider<int>((ref) => 4);
 /// cl45：默认 8→16——LOD 地平线 256 格，视距不再硬剔、看得更远；
 /// cl46：默认 16→32——用户要求近 2 区块到远 32 区块渐进 LOD（最外档
 /// cell≥32 走地平线 Impostor 超省模式，远景面数≈单元数，不会成面数黑洞）。
-final lodMaxChunksProvider = StateProvider<int>((ref) => 32);
+/// #506：默认 32→64——用户要求 LOD 终点提到 64 区块（16 内近 LOD 立体柱有顶、
+/// 32 外转双面板）；受 maxFaces 预算封顶，远距面数不爆炸。
+final lodMaxChunksProvider = StateProvider<int>((ref) => 64);
 
 /// 阴影渲染（太阳方向投影阴影：顶面被太阳方向相邻方块遮挡时调暗）。
 final shadowRenderProvider = StateProvider<bool>((ref) => true);

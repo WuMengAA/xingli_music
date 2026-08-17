@@ -230,7 +230,7 @@ class RenderConfig {
     this.lodMasterEnabled = true,
     this.lodStepBlocks = 16,
     this.lodSampleBase = 4,
-    this.lodMaxChunks = 8,
+    this.lodMaxChunks = 64,
     // 满精度带半径（区块）：perf/smooth=1（3×3 满精度，带外近处即 LOD——
     // 性能受限时近处也合成大方块）；standard/high=2（5×5 满精度）。
     this.fullBandChunks = 2,
@@ -3007,7 +3007,7 @@ abstract final class VoxelRenderer {
           }
           _emitLodCell(cell, gx0, gz0, rcell, b, proj, sky, config,
               fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights,
-              pushFace);
+              pushFace, T.mode);
         }
       }
     }
@@ -3036,8 +3036,45 @@ abstract final class VoxelRenderer {
     double sunZ,
     List<PointLight> lights,
     void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
+    _LodMode mode,
   ) {
     if (cell.topY <= 0) return;
+    // #506：相机方向背面剔除——只渲染「朝向玩家」的面。ex/ez = 相机相对单元中心
+    // 的水平偏移；某侧外法线朝向相机 ⇔ dot(N, eye-cellCenter) > 0：
+    //   west(法线 -x): ex>0（眼在西）  east(+x): ex<0  north(-z): ez>0  south(+z): ez<0
+    final double ccx = cx0 + size * 0.5;
+    final double ccz = cz0 + size * 0.5;
+    final double ex = b.eyeX - ccx;
+    final double ez = b.eyeZ - ccz;
+
+    // ── Billboard 带（>32 区块）：只渲染朝向玩家的 2 面（全高墙），不渲染顶部 ──
+    if (mode == _LodMode.billboard) {
+      final double x0 = cx0, z0 = cz0, x1 = cx0 + size, z1 = cz0 + size;
+      final double yT = cell.topY;
+      final Voxel v = cell.majority;
+      if (ex > 0) {
+        _emitLodQuad(_fillLodQuad(x0, 0, z0, x0, yT, z0, x0, yT, z1, x0, 0, z1),
+            -1, 0, 0, v, BlockFace.west, b, proj, sky, config,
+            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+      }
+      if (ex < 0) {
+        _emitLodQuad(_fillLodQuad(x1, 0, z0, x1, yT, z0, x1, yT, z1, x1, 0, z1),
+            1, 0, 0, v, BlockFace.east, b, proj, sky, config,
+            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+      }
+      if (ez > 0) {
+        _emitLodQuad(_fillLodQuad(x0, 0, z0, x0, yT, z0, x1, yT, z0, x1, 0, z0),
+            0, 0, -1, v, BlockFace.north, b, proj, sky, config,
+            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+      }
+      if (ez < 0) {
+        _emitLodQuad(_fillLodQuad(x0, 0, z1, x0, yT, z1, x1, yT, z1, x1, 0, z1),
+            0, 0, 1, v, BlockFace.south, b, proj, sky, config,
+            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+      }
+      return;
+    }
+
     final int g = cell.g;
     final int gp = g + 2;
     // #502fix：发射列宽必须与构建采样步长一致（原硬编码 2.0 → size>4 时非平坦
@@ -3054,11 +3091,12 @@ abstract final class VoxelRenderer {
       final double yT = cell.displayH[0];
       final double x0 = cx0, z0 = cz0;
       final double x1 = cx0 + size, z1 = cz0 + size;
+      // 顶面（column 带始终渲染顶 → 远处也有顶，修「更远处没有顶部」）。
       _emitLodQuad(_fillLodQuad(
         x0, yT, z0, x1, yT, z0, x1, yT, z1, x0, yT, z1,
       ), 0, 1, 0, cell.vGrid[0], BlockFace.top, b, proj, sky, config,
           fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
-      // 边界裙边（外环最高侧；邻更低才露）。
+      // 边界裙边（外环最高侧；邻更低才露 + 朝向相机才发）。
       double nTop = 0, sTop = 0, wTop = 0, eTop = 0;
       for (int i = 0; i < g; i++) {
         final double nt = cell.hPad[i + 1];
@@ -3070,29 +3108,29 @@ abstract final class VoxelRenderer {
         final double et = cell.hPad[(i + 1) * gp + g + 1];
         if (et > eTop) eTop = et;
       }
-      if (nTop < yT) {
+      if (nTop < yT && ez > 0) {
       _emitLodQuad(_fillLodQuad(
         x0, nTop, z0, x1, nTop, z0, x1, yT, z0, x0, yT, z0,
       ), 0, 0, -1, cell.majority, BlockFace.north, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (sTop < yT) {
+      if (sTop < yT && ez < 0) {
       _emitLodQuad(_fillLodQuad(
         x0, sTop, z1, x0, yT, z1, x1, yT, z1, x1, sTop, z1,
       ), 0, 0, 1, cell.majority, BlockFace.south, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (wTop < yT) {
+      if (wTop < yT && ex > 0) {
       _emitLodQuad(_fillLodQuad(
         x0, wTop, z0, x0, yT, z0, x0, yT, z1, x0, wTop, z1,
       ), -1, 0, 0, cell.majority, BlockFace.west, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
-      if (eTop < yT) {
+      if (eTop < yT && ex < 0) {
       _emitLodQuad(_fillLodQuad(
         x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
       ), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
-          fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       // P2：平坦地面上的内部竖直结构（如平地孤楼）→ 仍发内部崖面 + 峰顶盖。
       if (cell.reliefH != null) {
@@ -3131,45 +3169,46 @@ abstract final class VoxelRenderer {
         final double cx2 = cx0 + i1 * step;
         final double cz = cz0 + j * step;
         final double cz2 = cz + step;
+        // 顶面（column 带始终渲染顶）。
         _emitLodQuad(_fillLodQuad(
           cx, h, cz, cx2, h, cz, cx2, h, cz2, cx, h, cz2,
         ), 0, 1, 0, vTop, BlockFace.top, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
-        // 侧面：每列独立（暴露处才发，法线指向较低侧）。
+        // 侧面：每列独立（暴露处 + 朝向相机才发，法线指向较低侧）→ 最多 3 面朝玩家。
         for (int ci = i; ci < i1; ci++) {
           final int ck = j * g + ci;
           final Voxel vSide = cell.vSide[ck];
-          final double ccx = cx0 + ci * step;
-          final double ccx2 = ccx + step;
+          final double ccx2 = cx0 + ci * step;
+          final double ccx22 = ccx2 + step;
           // 西（邻列 i-1）
           final double hw = cell.hPad[(j + 1) * gp + ci];
-          if (hw < h) {
+          if (hw < h && ex > 0) {
             _emitLodQuad(_fillLodQuad(
-              ccx, hw, cz, ccx, h, cz, ccx, h, cz2, ccx, hw, cz2,
+              ccx2, hw, cz, ccx2, h, cz, ccx2, h, cz2, ccx2, hw, cz2,
             ), -1, 0, 0, vSide, BlockFace.west, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 东（邻列 i+1）
           final double he = cell.hPad[(j + 1) * gp + ci + 2];
-          if (he < h) {
+          if (he < h && ex < 0) {
             _emitLodQuad(_fillLodQuad(
-              ccx2, he, cz, ccx2, he, cz2, ccx2, h, cz2, ccx2, h, cz,
+              ccx22, he, cz, ccx22, he, cz2, ccx22, h, cz2, ccx22, h, cz,
             ), 1, 0, 0, vSide, BlockFace.east, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 北（邻行 j-1）
           final double hn = cell.hPad[j * gp + ci + 1];
-          if (hn < h) {
+          if (hn < h && ez > 0) {
             _emitLodQuad(_fillLodQuad(
-              ccx, hn, cz, ccx2, hn, cz, ccx2, h, cz, ccx, h, cz,
+              ccx2, hn, cz, ccx22, hn, cz, ccx22, h, cz, ccx2, h, cz,
             ), 0, 0, -1, vSide, BlockFace.north, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
           // 南（邻行 j+1）
           final double hs = cell.hPad[(j + 2) * gp + ci + 1];
-          if (hs < h) {
+          if (hs < h && ez < 0) {
             _emitLodQuad(_fillLodQuad(
-              ccx, hs, cz2, ccx, h, cz2, ccx2, h, cz2, ccx2, hs, cz2,
+              ccx2, hs, cz2, ccx2, h, cz2, ccx22, h, cz2, ccx22, hs, cz2,
             ), 0, 0, 1, vSide, BlockFace.south, b, proj, sky, config,
                 fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
           }
@@ -3419,14 +3458,23 @@ abstract final class VoxelRenderer {
 }
 
 /// P1·R26r18：单个 LOD 档（由相机距离推导 cell 尺寸 + 降级环）。
+/// R26lod·#506：LOD 风格分档（按绝对距离阈值切换，与 cell 尺寸无关）。
+/// · [column]：≤32 区块——有顶 + 相机朝向面剔除的立体柱（最多 3 面朝玩家），
+///   视觉等同「满精度」；含近处精细 cell（16/32）与稍远粗 cell。
+/// · [billboard]：>32 区块——只渲染朝向玩家的 2 面全高墙、不渲染顶部（省面，
+///   远处只留剪影）。64 区块为终点（lodMaxChunks）。
+enum _LodMode { column, billboard }
+
 class _LodTier {
-  const _LodTier(this.cell, this.ring0, this.ring1);
+  const _LodTier(this.cell, this.ring0, this.ring1, this.mode);
   /// 该档单元格边长（格）。
   final double cell;
   /// 该档内环半径（格，>= 此距离才用本档）。
   final double ring0;
   /// 该档外环半径（格，< 此距离仍用本档，>= 升档）。
   final double ring1;
+  /// 该档渲染风格（#506：column 立体柱 / billboard 双面板）。
+  final _LodMode mode;
 }
 
 /// R26lod：按 RenderConfig 参数生成 LOD 档位表（用户体系：起始区块 → 步长格 →
@@ -3439,19 +3487,26 @@ class _LodTier {
 /// lodEnabled=false → 空表（_emitLodPass 直接跳过，无远景 LOD）。
 List<_LodTier> _lodTiers(RenderConfig config) {
   if (!config.lodMasterEnabled) return const <_LodTier>[];
-  final double start = config.lodStartChunks * RenderConfig.chunkSize.toDouble();
+  // #506：起点 = 满精度带(kFullBand≈2 区块)无缝接续处；终点 = lodMaxChunks×16。
+  // 32 区块(512 格) 为 column→billboard 风格分界（对齐用户 16/32/64 三档语义：
+  // lodStart~32 区块=立体柱，32~64 区块=双面板，64 区块终点）。
+  final double start = math.max(1.0, config.lodStartChunks * RenderConfig.chunkSize.toDouble());
   final double maxLod = config.lodMaxChunks * RenderConfig.chunkSize.toDouble();
-  final int step = config.lodStepBlocks <= 0 ? 16 : config.lodStepBlocks;
-  double ring0 = math.max(1.0, start);
-  double cell = math.max(2, config.lodSampleBase).toDouble();
+  final double bandSplit = 32 * RenderConfig.chunkSize.toDouble(); // 512：立体柱→billboard
+  // 环步长 = 该档 cell（无缝平铺，无重叠/空洞）；cell 随档温和翻倍、封顶 64
+  // （远档已是 billboard 平面，不必更大；同时避免 (2·effMax/cell)² 随档数爆炸）。
+  double ringStep = math.max(8.0, config.lodStepBlocks.toDouble());
+  double ring0 = start;
   final List<_LodTier> tiers = <_LodTier>[];
   int guard = 0;
-  while (ring0 < maxLod && guard++ < 12) {
-    double ring1 = ring0 + step;
+  while (ring0 < maxLod && guard++ < 20) {
+    double ring1 = ring0 + ringStep;
     if (ring1 > maxLod) ring1 = maxLod;
-    tiers.add(_LodTier(cell, ring0, ring1));
-    cell *= 2;
+    // 风格按「外环是否越过 512」判定：≤32 区块=立体柱，>32 区块=双面板。
+    final _LodMode mode = ring1 <= bandSplit ? _LodMode.column : _LodMode.billboard;
+    tiers.add(_LodTier(ringStep, ring0, ring1, mode));
     ring0 = ring1;
+    ringStep = math.min(ringStep * 2, 64.0); // 翻倍，封顶 64
   }
   if (tiers.isEmpty) return const <_LodTier>[];
   return tiers;
