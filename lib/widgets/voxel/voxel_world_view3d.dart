@@ -597,6 +597,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   Timer? _saveTimer;
   DateTime? _lastSavedAt;
 
+  /// 开放世界 P2：编辑层分块流式——玩家当前 chunk（去抖）与上一次已触发的 chunk。
+  (int, int)? _lastStreamChunk;
+  Timer? _streamTimer;
+
   /// R27：返回键退出闸门——true 时允许 PopScope 真正 pop（仅 [_saveAndExit] 时临时置 true）。
   bool _allowPop = false;
   /// R27：上次按返回键的时间（用于「连按两次 = 保存退出」判定）。
@@ -718,6 +722,24 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     });
 
     _ticker = createTicker(_onTick)..start();
+
+    // 开放世界 P2：启用编辑层分块流式（按玩家 chunk 半径加载/卸载，释放远处 RAM）。
+    if (!widget.readOnly) {
+      unawaited(
+        voxelChunkBaseDir().then(
+          (Directory d) => widget.world.initChunkStore(d, widget.world.seed),
+        ),
+      );
+      _streamTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
+        if (!mounted || widget.readOnly) return;
+        final Vec3 p = _playerPos;
+        final int pcx = p.x ~/ VoxelWorld.kChunkSize;
+        final int pcz = p.z ~/ VoxelWorld.kChunkSize;
+        if (_lastStreamChunk == (pcx, pcz)) return;
+        _lastStreamChunk = (pcx, pcz);
+        unawaited(widget.world.streamAround(pcx, pcz));
+      });
+    }
 
     // R24c：异步构建纹理图集（含可选的玩家皮肤，#169）。皮肤缺失/解码失败
     // 安全回退为无皮肤图集，实体走纯色。
@@ -969,6 +991,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _streamTimer?.cancel();
+    _streamTimer = null;
     _saveNameCtrl.dispose();
     unawaited(writeVoxelSave(_buildSaveData())); // 退出前最后落盘（不触发 setState）
     _audio?.dispose();

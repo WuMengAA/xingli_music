@@ -257,6 +257,9 @@ class VoxelManualSaveMeta {
 
 Future<Directory> _voxelDir() async => _appDataDir();
 
+/// 开放世界 P2：编辑层分块存储基址（应用支持目录）。store 内部自建 voxel_chunks/。
+Future<Directory> voxelChunkBaseDir() async => _appDataDir();
+
 Future<String> _manualPath(String id) async {
   final Directory d = await _voxelDir();
   return '${d.path}${Platform.pathSeparator}$_kManualPrefix$id$_kManualSuffix';

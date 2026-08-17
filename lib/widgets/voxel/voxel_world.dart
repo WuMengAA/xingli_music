@@ -11,6 +11,9 @@
 /// 纯数据模型 + 确定性生成，不依赖 Flutter 渲染，可在任意 Isolate / 测试使用。
 library;
 
+import 'dart:async';
+import 'dart:convert' show jsonDecode, jsonEncode;
+import 'dart:io' show Directory, File, FileSystemEntity, Platform;
 import 'dart:math' as math;
 import 'dart:typed_data' show Int32List;
 
@@ -105,6 +108,17 @@ class VoxelWorld {
   /// 支撑 P2 流式加载 / P4 分块存档（每 chunk 独立读写）。
   final Map<(int, int), Map<int, Voxel>> _edits =
       <(int, int), Map<int, Voxel>>{};
+
+  /// 开放世界 P2：编辑层分块存储（null = 流式关闭，沿用旧行为）。
+  /// 由应用层世界创建后调用 [initChunkStore] 启用；单测/非应用上下文保持 null
+  /// （[VoxelWorld] 不强制依赖 dart:io，仍可在 Isolate / 测试使用）。
+  ChunkEditStore? _chunkStore;
+
+  /// 流式加载半径（chunk 数）：玩家周围此范围内编辑层常驻 RAM。
+  static const int streamRadius = 8;
+  /// 卸载缓冲：超出 [streamRadius] + [streamMargin] 的 chunk 才卸载到磁盘，
+  /// 避免玩家在半径边界来回走动时频繁加载/卸载（抖动）。
+  static const int streamMargin = 3;
 
   /// 大陆外列生成缓存：key = x*65521 + z，值为整列方块。
   /// 上限 [maxGenColumns] 列，超出删一半（R23o 不再整体清空）。
@@ -962,7 +976,7 @@ class VoxelWorld {
       'sizeX': sizeX,
       'sizeZ': sizeZ,
       'waterLevel': waterLevel,
-      'edits': _serializeEdits(),
+      'edits': _serializeEditsFull(),
       'lights': _serializeLights(),
       'options': options.toJson(),
     };
@@ -1066,6 +1080,7 @@ class VoxelWorld {
   /// 调用方应先校验 [seed] 一致（地形不同则编辑坐标无意义），不一致时跳过。
   void loadJson(Map<String, dynamic> json) {
     _edits.clear();
+    _chunkStore?.clearAllSync(); // 同步清旧世界磁盘缓存，避免陈旧 chunk 复活（杜绝竞态）
     final int schema = (json['schema'] as int?) ?? 1;
     for (final dynamic e in (json['edits'] as List<dynamic>? ?? <dynamic>[])) {
       final List<dynamic> a = e as List<dynamic>;
@@ -1099,6 +1114,72 @@ class VoxelWorld {
         _lights[(x, y, z)] = Voxel.values[vi];
       }
     }
+  }
+
+  /// 开放世界 P2：启用编辑层分块流式。
+  ///
+  /// [baseDir] 为应用支持目录（_appDataDir / voxelChunkBaseDir）；内部建
+  /// `voxel_chunks/` 子目录存放每 chunk 一个文件。重复调用安全（已初始化则跳过）。
+  Future<void> initChunkStore(Directory baseDir, int seed) async {
+    if (_chunkStore != null) return;
+    final Directory d = Directory('${baseDir.path}/voxel_chunks');
+    await d.create(recursive: true);
+    _chunkStore = ChunkEditStore(d, seed);
+  }
+
+  /// 开放世界 P2：按玩家当前 chunk 流式加载/卸载编辑层。
+  ///
+  /// - 半径内 [streamRadius] 的 chunk：若 RAM 缺失则从磁盘读入（与
+  ///   [mergeEditLayer] 单 chunk 解码同款）；地形由 seed 确定性复现，无编辑的
+  ///   chunk 自然留空（不建空文件）。
+  /// - 半径 + [streamMargin] 外的 chunk：写回磁盘后从 RAM 删除，释放内存。
+  ///
+  /// 单玩家场景专用。联机时远端 chunk 可能不在本机玩家半径内，宿主端若需对外
+  /// 广播编辑层仍读 RAM（已知边界，详见 P2 设计说明）。
+  Future<void> streamAround(int pcx, int pcz) async {
+    final ChunkEditStore? store = _chunkStore;
+    if (store == null) return;
+    // 1) 加载附近缺失 chunk
+    for (int cx = pcx - streamRadius; cx <= pcx + streamRadius; cx++) {
+      for (int cz = pcz - streamRadius; cz <= pcz + streamRadius; cz++) {
+        if (_edits.containsKey((cx, cz))) continue;
+        final Map<int, Voxel>? c = store.readChunkSync(cx, cz);
+        if (c == null || c.isEmpty) continue;
+        _edits[(cx, cz)] = c;
+      }
+    }
+    // 2) 卸载远处 chunk（先收集待删 key，遍历中不改 Map）
+    final int limit = streamRadius + streamMargin;
+    final List<(int, int)> toUnload = <(int, int)>[];
+    for (final (int cx, int cz) in _edits.keys) {
+      if ((cx - pcx).abs() > limit || (cz - pcz).abs() > limit) {
+        toUnload.add((cx, cz));
+      }
+    }
+    for (final (int cx, int cz) in toUnload) {
+      final Map<int, Voxel>? chunk = _edits[(cx, cz)];
+      if (chunk != null) await store.writeChunk(cx, cz, chunk);
+      _edits.remove((cx, cz));
+    }
+  }
+
+  /// 全量存档用：RAM 编辑层 + 磁盘上已卸载的 chunk，保证整世界不丢。
+  /// 联网快照 [editLayerJson]/[editLayerJsonNear] 仍用 [_serializeEdits]（仅 RAM），
+  /// 避免把整世界发给加入的客户端。
+  List<List<int>> _serializeEditsFull() {
+    final List<List<int>> edits = _serializeEdits();
+    final ChunkEditStore? store = _chunkStore;
+    if (store == null) return edits;
+    for (final (int cx, int cz) in store.listChunksSync()) {
+      if (_edits.containsKey((cx, cz))) continue; // RAM 为最新，跳过磁盘
+      final Map<int, Voxel>? c = store.readChunkSync(cx, cz);
+      if (c == null) continue;
+      for (final MapEntry<int, Voxel> e in c.entries) {
+        final (int lx, int ly, int lz) = _unpackLocal(e.key);
+        edits.add(<int>[cx, cz, lx, ly, lz, Voxel.values.indexOf(e.value)]);
+      }
+    }
+    return edits;
   }
 
   // ── R26f：Isolate 地形预热 ──────────────────────────────
@@ -1163,5 +1244,120 @@ class VoxelWorld {
       _heightCache[x * 65521 + z] = h;
       _treeCache[x * 65521 + z] = (top > h, top);
     }
+  }
+}
+
+/// 开放世界 P2：编辑层分块持久化存储。
+///
+/// 每个 chunk 一个文件：`{dir}/{seed}.{cx}.{cz}.json`，内容为
+/// `[[cx,cz,lx,ly,lz,vi], ...]`（与 [VoxelWorld._serializeEdits] 同格式，
+/// 复用其解码逻辑）。文件名含 seed 以隔离不同世界。
+/// 仅负责磁盘读写，不持有编辑语义；[VoxelWorld] 负责 RAM↔磁盘的加载/卸载调度。
+class ChunkEditStore {
+  ChunkEditStore(this.dir, this.seed);
+
+  final Directory dir;
+  final int seed;
+
+  File _file(int cx, int cz) => File('${dir.path}/$seed.$cx.$cz.json');
+
+  /// 写入一个 chunk 的编辑（localEdits = chunk 内 _localKey → Voxel）。
+  /// 空 chunk 不写文件（改为删除已有文件）。失败静默（RAM 仍保留编辑）。
+  Future<void> writeChunk(int cx, int cz, Map<int, Voxel> localEdits) async {
+    try {
+      final File f = _file(cx, cz);
+      if (localEdits.isEmpty) {
+        if (await f.exists()) await f.delete();
+        return;
+      }
+      final List<List<int>> arr = <List<int>>[
+        for (final MapEntry<int, Voxel> e in localEdits.entries)
+          () {
+            final (int lx, int ly, int lz) = VoxelWorld._unpackLocal(e.key);
+            return <int>[cx, cz, lx, ly, lz, Voxel.values.indexOf(e.value)];
+          }(),
+      ];
+      await f.writeAsString(jsonEncode(arr));
+    } catch (_) {
+      // 磁盘不可写：放弃本次落盘
+    }
+  }
+
+  /// 同步读（全量存档用）。无文件返回 null。
+  Map<int, Voxel>? readChunkSync(int cx, int cz) {
+    try {
+      final File f = _file(cx, cz);
+      if (!f.existsSync()) return null;
+      final List<dynamic> arr =
+          jsonDecode(f.readAsStringSync()) as List<dynamic>;
+      final Map<int, Voxel> m = <int, Voxel>{};
+      for (final dynamic e in arr) {
+        final List<dynamic> a = e as List<dynamic>;
+        if (a.length >= 6) {
+          final int vi = a[5] as int;
+          if (vi >= 0 && vi < Voxel.values.length) {
+            m[VoxelWorld._localKey(a[2] as int, a[3] as int, a[4] as int)] =
+                Voxel.values[vi];
+          }
+        }
+      }
+      return m;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 同步列出磁盘上所有 chunk 坐标（全量存档用）。
+  List<(int, int)> listChunksSync() {
+    try {
+      final List<(int, int)> out = <(int, int)>[];
+      if (!dir.existsSync()) return out;
+      final String pfx = '$seed.';
+      for (final FileSystemEntity e in dir.listSync()) {
+        if (e is! File) continue;
+        final String n = e.path.split(Platform.pathSeparator).last;
+        if (!n.startsWith(pfx) || !n.endsWith('.json')) continue;
+        final String body = n.substring(pfx.length, n.length - 5);
+        final List<String> parts = body.split('.');
+        if (parts.length == 2) {
+          out.add((int.parse(parts[0]), int.parse(parts[1])));
+        }
+      }
+      return out;
+    } catch (_) {
+      return const <(int, int)>[];
+    }
+  }
+
+  /// 清空本 seed 的所有 chunk 文件（loadJson 全量载入新世界前调用，避免陈旧缓存复活）。
+  Future<void> clearAll() async {
+    try {
+      if (!dir.existsSync()) return;
+      final String pfx = '$seed.';
+      await for (final FileSystemEntity e in dir.list()) {
+        final String n = e.path.split(Platform.pathSeparator).last;
+        if (e is File && n.startsWith(pfx) && n.endsWith('.json')) {
+          try {
+            await e.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// 同步清空（loadJson 调用，避免异步 [clearAll] 与首次流式加载的竞态）。
+  void clearAllSync() {
+    try {
+      if (!dir.existsSync()) return;
+      final String pfx = '$seed.';
+      for (final FileSystemEntity e in dir.listSync()) {
+        final String n = e.path.split(Platform.pathSeparator).last;
+        if (e is File && n.startsWith(pfx) && n.endsWith('.json')) {
+          try {
+            e.deleteSync();
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
   }
 }
