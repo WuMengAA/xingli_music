@@ -326,7 +326,7 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 1;
+  static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -391,6 +391,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.17',
+    cl: 'alpha_cl02',
+    title: 'P2·LOD 保留垂直结构：悬空岛/建筑/洞穴口在远景不消失',
+    details: <String>[
+      'LOD 单元增 4×4 内部细采样（_probeRelief），捕获 2×2 主采样漏掉的内部竖直结构',
+      '发射内部崖面（相邻采样高差 > 1 处发竖直面，法线指较低侧，背面剔除天然处理）',
+      '峰顶样点发小顶盖，远处塔/悬空岛呈闭合实体而非开口柱',
+      '仅存在内部起伏时存 relief（null 省内存）；探测/发射均为相机无关 one-time 缓存复用',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.17',
     cl: 'alpha_cl01',

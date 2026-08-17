@@ -2758,6 +2758,8 @@ abstract final class VoxelRenderer {
         break;
       }
     }
+    // P2：内部细采样捕获 2×2 漏掉的内部竖直结构（仅在存在内部崖面时存储，省内存）。
+    final (Float32List, List<Voxel>)? relief = _probeRelief(world, cx0, cz0, size);
     return _LodCell(
       g: g,
       topY: topY,
@@ -2767,7 +2769,49 @@ abstract final class VoxelRenderer {
       vSide: vSide,
       hPad: hPad,
       flat: flat,
+      reliefH: relief?.$1,
+      reliefV: relief?.$2,
     );
+  }
+
+  /// P2·保留垂直结构：4×4 内部细采样，捕获 2×2 主采样漏掉的内部竖直结构
+  /// （小建筑 / 悬空岛支撑 / 洞穴口 / 高墙）。仅当存在「内部崖面」
+  /// （相邻内部采样高差 > 1）时返回非 null（否则返回 null，省缓存内存）。
+  /// 单元最外圈（与邻单元边界）由主侧裙边负责，这里只探测内部 2×2 区域。
+  static (Float32List, List<Voxel>)? _probeRelief(
+    VoxelWorld world,
+    double cx0,
+    double cz0,
+    double size,
+  ) {
+    const int rg = 4;
+    final double rstep = size / rg;
+    final Float32List h = Float32List(rg * rg);
+    final List<Voxel> v = List<Voxel>.filled(rg * rg, Voxel.stone);
+    for (int rj = 0; rj < rg; rj++) {
+      for (int ri = 0; ri < rg; ri++) {
+        final double rx = cx0 + (ri + 0.5) * rstep;
+        final double rz = cz0 + (rj + 0.5) * rstep;
+        final double rt = _topNonAirAt(world, rx, rz);
+        final int rk = rj * rg + ri;
+        h[rk] = rt;
+        if (rt > 0) {
+          final int xi = rx.floor();
+          final int zi = rz.floor();
+          final int yiTop = (rt - 1).floor().clamp(0, world.maxY - 1);
+          v[rk] = world.get(xi, yiTop, zi);
+        }
+      }
+    }
+    // 内部崖面判定（全部内部东/南边，排除单元最外圈边界——后者由主侧裙边负责）。
+    for (int rj = 0; rj < rg; rj++) {
+      for (int ri = 0; ri < rg; ri++) {
+        final double hc = h[rj * rg + ri];
+        if (ri < rg - 1 && (hc - h[rj * rg + ri + 1]).abs() > 1) return (h, v);
+        if (rj < rg - 1 && (hc - h[(rj + 1) * rg + ri]).abs() > 1) return (h, v);
+      }
+    }
+    return null;
   }
 
   /// #499：地平线 Impostor——最外档（cell≥32）不再塌成单色大块。
@@ -2823,6 +2867,8 @@ abstract final class VoxelRenderer {
         break;
       }
     }
+    // P2：同 _buildLodCell，最外档也捕获内部竖直结构。
+    final (Float32List, List<Voxel>)? relief = _probeRelief(world, cx0, cz0, size);
     return _LodCell(
       g: g,
       topY: topY,
@@ -2832,6 +2878,8 @@ abstract final class VoxelRenderer {
       vSide: vSide,
       hPad: hPad,
       flat: flat,
+      reliefH: relief?.$1,
+      reliefV: relief?.$2,
     );
   }
 
@@ -3040,6 +3088,11 @@ abstract final class VoxelRenderer {
       _emitLodQuad(_fillLodQuad(
         x1, eTop, z0, x1, eTop, z1, x1, yT, z1, x1, yT, z0,
       ), 1, 0, 0, cell.majority, BlockFace.east, b, proj, sky, config,
+          fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+      }
+      // P2：平坦地面上的内部竖直结构（如平地孤楼）→ 仍发内部崖面 + 峰顶盖。
+      if (cell.reliefH != null) {
+        _emitLodRelief(cell, cx0, cz0, size, b, proj, sky, config,
             fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
       }
       return;
@@ -3118,6 +3171,104 @@ abstract final class VoxelRenderer {
           }
         }
         i = i1;
+      }
+    }
+    // P2：逐列路径后再补内部竖直结构（2×2 主采样漏掉的小建筑/悬空岛支撑等）。
+    if (cell.reliefH != null) {
+      _emitLodRelief(cell, cx0, cz0, size, b, proj, sky, config,
+          fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+    }
+  }
+
+  /// P2·保留垂直结构：发射 [_LodCell.reliefH] 4×4 内部细采样捕获的竖直结构。
+  /// 对每条内部崖面（相邻内部采样高差 > 1）发一段竖直面（法线指向较低侧，
+  /// 背面剔除天然处理；与全精度侧裙边同语义），并对峰顶样点发小顶盖
+  /// （让远处悬空岛/塔在 LOD 带呈闭合实体而非开口柱）。仅处理内部边
+  /// （ri,rj ∈ 0..rg-1 的东/南边，排除单元最外圈边界——由主侧裙边负责）。
+  static void _emitLodRelief(
+    _LodCell cell,
+    double cx0,
+    double cz0,
+    double size,
+    ViewBasis b,
+    ProjectionParams proj,
+    SkyPalette sky,
+    RenderConfig config,
+    double fogStart,
+    double fogSpan,
+    double far,
+    double sunWeight,
+    double sunX,
+    double sunY,
+    double sunZ,
+    List<PointLight> lights,
+    void Function(Float32List, Float32List?, int, int, bool, [double]) pushFace,
+  ) {
+    final Float32List h = cell.reliefH!;
+    final List<Voxel> v = cell.reliefV!;
+    const int rg = 4;
+    final double rs = size / rg;
+    for (int rj = 0; rj < rg; rj++) {
+      for (int ri = 0; ri < rg; ri++) {
+        final int k = rj * rg + ri;
+        final double hc = h[k];
+        if (hc <= 0.001) continue;
+        // 东边（与 ri+1 邻；ri==rg-1 为单元边界，交主侧裙边，跳过）。
+        if (ri < rg - 1) {
+          final double he = h[k + 1];
+          if ((hc - he).abs() > 1) {
+            final double yLo = math.min(hc, he), yHi = math.max(hc, he);
+            final double xB = cx0 + (ri + 1) * rs;
+            final double zA = cz0 + rj * rs, zB = cz0 + (rj + 1) * rs;
+            if (he < hc) {
+              // 本样更高 → 东侧面朝 +x（同 _emitLodCell 东裙边绕序）。
+              _emitLodQuad(_fillLodQuad(
+                xB, yLo, zA, xB, yLo, zB, xB, yHi, zB, xB, yHi, zA,
+              ), 1, 0, 0, v[k], BlockFace.east, b, proj, sky, config,
+                  fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+            } else {
+              // 东邻更高 → 其西侧面朝 -x（同西裙边绕序）。
+              _emitLodQuad(_fillLodQuad(
+                xB, yLo, zA, xB, yHi, zA, xB, yHi, zB, xB, yLo, zB,
+              ), -1, 0, 0, v[k + 1], BlockFace.west, b, proj, sky, config,
+                  fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+            }
+          }
+        }
+        // 南边（与 rj+1 邻；rj==rg-1 为单元边界，跳过）。
+        if (rj < rg - 1) {
+          final double hs = h[k + rg];
+          if ((hc - hs).abs() > 1) {
+            final double yLo = math.min(hc, hs), yHi = math.max(hc, hs);
+            final double zB = cz0 + (rj + 1) * rs;
+            final double xA = cx0 + ri * rs, xB = cx0 + (ri + 1) * rs;
+            if (hs < hc) {
+              // 本样更高 → 南侧面朝 +z（同南裙边绕序）。
+              _emitLodQuad(_fillLodQuad(
+                xA, yLo, zB, xA, yHi, zB, xB, yHi, zB, xB, yLo, zB,
+              ), 0, 0, 1, v[k], BlockFace.south, b, proj, sky, config,
+                  fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+            } else {
+              // 南邻更高 → 其北侧面朝 -z（同北裙边绕序）。
+              _emitLodQuad(_fillLodQuad(
+                xA, yLo, zB, xB, yLo, zB, xB, yHi, zB, xA, yHi, zB,
+              ), 0, 0, -1, v[k + rg], BlockFace.north, b, proj, sky, config,
+                  fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+            }
+          }
+        }
+        // 峰顶盖（高于四邻 > 1）→ 远处结构呈闭合实体（非开口柱）。
+        if (ri > 0 && ri < rg - 1 && rj > 0 && rj < rg - 1) {
+          final double hw = h[k - 1], hn = h[k - rg], hs2 = h[k + rg], he2 = h[k + 1];
+          if (hc > hw + 1 && hc > hn + 1 && hc > hs2 + 1 && hc > he2 + 1) {
+            final double xA = cx0 + ri * rs, xB = cx0 + (ri + 1) * rs;
+            final double zA = cz0 + rj * rs, zB = cz0 + (rj + 1) * rs;
+            _emitLodQuad(_fillLodQuad(
+              xA, hc, zA, xB, hc, zA, xB, hc, zB, xA, hc, zB,
+            ), 0, 1, 0, v[k], BlockFace.top, b, proj, sky, config,
+                fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights, pushFace);
+          }
+        }
       }
     }
   }
@@ -3347,6 +3498,8 @@ class _LodCell {
     required this.vSide,
     required this.hPad,
     required this.flat,
+    this.reliefH,
+    this.reliefV,
   }) : displayH = Float32List.fromList(hGrid);
 
   /// 每轴列数（g = size/2；总列数 g*g）。
@@ -3372,6 +3525,14 @@ class _LodCell {
 
   /// 平坦（全部列等高且同色）→ 快路径：单顶面 + 4 边界裙边（平原零开销）。
   final bool flat;
+
+  /// P2·保留垂直结构：4×4 内部细采样高度场（null = 无内部起伏，省内存）。
+  /// 捕获 2×2 主采样漏掉的内部竖直结构（小建筑 / 悬空岛支撑 / 洞穴口 / 高墙），
+  /// 发射内部崖面 + 峰顶盖（见 [_emitLodRelief]）。
+  final Float32List? reliefH;
+
+  /// P2：内部采样点顶部方块（内部崖面上色）。
+  final List<Voxel>? reliefV;
 
   /// P5 geomorph：每列当前显示顶高（每帧朝 [hGrid] lerp，消除档切换 snap；非 final）。
   final Float32List displayH;
