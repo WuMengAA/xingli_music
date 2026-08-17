@@ -142,6 +142,31 @@ void main() {
     });
   });
 
+  group('放置：工具决定冷却 / 权限 (#509)', () {
+    test('徒手沿用 #508 的 200ms 基线，好工具更快', () {
+      expect(placeCooldownMs(ToolKind.hand), 200);
+      expect(placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.wood)), 160);
+      expect(placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.stone)), 130);
+      expect(placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.iron)), 100);
+      expect(placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.diamond)), 70);
+    });
+
+    test('工具越好放置冷却越短（等级单调）', () {
+      final int wood = placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.wood));
+      final int iron = placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.iron));
+      final int dia = placeCooldownMs(const ToolKind(ToolCategory.pickaxe, ToolTier.diamond));
+      expect(iron, lessThan(wood));
+      expect(dia, lessThan(iron));
+    });
+
+    test('放置权限闸当前默认放行（统一入口）', () {
+      expect(canPlace(Voxel.stone, ToolKind.hand), isTrue);
+      expect(
+          canPlace(Voxel.diamond, const ToolKind(ToolCategory.pickaxe, ToolTier.wood)),
+          isTrue);
+    });
+  });
+
   group('Crafting', () {
     Map<Voxel, int> bag(Map<Voxel, int> m) => m;
 

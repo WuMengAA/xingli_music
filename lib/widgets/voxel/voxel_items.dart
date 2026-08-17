@@ -284,6 +284,35 @@ double breakSeconds(Voxel v, ToolKind tool) {
 bool canHarvest(Voxel v, ToolKind tool) =>
     tool.tier.level >= harvestLevelOf(v);
 
+/// ════════════════════════════════════════════════════════════════════════
+/// 放置（由工具决定速度 / 权限）——#509 装备 / 工具系统（R26fx · GDD §5.1）
+/// ════════════════════════════════════════════════════════════════════════
+
+/// 放置冷却（毫秒）：工具越好放得越快；徒手沿用 #508 的 200ms 基线。
+///
+/// 与破坏 [breakSeconds] 对称：破坏吃「硬度 × 工具倍率」，放置吃「工具冷却」。
+/// 这样手持工具不仅在挖矿上加速，放置也会更快——工具在两类操作都生效。
+int placeCooldownMs(ToolKind tool) {
+  if (tool.category == ToolCategory.none) return 200; // 徒手基线（保留 #508）
+  return switch (tool.tier) {
+    ToolTier.wood => 160,
+    ToolTier.stone => 130,
+    ToolTier.iron => 100,
+    ToolTier.diamond => 70,
+    _ => 200,
+  };
+}
+
+/// 是否允许放置该方块（工具权限闸）。
+///
+/// 当前创造 / 生存均不限制（MC 式：任何方块徒手可放），故默认放行。
+/// 预留工具权限：未来技术类方块可要求最低工具等级（参照 [canHarvest] 的
+/// [harvestLevelOf] 思路），例如「红石类需铁镐以上」——此处为统一入口。
+bool canPlace(Voxel v, ToolKind tool) {
+  // TODO(#509): 未来在此按 v 的「放置等级」与 tool.tier.level 比较做闸。
+  return true;
+}
+
 /// 破坏后的掉落（不考虑工具等级；等级由 [canHarvest] 单独判定）。
 ///
 /// 空表示什么都不掉（如树叶大概率空、水不可破坏）。

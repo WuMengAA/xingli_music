@@ -841,3 +841,50 @@ class VoxelVitalsHud extends StatelessWidget {
     );
   }
 }
+
+/// 手持工具读数（#509 装备 / 工具系统可见化）：名称 + 攻击 + 放置速度。
+///
+/// 让「装备 / 工具」在 HUD 上可被看见——手持工具越好，攻击越高、放置越快。
+class VoxelToolHud extends StatelessWidget {
+  const VoxelToolHud({super.key, required this.inventory});
+
+  final VoxelInventory inventory;
+
+  @override
+  Widget build(BuildContext context) {
+    final ToolKind tool = inventory.tool;
+    final int dmg = weaponDamage(tool);
+    final int placeMs = placeCooldownMs(tool);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0x66000000),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.build_rounded, size: 14, color: Colors.white70),
+          const SizedBox(width: 6),
+          Text(
+            tool.label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              shadows: <Shadow>[
+                Shadow(blurRadius: 3, color: Color(0xCC000000)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text('攻击 $dmg',
+              style: const TextStyle(color: Color(0xFFFF9D9D), fontSize: 11)),
+          const SizedBox(width: 10),
+          Text('放置 ${(placeMs / 1000).toStringAsFixed(2)}s',
+              style: const TextStyle(color: Color(0xFF9DD6FF), fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}

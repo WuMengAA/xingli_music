@@ -561,11 +561,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   DateTime? _lastBreakAt;
 
   // R26r8：编辑限频——放置同样需要冷却，避免「速度没限制」地无限刷方块。
-  // 破坏在创造模式已有 0.5s 冷却（_lastBreakAt）；此处补放置冷却（更短，因为
-  // 放置是主要搭建动作，过快误刷、过慢卡手感）。纯常量，待 #509 装备/工具系统
-  // 接入后可按手持工具改写（如镐更快、徒手更慢）。
+  // #509：放置冷却由手持工具决定（[placeCooldownMs]）；此处仅记录上次放置时刻。
+  // 实际冷却值取自 voxel_items.placeCooldownMs（徒手 200ms、好工具更快）。
   DateTime? _lastPlaceAt;
-  static const int _kPlaceCooldownMs = 200;
 
   // R26r7：自适应分辨率——望向脚下/天上等面数陡增场景自动降渲染倍率保帧。
   double _dynScale = 1.0;
@@ -3162,11 +3160,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 旧实现用独立 _mcSelected，与背包不同步）。
     final Voxel toPlace = held.item;
     if (toPlace == Voxel.air) return;
-    // R26r8：放置冷却（限频）——与破坏冷却同思路，避免「无限速刷方块」。
+    // #509：放置权限闸（工具决定能否放；当前默认放行，统一入口）。
+    if (!canPlace(toPlace, _inv.tool)) return;
+    // R26r8 + #509：放置冷却（限频）由手持工具决定——徒手 200ms、好工具更快。
     // 仅对「真正会落子」的放置计时；空手/点空气/被占格/身体重叠不消耗冷却。
     final DateTime now = DateTime.now();
     if (_lastPlaceAt != null &&
-        now.difference(_lastPlaceAt!).inMilliseconds < _kPlaceCooldownMs) {
+        now.difference(_lastPlaceAt!).inMilliseconds <
+            placeCooldownMs(_inv.tool)) {
       return;
     }
     widget.world.setVoxel(px, py, pz, toPlace);
@@ -4559,6 +4560,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                   padding: const EdgeInsets.only(bottom: 6),
                   child: VoxelVitalsHud(vitals: _vitals),
                 ),
+              VoxelToolHud(inventory: _inv),
+              const SizedBox(height: 6),
               Center(
                 child: VoxelHotbar(
                   inventory: _inv,
