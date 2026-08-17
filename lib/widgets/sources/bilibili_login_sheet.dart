@@ -46,12 +46,16 @@ class _BilibiliLoginSheet extends ConsumerStatefulWidget {
 
 class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
   _Tab _tab = _Tab.web;
-  final TextEditingController _cookieCtrl = TextEditingController();
+  // 与网易云对齐（2026-08-17）：Cookie 分开填——SESSDATA 与 bili_jct 两个
+  // 输入框，自动拼头；整段粘贴亦兼容。
+  final TextEditingController _sessdataCtrl = TextEditingController();
+  final TextEditingController _biliJctCtrl = TextEditingController();
   String _status = '';
 
   @override
   void dispose() {
-    _cookieCtrl.dispose();
+    _sessdataCtrl.dispose();
+    _biliJctCtrl.dispose();
     super.dispose();
   }
 
@@ -103,9 +107,19 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
   }
 
   Future<void> _loginCookie() async {
-    final String raw = _cookieCtrl.text.trim();
+    // 与网易云对齐：SESSDATA / bili_jct 分开填，自动拼成标准 Cookie 头；
+    // 若用户仍用整段粘贴则原样兼容（字段含 '=' 即视为整段）。
+    String raw = _sessdataCtrl.text.trim();
+    if (raw.isNotEmpty && !raw.contains('=')) {
+      raw = 'SESSDATA=$raw';
+    }
+    final String jct = _biliJctCtrl.text.trim();
+    if (jct.isNotEmpty) {
+      final String jctPart = jct.contains('=') ? jct : 'bili_jct=$jct';
+      raw = raw.isEmpty ? jctPart : '$raw; $jctPart';
+    }
     if (raw.isEmpty) {
-      setState(() => _status = '请粘贴 SESSDATA=..; bili_jct=..; DedeUserID=.. 整段 Cookie');
+      setState(() => _status = '请填写 SESSDATA（必填），或整段粘贴 Cookie');
       return;
     }
     final bool ok =
@@ -175,13 +189,29 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
                   ],
                 ),
                 const SizedBox(height: AppSpace.md),
-
-                if (_tab == _Tab.web)
-                  _WebLoginPanel(
-                      busy: auth.busy, status: _status, onLogin: _webLogin)
-                else
-                  _CookiePanel(
-                      controller: _cookieCtrl, onLogin: _loginCookie),
+                AnimatedSwitcher(
+                  duration: AppMotion.tab,
+                  child: _tab == _Tab.web
+                      ? _WebLoginPanel(
+                          busy: auth.busy,
+                          status: _status,
+                          onLogin: _webLogin,
+                        )
+                      : _CookiePanel(
+                          sessdataCtrl: _sessdataCtrl,
+                          biliJctCtrl: _biliJctCtrl,
+                          busy: auth.busy,
+                          onLogin: _loginCookie,
+                        ),
+                ),
+                if (auth.error != null) ...<Widget>[
+                  const SizedBox(height: AppSpace.sm),
+                  Text(
+                    auth.error!,
+                    style: context.appText.artist
+                        .copyWith(color: context.appColors.danger),
+                  ),
+                ],
                 if (_status.isNotEmpty) ...<Widget>[
                   const SizedBox(height: AppSpace.sm),
                   Text(_status, style: context.appText.artist),
@@ -245,32 +275,82 @@ class _WebLoginPanel extends StatelessWidget {
   }
 }
 
+/// Cookie 路径：SESSDATA / bili_jct 分开填（自动拼 Cookie 头），整段粘贴兼容。
+/// 与网易云 [_CookiePanel] 对齐（2026-08-17）。
 class _CookiePanel extends StatelessWidget {
-  const _CookiePanel({required this.controller, required this.onLogin});
+  const _CookiePanel({
+    required this.sessdataCtrl,
+    required this.biliJctCtrl,
+    required this.busy,
+    required this.onLogin,
+  });
 
-  final TextEditingController controller;
+  final TextEditingController sessdataCtrl;
+  final TextEditingController biliJctCtrl;
+  final bool busy;
   final VoidCallback onLogin;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'SESSDATA=xxxx; bili_jct=xxxx; DedeUserID=xxxx',
-            border: OutlineInputBorder(),
-            isDense: true,
+          controller: sessdataCtrl,
+          style: context.appText.body,
+          decoration: InputDecoration(
+            labelText: 'SESSDATA（必填）',
+            hintText: '粘贴 SESSDATA 的值',
+            hintStyle: context.appText.artist,
+            filled: true,
+            fillColor: context.appColors.bgCard,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
           ),
         ),
         const SizedBox(height: AppSpace.sm),
-        FilledButton.icon(
-          onPressed: onLogin,
-          icon: const Icon(Icons.login_rounded, size: 18),
-          label: const Text('登录'),
+        TextField(
+          controller: biliJctCtrl,
+          style: context.appText.body,
+          decoration: InputDecoration(
+            labelText: 'bili_jct（可选）',
+            hintText: '粘贴 bili_jct 的值',
+            hintStyle: context.appText.artist,
+            filled: true,
+            fillColor: context.appColors.bgCard,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide(color: context.appColors.border),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Text(
+          '如何获取：电脑浏览器登录 bilibili.com，F12 → 应用/Application →'
+          ' Cookies，复制 SESSDATA 的值填入（bili_jct 为 CSRF 令牌，可选；'
+          '也可整段粘贴「SESSDATA=…; bili_jct=…; DedeUserID=…」自动识别）。',
+          style: context.appText.caption,
+        ),
+        const SizedBox(height: AppSpace.md),
+        FilledButton(
+          onPressed: busy ? null : onLogin,
+          child: busy
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('登录'),
         ),
       ],
     );
