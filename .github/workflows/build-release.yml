@@ -4,12 +4,13 @@
 # 自动构建 Android APK 并发布 GitHub Release（G7 开源 + OTA 基础）。
 #
 # 触发：
-#   - push 到 master 且打 tag `cl*` / `v*`（如 cl55、v0.26.8.14）→ 发布 Release
+#   - push tag `cl*` / `v*`（旧方案，如 cl55、v0.26.8.14）→ 发布 Release
+#   - push tag `0.26.8.*`（新渠道化方案，如 0.26.8.17_beta_cl01）→ 发布 Release
 #   - 手动 workflow_dispatch → 可选 tag 构建
 #
-# 产物：app-release.apk（Android）+ sha256 校验文件（OTA 哈希校验用）。
+# 产物：app-release.apk（Android 整包，OTA 基线）+ 两拆分包（arm64/arm32）+ sha256 校验文件。
 # 应用内「设置 → 关于 → 版本更新」通过 GitHub API 读取 Releases：
-#   tag 高于当前 buildCount → 提示更新；hotfix 标记（tag 含 -hotfix）→ 直接下载。
+#   tag 比当前 (日期, cl) 更新 → 提示更新；hotfix 标记（tag 含 -hotfix）→ 直接下载。
 name: build-release
 
 on:
@@ -17,6 +18,7 @@ on:
     tags:
       - 'cl*'
       - 'v*'
+      - '0.26.8.*'
   workflow_dispatch:
 
 jobs:
