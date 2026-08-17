@@ -1803,30 +1803,19 @@ Future<void> _autoPlayBilibiliForCurrent(
 /// 帧率）一次设齐，避免「画质档、性能预设、视距、LOD、渲染参数各自独立
 /// 叠加生效、出了问题不知道是哪一层」的混乱。
 ///
-/// cl76：四档预设——省电(2+2·24fps) / 流畅(4+4·60fps) / 地平线(4+28·60fps) /
-/// 自动(基线 4+4·≤60fps，FPS 监测降档)。
+/// cl76：四档预设——省电(2+32·24fps) / 流畅(4+64·60fps) /
+/// 地平线(4+64·60fps) / 自动(基线 4+64·≤60fps，FPS 监测降档)。
 void _applyQualityPreset(WidgetRef ref, GraphicsQuality q) {
-  ref.read(graphicsQualityProvider.notifier).state = q;
+  applyGraphicsQuality(ref, q);
   ref.read(performanceModeProvider.notifier).state =
       q == GraphicsQuality.powerSave || q == GraphicsQuality.smooth
           ? PerformanceMode.performance
           : PerformanceMode.quality;
-  ref.read(viewDistanceChunksProvider.notifier).state = q.viewDistanceChunks;
-  ref.read(lodStartChunksProvider.notifier).state = q.lodStartChunks;
-  ref.read(lodStepChunksProvider.notifier).state = q.lodStepChunks;
-  ref.read(lodEnabledProvider.notifier).state = true;
-  ref.read(lodStepBlocksProvider.notifier).state = 16;
-  ref.read(lodSampleBaseProvider.notifier).state = 4;
-  // cl76：LOD 最远区块随档位（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
-  ref.read(lodMaxChunksProvider.notifier).state = q.lodMaxChunks;
   // 渲染分辨率倍率重置为 1.0（painter = q.renderScale × 手动倍率；不再双乘）。
   ref.read(renderPrecisionScaleProvider.notifier).state = 1.0;
   ref.read(renderPrecisionProvider.notifier).state = 1.0;
   // 画面预设重置为标准（跟随档位）。
   ref.read(picturePresetProvider.notifier).state = PicturePreset.standard;
-  // cl76：帧率随档位（省电 24fps，其余 60fps）。
-  ref.read(fpsLimitProvider.notifier).state =
-      q.fpsCap <= 24 ? FpsLimit.fps24 : FpsLimit.fps60;
   // 省电档「所有剔除拉满」——视锥剔除也开（其他档位默认关）。
   ref.read(frustumCullEnabledProvider.notifier).state =
       q == GraphicsQuality.powerSave;

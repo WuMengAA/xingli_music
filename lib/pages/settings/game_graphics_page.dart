@@ -15,7 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
-import '../../providers/voxel/graphics_quality_provider.dart';
+import '../../providers/voxel/graphics_quality_provider.dart'
+    show applyGraphicsQuality, graphicsQualityProvider;
 import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
@@ -66,9 +67,7 @@ class GameGraphicsPage extends ConsumerWidget {
                       ChoiceChip(
                         label: Text(g.label),
                         selected: q == g,
-                        onSelected: (_) => ref
-                            .read(graphicsQualityProvider.notifier)
-                            .state = g,
+                        onSelected: (_) => applyGraphicsQuality(ref, g),
                       ),
                   ],
                 ),
@@ -189,7 +188,7 @@ class GameGraphicsPage extends ConsumerWidget {
                       min: 2,
                       max: 64,
                       hint: '区块（1 区块 = 16 格）。可超视距，远景大方块看得更远'
-                          '（地平线档 28）',
+                          '（地平线档 64）',
                       onChanged: (int v) =>
                           ref.read(lodMaxChunksProvider.notifier).state = v,
                     ),

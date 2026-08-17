@@ -7,6 +7,8 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/settings/performance_providers.dart';
+import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
 
 /// 当前 3D 画质档（cl76：省电 / 流畅 / 地平线 / 自动，默认「自动」——运行时
@@ -14,3 +16,21 @@ import '../../widgets/voxel/voxel_world_view3d.dart';
 final graphicsQualityProvider = StateProvider<GraphicsQuality>(
   (ref) => GraphicsQuality.auto,
 );
+
+/// R26p2：把 [GraphicsQuality] 的基准参数同步到所有画面相关 Provider。
+///
+/// 用于「画质档」选择后让高级设置立刻对号入座；用户仍可在高级页手动微调。
+void applyGraphicsQuality(WidgetRef ref, GraphicsQuality q) {
+  ref.read(graphicsQualityProvider.notifier).state = q;
+  ref.read(viewDistanceChunksProvider.notifier).state = q.viewDistanceChunks;
+  ref.read(cloudViewDistanceProvider.notifier).state =
+      q.cloudViewDistanceChunks;
+  ref.read(lodStartChunksProvider.notifier).state = q.lodStartChunks;
+  ref.read(lodStepChunksProvider.notifier).state = q.lodStepChunks;
+  ref.read(lodMaxChunksProvider.notifier).state = q.lodMaxChunks;
+  ref.read(lodStepBlocksProvider.notifier).state = 16;
+  ref.read(lodSampleBaseProvider.notifier).state = 4;
+  ref.read(lodEnabledProvider.notifier).state = true;
+  ref.read(fpsLimitProvider.notifier).state =
+      q.fpsCap <= 24 ? FpsLimit.fps24 : FpsLimit.fps60;
+}

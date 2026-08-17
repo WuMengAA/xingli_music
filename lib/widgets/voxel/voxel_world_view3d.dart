@@ -97,10 +97,11 @@ enum _ViewMode { iso2d5, orbit, firstPerson, thirdPerson }
 /// 低画质已足够：**无贴图 / 无水波 / 无光影（阴影+AO 渲染配置强制关闭）**，
 /// 纯色平铺 + 雾 + 远景 LOD。高画质不再堆复杂度——最远只到「地平线」档。
 enum GraphicsQuality {
-  /// 省电：2 主区块 + 2 LOD 区块（共 4 区块），24fps。最轻量。
+  /// 省电：2 主区块 + 32 LOD 区块（共 34 区块），24fps。最轻量。
   powerSave('省电',
       viewDistanceChunks: 2,
       lodMaxChunks: 32,
+      cloudViewDistanceChunks: 2,
       lodStartChunks: 1,
       lodStepChunks: 1,
       maxFaces: 4000,
@@ -110,10 +111,11 @@ enum GraphicsQuality {
       texture: false,
       renderScale: 0.5),
 
-  /// 流畅：4 主区块 + 4 LOD 区块（共 8 区块），60fps。默认基线。
+  /// 流畅：4 主区块 + 64 LOD 区块（共 68 区块），60fps。默认基线。
   smooth('流畅',
       viewDistanceChunks: 4,
       lodMaxChunks: 64,
+      cloudViewDistanceChunks: 6,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,
@@ -129,6 +131,7 @@ enum GraphicsQuality {
   horizon('地平线',
       viewDistanceChunks: 4,
       lodMaxChunks: 64,
+      cloudViewDistanceChunks: 8,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 24000,
@@ -138,12 +141,13 @@ enum GraphicsQuality {
       texture: false,
       renderScale: 1.0),
 
-  /// 自动：默认开启。基线 4+4（流畅档），运行时 10 秒窗口采样真实帧率，
+  /// 自动：默认开启。基线 4+64（流畅档），运行时 10 秒窗口采样真实帧率，
   /// ≥30fps 不降 LOD 区块；不足则主视距区块逐档下调（4→2）直至满足。
   /// 帧率上限 60fps。
   auto('自动',
       viewDistanceChunks: 4,
       lodMaxChunks: 64,
+      cloudViewDistanceChunks: 4,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,
@@ -157,6 +161,7 @@ enum GraphicsQuality {
     this.label, {
     required this.viewDistanceChunks,
     required this.lodMaxChunks,
+    required this.cloudViewDistanceChunks,
     required this.lodStartChunks,
     required this.lodStepChunks,
     required this.maxFaces,
@@ -170,8 +175,11 @@ enum GraphicsQuality {
   final String label;
   final int viewDistanceChunks;
 
-  /// LOD 最远区块（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
+  /// LOD 最远区块（省电 32 / 流畅 64 / 地平线 64 / 自动 64）。
   final int lodMaxChunks;
+
+  /// 云层区块视距（省电 2 / 流畅 6 / 地平线 8 / 自动 4）。
+  final int cloudViewDistanceChunks;
   final int lodStartChunks;
   final int lodStepChunks;
   final int maxFaces;
