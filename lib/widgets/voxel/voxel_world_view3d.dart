@@ -100,7 +100,7 @@ enum GraphicsQuality {
   /// 省电：2 主区块 + 2 LOD 区块（共 4 区块），24fps。最轻量。
   powerSave('省电',
       viewDistanceChunks: 2,
-      lodMaxChunks: 2,
+      lodMaxChunks: 16,
       lodStartChunks: 1,
       lodStepChunks: 1,
       maxFaces: 4000,
@@ -113,7 +113,7 @@ enum GraphicsQuality {
   /// 流畅：4 主区块 + 4 LOD 区块（共 8 区块），60fps。默认基线。
   smooth('流畅',
       viewDistanceChunks: 4,
-      lodMaxChunks: 4,
+      lodMaxChunks: 28,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,
@@ -143,7 +143,7 @@ enum GraphicsQuality {
   /// 帧率上限 60fps。
   auto('自动',
       viewDistanceChunks: 4,
-      lodMaxChunks: 4,
+      lodMaxChunks: 16,
       lodStartChunks: 2,
       lodStepChunks: 2,
       maxFaces: 12000,
@@ -427,7 +427,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 自动档主视距区块（固定上限 4；帧率不足先降 LOD、LOD 到底再降此值，最小 2）。
   int _autoViewChunks = 4;
   /// 自动档 LOD 区块（基线 4，帧率富足上调 +4 → 上限 64）。
-  int _autoLodChunks = 4;
+  int _autoLodChunks = 16;
   Duration _autoWindowStart = Duration.zero;
   int _autoFrames = 0;
 
@@ -1040,10 +1040,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           _autoLodChunks = math.min(64, _autoLodChunks + 4);
           changed = true;
         } else if (fps < 30) {
-          if (_autoLodChunks > 2) {
-            _autoLodChunks = math.max(2, _autoLodChunks - 4);
-            changed = true;
-          } else if (_autoViewChunks > 2) {
+          // 低帧率：只降满精度视距（近处精细度），**保留 LOD 远景范围**——
+          // 远景大方块面少、成本低，是「低配也看远」的关键；盲目降 LOD 会把
+          // 远处压成空（用户反馈「远处无法渲染」）。LOD 仅在 ≥45fps 时上调。
+          if (_autoViewChunks > 2) {
             _autoViewChunks--;
             changed = true;
           }
@@ -4060,7 +4060,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         q.lodStepChunks.clamp(1, 4);
     // cl76：LOD 最远区块随档位写回（省电 2 / 流畅 4 / 地平线 28 / 自动 4）。
     ref.read(lodMaxChunksProvider.notifier).state =
-        q.lodMaxChunks.clamp(2, 64);
+        q.lodMaxChunks.clamp(16, 64);
     // cl76_hotfix2：自动档重置监测基线（视距 4 / LOD 4，下次 10s 窗口重新采样）。
     if (q == GraphicsQuality.auto) {
       _autoViewChunks = q.viewDistanceChunks;

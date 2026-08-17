@@ -79,7 +79,7 @@ abstract final class AppVersion {
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
-  static const UpdateChannel channel = UpdateChannel.beta;
+  static const UpdateChannel channel = UpdateChannel.alpha;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -391,6 +391,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.17',
+    cl: 'alpha_cl01',
+    title: 'LOD 渲染修复：消除大方块空隙 + 低配也看远',
+    details: <String>[
+      '修复 LOD 大方块间 2-8 格规则空隙：发射尺寸改为恒为本档网格步长，迟滞不再缩小块',
+      'LOD 构建预算改为每档独立（原全局每帧 6 个 → 每档 24），移动时远处渐进出现不卡死',
+      '低画质档 LOD 远景放开：省电 2→16 / 流畅 4→28 / 自动 4→16 区块，靠超粗大方块省面看远',
+      '自动档低帧率只降满精度视距、保留 LOD 远景范围（不再把远处压成空）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.17',
     cl: 'cl01',

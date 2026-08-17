@@ -14,14 +14,12 @@ import 'package:xingli_music/widgets/voxel/voxel_world_view3d.dart'
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('GraphicsQuality.high enables texture; other tiers stay flat', () {
-    expect(GraphicsQuality.high.texture, isTrue);
-    // high 为末位枚举值，选择器遍历 values 会自动出现。
-    expect(GraphicsQuality.values.last, GraphicsQuality.high);
-    // 其余档位贴图恒关（保持性能/纯色基础）。
-    expect(GraphicsQuality.perf.texture, isFalse);
-    expect(GraphicsQuality.smooth.texture, isFalse);
-    expect(GraphicsQuality.standard.texture, isFalse);
+  test('GraphicsQuality tiers keep textures off (low-quality-only policy)', () {
+    // cl76 收纳折叠：只留四档预设（powerSave/smooth/horizon/auto），全部
+    // texture:false（低画质纯色平铺，最高档也靠 LOD 远景，不再堆贴图复杂度）。
+    for (final GraphicsQuality q in GraphicsQuality.values) {
+      expect(q.texture, isFalse, reason: q.label);
+    }
   });
 
   test('VoxelTextureAtlas.tileUV maps each voxel to a 16x16 atlas tile', () {

@@ -235,7 +235,7 @@ class RenderConfig {
     // 性能受限时近处也合成大方块）；standard/high=2（5×5 满精度）。
     this.fullBandChunks = 2,
     // 每帧最多新建的 LOD 单元数（分帧渐进；测试/诊断给大值取全量）。
-    this.lodBuildBudget = 6,
+    this.lodBuildBudget = 24,
     // R26fx：画面开关——环境光屏蔽 AO / 太阳投影阴影（默认开，可设置关闭）。
     this.aoEnabled = true,
     this.shadowRender = true,
@@ -2876,12 +2876,12 @@ abstract final class VoxelRenderer {
     final double lodMaxDist =
         config.lodMaxChunks * RenderConfig.chunkSize.toDouble();
     final double effMax = math.max(lodMaxDist, maxDist);
-    int built = 0; // 分帧：每帧最多建若干单元（远处渐进出现，避免首帧卡顿）
     final int budget = config.lodBuildBudget;
     final int camCx = (b.eyeX / RenderConfig.chunkSize).floor();
     final int camCz = (b.eyeZ / RenderConfig.chunkSize).floor();
     final bool lookDown = b.fwdY < -0.6;
     for (int t = 0; t < tiers.length; t++) {
+      int built = 0; // 分帧：每档独立预算（远处 tier 不被近处挤占，渐进出现不卡顿）
       final _LodTier T = tiers[t];
       final double stepCells = T.cell;
       // 本档锚点网格（步长 = 本档 cell），仅处理落入本档距离带 [ring0,ring1) 的锚点。
@@ -2910,9 +2910,11 @@ abstract final class VoxelRenderer {
             resolved = prev;
           }
           cache?.lodTierPut(bi4, bj4, resolved);
-          // 用「解析档」的 cell 发射（迟滞可能停在邻档；gx0 必为其整数锚点）。
-          final _LodTier R = tiers[resolved];
-          final double rcell = R.cell;
+          // 发射几何尺寸恒为本档网格步长 T.cell：迟滞解析档 resolved 仅决定「用哪
+          // 档缓存/细节」，绝不能改发射块尺寸——否则 resolved 停在更细邻档时
+          // rcell<R.cell，每块只填 rcell 宽、锚点间距仍是 T.cell，产生规则空隙
+          // （tier1→4、tier2→8 格），即「LOD 大方块间 2-8 格空隙」根因（P1 验）。
+          final double rcell = T.cell;
           // S2：远景 LOD 单元仅当其中心区块在可见集内才发射（封死墙后的远景不渲染）。
           if (visible != null) {
             final int chCx = (gx0 / RenderConfig.chunkSize).floor();
