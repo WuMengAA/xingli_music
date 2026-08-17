@@ -45,6 +45,7 @@ public class MainActivity extends AudioServiceActivity {
     private static final String OTA_AUTHORITY = "com.stelarith.xingli_music.fileprovider";
     private static final String OPEN_URL_CHANNEL = "com.stelarith.xingli_music/open_url";
     private static final String APP_INFO_CHANNEL = "com.stelarith.xingli_music/app_info";
+    private static final String DEVICE_CHANNEL = "com.stelarith.xingli_music/device";
     private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
@@ -115,6 +116,24 @@ public class MainActivity extends AudioServiceActivity {
                             result.success(getApplicationInfo().sourceDir);
                         } catch (Exception e) {
                             result.error("no_source_dir", e.getMessage(), null);
+                        }
+                    } else {
+                        result.notImplemented();
+                    }
+                });
+
+        // OTA 架构自适应：返回设备主 ABI，供 Dart 端选对应拆分包下载。
+        // API 21+ 用 SUPPORTED_ABIS[0]；低于 21 回退到已弃用但一贯可用的 CPU_ABI。
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), DEVICE_CHANNEL)
+                .setMethodCallHandler((call, result) -> {
+                    if ("getPrimaryAbi".equals(call.method)) {
+                        try {
+                            final String abi = Build.VERSION.SDK_INT >= 21
+                                    ? Build.SUPPORTED_ABIS[0]
+                                    : Build.CPU_ABI;
+                            result.success(abi);
+                        } catch (Exception e) {
+                            result.error("no_abi", e.getMessage(), null);
                         }
                     } else {
                         result.notImplemented();

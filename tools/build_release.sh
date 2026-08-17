@@ -38,15 +38,8 @@ BASE="星璃音乐_0.${YEAR}.${MONTH}.${VERSION}_${CHANNEL}_cl$(printf '%02d' "$
 mkdir -p "$RELEASE_DIR"
 
 FLD="build/app/outputs/flutter-apk"
-# 整包（OTA 基线）：gradle universalApk 产出即 app-release.apk（已是历史 OTA 文件名，
-# 应用内 ota_service.dart 的 kOtaAssetName 直接拉它，无需改名）。
-if [ -f "$FLD/app-release.apk" ]; then
-  cp "$FLD/app-release.apk" "$RELEASE_DIR/$BASE.apk"
-  ( cd "$RELEASE_DIR" && sha256sum "$BASE.apk" > "$BASE.apk.sha256" )
-  echo "    整包（OTA）：$BASE.apk"
-fi
-
-# 拆分包（更小，手动下载优选；现代手机多为 arm64-v8a，单包比整包小约 40%）
+# 拆分包（按架构，无 universal 整包；用户要求只搞 64 / 32 位）。
+# OTA 端按设备架构自动选对应拆分包下载。
 for pair in "app-arm64-v8a-release.apk:arm64" "app-armeabi-v7a-release.apk:arm32"; do
   src="${pair%%:*}"; tag="${pair##*:}"
   if [ -f "$FLD/$src" ]; then
@@ -57,6 +50,5 @@ for pair in "app-arm64-v8a-release.apk:arm64" "app-armeabi-v7a-release.apk:arm32
 done
 
 echo ""
-echo "==> 完成：$RELEASE_DIR/$BASE.apk （整包，OTA 用）"
-echo "          $RELEASE_DIR/$BASE.arm64.apk / $BASE.arm32.apk （拆分，更小）"
+echo "==> 完成：$RELEASE_DIR/$BASE.arm64.apk / $BASE.arm32.apk （拆分，无整包）"
 echo "    （$(${FLUTTER} --version 2>/dev/null | head -1 || true)）"

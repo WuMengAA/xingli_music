@@ -68,9 +68,11 @@ android {
         }
     }
 
-    // 2026-08-17 占用优化：按 ABI 拆分 APK，同时保留整包（universalApk）作 OTA 基线。
-    // 一次构建即产出 arm64-v8a / armeabi-v7a 拆分包 + universal 整包。
-    // 拆分后单架构包比整包小约 40%（arm64 设备无需再下载 armeabi 那份引擎/业务 .so）。
+    // 2026-08-17 占用优化：按 ABI 拆分 APK。用户要求「不上传、不产出整包，
+    // 只搞 64 / 32 位」→ universalApk = false，仅产出两个拆分包：
+    //   app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk
+    // OTA 端按设备架构（detectDeviceAbi）自动选对应拆分包下载，不再有 universal 整包。
+    // 拆分后单架构包比原整包小约 40%（arm64 设备无需再下载 armeabi 那份引擎/业务 .so）。
     // 注意：不要再用 Flutter 的 --split-per-abi 标志——它会额外塞入 x86_64 并与
     // androidComponents 的排除规则冲突。此处由 gradle 统一管控。
     splits {
@@ -78,7 +80,7 @@ android {
             enable true
             reset()
             include 'arm64-v8a', 'armeabi-v7a'
-            universalApk true
+            universalApk false
         }
     }
 }
@@ -101,10 +103,11 @@ androidComponents {
     }
 }
 
-// per-ABI 拆包已在本文件 android 顶层 `splits { abi { universalApk true } }` 配置
+// per-ABI 拆包已在本文件 android 顶层 `splits { abi { universalApk false } }` 配置
 // （见上方），一次 `flutter build apk` 即产出：
 //   app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk（拆分包，更小）
-//   app-universal-release.apk（整包，作 OTA 基线，构建脚本会复制为 app-release.apk）
+// 不再产出 universal 整包（用户要求：只搞 64 / 32 位，不上传整包）。
+// OTA 端按设备架构自动选对应拆分包下载。
 // 不要再传 --split-per-abi 标志（会塞入 x86_64 并与 androidComponents 排除冲突）。
 
 flutter {

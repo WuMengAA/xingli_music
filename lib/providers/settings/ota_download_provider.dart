@@ -82,12 +82,14 @@ class OtaDownloadNotifier extends StateNotifier<OtaDownloadState> {
   OtaDownloadNotifier() : super(const OtaDownloadState());
 
   /// 启动下载（幂等：已在下载中则忽略）。返回后调用方可安全离开页面。
-  Future<void> start(String tag) async {
+  /// [abi] 不选则下载时按设备架构自动选拆分包。
+  Future<void> start(String tag, {DeviceAbi? abi}) async {
     if (state.isDownloading) return;
     state = OtaDownloadState(phase: OtaPhase.downloading, tag: tag);
     try {
       final String apkPath = await OtaService.instance.downloadAndVerify(
         tag,
+        abi: abi,
         onProgress: (OtaProgress p) {
           if (mounted) {
             state = state.copyWith(

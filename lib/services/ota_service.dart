@@ -21,20 +21,33 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:flutter/services.dart';
+
 import '../core/app_version.dart';
 import 'log_service.dart';
-import 'ota/bspatch.dart';
-import 'ota/ota_patch.dart';
 
 /// OTA 仓库（开源 + Releases 源）。
 const String kOtaRepoOwner = 'WuMengAA';
 const String kOtaRepoName = 'xingli_music';
 const String kOtaReleaseApi =
     'https://api.github.com/repos/$kOtaRepoOwner/$kOtaRepoName/releases';
-const String kOtaAssetName = 'app-release.apk';
-const String kOtaShaAssetName = 'app-release.apk.sha256';
-/// cl76_hotfix5：增量差分包资产名（bsdiff 补丁，几 MB 而非整包 71MB）。
-const String kOtaPatchAssetName = 'app-release.apk.patch';
+
+/// 设备架构（用于 OTA 选对应拆分包）。
+enum DeviceAbi {
+  arm64,
+  arm32,
+  unknown,
+}
+
+/// 按设备架构映射到 Release 中的拆分包资产名（不再有 universal 整包）。
+String otaApkAssetForAbi(DeviceAbi abi) =>
+    abi == DeviceAbi.arm32
+        ? 'app-armeabi-v7a-release.apk'
+        : 'app-arm64-v8a-release.apk';
+
+/// 拆分包对应的 sha256 资产名。
+String otaShaAssetForAbi(DeviceAbi abi) =>
+    '${otaApkAssetForAbi(abi)}.sha256';
 
 /// 一次更新检查的结果。
 class OtaCheckResult {
@@ -154,7 +167,26 @@ class OtaService {
   OtaService._();
   static final OtaService instance = OtaService._();
 
+  /// 设备架构检测通道（对应 MainActivity 的 com.stelarith.xingli_music/device）。
+  static const MethodChannel _deviceChannel =
+      MethodChannel('com.stelarith.xingli_music/device');
+
   final http.Client _client = http.Client();
+
+  /// 检测设备主架构（arm64 / arm32），用于 OTA 选对应拆分包。
+  /// 失败/未知统一回落 arm64（现代设备绝大多数）。
+  static Future<DeviceAbi> detectDeviceAbi() async {
+    try {
+      final String? s =
+          await _deviceChannel.invokeMethod<String>('getPrimaryAbi');
+      final String a = (s ?? '').toLowerCase();
+      if (a.contains('arm64')) return DeviceAbi.arm64;
+      if (a.contains('v7a') || a.contains('armeabi')) return DeviceAbi.arm32;
+      return DeviceAbi.arm64;
+    } catch (_) {
+      return DeviceAbi.arm64;
+    }
+  }
 
   /// 检查 GitHub Releases 是否有新版本（仅当前渠道）。
   ///
@@ -272,49 +304,70 @@ class OtaService {
     return prefs.getString(_kCachedNotesTagKey);
   }
 
-  /// 下载 Release 资产并校验 SHA-256。
+  /// 列出当前渠道所有（非 draft）Release 版本，按 (日期, cl) 倒序，
+  /// 供更新面板「多版本选择」。每项含 notes（Release body）。
+  /// 网络失败返回空列表（不抛）。
+  Future<List<OtaTagInfo>> listChannelReleases(
+      UpdateChannel channel) async {
+    try {
+      final http.Response resp = await _client
+          .get(Uri.parse(kOtaReleaseApi))
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return const <OtaTagInfo>[];
+      final List<dynamic> releases =
+          jsonDecode(utf8.decode(resp.bodyBytes)) as List<dynamic>;
+      final List<OtaTagInfo> out = <OtaTagInfo>[];
+      for (final dynamic item in releases) {
+        final Map<String, dynamic> r = item as Map<String, dynamic>;
+        if (r['draft'] == true) continue;
+        final String tag = (r['tag_name'] as String?)?.trim() ?? '';
+        if (tag.isEmpty) continue;
+        final OtaTagInfo? info = parseOtaTag(tag);
+        if (info == null || info.channel != channel) continue;
+        out.add(info..notes = (r['body'] as String?) ?? '');
+      }
+      out.sort((OtaTagInfo a, OtaTagInfo b) {
+        if (a.dateKey != b.dateKey) {
+          return b.dateKey.compareTo(a.dateKey);
+        }
+        return b.build.compareTo(a.build);
+      });
+      return out;
+    } catch (_) {
+      return const <OtaTagInfo>[];
+    }
+  }
+
+  /// 下载 Release 中「适配本机架构」的拆分包并校验 SHA-256。
   ///
+  /// [abi] 不传则自动检测设备架构；据此选 `app-arm64-v8a-release.apk`
+  /// 或 `app-armeabi-v7a-release.apk`（不再有 universal 整包）。
   /// [onProgress] 在下载期间持续回调进度（字节 / 网速），供 UI 展示；
   /// 下载不依赖调用方生命周期（调用方销毁后 Future 继续跑，即「挂后台」）。
   /// 返回安装包路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。
   Future<String> downloadAndVerify(
     String tag, {
+    DeviceAbi? abi,
     void Function(OtaProgress progress)? onProgress,
   }) async {
+    abi ??= await detectDeviceAbi();
+    final String asset = otaApkAssetForAbi(abi);
+    final String shaAsset = otaShaAssetForAbi(abi);
     final String url =
-        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$kOtaAssetName';
+        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$asset';
     final String shaUrl =
-        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$kOtaShaAssetName';
+        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$shaAsset';
 
     final Directory dir = await getApplicationDocumentsDirectory();
-    final String apkPath = p.join(dir.path, 'ota_$tag.apk');
+    final String apkPath = p.join(dir.path, 'ota_${tag}_$asset');
 
-    // 1) 下载 sha256 期望值。
+    // 1) 下载 sha256 期望值（对应架构拆分包）。
     final String expected = await _fetchSha256(shaUrl);
 
-    // 2) 增量补丁路径（cl76_hotfix5）：本地有基线 + Release 附带 .patch →
-    //    下载几 MB 补丁 + 基线合成新包 → SHA-256 校验；任一步失败回退整包。
-    final String? baseApk = await OtaPatchBase.ensureBase();
-    final String? patchUrl = await _findPatchAsset(tag);
-    if (baseApk != null && patchUrl != null && patchUrl.isNotEmpty) {
-      try {
-        final String patchPath = p.join(dir.path, 'ota_$tag.patch');
-        await _download(patchUrl, patchPath, onProgress: onProgress);
-        await bspatch(baseApk, apkPath, patchPath);
-        final String actual = await _sha256OfFile(apkPath);
-        if (expected.isEmpty || actual == expected) {
-          await OtaPatchBase.promoteBase(apkPath); // 新包提升为新基线
-          return apkPath;
-        }
-        LogService.instance.w('ota', '补丁合成校验失败，回退整包（$tag）');
-      } catch (e) {
-        LogService.instance.w('ota', '补丁合成失败，回退整包: $e');
-      }
-    }
-
-    // 3) 整包下载（流式，回调进度）。
+    // 2) 拆分包下载（流式，回调进度）。
     await _download(url, apkPath, onProgress: onProgress);
-    // 4) 校验。
+
+    // 3) 校验。
     final String actual = await _sha256OfFile(apkPath);
     if (expected.isNotEmpty && actual != expected) {
       throw OtaException(
@@ -322,28 +375,6 @@ class OtaService {
       );
     }
     return apkPath;
-  }
-
-  /// 查询 Release 是否附带补丁资产（`app-release.apk.patch`），返回其下载 URL。
-  Future<String?> _findPatchAsset(String tag) async {
-    try {
-      final http.Response resp = await _client
-          .get(Uri.parse(
-              'https://api.github.com/repos/$kOtaRepoOwner/$kOtaRepoName/releases/tags/$tag'))
-          .timeout(const Duration(seconds: 10));
-      if (resp.statusCode != 200) return null;
-      final dynamic d = jsonDecode(utf8.decode(resp.bodyBytes));
-      final List<dynamic> assets = (d as Map<String, dynamic>)['assets']
-              as List<dynamic>? ??
-          const <dynamic>[];
-      for (final dynamic a in assets) {
-        final Map<String, dynamic> m = a as Map<String, dynamic>;
-        if (m['name'] == kOtaPatchAssetName) {
-          return m['browser_download_url'] as String?;
-        }
-      }
-    } catch (_) {}
-    return null;
   }
 
   Future<String> _fetchSha256(String url) async {
