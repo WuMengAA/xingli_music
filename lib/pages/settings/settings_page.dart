@@ -377,9 +377,9 @@ class _LayoutDrivenBody extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: AppSpace.sm),
                 for (final SettingGroup g in selected.groups) ...<Widget>[
-                  // cl76：收纳折叠——「渲染·高级」组默认折叠，主界面保持简洁；
-                  // 需微调视距/LOD/剔除时再展开（或进「游戏画面 · 高级设置」）。
-                  if (g.id == 'game_render_advanced')
+                  // #513：收纳折叠——「个性预设」组默认折叠，主界面保持简洁；
+                  // 全局画面质感（噪点 / 模糊 / 动画 / 液态玻璃等）收进此处。
+                  if (g.id == 'visual_fx')
                     Theme(
                       data: Theme.of(context)
                           .copyWith(dividerColor: Colors.transparent),

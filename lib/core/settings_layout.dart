@@ -234,35 +234,12 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
         // 画质：低中高预设（卡片预览选择）+ 分辨率 + 帧率 + 阴影。
         SettingGroup(
           id: 'game_quality',
-          name: '画质',
+          name: '游戏画质',
           items: <SettingItem>[
             SettingItem(id: 'perfPreset', title: '画质预设（低 / 中 / 高）'),
             SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
             SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
             SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
-          ],
-        ),
-        // 渲染 · 高级（迁移自「个性 · 画面高级」）。
-        SettingGroup(
-          id: 'game_render_advanced',
-          name: '渲染 · 高级',
-          items: <SettingItem>[
-            SettingItem(id: 'viewDistance', title: '视距', kind: SettingKind.slider),
-            SettingItem(id: 'renderPrecisionScale', title: '渲染精度', kind: SettingKind.slider),
-            SettingItem(id: 'lodEnabled', title: 'LOD 开关', kind: SettingKind.toggle),
-            SettingItem(id: 'lodStart', title: 'LOD 起始', kind: SettingKind.slider),
-            SettingItem(id: 'lodStepBlocks', title: 'LOD 步长（格）', kind: SettingKind.chips),
-            SettingItem(id: 'lodSample', title: 'LOD 采样（大方块）', kind: SettingKind.chips),
-            SettingItem(id: 'lodMaxChunks', title: 'LOD 最远距离', kind: SettingKind.slider),
-            SettingItem(id: 'outlineToggle', title: '方块描边', kind: SettingKind.toggle),
-            SettingItem(id: 'boundaryFog', title: '边界雾', kind: SettingKind.toggle),
-            SettingItem(id: 'renderPrecision', title: '几何精度（面数）', kind: SettingKind.chips),
-            SettingItem(id: 'faceCull', title: '侧面剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'occlusionCull', title: '遮挡剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'backFaceCull', title: '背面剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'frustumCull', title: '视锥剔除', kind: SettingKind.toggle),
-            SettingItem(id: 'underwaterFilter', title: '水下滤镜', kind: SettingKind.toggle),
-            SettingItem(id: 'waterFlow', title: '水流动', kind: SettingKind.toggle),
           ],
         ),
         // 机制：存档机制 / 世界机制 / 自定义世界机制。
@@ -318,12 +295,11 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'sceneBgAnim', title: '动画', kind: SettingKind.toggle),
           ],
         ),
-        // cl53-F2：把误排在「游戏 · 渲染高级」里的**全局个性**迁回本合集
-        // （图形后端 / 噪点 / 玻璃模糊 / 背景动画 / 液态玻璃 / 全局画面预设），
-        // 它们影响的是整个 App 的界面质感，不属于游戏预设。
+        // #513：原「画面特效」改名「个性预设」并收纳（默认折叠，见 settings_page）；
+        // 方块贴图入口已删除（provider 保留，画质档仍按档位接图集）。
         SettingGroup(
           id: 'visual_fx',
-          name: '画面特效',
+          name: '个性预设',
           items: <SettingItem>[
             SettingItem(id: 'picturePreset', title: '全局画面预设'),
             SettingItem(id: 'engineBackend', title: '图形后端', kind: SettingKind.chips),
@@ -331,7 +307,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'fxBlur', title: '玻璃模糊', kind: SettingKind.toggle),
             SettingItem(id: 'fxBg', title: '背景动画', kind: SettingKind.toggle),
             SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）', kind: SettingKind.toggle),
-            SettingItem(id: 'fxTexture', title: '方块贴图', kind: SettingKind.toggle),
           ],
         ),
       ],

@@ -251,12 +251,126 @@ class GameGraphicsPage extends ConsumerWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: AppSpace.md),
+
+              // ── #513：原「渲染·高级」迁移项（重要前置 → 杂项归组）──
+              _Card(
+                title: '渲染与剔除',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    // 重要前置：直接影响画质/性能
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('渲染精度', style: context.appText.body),
+                        const SizedBox(height: 6),
+                        Slider(
+                          value: ref.watch(renderPrecisionScaleProvider),
+                          min: 0.25,
+                          max: 2.0,
+                          divisions: 14,
+                          label:
+                              '${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
+                          onChanged: (double v) => ref
+                              .read(renderPrecisionScaleProvider.notifier)
+                              .state = v,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpace.sm),
+                    _ToggleRow(
+                      title: 'LOD 开关',
+                      subtitle: '关 = 全满精度方阵，无远景大方块（最费面数）',
+                      value: ref.watch(lodEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(lodEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _Chips<int>(
+                      label: 'LOD 采样（合成大方块边长）',
+                      value: ref.watch(lodSampleBaseProvider),
+                      values: const <int>[2, 4, 8],
+                      labels: const <String>['2×2（细）', '4×4（中）', '8×8（粗）'],
+                      onChanged: (int v) =>
+                          ref.read(lodSampleBaseProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _ToggleRow(
+                      title: '边界雾',
+                      subtitle: '开=视距边缘收口雾（隐藏远景，LOD 关闭）；关=LOD 远景看得更远',
+                      value: ref.watch(boundaryFogEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(boundaryFogEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _Chips<double>(
+                      label: '几何精度（面数倍率，与渲染分辨率无关）',
+                      value: ref.watch(renderPrecisionProvider),
+                      values: const <double>[0.5, 1.0, 1.5, 2.0],
+                      labels: const <String>['0.5×', '1×', '1.5×', '2×'],
+                      onChanged: (double v) =>
+                          ref.read(renderPrecisionProvider.notifier).state = v,
+                    ),
+                    const Divider(height: 1),
+                    // 剔除类：省面数，普通用户一般不动
+                    _ToggleRow(
+                      title: '侧面剔除',
+                      subtitle: '远处区块按视角朝向减面（配合 LOD 迟滞防闪烁）',
+                      value: ref.watch(faceCullEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(faceCullEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _ToggleRow(
+                      title: '遮挡剔除',
+                      subtitle: '隐藏被相邻不透明方块完全盖住的内部面（最大面数收益）',
+                      value: ref.watch(occlusionCullEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(occlusionCullEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _ToggleRow(
+                      title: '背面剔除',
+                      subtitle: '去掉背向相机的三角面（面数减半）',
+                      value: ref.watch(backFaceCullEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(backFaceCullEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _ToggleRow(
+                      title: '视锥剔除',
+                      subtitle: '跳过视锥外区块（默认关：历史曾误删可见区块）',
+                      value: ref.watch(frustumCullEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(frustumCullEnabledProvider.notifier).state = v,
+                    ),
+                    const Divider(height: 1),
+                    // 杂项
+                    _ToggleRow(
+                      title: '水下滤镜',
+                      subtitle: '水下蓝色色调 + 阳光衰减',
+                      value: ref.watch(underwaterFilterEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(underwaterFilterEnabledProvider.notifier).state = v,
+                    ),
+                    const SizedBox(height: AppSpace.xs),
+                    _ToggleRow(
+                      title: '水流动',
+                      subtitle: '放置水源后向四周 9 格扩散（20 tick/秒 驱动）',
+                      value: ref.watch(waterFlowEnabledProvider),
+                      onChanged: (bool v) =>
+                          ref.read(waterFlowEnabledProvider.notifier).state = v,
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           const SizedBox(height: AppSpace.lg),
           Text(
             '说明：画质预设一键套用（视距 / LOD / 帧率随档位）；'
-            '繁琐参数已收进「高级」与主页「渲染 · 高级」折叠区。',
+            '繁琐参数已收进「高级」折叠区。',
             style: context.appText.bodyMuted,
           ),
         ],
@@ -354,6 +468,81 @@ class _Stepper extends StatelessWidget {
           ],
         ),
         Text(hint, style: context.appText.artist),
+      ],
+    );
+  }
+}
+
+/// 开关行（标题 + 副标题 + 开关）。
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(title, style: context.appText.body),
+              const SizedBox(height: 2),
+              Text(subtitle, style: context.appText.artist),
+            ],
+          ),
+        ),
+        Switch(value: value, onChanged: onChanged),
+      ],
+    );
+  }
+}
+
+/// 选项行（标题 + 选项 chips）。
+class _Chips<T> extends StatelessWidget {
+  const _Chips({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.labels,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> values;
+  final List<String> labels;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(label, style: context.appText.body),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: AppSpace.xs,
+          children: <Widget>[
+            for (int i = 0; i < values.length; i++)
+              ChoiceChip(
+                label: Text(labels[i]),
+                selected: value == values[i],
+                onSelected: (_) => onChanged(values[i]),
+              ),
+          ],
+        ),
       ],
     );
   }
