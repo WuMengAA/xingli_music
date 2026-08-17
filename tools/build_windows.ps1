@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Continue'
+﻿$ErrorActionPreference = 'Continue'
 $root  = "D:\Stellara\Music\xingli_music"
 $rel   = "D:\Stellara\Music\release"
 $log   = "$root\build_windows.log"
@@ -9,9 +9,11 @@ $env:Path = "$cmake;" + $env:Path
 Set-Location $root
 $fl = "D:\flutter\bin\flutter.bat"
 
-# parse AppVersion（UTF-8 显式读取，避免 PS5.1 中文乱码；2026-08-17 渠道化：
-# channel 替代 stage；Windows 产物名在 cl 后加 _pc，如 0.26.8.17_beta_cl01_pc）
-$txt      = [System.IO.File]::ReadAllText("$root\lib\core\app_version.dart", [System.Text.Encoding]::UTF8)
+# parse AppVersion（2026-08-17 渠道化：channel 替代 stage；Windows 产物名在
+# cl 后加 _pc，如 0.26.8.17_alpha_cl01_pc。用 Get-Content -Raw -Encoding UTF8
+# 读取（ReadAllText 在该上下文偶发空），脚本文件本身须 UTF-8 with BOM，
+# 否则 PS5.1 按 ANSI 解析中文字面量（星璃音乐 → 乱码）。）
+$txt      = Get-Content "$root\lib\core\app_version.dart" -Raw -Encoding UTF8
 $year     = [regex]::Match($txt,'static const int year = (\d+)').Groups[1].Value
 $month    = [regex]::Match($txt,'static const int month = (\d+)').Groups[1].Value
 $day      = [regex]::Match($txt,'static const int day = (\d+)').Groups[1].Value

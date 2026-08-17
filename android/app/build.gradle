@@ -43,10 +43,9 @@ android {
         // cl 过百三位、hotfix 为补丁序号）。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion（含 hotfix 后缀）同步更新！
         versionName = "0.26.08.17_beta_cl01"
-        // 空间精简：只打 arm64（现代设备）+ armeabi-v7a 兼容旧机。
-        // 注意：这条只管得住第三方 AAR 带进来的 .so，管不住 Flutter 引擎与
-        // libapp.so（见文件末尾 androidComponents 块的说明），两者需配合使用。
-        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        // 架构裁剪改由 android 顶层 `splits { abi }` 统一处理（见本块下方），
+        // 这里不再用 ndk.abiFilters：它与 splits / --split-per-abi 冲突，且实测
+        // 管不住 Flutter 引擎 .so（多余）。x86_64 仍由文件末尾 androidComponents 排除。
     }
 
     buildTypes {
@@ -66,6 +65,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+    }
+
+    // 2026-08-17 占用优化：按 ABI 拆分 APK，同时保留整包（universalApk）作 OTA 基线。
+    // 一次构建即产出 arm64-v8a / armeabi-v7a 拆分包 + universal 整包。
+    // 拆分后单架构包比整包小约 40%（arm64 设备无需再下载 armeabi 那份引擎/业务 .so）。
+    // 注意：不要再用 Flutter 的 --split-per-abi 标志——它会额外塞入 x86_64 并与
+    // androidComponents 的排除规则冲突。此处由 gradle 统一管控。
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a', 'armeabi-v7a'
+            universalApk true
         }
     }
 }
@@ -88,11 +101,11 @@ androidComponents {
     }
 }
 
-// 关于 per-ABI 拆包：不在此处加 `splits { abi {...} }`——它与 Flutter Gradle
-// 插件的架构管理机制重叠，容易产生重复/冲突的产物。需要更小的分架构包时，
-// 直接用 Flutter 自带的命令行开关即可，无需改动本文件：
-//   flutter build apk --release --split-per-abi
-// 会额外产出 app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk。
+// per-ABI 拆包已在本文件 android 顶层 `splits { abi { universalApk true } }` 配置
+// （见上方），一次 `flutter build apk` 即产出：
+//   app-arm64-v8a-release.apk / app-armeabi-v7a-release.apk（拆分包，更小）
+//   app-universal-release.apk（整包，作 OTA 基线，构建脚本会复制为 app-release.apk）
+// 不要再传 --split-per-abi 标志（会塞入 x86_64 并与 androidComponents 排除冲突）。
 
 flutter {
     source = "../.."

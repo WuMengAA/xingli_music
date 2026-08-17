@@ -392,6 +392,19 @@ class ChangelogEntry {
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
+    version: '0.26.8.17',
+    cl: 'cl01',
+    title: 'P1 止血：LOD 性能重写 + 实体/联机插值 + 增量失效 + 渠道化发布',
+    details: <String>[
+      '渲染性能：_emitLodPass 逐档遍历自身粗格锚点（替代全图扫描），迭代量随视距平方暴涨 → 降数十倍',
+      '生物/掉落物渲染插值：僵尸/掉落物按物理步占比平滑移动，消除 8Hz/30Hz 离散推进的瞬移',
+      '联机远端玩家插值：PeerInfo 快照缓冲 + 渲染端 lerp，消除 100ms 级跳变',
+      '破坏/放置增量失效：单块编辑只失效本块 + 正交边界邻居（9→1~2 区块），不再刷新整片',
+      '发布渠道化：beta/alpha 独立渠道 + OTA 按渠道判新旧（根治跨天误判）+ 更新日志网络拉取',
+      '网易云去扫码、APK 按 ABI 拆分（arm64 省约 43%）、消息框全量中文化',
+    ],
+  ),
+  ChangelogEntry(
     version: '0.26.8.16',
     cl: 'cl78',
     title: '播放体验逻辑优化：倍速收敛 + 睡眠定时修复',

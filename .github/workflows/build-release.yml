@@ -42,15 +42,23 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK (release)
+      - name: Build APK (release, with per-ABI splits + universal)
         # --android-skip-build-dependency-validation：CI 的 Flutter stable(3.47)
         # 要求 Gradle ≥ 8.14，而项目 wrapper 为 8.10.2（本机旧 Flutter 可构建）。
         # 项目侧暂不升 gradle（避免影响本机），CI 用官方 bypass 开关跳过依赖校验。
+        # android/app/build.gradle 已配 splits { abi { universalApk true } }，
+        # 一次构建产出 arm64/armeabi 拆分包 + universal 整包（无需 --split-per-abi 标志）。
         run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
 
-      - name: Generate SHA-256 checksum
+      - name: Prepare artifacts (universal as OTA baseline + splits)
         working-directory: build/app/outputs/flutter-apk
-        run: sha256sum app-release.apk > app-release.apk.sha256
+        run: |
+          # gradle universalApk 产出的整包即 app-release.apk（历史 OTA 文件名，
+          # ota_service.dart 的 kOtaAssetName 直接拉它）。仅补 sha256 与拆分包校验。
+          sha256sum app-release.apk > app-release.apk.sha256
+          for f in app-arm64-v8a-release.apk app-armeabi-v7a-release.apk; do
+            [ -f "$f" ] && sha256sum "$f" > "$f.sha256"
+          done
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -61,9 +69,14 @@ jobs:
             ## 星璃音乐 ${{ github.ref_name }}
             自动构建发布（由 GitHub Actions 生成）。
 
-            > 应用内「设置 → 关于 → 版本更新」可自动检测本 Release 并 OTA 更新。
+            > 应用内「设置 → 关于 → 版本更新」可自动检测本 Release 并 OTA 更新（使用整包 app-release.apk）。
+            > 手动下载建议选对应架构的拆分包（体积更小）：arm64-v8a（多数现代手机）/ armeabi-v7a（旧 32 位）。
           files: |
             build/app/outputs/flutter-apk/app-release.apk
             build/app/outputs/flutter-apk/app-release.apk.sha256
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk.sha256
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk.sha256
           draft: false
           prerelease: ${{ contains(github.ref_name, '-hotfix') }}
