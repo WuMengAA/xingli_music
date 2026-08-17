@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/app_version.dart' show UpdateChannel;
+import '../core/app_version.dart' show AppVersion, UpdateChannel;
 import '../widgets/voxel/voxel_renderer.dart' show LodQuality;
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -334,9 +334,14 @@ class SettingsRepository {
       ? _prefs.remove(kOobeLastBuild)
       : _prefs.setInt(kOobeLastBuild, v);
 
-  /// 当前更新渠道（默认 beta 稳定版；2026-08-17 渠道化）。
-  UpdateChannel get updateChannel =>
-      UpdateChannel.fromTag(_prefs.getString(kUpdateChannel) ?? '');
+  /// 当前更新渠道（默认跟随编译渠道；2026-08-17 渠道化，2026-08-17 晚修正：
+  /// 原硬编码回落 beta，导致 alpha 编译包 OTA 也只查 beta → 收不到 alpha。
+  /// 改回「未手动切换时跟随 [AppVersion.channel]」，alpha 包自动查 alpha）。
+  UpdateChannel get updateChannel {
+    final String? saved = _prefs.getString(kUpdateChannel);
+    if (saved == null || saved.isEmpty) return AppVersion.channel;
+    return UpdateChannel.fromTag(saved);
+  }
   Future<void> setUpdateChannel(UpdateChannel c) =>
       _prefs.setString(kUpdateChannel, c.tag);
 

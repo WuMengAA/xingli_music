@@ -79,7 +79,7 @@ abstract final class AppVersion {
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
-  static const UpdateChannel channel = UpdateChannel.alpha;
+  static const UpdateChannel channel = UpdateChannel.beta;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -393,7 +393,7 @@ class ChangelogEntry {
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
     version: '0.26.8.17',
-    cl: 'alpha_cl02',
+    cl: 'beta_cl02',
     title: 'P2·LOD 保留垂直结构：悬空岛/建筑/洞穴口在远景不消失',
     details: <String>[
       'LOD 单元增 4×4 内部细采样（_probeRelief），捕获 2×2 主采样漏掉的内部竖直结构',
