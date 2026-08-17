@@ -84,9 +84,8 @@ abstract final class AppVersion {
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
   /// 已装同构建号的用户走增量补丁升级。
-  /// 当前为 OTA 架构改造热修补丁（beta_cl03 首补）：hotfix=1 → 展示串
-  /// `0.26.08.17_beta_cl03_hotfix1`（buildCount 保持 3，不升构建号）。
-  static const int? hotfix = 1;
+  /// cl04 起为开放世界 P2/P3/P4 新功能构建（非 cl03 热修补丁），故 hotfix 回落 null。
+  static const int? hotfix = null;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
   /// cl36：安卓切歌防闪退补丁 + 通知系统重做(rootOverlay/多实例堆叠) +
@@ -328,7 +327,9 @@ abstract final class AppVersion {
   /// 非致命「重连中…」覆盖层取代原致命「连接已断开」）；重连成功后重写远端玩家
   /// 缓存（清旧连接 id，避免重连后出现重复方块人）；主动离开/超上限转致命错误
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
-  static const int buildCount = 3;
+  /// cl04：开放世界 P2/P3/P4（编辑层 chunk 流式 + 分块存档按存档 ID 分目录 + 渲染距离/LOD 核实）
+  /// + 构建修复（Windows 跨盘 Kotlin 增量编译规避 / Flutter 3.44.8 与 splits.abi 冲突官方 flag）。
+  static const int buildCount = 4;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -393,6 +394,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.17',
+    cl: 'beta_cl04',
+    title: '开放世界 P2/P3/P4：编辑层流式 + 分块存档 + 渲染距离/LOD 核实',
+    details: <String>[
+      'P2 编辑层 chunk 流式：玩家移动时按 (cx,cz) 动态加载周边区块编辑层、远处卸载释放内存（无限地图流式加载）',
+      'P4 分块存档按存档 ID 分目录：主文件不再内嵌全量编辑（无限地图存档不再膨胀），多存档编辑互不串档，删存档连目录一起清',
+      'P3 渲染距离+LOD 核实：viewDistanceChunks/lodMaxChunks/kFullBand 守卫锁死满精度 5×5 带，地形 LRU 限流，无限地形不越视距上限',
+      '构建修复：Windows 跨盘 Kotlin 增量编译规避（kotlin.incremental=false）+ Flutter 3.44.8 与 splits.abi 冲突官方 flag（disable-abi-filtering）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.17',
     cl: 'beta_cl03_hotfix1',

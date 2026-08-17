@@ -18,7 +18,7 @@
 | 模块 | 说明 |
 | ---- | ---- |
 | 无限画布 / 场景 | 八向滑动无边界，场景随音乐 / 心情联动，动态配色 |
-| 体素 3D 世界 | 体素渲染的开放世界：4 独立动作键、游戏设置合集、世界存档（唯一入口）、存档缩略图 |
+| 体素 3D 世界 | 体素渲染的开放世界：4 独立动作键、游戏设置合集、世界存档（唯一入口）、存档缩略图；**无限地图 chunk 流式加载/卸载**（玩家移动时按 (cx,cz) 动态加载周边区块编辑层、远处卸载释放内存）+ **按存档 ID 分目录的分块存档**（主文件不再内嵌全量编辑、无限地图存档不膨胀、多存档编辑互不串档） |
 | 场景拍摄 | 独立画质 / 效果（与游戏画质解耦）；B站视频可作场景背景（默认静音，**不进游戏**） |
 | 多源音乐播放 | 网易云（音乐源）/ 哔哩哔哩（视频源，可作背景）/ 本地（音乐源）聚合搜索与播放 |
 | 播放器 | 音乐卡片 / 音乐面板（NowPlayingPage）/ 统一播放器；音量折叠、音质选择（自动识别网易云 VIP / B站大会员） |
@@ -57,17 +57,21 @@ lib/
 flutter pub get
 
 # Windows
-flutter build windows --release   # 产物 build/windows/x64/runner/Release/
+flutter build windows --release --no-tree-shake-icons   # 产物 build/windows/x64/runner/Release/
+# （--no-tree-shake-icons 必需：运行期动态解析 IconData 无法 const，release 会砍掉字体致 aot 失败）
 
 # Android
-flutter build apk --release       # 产物 build/app/outputs/flutter-apk/app-release.apk
+# Flutter 3.44.8 会向 ndk.abiFilters 注入默认三架构，与本项目 splits.abi（仅产 64/32 拆分包）冲突，
+# 需加官方 flag 关闭注入（不动 build.gradle，保留按 ABI 拆分设计）：
+flutter build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
+# 产物 build/app/outputs/flutter-apk/app-arm64-v8a-release.apk + app-armeabi-v7a-release.apk（按 ABI 拆分，无整包）
 ```
 
 > Windows 需 Visual Studio 2022 +「使用 C++ 的桌面开发」工作负载；Android 需配置签名 keystore 才能上架。
 
 ## 当前版本
 
-- `0.26.8.14_alpha_cl55`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
+- `0.26.08.17_beta_cl04`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
 
 ## 开源与更新
 
