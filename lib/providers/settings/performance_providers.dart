@@ -238,8 +238,8 @@ enum SceneBgQuality {
 final sceneBgQualityProvider =
     StateProvider<SceneBgQuality>((ref) => SceneBgQuality.medium);
 
-/// 场景背景帧率上限（默认 30，比游戏低一半省电）。
-final sceneBgFpsProvider = StateProvider<int>((ref) => 30);
+/// 场景背景帧率上限（P7·#507：默认 30→24，背景系渲染统一下调到 24FPS 省电）。
+final sceneBgFpsProvider = StateProvider<int>((ref) => 24);
 
 /// 场景背景 · 雾。
 final sceneBgFogProvider = StateProvider<bool>((ref) => true);
@@ -254,6 +254,12 @@ final sceneBgSkyProvider = StateProvider<bool>((ref) => true);
 /// 场景背景 · 动画开关（false = 静态单帧，最省电；与场景页「实时渲染」联动，
 /// 任一开启即实时重绘）。默认关：单帧静态才能稳 60fps（用户确认）。
 final sceneBgAnimProvider = StateProvider<bool>((ref) => false);
+
+/// 玻璃/液态玻璃模糊采样率上限（毛玻璃 [BackdropFilter] 重采样帧率封顶）。
+/// P7·#507：默认 24 FPS——高帧率（60/120）下避免每帧对背景重采高斯模糊，
+/// 中低端机 UI 卡顿的主因之一；此前 [PicturePreset.blurFps] 定义却从未消费
+/// （死代码），现经本 provider 接入 liquid_glass 的节流层。
+final blurFpsProvider = StateProvider<int>((ref) => 24);
 
 // ── 体素区块 / LOD（R23m：16×16 区块，视距与 LOD 可调）───────────────
 
@@ -425,11 +431,12 @@ enum PicturePreset {
       }[this]!;
 
   /// 玻璃模糊渲染帧率（毛玻璃采样上限；省电=关模糊，不适用）。
+  /// P7·#507：high 30→24，统一背景系模糊采样到 24FPS。
   int get blurFps => const <PicturePreset, int>{
         PicturePreset.powerSave: 0,
         PicturePreset.smooth: 5,
         PicturePreset.standard: 24,
-        PicturePreset.high: 30,
+        PicturePreset.high: 24,
       }[this]!;
 
   /// 背景动画覆盖（null = 跟随档位）。
@@ -473,6 +480,8 @@ void applyPicturePreset(WidgetRef ref, PicturePreset p) {
   ref.read(glassBlurOverrideProvider.notifier).state = p.blur;
   ref.read(bgAnimationOverrideProvider.notifier).state = p.anim;
   ref.read(liquidGlassOverrideProvider.notifier).state = p.liquid;
+  // P7·#507：模糊采样率随预设联动（powerSave=0 关模糊 / smooth=5 / standard=24 / high=24）。
+  ref.read(blurFpsProvider.notifier).state = p.blurFps;
   final FpsLimit? fps = p.fps;
   if (fps != null) {
     ref.read(fpsLimitProvider.notifier).state = fps;

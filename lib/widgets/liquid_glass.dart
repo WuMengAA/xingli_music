@@ -7,6 +7,7 @@
 ///  - [GlassStyle.liquid]  液态玻璃：折射 + 色散（FragmentShader，Dock 栏专用，待精调）
 library;
 
+import 'dart:async' show Timer;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -138,8 +139,10 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
     }
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+      child: _ThrottledBackdrop(
+        blur: blur,
+        // P7·#507：模糊采样率封顶（默认 24 FPS），避免高帧率下每帧重采高斯。
+        fps: ref.watch(blurFpsProvider),
         // 隔离：把玻璃内容放进独立图层（RepaintBoundary）。
         // 否则内容区内的逐帧重绘（歌词滚动 / 进度条 tick / Dock 指示器
         // AnimatedContainer / 页面滚动）会污染 BackdropFilter 所在图层，
@@ -228,4 +231,77 @@ class _RefractionPainter extends CustomPainter {
       oldDelegate.radius != radius ||
       oldDelegate.refraction != refraction ||
       oldDelegate.dispersion != dispersion;
+}
+
+/// 毛玻璃模糊层（P7·#507）：以 [fps] 上限封顶 [BackdropFilter] 的背景重采样率。
+///
+/// 背景（AppShell 玻璃层 / 场景背景）逐帧变化时，BackdropFilter 会每帧对整片
+/// 背景重采高斯模糊——高帧率（60/120）下是中低端机 UI 卡顿主因。本层用独立
+/// [RepaintBoundary] 包裹 BackdropFilter，并以定时器按 [fps] 驱动其重绘，
+/// 将「模糊采样率」封顶在 fps（默认 24），避免每帧重采样。当背景静止时仍按
+/// fps 节拍重绘一次（开销恒定且远小于 60fps 全量采样）。
+class _ThrottledBackdrop extends StatefulWidget {
+  const _ThrottledBackdrop({
+    required this.blur,
+    required this.fps,
+    required this.child,
+  });
+
+  /// 模糊强度（sigma）。
+  final double blur;
+
+  /// 重采样帧率上限（0 = 不限制，直接走普通 BackdropFilter）。
+  final int fps;
+
+  /// 被模糊的内容（应已自行 RepaintBoundary 隔离）。
+  final Widget child;
+
+  @override
+  State<_ThrottledBackdrop> createState() => _ThrottledBackdropState();
+}
+
+class _ThrottledBackdropState extends State<_ThrottledBackdrop> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _restart();
+  }
+
+  void _restart() {
+    _timer?.cancel();
+    _timer = null;
+    final int fps = widget.fps;
+    if (fps > 0) {
+      _timer = Timer.periodic(
+        Duration(milliseconds: (1000 / fps).round().clamp(1, 1000)),
+        (_) {
+          if (mounted) setState(() {}); // 触发模糊层重绘（重采样背景）。
+        },
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _ThrottledBackdrop old) {
+    super.didUpdateWidget(old);
+    if (old.fps != widget.fps || old.blur != widget.blur) _restart();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: widget.blur, sigmaY: widget.blur),
+        child: widget.child,
+      ),
+    );
+  }
 }
