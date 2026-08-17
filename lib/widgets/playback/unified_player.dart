@@ -56,6 +56,7 @@ class UnifiedPlayer extends ConsumerStatefulWidget {
     super.key,
     this.onOpenNowPlaying,
     this.lyricsSlot,
+    this.initialCollapsed,
   });
 
   /// 点击左侧信息区（封面 + 曲名）的回调。
@@ -69,6 +70,11 @@ class UnifiedPlayer extends ConsumerStatefulWidget {
   /// 非空时在**全屏 Overlay** 的播放内容下方追加显示；为 null 时全屏面板与
   /// 原先完全一致。紧凑面板不受影响（空间有限，歌词只在全屏态展示）。
   final Widget? lyricsSlot;
+
+  /// 初始折叠态覆盖。非空时替换 UI 自适应的默认折叠决策
+  /// （[ResponsiveLayout.playerCollapsedByDefault]）——例如游戏内 HUD 强制
+  /// 默认折叠。传 null（默认）维持原自适应行为。
+  final bool? initialCollapsed;
 
   @override
   ConsumerState<UnifiedPlayer> createState() => _UnifiedPlayerState();
@@ -122,7 +128,10 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
     // UI 自适应：首次 build 按屏幕尺寸决定默认折叠（initState 禁读 MediaQuery）
     if (!_collapsedInit) {
       _collapsedInit = true;
-      _collapsed = ResponsiveLayout.of(context).playerCollapsedByDefault;
+      // R26h：显式 initialCollapsed 优先（如游戏内 HUD 强制折叠）；
+      // 否则沿用 UI 自适应默认（横屏矮 / 手表默认折叠）。
+      _collapsed = widget.initialCollapsed ??
+          ResponsiveLayout.of(context).playerCollapsedByDefault;
     }
     final Track? now = ref.watch(nowPlayingProvider);
     // #167：白噪音状态取「生效来源」（跟随场景 / 全局），非全局开关本身

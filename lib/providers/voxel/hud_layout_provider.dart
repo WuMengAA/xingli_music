@@ -128,4 +128,12 @@ abstract final class HudIds {
 
   /// P2：折叠面板（坐标/模式等次级控制）——可拖拽防与顶栏重叠。
   static const String foldPanel = 'foldPanel';
+
+  /// R26h：左上「信息显示」面板（存档名/种子/坐标/群系/时间/累计游玩时长）。
+  /// 可拖拽防与顶栏/音乐卡重叠。
+  static const String worldInfo = 'worldInfo';
+
+  /// R26c：疾跑按钮（触屏切换 _sprinting；键盘 Ctrl 仍可用）。
+  /// 可拖拽，默认置于左下摇杆旁。
+  static const String sprint = 'sprint';
 }

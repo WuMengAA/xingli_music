@@ -300,6 +300,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// R26h：世界种子短哈希（顶部居中信息条「世界名」用）。
   String get _seedTag =>
       '#${(widget.world.seed & 0xffff).toRadixString(16).toUpperCase().padLeft(4, '0')}';
+
+  /// R26h：信息面板显示的世界名（新建世界取 saveName，读档取 _meta.name）。
+  String get _worldName {
+    final dynamic n = _currentMeta is Map<String, dynamic>
+        ? _currentMeta!['name']
+        : null;
+    if (n is String && n.isNotEmpty) return n;
+    if (widget.saveName != null && widget.saveName!.isNotEmpty) {
+      return widget.saveName!;
+    }
+    return '未命名世界';
+  }
   late final Ticker _ticker;
   final ValueNotifier<VoxelFrame> _frame = ValueNotifier<VoxelFrame>(
     VoxelFrame.empty,
@@ -429,8 +441,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   // ── R24 跳跃 / 自动跳跃 / 坐标系统 ──────────────────
   /// 自动跳跃（R26r34 默认开启）：撞到 1 格台阶时自动抬升迈过。
   bool _autoJump = true;
-  /// 坐标系统 HUD 开关（默认显示，类 F3）。
-  bool _showCoords = true;
+  /// R26h：左上「信息显示」面板开关（默认显示；含存档名/种子/坐标/群系/时间/时长）。
+  /// 取代旧独立坐标 HUD——坐标/群系并入此面板统一展示。
+  bool _showWorldInfo = true;
   /// 是否已进入世界（H1r2：autoStart 时启动即 true；主菜单已独立成页）。
   bool _started = false;
 
@@ -509,6 +522,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   /// R26c 是否疾跑（Ctrl）：移速 ×1.35（蹲下时无效）。
   bool _sprinting = false;
+
+  /// R26h：累计游戏内秒数（信息面板「游戏中时间」用；1 真实秒 =
+  /// dayLength 内 1/1200 天 = 72 游戏秒）。double 累加 + int notifier 节流刷新。
+  double _inGameSec = 0;
+  final ValueNotifier<int> _inGameSeconds = ValueNotifier<int>(0);
 
   /// 准星瞄准的目标方块（notifier：值变化自动通知瞄准框 painter 重绘）。
   final ValueNotifier<(int, int, int)?> _aimNotifier =
@@ -1061,6 +1079,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _clockText.dispose();
     _crackNotifier.dispose();
     _coordsText.dispose();
+    _inGameSeconds.dispose();
     _inv.dispose();
     // cl38 P1：_vitals 生命周期由 playerVitalsProvider 管理（ref.onDispose 清理），
     // 此处不再 dispose，避免与 provider 双重 dispose。
@@ -1172,6 +1191,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (_time.advance(dt)) _dirty = true;
     final String clock = '${_time.clock} · ${_time.mode.label}';
     if (_clockText.value != clock) _clockText.value = clock;
+
+    // R26h：累计游戏内秒数（信息面板「游戏中时间」；暂停时不推进，与真实
+    // 会话时长区分——前者是游戏内流逝、后者是挂机总墙钟）。
+    _inGameSec += dt * 86400 / _time.dayLength;
+    final int ig = _inGameSec.floor();
+    if (ig != _inGameSeconds.value) _inGameSeconds.value = ig;
 
     // R24 坐标系统：第一人称/第三人称下实时刷新玩家坐标 + 朝向 + 群系。
     if (_viewMode == _ViewMode.firstPerson ||
@@ -2790,6 +2815,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _enterWorld(!_survival);
   }
 
+  /// R26h：疾跑触屏切换（左下「疾跑」按钮）。键盘 Ctrl 仍可用，二者独立；
+  /// 蹲下/飞行时疾跑无意义，这里只翻转 _sprinting 标记（物理层已对蹲/飞忽略）。
+  void _toggleSprint() => setState(() => _sprinting = !_sprinting);
+
   /// H4：脱离卡死——把玩家传送到当前位置上方最近的安全地表（上探空气+
   /// 下探地面），清空速度与蹲伏。卡进方块/悬崖/洞穴口时一键脱出。
   void _unstick() {
@@ -4300,83 +4329,99 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _viewMode == _ViewMode.thirdPerson;
     final List<Widget> controls = <Widget>[];
 
-    // 顶部控制条
+    // R26h：左上「信息显示」面板（可拖拽；含存档名/种子/坐标/群系/时间/时长）。
+    // 取代旧「世界信息条 + 独立坐标 HUD」，统一在左上方展示。
+    if (_showWorldInfo && _started)
+      controls.add(
+        _HudWrap(
+          id: HudIds.worldInfo,
+          defaultPos: const Offset(0.02, 0.02),
+          child: _WorldInfoPanel(
+            worldName: _worldName,
+            seedTag: _seedTag,
+            coordsText: _coordsText,
+            clockText: _clockText,
+            inGameSeconds: _inGameSeconds,
+            sessionStart: _sessionStart,
+          ),
+        ),
+      );
+
+    // R26h：顶部居中「音乐卡片」——进入世界默认折叠常驻顶部，状态不受 UI
+    // 变化影响（独立于左右面板）。maxWidth 由播放器自带，Align 居中。
+    if (_started)
+      controls.add(
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: SafeArea(
+            bottom: false,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(
+                    top: AppSpace.xs,
+                    left: AppSpace.md,
+                    right: AppSpace.md),
+                child: UnifiedPlayer(
+                  initialCollapsed: true,
+                  lyricsSlot: const LyricsView(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+    // R26h：右上角芯片列【菜单 / 聚合相机 / 2.5D沉浸画布(占位禁用) / 更多】。
+    // 顶栏精简为四枚固定芯片；视角切换收进「更多」折叠面板。
     controls.add(
       Positioned(
         top: 0,
-        left: 0,
         right: 0,
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.md, vertical: AppSpace.xs),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  // R26h：顶部居中信息条（世界名 · 存档时间 · 游戏时长）
-                  _WorldInfoBar(
-                    seedTag: _seedTag,
-                    lastSavedAt: _lastSavedAt,
-                    sessionStart: _sessionStart,
-                  ),
-                  const SizedBox(height: 6),
-                  // R26h：顶栏只保留「菜单 / 视角 / 相机 / 存档 / 设置 / 时间」，
-                  // 其余次级控制（坐标 / 模式 / 自动跳 / 画质 / 沉浸）收进折叠面板。
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: <Widget>[
-                      // R26fx：折叠菜单改名「更多」（原「菜单」）。
-                      _ToggleChip(
-                        icon: Icons.menu,
-                        label: '更多',
-                        active: _foldOpen,
-                        onTap: () => setState(() => _foldOpen = !_foldOpen),
-                      ),
-                      // 视角切换：独立按钮组件，点击触发 _cycleViewMode。
-                      ViewModeButton(
-                        onPressed: _cycleViewMode,
-                        label: _viewModeLabel(),
-                        tooltip: '切换视角',
-                        semanticsLabel: '切换视角，当前${_viewModeLabel()}',
-                        active: _viewMode != _ViewMode.orbit,
-                      ),
-                      // R26fx：顶栏整理——相机/存档收进折叠菜单，顶栏只留
-                      // 菜单 / 视角 / 暂停 / 设置 / 时钟（信息合并、简化）。
-                      // H1r2：游戏菜单（默认暂停整个世界）
-                      _ToggleChip(
-                        icon: _paused
-                            ? Icons.play_arrow_rounded
-                            : Icons.pause_rounded,
-                        label: _paused ? '继续' : '菜单',
-                        active: _paused,
-                        onTap: () => _setPaused(!_paused),
-                      ),
-                      // R26skel：游戏设置已移入菜单（暂停 → 菜单 → 游戏设置）。
-                      ValueListenableBuilder<String>(
-                        valueListenable: _clockText,
-                        builder: (BuildContext c, String s, Widget? _) =>
-                            _ClockChip(text: s),
-                      ),
-                    ],
-                  ),
-                  // ⑨：游戏内顶部居中液态玻璃播放器。
-                  // 关键：作为顶栏 Column 的子项而非固定 top——顶栏 chips 在窄屏
-                  // 会折行（见 P2 注释：固定 top:66 曾压住第二行 chips），放进
-                  // Column 后播放器随折行自然下移，任何屏宽都不可能重叠；
-                  // crossAxisAlignment.center 天然居中，maxWidth 560 由播放器自带。
-                  // 交互：下拉箭头展开/收起，点信息区进沉浸卡片（带歌词，
-                  // 搜索/音质已并入卡片，默认音量收起）。
-                  if (_started) ...<Widget>[
-                    const SizedBox(height: 6),
-                    UnifiedPlayer(
-                      lyricsSlot: const LyricsView(),
-                    ),
-                  ],
-                ],
-              ),
+            padding: const EdgeInsets.only(
+                top: AppSpace.xs, right: AppSpace.md, left: AppSpace.sm),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                _ToggleChip(
+                  icon: _paused
+                      ? Icons.play_arrow_rounded
+                      : Icons.pause_rounded,
+                  label: _paused ? '继续' : '菜单',
+                  active: _paused,
+                  onTap: () => _setPaused(!_paused),
+                ),
+                const SizedBox(height: 6),
+                // 聚合相机（打开后带全屏相机 HUD）。
+                _ToggleChip(
+                  icon: Icons.camera_alt_outlined,
+                  label: '聚合相机',
+                  active: _cameraMode,
+                  onTap: () => setState(() => _cameraMode = !_cameraMode),
+                ),
+                const SizedBox(height: 6),
+                // 2.5D 沉浸画布（下阶段改良，本轮占位禁用）。
+                _ToggleChip(
+                  icon: Icons.view_in_ar_outlined,
+                  label: '2.5D画布',
+                  onTap: null,
+                ),
+                const SizedBox(height: 6),
+                // 更多（信息显示开关 + 自动跳跃开关，见折叠面板主组）。
+                _ToggleChip(
+                  icon: Icons.menu,
+                  label: '更多',
+                  active: _foldOpen,
+                  onTap: () => setState(() => _foldOpen = !_foldOpen),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -4391,8 +4436,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           id: HudIds.foldPanel,
           defaultPos: const Offset(0.02, 0.14),
           child: _FoldPanel(
-            showCoords: _showCoords,
-            onToggleCoords: () => setState(() => _showCoords = !_showCoords),
+            showWorldInfo: _showWorldInfo,
+            onToggleWorldInfo: () =>
+                setState(() => _showWorldInfo = !_showWorldInfo),
+            viewModeLabel: _viewModeLabel(),
+            onCycleView: _cycleViewMode,
             survival: _survival,
             onToggleSurvival: _toggleSurvival,
             onOpenCamera: () => setState(() => _cameraMode = !_cameraMode),
@@ -4422,34 +4470,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // G9：联机 HUD（同伴列表 + 一起听 + 离开），仅联机模式显示。
     if (widget.multiplayer) controls.add(_buildMultiplayerHud());
 
-    // 坐标 HUD（第一人称，R26d：位置可自定义）
-    if (fp && _showCoords)
-      controls.add(
-        _HudWrap(
-          id: HudIds.coords,
-          defaultPos: const Offset(0.02, 0.075),
-          child: ValueListenableBuilder<String>(
-            valueListenable: _coordsText,
-            builder: (BuildContext c, String s, Widget? _) => Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: const Color(0x66000000),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                s,
-                style: const TextStyle(
-                  color: Color(0xFFF2F5FA),
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
-    // 左侧：FP/TP 摇杆；观景 LiftPad（R26d：位置可自定义）
+    // 左侧：FP/TP 摇杆；观景 LiftPad（R26d：位置可自定义）。
+    // 坐标/群系已并入左上「信息显示」面板，不再单独渲染坐标 HUD。
     if (_started)
       controls.add(
         _HudWrap(
@@ -4462,6 +4484,21 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
             // R26fix：HUD 编辑模式（hudEditProvider）下手势让位给外层 _HudWrap
             // 拖动 → 「移动键可拖动位置」。
             enabled: !ref.watch(hudEditProvider),
+          ),
+        ),
+      );
+
+    // R26h：左下「疾跑」按钮（触屏切换 _sprinting；键盘 Ctrl 仍可用）。
+    // 置于摇杆右上方，独立可拖拽（id=sprint）。
+    if (_started && fp && !_cameraMode)
+      controls.add(
+        _HudWrap(
+          id: HudIds.sprint,
+          defaultPos: const Offset(0.27, 0.80),
+          child: _BigActionButton(
+            icon: Icons.run_circle_outlined,
+            label: '疾跑',
+            onTap: _toggleSprint,
           ),
         ),
       );
@@ -4631,13 +4668,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                 ),
               VoxelToolHud(inventory: _inv),
               const SizedBox(height: 6),
+              // R26h：物品栏约束为 50% 屏宽 × 20% 屏高（原全宽，竖屏/平板过大）。
               Center(
-                child: VoxelHotbar(
-                  inventory: _inv,
-                  onSelect: _selectSlot,
-                  onOpenBag: _toggleBag,
-                  survival: _survival,
-                  onToggleSurvival: _toggleSurvival,
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.5,
+                  height: MediaQuery.of(context).size.height * 0.2,
+                  child: VoxelHotbar(
+                    inventory: _inv,
+                    onSelect: _selectSlot,
+                    onOpenBag: _toggleBag,
+                    survival: _survival,
+                    onToggleSurvival: _toggleSurvival,
+                  ),
                 ),
               ),
             ],
@@ -5500,33 +5542,6 @@ class _ToggleChip extends StatelessWidget {
   }
 }
 
-/// 时钟胶囊。
-class _ClockChip extends StatelessWidget {
-  const _ClockChip({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0x59000000),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x40FFFFFF)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(Icons.access_time, size: 14, color: Color(0xFFF2F5FA)),
-          const SizedBox(width: 4),
-          Text(text,
-              style: const TextStyle(color: Color(0xFFF2F5FA), fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
 /// R24c: Virtual joystick (replaces DPad). Drag outputs normalized Offset(dx,dy in [-1,1]); dy up = negative = forward.
 class _Joystick extends StatefulWidget {
   const _Joystick({required this.onChanged, this.enabled = true});
@@ -5972,9 +5987,6 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
   // R26h：_openQuickSettings 已迁入内部 _VoxelWorldView3DState（顶栏「设置」
   // 按钮直接调用；存档列表入口改为直接调用本类的 _openSaveMenu，去掉 _viewKey 中转）。
 
-  String get _seedTag =>
-      '#${(_seed & 0xffff).toRadixString(16).toUpperCase().padLeft(4, '0')}';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -6073,26 +6085,32 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
   }
 }
 
-/// R26h：顶部居中信息条——世界名 · 存档时间 · 游戏时长 三合一。
-/// 游戏时长由内部 1s 定时器自更新，与渲染帧率解耦。
-class _WorldInfoBar extends StatefulWidget {
-  const _WorldInfoBar({
+/// R26h：左上「信息显示」面板——竖向列出存档名 / 种子 / 坐标 / 群系 / 时间 /
+/// 现实时长 / 游戏时长。横向 ≤ 1/4 屏、竖向 ≤ 1/3 屏；位置由外层 _HudWrap 拖拽。
+class _WorldInfoPanel extends StatefulWidget {
+  const _WorldInfoPanel({
+    required this.worldName,
     required this.seedTag,
-    this.lastSavedAt,
+    required this.coordsText,
+    required this.clockText,
+    required this.inGameSeconds,
     this.sessionStart,
   });
 
+  final String worldName;
   final String seedTag;
-  final DateTime? lastSavedAt;
+  final ValueNotifier<String> coordsText;
+  final ValueNotifier<String> clockText;
+  final ValueNotifier<int> inGameSeconds;
   final DateTime? sessionStart;
 
   @override
-  State<_WorldInfoBar> createState() => _WorldInfoBarState();
+  State<_WorldInfoPanel> createState() => _WorldInfoPanelState();
 }
 
-class _WorldInfoBarState extends State<_WorldInfoBar> {
+class _WorldInfoPanelState extends State<_WorldInfoPanel> {
   Timer? _timer;
-  String _duration = '0秒';
+  String _realDur = '0秒';
 
   @override
   void initState() {
@@ -6101,24 +6119,27 @@ class _WorldInfoBarState extends State<_WorldInfoBar> {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) => _refresh());
   }
 
-  @override
-  void didUpdateWidget(covariant _WorldInfoBar old) {
-    super.didUpdateWidget(old);
-    if (old.sessionStart != widget.sessionStart ||
-        old.lastSavedAt != widget.lastSavedAt) {
-      _refresh();
-    }
-  }
-
   void _refresh() {
     final DateTime? s = widget.sessionStart;
-    final Duration d = s == null ? Duration.zero : DateTime.now().difference(s);
+    final Duration d =
+        s == null ? Duration.zero : DateTime.now().difference(s);
     final int h = d.inHours;
     final int m = d.inMinutes % 60;
     final int sec = d.inSeconds % 60;
     final String dur =
         h > 0 ? '$h时${m}分' : (m > 0 ? '$m分${sec}秒' : '${sec}秒');
-    if (mounted && dur != _duration) setState(() => _duration = dur);
+    if (mounted && dur != _realDur) setState(() => _realDur = dur);
+  }
+
+  /// 游戏内秒数 → 人话（days/h/m）。
+  static String _fmtGame(int totalSec) {
+    final int days = totalSec ~/ 86400;
+    final int h = (totalSec % 86400) ~/ 3600;
+    final int m = (totalSec % 3600) ~/ 60;
+    if (days > 0) return '$days天${h}时${m}分';
+    if (h > 0) return '$h时${m}分';
+    final int s = totalSec % 60;
+    return m > 0 ? '$m分${s}秒' : '${s}秒';
   }
 
   @override
@@ -6127,46 +6148,93 @@ class _WorldInfoBarState extends State<_WorldInfoBar> {
     super.dispose();
   }
 
-  String _fmt(DateTime t) {
-    final int h = t.hour, m = t.minute, s = t.second;
-    String p2(int v) => v.toString().padLeft(2, '0');
-    return '${p2(h)}:${p2(m)}:${p2(s)}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final String save =
-        widget.lastSavedAt == null ? '—' : _fmt(widget.lastSavedAt!);
-    final TextStyle style = const TextStyle(
-      color: Color(0xFFF2F5FA),
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0x59000000),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x40FFFFFF)),
+    final Size vs = MediaQuery.of(context).size;
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: vs.width * 0.25,
+        maxHeight: vs.height * 0.33,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(Icons.public, size: 15, color: Color(0xFFF2F5FA)),
-          const SizedBox(width: 5),
-          Text('体素世界 ${widget.seedTag}', style: style),
-          const SizedBox(width: 10),
-          const Icon(Icons.save_outlined, size: 14, color: Color(0xFFF2F5FA)),
-          const SizedBox(width: 4),
-          Text('存档 $save', style: style),
-          const SizedBox(width: 10),
-          const Icon(Icons.timer_outlined, size: 14, color: Color(0xFFF2F5FA)),
-          const SizedBox(width: 4),
-          Text('时长 $_duration', style: style),
-        ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0x66000000),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0x40FFFFFF)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _InfoRow(Icons.save_outlined, '存档', widget.worldName),
+              _InfoRow(Icons.tag, '种子', widget.seedTag),
+              ValueListenableBuilder<String>(
+                valueListenable: widget.coordsText,
+                builder: (_, String s, __) {
+                  final List<String> lines = s.split('\n');
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      _InfoRow(Icons.place, '坐标',
+                          lines.isNotEmpty ? lines[0] : '—'),
+                      _InfoRow(
+                        Icons.terrain,
+                        '群系',
+                        lines.length > 1 ? lines[1].split(' · ').last : '—',
+                      ),
+                    ],
+                  );
+                },
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: widget.clockText,
+                builder: (_, String s, __) =>
+                    _InfoRow(Icons.access_time, '时间', s),
+              ),
+              _InfoRow(Icons.timer_outlined, '现实', _realDur),
+              ValueListenableBuilder<int>(
+                valueListenable: widget.inGameSeconds,
+                builder: (_, int g, __) =>
+                    _InfoRow(Icons.auto_awesome, '游戏', _fmtGame(g)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+/// 信息面板单行（图标 + 标签 + 值）。
+class _InfoRow extends StatelessWidget {
+  const _InfoRow(this.icon, this.label, this.value);
+  final IconData icon;
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(icon, size: 13, color: const Color(0xFFF2F5FA)),
+            const SizedBox(width: 5),
+            Text('$label ',
+                style: const TextStyle(
+                    color: Color(0xBFF2F5FA), fontSize: 12)),
+            Expanded(
+              child: Text(value,
+                  style: const TextStyle(
+                      color: Color(0xFFF2F5FA),
+                      fontSize: 12,
+                      fontFamily: 'monospace')),
+            ),
+          ],
+        ),
+      );
 }
 
 /// R26h/R26p2：折叠面板——收纳次级控制（坐标 / 模式 / 自动跳 / 沉浸），
@@ -6174,8 +6242,10 @@ class _WorldInfoBarState extends State<_WorldInfoBar> {
 /// 「游戏画面」设置页（与游戏内共享 provider），不在游戏内菜单堆砌。
 class _FoldPanel extends StatelessWidget {
   const _FoldPanel({
-    required this.showCoords,
-    required this.onToggleCoords,
+    required this.showWorldInfo,
+    required this.onToggleWorldInfo,
+    required this.viewModeLabel,
+    required this.onCycleView,
     required this.survival,
     required this.onToggleSurvival,
     required this.onOpenCamera,
@@ -6192,8 +6262,12 @@ class _FoldPanel extends StatelessWidget {
     required this.onClose,
   });
 
-  final bool showCoords;
-  final VoidCallback onToggleCoords;
+  /// R26h：信息显示开关（左上面板显隐）。
+  final bool showWorldInfo;
+  final VoidCallback onToggleWorldInfo;
+  /// 视角切换标签 + 回调（顶栏精简后迁入此处）。
+  final String viewModeLabel;
+  final VoidCallback onCycleView;
   final bool survival;
   final VoidCallback onToggleSurvival;
   final VoidCallback onOpenCamera;
@@ -6213,7 +6287,7 @@ class _FoldPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget sep = const SizedBox(height: 6);
     return Container(
-      width: 232,
+      width: 240,
       padding: const EdgeInsets.all(AppSpace.sm),
       decoration: BoxDecoration(
         color: context.appColors.bgSurface,
@@ -6233,7 +6307,7 @@ class _FoldPanel extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Expanded(child: Text('折叠菜单', style: context.appText.body)),
+              Expanded(child: Text('更多', style: context.appText.body)),
               GestureDetector(
                 onTap: onClose,
                 behavior: HitTestBehavior.opaque,
@@ -6241,12 +6315,35 @@ class _FoldPanel extends StatelessWidget {
               ),
             ],
           ),
+          // R26h：主组——用户最常调的两个开关（信息显示 / 自动跳跃）。
           sep,
           _ToggleChip(
-            icon: Icons.place,
-            label: '坐标',
-            active: showCoords,
-            onTap: onToggleCoords,
+            icon: Icons.info_outline,
+            label: '信息显示',
+            active: showWorldInfo,
+            onTap: onToggleWorldInfo,
+          ),
+          sep,
+          _ToggleChip(
+            icon: Icons.run_circle_outlined,
+            label: '自动跳',
+            active: autoJump,
+            onTap: onToggleAutoJump,
+          ),
+          // 高级组：视角 / 模式 / 相机 / 沉浸 / 工具。
+          sep,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Text('高级',
+                style: context.appText.body
+                    .copyWith(fontSize: 11, color: const Color(0x99F2F5FA))),
+          ),
+          sep,
+          ViewModeButton(
+            onPressed: onCycleView,
+            label: viewModeLabel,
+            tooltip: '切换视角',
+            active: true,
           ),
           sep,
           _ToggleChip(
@@ -6255,20 +6352,11 @@ class _FoldPanel extends StatelessWidget {
             active: survival,
             onTap: onToggleSurvival,
           ),
-          // R26fix：创造模式「飞行」开关——一键起飞/落地，不依赖双击手感。
           sep,
-          // R26fx：相机入口保留在「更多」；存档已移入游戏菜单（暂停 → 菜单）第二位。
           _ToggleChip(
             icon: Icons.camera_alt_outlined,
             label: '相机',
             onTap: onOpenCamera,
-          ),
-          sep,
-          _ToggleChip(
-            icon: Icons.run_circle_outlined,
-            label: '自动跳',
-            active: autoJump,
-            onTap: onToggleAutoJump,
           ),
           sep,
           _ToggleChip(
