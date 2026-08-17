@@ -2689,7 +2689,8 @@ abstract final class VoxelRenderer {
   }
 
   /// R26r20：构建一个 LOD 马赛克单元（相机无关 → 缓存）——DH 风格逐列立方体数据。
-  /// 恒定列宽 [step]=2 采样 (g+2)² 网格（含外环 1 格）：内 g×g = 每列顶高 hGrid +
+  /// 列宽 [step]=size/4 采样 (g+2)² 网格（含外环 1 格）：内 g×g（cell4→2，其余→4）
+  /// = 每列顶高 hGrid +
   /// 顶部方块 vGrid + 侧方块 vSide（顶下 1 格：草地顶绿侧棕）；外环 hPad 提供
   /// 边界列 4 邻高度 → 逐列发顶面 + 暴露侧面（块状剪影、侧壁实心、多色）。
   /// 成本 = O((size/2)²·maxY + 4·size/2) 列采样，一次性、缓存复用。
@@ -2699,11 +2700,11 @@ abstract final class VoxelRenderer {
     double cz0,
     double size,
   ) {
-    // R26lod：列宽随 cell 缩放（2 幂对齐：cell4→step2, 8→4, 16→8, 32→16），
-    // 每单元恒定 2×2 列 → cell 越大总列数越少 = 大方块越粗越省面（采样参数真正
-    // 生效，不再是恒定 2 格列采样）；2 幂对齐跨档共享采样格、无接缝（P5）。
-    final double step = math.max(2.0, size / 2.0);
-    final int g = math.max(1, (size / step).round()); // 每轴列数（恒定 2）
+    // #502fix：采样步长由 size/2 → size/4，LOD 列数由恒定 2 提为 4（cell4→g2、
+    // cell8/16/32→g4）；近处 LOD 不再「4×4 合成 2×2」糊成一团，且配合
+    // _emitLodCell 的 step=size/g 对齐后整格顶面/侧壁无空洞（修「没顶部」+ 空气缝）。
+    final double step = math.max(2.0, size / 4.0);
+    final int g = math.max(1, (size / step).round()); // 每轴列数：cell4→2，其余→4
     final int gg = g * g;
     final int gp = g + 2; // 含外环
     final Float32List hGrid = Float32List(gg);
@@ -3039,7 +3040,10 @@ abstract final class VoxelRenderer {
     if (cell.topY <= 0) return;
     final int g = cell.g;
     final int gp = g + 2;
-    const double step = 2.0;
+    // #502fix：发射列宽必须与构建采样步长一致（原硬编码 2.0 → size>4 时非平坦
+    // 单元只盖住半格、远半成空洞 = 「没渲染顶部」+ 四边空气缝）。改为 size/g 即
+    // 每列真正覆盖 [cx0+i·size/g, cx0+(i+1)·size/g]，整格顶面无缺口。
+    final double step = size / g;
 
     // ── 平坦快路径：单顶面 + 4 边界裙边（语义同 R26r18 单顶单元）──
     if (cell.flat) {

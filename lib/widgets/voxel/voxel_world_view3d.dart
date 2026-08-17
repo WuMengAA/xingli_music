@@ -1192,7 +1192,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (_held.isEmpty && camSame) {
       _staticSince ??= elapsed;
       if (elapsed - _staticSince! >= const Duration(milliseconds: 1500) &&
-          _staticPicture == null) {
+          _staticPicture == null &&
+          // #502fix：编辑/水扩散/画质/视距变化后，下一帧 _dirty 为真 → 必须
+          // 先让 buildFrame 重建（_frame 已是新世界）再录快照，否则会先把
+          // 旧 _frame 冻成静态图、buildFrame 永不执行 → 放/破坏方块「不刷新」。
+          !_dirty) {
         _staticPicture = _recordStaticPicture(_frame.value);
         if (mounted) setState(() {}); // 让 painter 拿到快照
       }
@@ -1247,7 +1251,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         _dirty = true;
         return;
       }
-    } else if (!_firstBuild && clWithinInterval) {
+    } else if (!_firstBuild && clWithinInterval && !clChunkChanged) {
       _dirty = true; // 限频跳过（运动/动画/编辑/缩放走限频上限 → 不卡）
       return;
     }
@@ -2284,6 +2288,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       }
     }
     _staticPicture = null; // R26f：地形编辑 → 静态快照失效
+    _forceRebuild = true; // #502fix：编辑 → 强制立即重建（绕过限频）
     unawaited(ref.read(minecraftSfxServiceProvider).playBlockSound(broken));
     if (_survival) {
       if (canHarvest(broken, _inv.tool)) {
@@ -3158,6 +3163,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     }
     _dirty = true;
     _staticPicture = null; // R26f：地形编辑 → 静态快照失效
+    _forceRebuild = true; // #502fix：编辑 → 强制立即重建（绕过限频）
   }
 
   /// 攻击/破坏统一入口：生存=攻击僵尸；创造=直接破坏。
