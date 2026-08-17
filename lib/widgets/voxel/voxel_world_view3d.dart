@@ -3088,8 +3088,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       final Voxel v = widget.world.get(bx, by, bz);
       if (v != Voxel.air && v != Voxel.water) {
         final (int, int, int) p = prev ?? (bx, by - 1, bz);
-        // 跨入方向 = 该面的外法线（朝相机）。
-        return ((bx, by, bz), (bx - p.$1, by - p.$2, bz - p.$3));
+        // 该面外法线（朝相机）= 从「命中块 b」指向「射线来源侧空格 prev」= p - b。
+        // BUG-R26place：旧实现误写成 b - p，使法线指向块内部（远离相机），
+        // 导致放置位 px=b+n 落到块的「远端」——那一侧往往仍是地形（非空气），
+        // 被 `get(px,py,pz)!=air` 闸门静默拒绝 → 创造/生存「根本放不了」。
+        // 还原为 p - b 后：px=b+n 恰好是「命中块朝相机那一面外侧的空格」，放置恢复正常；
+        // 同时 facing=-N·view 的可见性判定也变正确（直视面 facing→+1，被允许）。
+        return ((bx, by, bz), (p.$1 - bx, p.$2 - by, p.$3 - bz));
       }
       prev = (bx, by, bz);
     }
