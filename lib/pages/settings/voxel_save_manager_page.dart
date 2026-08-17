@@ -58,6 +58,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         _saves = saves;
         _backups.clear();
         _backups.addAll(bk);
+        // 有备份的存档默认展开，让备份显眼可见（仍可手动收起）。
+        _expanded.clear();
+        for (final VoxelManualSaveMeta s in saves) {
+          if ((bk[s.id]?.length ?? 0) > 0) _expanded.add(s.id);
+        }
         _loading = false;
       });
     }
@@ -362,6 +367,25 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     await _enter(data, name);
   }
 
+  /// 回滚为新存档：把某备份另存为独立命名存档（非破坏，原备份保留）。
+  Future<void> _rollbackBackup(String bakId, String name) async {
+    final List<String> parts = bakId.split('|');
+    if (parts.length != 2 || !mounted) return;
+    final Map<String, dynamic>? data = await readBackup(parts[0], parts[1]);
+    if (data == null) {
+      _snack('备份损坏，无法回滚');
+      return;
+    }
+    final String newName = '$name · 回滚';
+    try {
+      await writeManualSave(data, newName);
+      await _refresh();
+      _snack('已回滚为独立存档「$newName」');
+    } catch (_) {
+      _snack('回滚失败');
+    }
+  }
+
   /// cl29：存档「更多 > 详细」——展示当前世界的基本信息 + 高级信息。
   Future<void> _showDetails(VoxelManualSaveMeta s) async {
     final Map<String, dynamic>? data = await readManualSave(s.id);
@@ -638,6 +662,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                         await _refresh();
                         _snack('已删除该备份');
                       },
+                      onRollbackBackup: _rollbackBackup,
                       fmt: _fmt,
                     );
                   },
@@ -663,6 +688,7 @@ class _SaveCard extends StatelessWidget {
     required this.onEnterBackup,
     required this.onExportBackup,
     required this.onDeleteBackup,
+    required this.onRollbackBackup,
     required this.fmt,
   });
 
@@ -680,6 +706,7 @@ class _SaveCard extends StatelessWidget {
   final Future<void> Function(String, String) onEnterBackup;
   final Future<void> Function(String, String) onExportBackup;
   final Future<void> Function(String) onDeleteBackup;
+  final Future<void> Function(String, String) onRollbackBackup;
   final String Function(DateTime) fmt;
 
   @override
@@ -786,6 +813,7 @@ class _SaveCard extends StatelessWidget {
                 onEnter: () => onEnterBackup(b.id, b.name),
                 onExport: () => onExportBackup(b.id, b.name),
                 onDelete: () => onDeleteBackup(b.id),
+                onRollback: () => onRollbackBackup(b.id, b.name),
                 fmt: fmt,
               ),
           ],
@@ -875,6 +903,7 @@ class _BackupTile extends StatelessWidget {
     required this.onEnter,
     required this.onExport,
     required this.onDelete,
+    required this.onRollback,
     required this.fmt,
   });
 
@@ -882,6 +911,7 @@ class _BackupTile extends StatelessWidget {
   final VoidCallback onEnter;
   final VoidCallback onExport;
   final VoidCallback onDelete;
+  final VoidCallback onRollback;
   final String Function(DateTime) fmt;
 
   @override
@@ -896,6 +926,7 @@ class _BackupTile extends StatelessWidget {
             child: Text(fmt(backup.createdAt), style: context.appText.body),
           ),
           TextButton(onPressed: onEnter, child: const Text('进入')),
+          TextButton(onPressed: onRollback, child: const Text('回滚')),
           TextButton(onPressed: onExport, child: const Text('导出')),
           TextButton(
             onPressed: onDelete,

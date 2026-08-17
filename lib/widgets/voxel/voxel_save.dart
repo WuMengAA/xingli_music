@@ -99,6 +99,9 @@ const String _kAutoSuffix = '.json';
 /// 自动备份最大保留份数。
 const int kMaxAutoBackups = 20;
 
+/// 单存档备份（游戏内 / 手动）最大保留份数，超出自动裁剪最旧。
+const int kMaxManualBackupsPerSave = 30;
+
 /// 自动备份元数据（恢复选择列表展示）。
 class VoxelAutoBackupMeta {
   const VoxelAutoBackupMeta({required this.ts, required this.createdAt});
@@ -516,7 +519,24 @@ Future<String?> createBackup(String id) async {
   };
   final File f = File(await _bakPath(id, ts));
   await f.writeAsString(const JsonEncoder().convert(data));
+  await _trimBackups(id);
   return ts;
+}
+
+/// 单存档备份超出 [kMaxManualBackupsPerSave] 时裁剪最旧（列表倒序，尾部最旧）。
+Future<void> _trimBackups(String id) async {
+  try {
+    final List<VoxelManualSaveMeta> baks = await listBackups(id);
+    if (baks.length <= kMaxManualBackupsPerSave) return;
+    final List<VoxelManualSaveMeta> old =
+        baks.sublist(kMaxManualBackupsPerSave);
+    for (final VoxelManualSaveMeta b in old) {
+      final List<String> p = b.id.split('|');
+      if (p.length == 2) await deleteBackup(p[0], p[1]);
+    }
+  } catch (_) {
+    // 裁剪失败静默，不影响主备份
+  }
 }
 
 /// 读取指定备份；不存在 / 损坏返回 null。
