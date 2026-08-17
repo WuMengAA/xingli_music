@@ -2863,100 +2863,101 @@ abstract final class VoxelRenderer {
   ) {
     final List<_LodTier> tiers = _lodTiers(config);
     if (tiers.isEmpty) return; // LOD 关闭：无远景大方块
-    const double baseCell = 4.0;
+    // cl80-perf：LOD 性能根因修复。原实现以 baseCell=4 扫描整片 effMax 方阵、
+    // 再丢弃 15/16 非锚点（最外档 cell=32 时 63/64 浪费），每帧迭代数 =
+    // (2·effMax/4)²，随 lodMaxChunks 平方爆炸（28→~5万、64→~26万），正是
+    // 「视距拉大即卡死、拉到最小(2)才 60fps」的根因；同时最外档每帧数万次
+    // terrainHeightAt / _cellInFrustum 把帧时间吃光，远景 LOD 迟迟填不满 =
+    // 「LOD 不显示」。改为「逐档遍历本档粗格锚点网格」（步长 = 本档 cell），
+    // 总迭代数 ≈ Σ(2·effMax/cell_t)²，最外档由 64× 扫描降为 1 次，整体降数十倍；
+    // 连带每帧 terrainHeightAt / _cellInFrustum 调用同步滚降。语义（档位选择 /
+    // 1.15×·0.87× 迟滞 / 三种剔除 / 缓存键）完全保留。
     // R26lod：LOD 视距独立于基础视距——遍历半径 = lodMaxChunks×16（可更大）。
     final double lodMaxDist =
         config.lodMaxChunks * RenderConfig.chunkSize.toDouble();
     final double effMax = math.max(lodMaxDist, maxDist);
-    final int c0 = ((eyeX - effMax) / baseCell).floor();
-    final int c1 = ((eyeX + effMax) / baseCell).floor();
-    final int d0 = ((eyeZ - effMax) / baseCell).floor();
-    final int d1 = ((eyeZ + effMax) / baseCell).floor();
     int built = 0; // 分帧：每帧最多建若干单元（远处渐进出现，避免首帧卡顿）
     final int budget = config.lodBuildBudget;
-    for (int bi = c0; bi <= c1; bi++) {
-      for (int bj = d0; bj <= d1; bj++) {
-        final double cx0 = bi * baseCell;
-        final double cz0 = bj * baseCell;
-        final double ccx = cx0 + baseCell * 0.5 - eyeX;
-        final double ccz = cz0 + baseCell * 0.5 - eyeZ;
-        final double cdist = math.sqrt(ccx * ccx + ccz * ccz);
-        // 内圈满精度带内不走 LOD（由 buildFrame 满精度正方形方阵覆盖）。
-        if (cdist <= tiers.first.ring0) continue;
-        // coarsest-matching：取 ring1 >= cdist 的最小档（cell 最大、最省面）。
-        int desired = tiers.length - 1;
-        for (int t = 0; t < tiers.length; t++) {
-          if (cdist < tiers[t].ring1) {
-            desired = t;
-            break;
+    final int camCx = (b.eyeX / RenderConfig.chunkSize).floor();
+    final int camCz = (b.eyeZ / RenderConfig.chunkSize).floor();
+    final bool lookDown = b.fwdY < -0.6;
+    for (int t = 0; t < tiers.length; t++) {
+      final _LodTier T = tiers[t];
+      final double stepCells = T.cell;
+      // 本档锚点网格（步长 = 本档 cell），仅处理落入本档距离带 [ring0,ring1) 的锚点。
+      final int g0 = ((eyeX - effMax) / stepCells).floor();
+      final int g1 = ((eyeX + effMax) / stepCells).floor();
+      final int d0 = ((eyeZ - effMax) / stepCells).floor();
+      final int d1 = ((eyeZ + effMax) / stepCells).floor();
+      for (int gi = g0; gi <= g1; gi++) {
+        for (int gj = d0; gj <= d1; gj++) {
+          final double gx0 = gi * stepCells;
+          final double gz0 = gj * stepCells;
+          final double ccx = gx0 + stepCells * 0.5 - eyeX;
+          final double ccz = gz0 + stepCells * 0.5 - eyeZ;
+          final double cdist = math.sqrt(ccx * ccx + ccz * ccz);
+          if (cdist <= T.ring0 || cdist >= T.ring1) continue; // 非本档带
+          // 本锚点按距离属第 t 档；迟滞按世界锚点（4 格基网格索引）跨帧复用。
+          final int bi4 = (gx0 * 0.25).round();
+          final int bj4 = (gz0 * 0.25).round();
+          final int prev = cache?.lodTierGet(bi4, bj4) ?? t;
+          int resolved = t;
+          if (t > prev && cdist > tiers[prev].ring1 * 1.15) {
+            resolved = t;
+          } else if (t < prev && cdist < tiers[prev].ring0 * 0.87) {
+            resolved = t;
+          } else {
+            resolved = prev;
           }
-        }
-        // P1 迟滞：沿用旧档，除非越过 1.15× 升档 / 0.87× 降档边界（防移动闪烁）。
-        final int prev = cache?.lodTierGet(bi, bj) ?? desired;
-        int tier;
-        if (desired > prev && cdist > tiers[prev].ring1 * 1.15) {
-          tier = desired;
-        } else if (desired < prev && cdist < tiers[prev].ring0 * 0.87) {
-          tier = desired;
-        } else {
-          tier = prev;
-        }
-        cache?.lodTierPut(bi, bj, tier);
-        final _LodTier T = tiers[tier];
-        // 把基础格对齐到本档网格；仅当本基础格是该粗格锚点才发射（去重，每粗格一次）。
-        final int gci = (bi * baseCell / T.cell).round();
-        final int gcj = (bj * baseCell / T.cell).round();
-        final double gx0 = gci * T.cell;
-        final double gz0 = gcj * T.cell;
-        if ((cx0 - gx0).abs() > 1e-6 || (cz0 - gz0).abs() > 1e-6) continue;
-        // S2：远景 LOD 单元仅当其中心区块在可见集内才发射（封死墙后的远景不渲染）。
-        if (visible != null) {
-          final int chCx = (gx0 / RenderConfig.chunkSize).floor();
-          final int chCz = (gz0 / RenderConfig.chunkSize).floor();
-          if (!visible.contains((chCx, chCz))) continue;
-        }
-        // P3：区块级视锥剔除（FP/TP 下丢弃 camera 后半球粗格，面数约减半）。
-        // R26r20：与全精度同规则——相机区块及紧邻 3×3 永不剔除（防御性；该邻域
-        // 常规已由 kFullBand 满精度带覆盖，这里保证任何配置下近相机粗格不消失）。
-        if (config.lodFrustumCull && !fullWidth) {
-          final int cellCx = (gx0 / RenderConfig.chunkSize).floor();
-          final int cellCz = (gz0 / RenderConfig.chunkSize).floor();
-          final int camCx = (b.eyeX / RenderConfig.chunkSize).floor();
-          final int camCz = (b.eyeZ / RenderConfig.chunkSize).floor();
-          final bool nearCam =
-              (cellCx - camCx).abs() <= 1 && (cellCz - camCz).abs() <= 1;
-          if (!nearCam &&
-              !_cellInFrustum(b, proj, gx0, gz0, T.cell, world.maxY.toDouble())) {
-            continue;
+          cache?.lodTierPut(bi4, bj4, resolved);
+          // 用「解析档」的 cell 发射（迟滞可能停在邻档；gx0 必为其整数锚点）。
+          final _LodTier R = tiers[resolved];
+          final double rcell = R.cell;
+          // S2：远景 LOD 单元仅当其中心区块在可见集内才发射（封死墙后的远景不渲染）。
+          if (visible != null) {
+            final int chCx = (gx0 / RenderConfig.chunkSize).floor();
+            final int chCz = (gz0 / RenderConfig.chunkSize).floor();
+            if (!visible.contains((chCx, chCz))) continue;
           }
+          // P3：区块级视锥剔除（FP/TP 下丢弃 camera 后半球粗格，面数约减半）。
+          // R26r20：与全精度同规则——相机区块及紧邻 3×3 永不剔除（防御性）。
+          if (config.lodFrustumCull && !fullWidth) {
+            final int cellCx = (gx0 / RenderConfig.chunkSize).floor();
+            final int cellCz = (gz0 / RenderConfig.chunkSize).floor();
+            final bool nearCam =
+                (cellCx - camCx).abs() <= 1 && (cellCz - camCz).abs() <= 1;
+            if (!nearCam &&
+                !_cellInFrustum(b, proj, gx0, gz0, rcell, world.maxY.toDouble())) {
+              continue;
+            }
+          }
+          // ⑤：向下看平行面剔除（脚下地面）。
+          if (lookDown) {
+            final double tH = world
+                .terrainHeightAt(
+                  (gx0 + rcell / 2).round(),
+                  (gz0 + rcell / 2).round(),
+                )
+                .toDouble();
+            if ((b.eyeY - tH) > 20 && cdist > 48) continue;
+          }
+          final int rgi = (gx0 / rcell).round();
+          final int rgj = (gz0 / rcell).round();
+          _LodCell? cell = cache?.lodCellGet(resolved, rgi, rgj);
+          if (cell == null) {
+            if (built >= budget) continue; // 本帧预算用完 → 下帧补建
+            built++;
+            // R26imp：地平线 Impostor——最外档（cell≥32）不再细分列，直接合成
+            // 「平均高度 + 多数色」的 flat 大平面（贴天边极省）。
+            cell = rcell >= 32
+                ? _buildHorizonImpostor(world, gx0, gz0, rcell)
+                : _buildLodCell(world, gx0, gz0, rcell);
+            cache?.lodCellPut(resolved, rgi, rgj, cell);
+          }
+          _emitLodCell(cell, gx0, gz0, rcell, b, proj, sky, config,
+              fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights,
+              pushFace);
         }
-        // ⑤：向下看平行面剔除——相机俯视（fwdY 明显朝下）时，剔除远处「脚下地面」
-        // 粗格（中心远低于视线且距相机较远），降低俯视时的远景面数（开放世界方案）。
-        // 近处 / 紧贴相机保留，避免脚下出现空洞。概率生效、不伤正确性。
-        if (b.fwdY < -0.6) {
-          final double tH = world
-              .terrainHeightAt(
-                (gx0 + T.cell / 2).round(),
-                (gz0 + T.cell / 2).round(),
-              )
-              .toDouble();
-          if ((b.eyeY - tH) > 20 && cdist > 48) continue;
-        }
-        _LodCell? cell = cache?.lodCellGet(tier, gci, gcj);
-        if (cell == null) {
-          if (built >= budget) continue; // 本帧预算用完 → 下帧补建
-          built++;
-          // R26imp：地平线 Impostor——最外档（cell≥32）不再细分列，直接合成
-          // 「平均高度 + 多数色」的 flat 大平面（2 交叉山形剪影由顶面+裙边
-          // 呈现），远景面数从「列数」降到「单元数」，贴天边极省。
-          cell = T.cell >= 32
-              ? _buildHorizonImpostor(world, gx0, gz0, T.cell)
-              : _buildLodCell(world, gx0, gz0, T.cell);
-          cache?.lodCellPut(tier, gci, gcj, cell);
-        }
-        _emitLodCell(cell, gx0, gz0, T.cell, b, proj, sky, config,
-            fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights,
-            pushFace);
       }
     }
   }

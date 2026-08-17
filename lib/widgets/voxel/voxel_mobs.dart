@@ -19,10 +19,13 @@ import 'voxel_world_types.dart';
 
 /// 僵尸。
 class Zombie {
-  Zombie({required this.pos, this.hp = 20});
+  Zombie({required this.pos, this.hp = 20}) : prevPos = pos;
 
   /// 脚底位置（世界坐标）。
   Vec3 pos;
+
+  /// 上一物理步位置：渲染插值用，消除 8Hz 推进在 60fps 下的瞬间跳动（瞬移感）。
+  Vec3 prevPos;
 
   /// 竖直速度（重力）。
   double vy = 0;
@@ -47,9 +50,13 @@ class Zombie {
 
 /// 掉落物（方块小方块，落地后上下浮动）。
 class DroppedItem {
-  DroppedItem({required this.pos, required this.stack, this.life = 0});
+  DroppedItem({required this.pos, required this.stack, this.life = 0})
+      : prevPos = pos;
 
   Vec3 pos;
+
+  /// 上一物理步位置：渲染插值用（掉落物 30Hz 也更顺）。
+  Vec3 prevPos;
   double vy = 0;
 
   /// 水平初速（破坏时向外弹一点）。
@@ -162,6 +169,7 @@ class MobWorld {
   ) {
     for (int i = items.length - 1; i >= 0; i--) {
       final DroppedItem d = items[i];
+      d.prevPos = d.pos; // 渲染插值锚点
       d.life += dt;
       if (d.pickupDelay > 0) d.pickupDelay -= dt;
       if (d.life > DroppedItem.maxLife) {
@@ -215,6 +223,7 @@ class MobWorld {
   ) {
     for (int i = zombies.length - 1; i >= 0; i--) {
       final Zombie z = zombies[i];
+      z.prevPos = z.pos; // 渲染插值锚点：本步推进前记录上一位置
       if (!z.alive) {
         zombies.removeAt(i);
         continue;
@@ -374,11 +383,14 @@ class MobWorld {
   }
 
   /// 转成渲染实体列表（僵尸用人形、掉落物用小方块）。
-  List<VoxelEntity> toEntities() {
+  /// [alpha] ∈ [0,1]：渲染插值系数，= 当前距上次物理步的时间占比，
+  /// 用于把 8Hz(僵尸)/30Hz(掉落物) 的离散推进平滑到每帧，消除「瞬移」。
+  List<VoxelEntity> toEntities([double alpha = 1.0]) {
     final List<VoxelEntity> out = <VoxelEntity>[];
+    final double a = alpha.clamp(0.0, 1.0);
     for (final Zombie z in zombies) {
       out.add(VoxelEntity(
-        position: z.pos,
+        position: _lerpPos(z.prevPos, z.pos, a),
         color: z.hurtFlash > 0
             ? const Color(0xFFFF6B6B)
             : const Color(0xFF4C8B4A),
@@ -389,12 +401,17 @@ class MobWorld {
     for (final DroppedItem d in items) {
       // 落地后上下浮动（人形渲染器的缩放很小 → 视觉上就是一小坨物品）。
       final double bob = math.sin(d.life * 2.4) * 0.06;
+      final Vec3 lp = _lerpPos(d.prevPos, d.pos, a);
       out.add(VoxelEntity(
-        position: Vec3(d.pos.x, d.pos.y + bob, d.pos.z),
+        position: Vec3(lp.x, lp.y + bob, lp.z),
         color: d.stack.item.spec.base,
         scale: 0.22,
       ));
     }
     return out;
   }
+
+  /// 位置线性插值（渲染插值用）。
+  static Vec3 _lerpPos(Vec3 a, Vec3 b, double t) =>
+      Vec3(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t);
 }

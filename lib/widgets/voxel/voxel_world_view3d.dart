@@ -774,6 +774,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       };
       net.onRemoteTransform = (String id, double x, double y, double z,
           double yaw, double pitch, int vm) {
+        final PeerInfo? prev = _remotePlayers[id];
+        // cl83net：把旧快照位置/朝向作为插值起点，记录到达时刻与间隔，
+        // 渲染端据此在 prev→cur 之间平滑插值，消除 100ms 级跳变（瞬移）。
         _remotePlayers[id] = PeerInfo(
           id: id,
           x: x,
@@ -782,6 +785,15 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           yaw: yaw,
           pitch: pitch,
           viewMode: vm,
+          px: prev?.x,
+          py: prev?.y,
+          pz: prev?.z,
+          pyaw: prev?.yaw,
+          ppitch: prev?.pitch,
+          arrivedAt: DateTime.now(),
+          snapInterval: prev?.arrivedAt == null
+              ? const Duration(milliseconds: 100)
+              : DateTime.now().difference(prev!.arrivedAt!),
         );
         _staticPicture = null; // 清静态快照：远端玩家移动必须即时重绘
         _forceRebuild = true; // 计入重建门控
@@ -1507,17 +1519,40 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       ));
     }
     if (_companionEntities.isNotEmpty) ents.addAll(_companionEntities);
-    if (!_mobs.isEmpty) ents.addAll(_mobs.toEntities());
+    // BUG-3：僵尸 8Hz 推进、渲染每帧跑，传插值系数让僵尸/掉落物平滑移动
+    //（= 距上次物理步的时间占比，消除「瞬移」）。掉帧时系数仍 0→1，不抖。
+    final double mobAlpha = (_mobTickAcc / 0.12).clamp(0.0, 1.0);
+    if (!_mobs.isEmpty) ents.addAll(_mobs.toEntities(mobAlpha));
     // G9：联机远端玩家——始终渲染为彩色方块人（本地第一人称不显示自身，
     // 但其他玩家应可见彼此；依 id 稳定取色区分多人）。
     for (final PeerInfo peer in _remotePlayers.values) {
       if (peer.x == null || peer.y == null || peer.z == null) continue;
+      // cl83net：远端玩家渲染插值——按「距上次快照的时间 / 快照间隔」算 alpha
+      // 在 prev→cur 间 lerp。静止/久未更新（间隔很大）时 alpha 钳到 1，停在
+      // cur；新玩家首次无 prev → 直接落在 cur。整体滞后约一个快照（≤100ms）。
+      double rx = peer.x!, ry = peer.y!, rz = peer.z!;
+      double ryaw = peer.yaw, rpitch = peer.pitch;
+      if (peer.px != null && peer.py != null && peer.pz != null &&
+          peer.arrivedAt != null) {
+        final int intervalMs = math.max(
+          peer.snapInterval.inMilliseconds, 100);
+        final int sinceMs =
+            DateTime.now().difference(peer.arrivedAt!).inMilliseconds;
+        final double a = (sinceMs / intervalMs).clamp(0.0, 1.0);
+        rx = peer.px! + (peer.x! - peer.px!) * a;
+        ry = peer.py! + (peer.y! - peer.py!) * a;
+        rz = peer.pz! + (peer.z! - peer.pz!) * a;
+        if (peer.pyaw != null && peer.ppitch != null) {
+          ryaw = peer.pyaw! + (peer.yaw - peer.pyaw!) * a;
+          rpitch = peer.ppitch! + (peer.pitch - peer.ppitch!) * a;
+        }
+      }
       ents.add(VoxelEntity(
-        position: Vec3(peer.x!, peer.y!, peer.z!),
+        position: Vec3(rx, ry, rz),
         color: _peerColor(peer.id),
         scale: 1.0,
-        lookYaw: peer.yaw,
-        lookPitch: peer.pitch,
+        lookYaw: ryaw,
+        lookPitch: rpitch,
         label: peer.name, // G9：头顶名字标签
       ));
     }
@@ -3111,14 +3146,19 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   void _invalidateChunkAt(int x, int z) {
     final int cx = x ~/ 16, cz = z ~/ 16;
-    // R26r10：编辑影响相邻区块的遮挡——区块边界方块破坏/放置后，邻居的
-    // 被遮挡面也要重建，否则只失效本块时边界方块的邻面仍用旧遮挡缓存
-    // →「更新不及时 / 幽灵面」。3×3 全失效（便宜，只是 map remove）。
-    for (int dx = -1; dx <= 1; dx++) {
-      for (int dz = -1; dz <= 1; dz++) {
-        _chunkCache.invalidate(cx + dx, cz + dz);
-      }
-    }
+    // BUG-2 修复：「破坏/放置刷新整个区块」根因——旧实现每次编辑都 3×3(9 块)
+    // 整体失效，单块破坏却重算一整片区（视觉「刷新整个区块」+ 卡顿）。
+    // 实际遮挡关系只跨**正交区块边界**：仅当编辑块紧贴某侧边界（局部
+    // x/z ==0 或 ==15）时，该侧邻居区块的边界面才需重建；否则邻居不受影响。
+    // 故改为「本块所在区块 + 仅被触碰的边界邻居」→ 典型 1~2 块（角落 3 块），
+    // 既消除「刷新整个区块」，又不引入幽灵面（遮挡正确性不变）。
+    _chunkCache.invalidate(cx, cz);
+    final int lx = x - cx * 16; // 块在区块内局部坐标 [0,15]
+    final int lz = z - cz * 16;
+    if (lx == 0) _chunkCache.invalidate(cx - 1, cz);
+    if (lx == 15) _chunkCache.invalidate(cx + 1, cz);
+    if (lz == 0) _chunkCache.invalidate(cx, cz - 1);
+    if (lz == 15) _chunkCache.invalidate(cx, cz + 1);
     _chunkInvalidSerial++; // cl30：区块编辑 → 自增，重建门控据此立即重建
   }
 

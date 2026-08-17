@@ -42,6 +42,13 @@ class PeerInfo {
     this.health = 20,
     this.hunger = 20,
     this.xp = 0,
+    this.px,
+    this.py,
+    this.pz,
+    this.pyaw,
+    this.ppitch,
+    this.arrivedAt,
+    this.snapInterval = const Duration(milliseconds: 100),
     DateTime? lastSeen,
   }) : lastSeen = lastSeen ?? DateTime.now();
 
@@ -53,6 +60,14 @@ class PeerInfo {
   int viewMode;
   int health, hunger, xp;
   DateTime lastSeen;
+
+  // cl83net：联机远端玩家渲染插值状态。transform 每 ~100ms 一帧、渲染每帧跑，
+  // 不插值就会每 100ms 跳一下（瞬移）。prev 为上一个快照位置/朝向，arrivedAt
+  // 为当前快照到达时刻，snapInterval 为上一帧间隔，渲染端据此 lerp。
+  double? px, py, pz;
+  double? pyaw, ppitch;
+  DateTime? arrivedAt;
+  Duration snapInterval;
 
   PeerInfo copyWith({
     String? name,
