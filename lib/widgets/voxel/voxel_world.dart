@@ -976,7 +976,9 @@ class VoxelWorld {
       'sizeX': sizeX,
       'sizeZ': sizeZ,
       'waterLevel': waterLevel,
-      'edits': _serializeEditsFull(),
+      // P4：有分块存储时编辑真相源在 chunk 文件，主文件不再内嵌（避免无限
+      // 地图存档无限膨胀）；无 store 的旧世界 / 单测仍内嵌全量编辑以保全。
+      'edits': _chunkStore == null ? _serializeEditsFull() : const <List<int>>[],
       'lights': _serializeLights(),
       'options': options.toJson(),
     };
@@ -1080,7 +1082,10 @@ class VoxelWorld {
   /// 调用方应先校验 [seed] 一致（地形不同则编辑坐标无意义），不一致时跳过。
   void loadJson(Map<String, dynamic> json) {
     _edits.clear();
-    _chunkStore?.clearAllSync(); // 同步清旧世界磁盘缓存，避免陈旧 chunk 复活（杜绝竞态）
+    // P4：不再清空 [_chunkStore]——每存档的 chunk 文件存于独立
+    // `voxel_chunks/<saveId>/` 目录，切换存档由 [repointChunkStore] 负责按目录
+    // 隔离（flush 旧编辑 + 切目录），loadJson 只清 RAM 编辑层，绝不抹掉目标
+    // 存档的磁盘 chunk（否则读档会把刚切到的存档编辑清空）。
     final int schema = (json['schema'] as int?) ?? 1;
     for (final dynamic e in (json['edits'] as List<dynamic>? ?? <dynamic>[])) {
       final List<dynamic> a = e as List<dynamic>;
@@ -1116,15 +1121,52 @@ class VoxelWorld {
     }
   }
 
-  /// 开放世界 P2：启用编辑层分块流式。
+  /// 开放世界 P2/P4：启用编辑层分块流式。
   ///
   /// [baseDir] 为应用支持目录（_appDataDir / voxelChunkBaseDir）；内部建
-  /// `voxel_chunks/` 子目录存放每 chunk 一个文件。重复调用安全（已初始化则跳过）。
-  Future<void> initChunkStore(Directory baseDir, int seed) async {
+  /// `voxel_chunks/[saveId]` 子目录存放每 chunk 一个文件（P4：按存档 ID 分目录，
+  /// 多存档编辑互不串档、删存档连目录一起删）。重复调用安全（已初始化则跳过）。
+  Future<void> initChunkStore(Directory baseDir, int seed, String saveId) async {
     if (_chunkStore != null) return;
-    final Directory d = Directory('${baseDir.path}/voxel_chunks');
+    final Directory d = Directory('${baseDir.path}/voxel_chunks/$saveId');
     await d.create(recursive: true);
     _chunkStore = ChunkEditStore(d, seed);
+  }
+
+  /// 开放世界 P4：切换存档（读手动档 / 恢复备份 / 跨存档续档）时，把编辑层
+  /// 分块存储重指向 `voxel_chunks/[saveId]`。
+  ///
+  /// 在 [loadJson] 之前调用：先把仍在 RAM 的旧编辑落盘到**旧目录**（不丢当前
+  /// 世界进度），再把 [_chunkStore] 指向 [saveId] 目录（新目录的 chunk 文件即该
+  /// 存档的真相源，[loadJson] 不再清空它，避免读档时抹掉目标存档的编辑）。
+  Future<void> repointChunkStore(
+    Directory baseDir,
+    int seed,
+    String saveId,
+  ) async {
+    final ChunkEditStore? old = _chunkStore;
+    if (old != null) {
+      for (final MapEntry<(int, int), Map<int, Voxel>> e in _edits.entries) {
+        await old.writeChunk(e.key.$1, e.key.$2, e.value);
+      }
+    }
+    final Directory d = Directory('${baseDir.path}/voxel_chunks/$saveId');
+    await d.create(recursive: true); // 已存在则复用，绝不清空（那是目标存档的数据）
+    _chunkStore = ChunkEditStore(d, seed);
+  }
+
+  /// 开放世界 P4：把当前 RAM 内全部编辑层落盘到当前存档目录。
+  ///
+  /// [toJson] 有分块存储时不再内嵌编辑，故写主文件前必须先落盘，否则编辑会丢。
+  /// 无 store 时直接返回（编辑仍内嵌在主文件，由 [_serializeEditsFull] 保全）。
+  /// 落盘目标即 [_chunkStore] 当前指向的目录（须已 [repointChunkStore] /
+  /// [initChunkStore] 到正确 [saveId]）。
+  Future<void> persistLoadedChunks() async {
+    final ChunkEditStore? store = _chunkStore;
+    if (store == null) return;
+    for (final MapEntry<(int, int), Map<int, Voxel>> e in _edits.entries) {
+      await store.writeChunk(e.key.$1, e.key.$2, e.value);
+    }
   }
 
   /// 开放世界 P2：按玩家当前 chunk 流式加载/卸载编辑层。

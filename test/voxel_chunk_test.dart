@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xingli_music/widgets/voxel/voxel_world.dart';
 import 'package:xingli_music/widgets/voxel/voxel_world_types.dart';
@@ -63,6 +65,76 @@ void main() {
           );
         }
       }
+    });
+  });
+
+  group('P4 分块存档（按存档 ID 分目录）', () {
+    test('有分块存储时 toJson 省略 edits，磁盘 chunk 文件保全编辑', () async {
+      final Directory tmp = await Directory.systemTemp.createTemp('vox_p4_');
+      try {
+        final VoxelWorld w = VoxelWorld(seed: 9);
+        await w.initChunkStore(tmp, w.seed, 'saveA');
+        w.setVoxel(5, 40, 7, Voxel.stone);
+        w.setVoxel(20, 12, 7, Voxel.glass); // 下一列 chunk（cx=1）
+        w.setVoxel(-3, 50, 7, Voxel.brick); // 负坐标 chunk（cx=-1）
+        // 模拟退出前落盘（toJson 不再内嵌编辑）
+        await w.persistLoadedChunks();
+        final Map<String, dynamic> json = w.toJson();
+        // P4：主文件不再内嵌编辑
+        expect(json['edits'], <List<int>>[]);
+        // 磁盘确有独立目录与 chunk 文件
+        final Directory chunkDir =
+            Directory('${tmp.path}/voxel_chunks/saveA');
+        expect(await chunkDir.exists(), isTrue);
+        // 重新从同目录的零世界加载，流式应恢复编辑
+        final VoxelWorld w2 = VoxelWorld(seed: 9);
+        await w2.initChunkStore(tmp, w2.seed, 'saveA');
+        await w2.streamAround(0, 0); // 覆盖 (cx,cz) ∈ [-8,8]，含 -1/0/1
+        expect(w2.get(5, 40, 7), Voxel.stone);
+        expect(w2.get(20, 12, 7), Voxel.glass);
+        expect(w2.get(-3, 50, 7), Voxel.brick);
+      } finally {
+        await tmp.delete(recursive: true);
+      }
+    });
+
+    test('多存档编辑互不串档（saveA / saveB 独立目录）', () async {
+      final Directory tmp = await Directory.systemTemp.createTemp('vox_p4_');
+      try {
+        final VoxelWorld a = VoxelWorld(seed: 1);
+        await a.initChunkStore(tmp, a.seed, 'A');
+        a.setVoxel(5, 40, 7, Voxel.stone);
+        await a.persistLoadedChunks();
+
+        final VoxelWorld b = VoxelWorld(seed: 1);
+        await b.initChunkStore(tmp, b.seed, 'B');
+        b.setVoxel(5, 40, 7, Voxel.glass); // 同坐标不同方块
+        await b.persistLoadedChunks();
+
+        // 重新分别指向 A / B，应各自读到自己的编辑
+        final VoxelWorld ra = VoxelWorld(seed: 1);
+        await ra.initChunkStore(tmp, ra.seed, 'A');
+        await ra.streamAround(0, 0);
+        expect(ra.get(5, 40, 7), Voxel.stone);
+
+        final VoxelWorld rb = VoxelWorld(seed: 1);
+        await rb.initChunkStore(tmp, rb.seed, 'B');
+        await rb.streamAround(0, 0);
+        expect(rb.get(5, 40, 7), Voxel.glass);
+      } finally {
+        await tmp.delete(recursive: true);
+      }
+    });
+
+    test('无分块存储（store==null）仍内嵌全量编辑，往返一致', () {
+      final VoxelWorld a = VoxelWorld(seed: 42);
+      a.setVoxel(5, 40, 7, Voxel.stone);
+      a.setVoxel(-3, 12, 300, Voxel.glass);
+      final Map<String, dynamic> json = a.toJson();
+      expect(json['edits'], isA<List<Object?>>()); // 仍内嵌保全
+      final VoxelWorld b = VoxelWorld(seed: 42)..loadJson(json);
+      expect(b.get(5, 40, 7), Voxel.stone);
+      expect(b.get(-3, 12, 300), Voxel.glass);
     });
   });
 }

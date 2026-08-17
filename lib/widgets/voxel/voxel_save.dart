@@ -573,6 +573,18 @@ Future<void> deleteSaveWithBackups(String id) async {
     final List<String> parts = b.id.split('|');
     if (parts.length == 2) await deleteBackup(parts[0], parts[1]);
   }
+  // P4：连该存档的 chunk 编辑目录一起删（其 chunk 文件存于 voxel_chunks/<id>/，
+  // 随存档整体销毁，避免孤立目录越积越多 / 被其它存档误读）。
+  try {
+    final Directory chunks = Directory(
+      '${(await voxelChunkBaseDir()).path}'
+      '${Platform.pathSeparator}voxel_chunks'
+      '${Platform.pathSeparator}$id',
+    );
+    if (await chunks.exists()) await chunks.delete(recursive: true);
+  } catch (_) {
+    // 目录清理失败静默（不影响存档文件删除）
+  }
 }
 
 /// 导出用：返回存档文件（供分享 / 复制）。

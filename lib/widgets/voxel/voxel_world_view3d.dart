@@ -727,7 +727,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (!widget.readOnly) {
       unawaited(
         voxelChunkBaseDir().then(
-          (Directory d) => widget.world.initChunkStore(d, widget.world.seed),
+          (Directory d) =>
+              widget.world.initChunkStore(d, widget.world.seed, _saveId),
         ),
       );
       _streamTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
@@ -994,7 +995,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _streamTimer?.cancel();
     _streamTimer = null;
     _saveNameCtrl.dispose();
-    unawaited(writeVoxelSave(_buildSaveData())); // 退出前最后落盘（不触发 setState）
+    // P4：退出前先落盘编辑层（toJson 不再内嵌编辑），再写主文件，否则编辑丢失。
+    unawaited(
+      widget.world
+          .persistLoadedChunks()
+          .then((_) => writeVoxelSave(_buildSaveData())),
+    );
     _audio?.dispose();
     _bgMusic?.dispose();
     _ticker.dispose();
@@ -3284,6 +3290,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 保证「备份的备份还是备份」（平铺、不套娃）。
   Map<String, dynamic>? _currentMeta;
 
+  /// P4：当前世界的存档 ID（驱动分块存储目录 `voxel_chunks/<saveId>/`）。
+  /// 无归属存档（纯自动存档世界）时回退 'auto'。
+  String get _saveId =>
+      (_currentMeta is Map<String, dynamic> && _currentMeta!['id'] is String)
+          ? _currentMeta!['id'] as String
+          : 'auto';
+
   Map<String, dynamic> _buildSaveData() {
     final Map<String, dynamic> data = <String, dynamic>{
       'v': 1,
@@ -3313,6 +3326,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   }
 
   Future<void> _saveNow() async {
+    await widget.world.persistLoadedChunks(); // P4：先落盘编辑层，toJson 才不丢
     await writeVoxelSave(_buildSaveData());
     // R27：游戏中保存 → 同步刷新所属手动存档的「最近保存时间」，使存档列表显示最新时间。
     if (_currentMeta is Map<String, dynamic> &&
@@ -3460,6 +3474,19 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     try {
       final Map<String, dynamic>? wj = data['world'] as Map<String, dynamic>?;
       if (wj != null && wj['seed'] == widget.world.seed) {
+        // P4：先按存档 ID 重指向独立 chunk 目录（flush 旧编辑 + 切目录），
+        // 再 loadJson（loadJson 已不再清空新目录，避免抹掉目标存档的编辑）。
+        if (!widget.readOnly) {
+          final dynamic meta = data['_meta'];
+          final String newId = (meta is Map<String, dynamic> &&
+                  meta['id'] is String)
+              ? meta['id'] as String
+              : (meta is Map<String, dynamic> && meta['parent'] is String)
+                  ? meta['parent'] as String
+                  : 'auto';
+          final Directory base = await voxelChunkBaseDir();
+          await widget.world.repointChunkStore(base, widget.world.seed, newId);
+        }
         widget.world.loadJson(wj);
       }
     } catch (_) {
