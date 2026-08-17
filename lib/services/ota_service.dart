@@ -109,6 +109,13 @@ class OtaTagInfo {
   final int? hotfix;
   String notes;
 
+  /// 该 Release 内含的安卓拆分包架构（从资产名推断）。
+  Set<DeviceAbi> androidAbis = <DeviceAbi>{};
+  /// 是否含 Windows 构建（portable.zip / setup.exe）。
+  bool hasWindows = false;
+  /// Windows 架构标记（从文件名推断，如 x64；当前单架构）。
+  Set<String> windowsArches = <String>{};
+
   /// 是否比当前版本新（2026-08-17 渠道化定版）：**先比日期、同日再比 cl**，
   /// cl 不再单独决定新旧（跨天 cl 清零不会误判）；hotfix 与当前同版本也算
   /// 有更新（修复缺陷的补丁包）。
@@ -141,11 +148,31 @@ OtaTagInfo? parseOtaTag(String tag) {
     dateKey: year * 10000 + month * 100 + day,
     channel: UpdateChannel.fromTag(m.group(4)!),
     build: build,
-    hotfix: int.tryParse(m.group(6) ?? ''),
-  );
-}
+      hotfix: int.tryParse(m.group(6) ?? ''),
+    );
+  }
 
-/// 下载进度（cl61）：已下载 / 总量 / 实时网速（字节每秒）。
+  /// 从 Release 资产列表推断该版本的平台/架构标记（安卓拆分包 + Windows）。
+  void _applyReleaseAssets(OtaTagInfo info, Map<String, dynamic> r) {
+    final List<dynamic> assets = (r['assets'] as List<dynamic>?) ?? <dynamic>[];
+    for (final dynamic a in assets) {
+      final Map<String, dynamic> asset = a as Map<String, dynamic>;
+      final String name = (asset['name'] as String? ?? '').toLowerCase();
+      if (name.endsWith('.apk')) {
+        if (name.contains('arm64-v8a')) {
+          info.androidAbis.add(DeviceAbi.arm64);
+        } else if (name.contains('armeabi-v7a')) {
+          info.androidAbis.add(DeviceAbi.arm32);
+        }
+      } else if (name.endsWith('.exe') ||
+          (name.endsWith('.zip') && name.contains('win'))) {
+        info.hasWindows = true;
+        info.windowsArches.add(name.contains('arm64') ? 'arm64' : 'x64');
+      }
+    }
+  }
+
+  /// 下载进度（cl61）：已下载 / 总量 / 实时网速（字节每秒）。
 class OtaProgress {
   const OtaProgress({
     required this.receivedBytes,
@@ -219,6 +246,7 @@ class OtaService {
         if (tag.isEmpty) continue;
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
+        _applyReleaseAssets(info, r);
         if (best == null ||
             info.dateKey > best.dateKey ||
             (info.dateKey == best.dateKey && info.build > best.build)) {
@@ -276,6 +304,7 @@ class OtaService {
         final String tag = (r['tag_name'] as String?)?.trim() ?? '';
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
+        _applyReleaseAssets(info, r);
         if (best == null ||
             info.dateKey > best.dateKey ||
             (info.dateKey == best.dateKey && info.build > best.build)) {
@@ -324,6 +353,7 @@ class OtaService {
         if (tag.isEmpty) continue;
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
+        _applyReleaseAssets(info, r);
         out.add(info..notes = (r['body'] as String?) ?? '');
       }
       out.sort((OtaTagInfo a, OtaTagInfo b) {

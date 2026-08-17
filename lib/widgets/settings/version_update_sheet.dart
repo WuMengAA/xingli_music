@@ -254,7 +254,8 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
         title: Text(newer ? '发现新版本' : '安装此版本？'),
         content: Text(
           '${v.tag}（当前 ${AppVersion.display}）\n\n'
-          '${v.notes.isNotEmpty ? v.notes : '前往更新以获取最新体验。'}',
+          '${v.notes.isNotEmpty ? v.notes : '前往更新以获取最新体验。'}'
+          '${v.hasWindows ? '\n\n（含 Windows 版，请从官网下载）' : ''}',
           style: const TextStyle(fontSize: 13),
         ),
         actions: <Widget>[
@@ -341,6 +342,10 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                             style: context.appText.caption
                                 .copyWith(color: colors.textSecondary)),
                       ],
+                      if (v.androidAbis.isNotEmpty || v.hasWindows) ...<Widget>[
+                        const SizedBox(height: 4),
+                        _platformMarkers(v),
+                      ],
                     ],
                   ),
                 ),
@@ -356,6 +361,37 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 平台/架构标记（安卓·arm64 / 安卓·arm32 / Windows·x64），展示该版本含哪些包。
+  Widget _platformMarkers(OtaTagInfo v) {
+    final AppThemeColors colors = context.appColors;
+    final List<Widget> chips = <Widget>[];
+    if (v.androidAbis.contains(DeviceAbi.arm64)) {
+      chips.add(_platChip('安卓·arm64', colors.accent));
+    }
+    if (v.androidAbis.contains(DeviceAbi.arm32)) {
+      chips.add(_platChip('安卓·arm32', colors.accent));
+    }
+    if (v.hasWindows) {
+      final String wa =
+          v.windowsArches.isNotEmpty ? v.windowsArches.join('/') : 'x64';
+      chips.add(_platChip('Windows·$wa', const Color(0xFF5B8DEF)));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(spacing: 6, runSpacing: 4, children: chips);
+  }
+
+  Widget _platChip(String label, Color c) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: c.withOpacity(0.35), width: 1),
+      ),
+      child: Text(label, style: context.appText.caption.copyWith(color: c)),
     );
   }
 
@@ -459,7 +495,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '本机适配：$abiLabel，自动匹配安装包',
+                        '安卓适配：$abiLabel，自动匹配安装包（OTA 仅安卓）',
                         style: context.appText.body,
                       ),
                     ),
@@ -680,9 +716,10 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
             ],
             const SizedBox(height: AppSpace.xs),
             Text(
-              '连接 GitHub Releases 自动获取安装包；按本机架构（arm64/arm32）'
+              '连接 GitHub Releases 自动获取安装包；安卓按本机架构（arm64/arm32）'
               '自动选对应拆分包，下载后校验 SHA-256 哈希，通过才提示安装；'
-              '支持后台下载（可关闭本页，完成后通知你）。',
+              '支持后台下载（可关闭本页，完成后通知你）。'
+              'Windows 版（标记 Windows·x64）请从官网下载。',
               style: context.appText.artist,
             ),
           ],
