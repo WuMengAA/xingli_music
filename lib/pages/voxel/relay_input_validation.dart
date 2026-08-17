@@ -25,10 +25,10 @@ String? validateRelayInput(String? url, String? room, {bool isHost = false}) {
 }
 
 /// 把中转服务器返回的错误（可能包裹在「连接失败：…」文案里）映射为中文人话提示。
-/// 未识别返回 `null`（调用方沿用原文案）。
+/// 未识别也返回中文兜底（2026-08-17 定规：消息框不得出现成片英文），不再透传英文原文。
 String? mapRelayErrorText(String? raw) {
   if (raw == null) return null;
   if (raw.contains('room full')) return '房间已满，请稍后再试或换一间';
   if (raw.contains('room required')) return '房间号无效，请确认房主提供的 6 位房间号';
-  return null;
+  return '连接中转服务器出错，请检查房间号与地址后重试';
 }

@@ -46,7 +46,12 @@ String friendlyRelayError(Object error) {
   if (s.contains('timed out') || s.contains('TimeoutException')) {
     return '连接中转服务器超时：请检查网络后重试';
   }
-  return s;
+  if (s.contains('room full')) return '房间已满，请稍后再试或换一间';
+  if (s.contains('room required')) {
+    return '房间号无效，请确认房主提供的 6 位房间号';
+  }
+  // 未知错误不再透传英文原文（2026-08-17 定规：消息框不得出现成片英文）。
+  return '连接出错，请检查网络或中转地址后重试';
 }
 
 /// 传输层事件（连接 / 断开 / 消息）。

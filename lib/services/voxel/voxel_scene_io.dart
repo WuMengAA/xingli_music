@@ -34,7 +34,7 @@ VoxelSoundScene decodeSceneFile(String content) {
         root['scene'] as Map<String, dynamic>;
     return VoxelSoundScene.fromJson(sceneJson);
   } catch (e) {
-    throw SceneFileFormatException('解析失败：$e');
+    throw SceneFileFormatException('场景文件解析失败，请检查文件格式');
   }
 }
 

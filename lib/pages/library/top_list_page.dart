@@ -42,7 +42,7 @@ class TopListPage extends ConsumerWidget {
       body: stats.when(
         loading: () => const LoadingView(label: '排行加载中…'),
         error: (Object e, StackTrace st) => ErrorView(
-          message: '排行加载失败：$e',
+          message: '排行加载失败，请稍后重试',
           onRetry: () => ref.invalidate(playStatsProvider),
         ),
         data: (List<TrackStats> list) {

@@ -78,7 +78,7 @@ class RecommendPage extends ConsumerWidget {
                   },
                   loading: () => const LoadingView(),
                   error: (Object e, StackTrace st) => ErrorView(
-                    message: '推荐失败：$e',
+                    message: '推荐失败，请稍后重试',
                     onRetry: () => ref.invalidate(effectiveMusicLibraryProvider),
                   ),
                 ),

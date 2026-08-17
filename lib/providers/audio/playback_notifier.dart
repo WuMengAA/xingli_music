@@ -105,7 +105,7 @@ class PlaybackActions {
       await _audio.playMusic(playable);
     } catch (e) {
       // 防御性兜底：播放失败返回提示而非向上抛（避免 UI 层闪退）
-      return '无法播放「${track.title}」：$e';
+      return '无法播放「${track.title}」，请稍后重试';
     }
     // 仅当引擎确实加载成功（currentTrack 指向该曲）才更新 nowPlayingProvider；
     // 失败（如网易云解析失败）保持引擎真源，避免「曲名对不上」。

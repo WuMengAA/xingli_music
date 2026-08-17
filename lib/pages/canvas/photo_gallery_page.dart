@@ -81,7 +81,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
       setState(() => _photos = list);
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = '$e');
+      setState(() => _error = '请稍后重试');
     }
   }
 
@@ -119,7 +119,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
           .toList());
     } catch (e) {
       if (!mounted) return;
-      appNotify(context, '删除失败: $e');
+      appNotify(context, '删除失败，请稍后重试');
     }
   }
 

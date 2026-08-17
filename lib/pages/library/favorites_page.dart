@@ -128,7 +128,7 @@ class _FavoritesTab extends ConsumerWidget {
     return favs.when(
       loading: () => const LoadingView(label: '收藏加载中…'),
       error: (Object e, StackTrace st) => ErrorView(
-        message: '收藏加载失败：$e',
+        message: '收藏加载失败，请稍后重试',
         onRetry: () => ref.invalidate(favoritesProvider),
       ),
       data: (List<FavoriteEntry> list) {
@@ -278,7 +278,7 @@ class _PlaylistsTab extends ConsumerWidget {
     return pls.when(
       loading: () => const LoadingView(label: '歌单加载中…'),
       error: (Object e, StackTrace st) => ErrorView(
-        message: '歌单加载失败：$e',
+          message: '歌单加载失败，请稍后重试',
         onRetry: () => ref.invalidate(playlistsProvider),
       ),
       data: (List<Playlist> list) {

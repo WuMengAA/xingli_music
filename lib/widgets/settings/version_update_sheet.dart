@@ -212,7 +212,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     } on OtaException catch (e) {
       if (mounted) appNotify(context, e.message);
     } catch (e) {
-      if (mounted) appNotify(context, '安装失败：$e');
+      if (mounted) appNotify(context, '安装失败，请稍后重试');
     } finally {
       if (mounted) setState(() => _installing = false);
     }

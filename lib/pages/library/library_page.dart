@@ -95,7 +95,7 @@ class LibraryPage extends ConsumerWidget {
                 ),
                 error: (Object e, StackTrace st) => SingleChildScrollView(
                   child: ErrorView(
-                    message: '曲库加载失败：$e',
+                    message: '曲库加载失败，请稍后重试',
                     onRetry: () => ref.invalidate(effectiveMusicLibraryProvider),
                   ),
                 ),
@@ -383,7 +383,7 @@ class _TimeSinkPage extends ConsumerWidget {
             error: (Object e, StackTrace st) => Padding(
               padding: const EdgeInsets.all(AppSpace.md),
               child: ErrorView(
-                message: '排行加载失败：$e',
+                message: '排行加载失败，请稍后重试',
                 onRetry: () => ref.invalidate(playStatsProvider),
               ),
             ),
@@ -460,7 +460,7 @@ class _TimeSinkPage extends ConsumerWidget {
             error: (Object e, StackTrace st) => Padding(
               padding: const EdgeInsets.all(AppSpace.md),
               child: ErrorView(
-                message: '历史加载失败：$e',
+                message: '历史加载失败，请稍后重试',
                 onRetry: () => ref.invalidate(recentHistoryProvider),
               ),
             ),

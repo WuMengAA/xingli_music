@@ -339,7 +339,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     } catch (e) {
       state = state.copyWith(
         status: ConnStatus.error,
-        error: '主持失败：${relayUrl != null ? friendlyRelayError(e) : e}',
+        error: '主持失败：${friendlyRelayError(e)}',
       );
       await _node?.close();
       _node = null;
@@ -405,7 +405,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     } catch (e) {
       state = state.copyWith(
         status: ConnStatus.error,
-        error: '连接失败：${relayUrl != null ? friendlyRelayError(e) : e}',
+        error: '连接失败：${friendlyRelayError(e)}',
       );
       await _node?.close();
       _node = null;

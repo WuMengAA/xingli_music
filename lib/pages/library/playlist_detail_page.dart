@@ -130,7 +130,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       body: tracks.when(
         loading: () => const LoadingView(label: '歌单加载中…'),
         error: (Object e, StackTrace st) => ErrorView(
-          message: '加载失败：$e',
+          message: '加载失败，请稍后重试',
           onRetry: () =>
               ref.invalidate(playlistTracksProvider(widget.playlistId)),
         ),

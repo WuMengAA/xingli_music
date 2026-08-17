@@ -229,7 +229,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     } on OtaException catch (e) {
       if (mounted) appNotify(context, e.message);
     } catch (e) {
-      if (mounted) appNotify(context, '安装失败：$e');
+      if (mounted) appNotify(context, '安装失败，请稍后重试');
     }
   }
 

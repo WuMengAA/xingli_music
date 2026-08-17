@@ -108,7 +108,7 @@ class OtaDownloadNotifier extends StateNotifier<OtaDownloadState> {
       }
     } catch (e) {
       if (mounted) {
-        state = state.copyWith(phase: OtaPhase.error, error: '更新失败：$e');
+        state = state.copyWith(phase: OtaPhase.error, error: '更新失败，请检查网络后重试');
       }
     }
   }

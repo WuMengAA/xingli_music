@@ -458,7 +458,7 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
         text: '星璃音乐 2.5D 音效场景：${scene.name}',
       );
     } catch (e) {
-      if (mounted) _toast('分享失败：$e');
+      if (mounted) _toast('分享失败，请稍后重试');
     }
   }
 
@@ -488,7 +488,7 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
     } on SceneFileFormatException catch (e) {
       if (mounted) _toast(e.message);
     } catch (e) {
-      if (mounted) _toast('导入失败：$e');
+      if (mounted) _toast('导入失败，请稍后重试');
     }
   }
 

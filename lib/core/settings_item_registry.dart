@@ -1784,7 +1784,7 @@ Future<void> _autoPlayBilibiliForCurrent(
   } on BilibiliResolveException catch (e) {
     appNotify(context, e.message);
   } catch (e) {
-    appNotify(context, 'B站自动匹配失败：$e');
+    appNotify(context, 'B站自动匹配失败，请稍后重试');
   }
 }
 

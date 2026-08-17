@@ -316,7 +316,7 @@ class _BgmPicker extends ConsumerWidget {
           },
           loading: () => const LoadingView(),
           error: (Object e, StackTrace st) => Text(
-            '曲库加载失败：$e',
+            '曲库加载失败，请稍后重试',
             style: context.appText.caption.copyWith(color: context.appColors.danger),
           ),
         ),

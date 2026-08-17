@@ -102,7 +102,7 @@ StreamResolver buildStreamResolver(ProviderReader read) {
         throw StreamResolveException(e.message);
       } catch (e) {
         // 未知异常也转成可展示错误，避免回落 openPath('netease://') 触发原生崩溃
-        throw StreamResolveException('播放地址解析失败，请稍后重试（$e）');
+        throw StreamResolveException('播放地址解析失败，请稍后重试');
       }
       return null;
     }
