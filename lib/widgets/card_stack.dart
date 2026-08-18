@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/scene.dart';
 import '../core/motion/motion.dart';
+import '../core/theme/app_theme_colors.dart';
 import '../models/track.dart';
 import '../providers/audio/audio_providers.dart';
 import 'app_icon.dart';
@@ -44,8 +45,66 @@ class _SceneCardStackState extends State<SceneCardStack> {
   @override
   Widget build(BuildContext context) {
     if (widget.scenes.isEmpty) return const SizedBox.shrink();
+    final int n = widget.scenes.length;
     final Scene current =
-        widget.scenes[widget.currentIndex.clamp(0, widget.scenes.length - 1)];
+        widget.scenes[widget.currentIndex.clamp(0, n - 1)];
+
+    // 多卡片堆叠：当前卡之后渲染 2 张预览卡作为卡堆层次，向上错开并缩小，
+    // 营造可滑动的卡组(deck)观感（非真实 z 轴，纯视觉层叠）。
+    final List<Widget> deck = <Widget>[];
+    for (int k = 2; k >= 1; k--) {
+      final int idx = widget.currentIndex + k;
+      if (idx >= n) continue;
+      deck.add(
+        IgnorePointer(
+          child: Transform.translate(
+            offset: Offset(0, -k * 10),
+            child: Transform.scale(
+              scale: 1 - k * 0.04,
+              child: Opacity(
+                opacity: 0.45,
+                child: _SceneCard(
+                  key: ValueKey('deck-$k-${widget.scenes[idx].id}'),
+                  scene: widget.scenes[idx],
+                  nowPlaying: null,
+                  isPlaying: false,
+                  pressed: false,
+                  onPressStart: () {},
+                  onPressEnd: () {},
+                  onLongPress: null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 当前卡（最上层，保留横滑 / 淡入淡出 / 歌词 / 进度等全部交互）。
+    final Widget front = AnimatedScale(
+      scale: _pressed ? 1.02 : 1.0,
+      duration: const Duration(milliseconds: 200),
+      curve: Motion.gentle,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 600),
+        switchInCurve: Motion.gentle,
+        switchOutCurve: Motion.calm,
+        transitionBuilder: (child, animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: _SceneCard(
+          key: ValueKey(current.id),
+          scene: current,
+          nowPlaying: widget.nowPlaying,
+          isPlaying: widget.isPlaying,
+          pressed: _pressed,
+          onPressStart: () => setState(() => _pressed = true),
+          onPressEnd: () => setState(() => _pressed = false),
+          onLongPress: widget.onLongPress,
+        ),
+      ),
+    );
+    deck.add(front);
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
@@ -57,28 +116,9 @@ class _SceneCardStackState extends State<SceneCardStack> {
           widget.onSceneChanged(widget.currentIndex - 1);
         }
       },
-      child: AnimatedScale(
-        scale: _pressed ? 1.02 : 1.0,
-        duration: const Duration(milliseconds: 200),
-        curve: Motion.gentle,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 600),
-          switchInCurve: Motion.gentle,
-          switchOutCurve: Motion.calm,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-          child: _SceneCard(
-            key: ValueKey(current.id),
-            scene: current,
-            nowPlaying: widget.nowPlaying,
-            isPlaying: widget.isPlaying,
-            pressed: _pressed,
-            onPressStart: () => setState(() => _pressed = true),
-            onPressEnd: () => setState(() => _pressed = false),
-            onLongPress: widget.onLongPress,
-          ),
-        ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: deck,
       ),
     );
   }
@@ -110,11 +150,14 @@ class _SceneCard extends ConsumerWidget {
     final ThemeData theme = Theme.of(context);
     final double scale = _responsiveScale(context);
 
-    final Gradient gradient = _backgroundGradient();
-    // 卡片背景为深色渐变，文字仅在本 widget 内覆盖为浅色以保障对比度
-    // （不动全局 theme，配色面板保存的也是深色渐变，二者保持一致）。
-    const Color lightText = Color(0xFFF5F5FA);
-    final Color lightMuted = Colors.white.withValues(alpha: 0.78);
+    final bool isLight = theme.brightness == Brightness.light;
+    // 文字与背景均跟随主题：浅色主题用浅色玻璃(auroraGradient，由主色派生)
+    // + 深色语义字；深色主题用深色场景叠加 + 浅色语义字(appColors.textPrimary
+    // 深态即浅字)。不再写死任何色值，满足 C1 硬规则。
+    final Gradient gradient =
+        isLight ? context.appColors.auroraGradient : _backgroundGradient(context);
+    final Color titleColor = context.appColors.textPrimary;
+    final Color mutedColor = context.appColors.textSecondary;
 
     // 场景卡片背景浓度：越低越通透（视频背景透出），越高越实。默认 0.25。
     final double opacity = ref.watch(sceneCardOpacityProvider);
@@ -144,7 +187,7 @@ class _SceneCard extends ConsumerWidget {
               scene.name,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontSize: 18 * scale,
-                color: lightText,
+                color: titleColor,
               ),
             ),
             const SizedBox(width: 8),
@@ -167,7 +210,7 @@ class _SceneCard extends ConsumerWidget {
           scene.desc,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(color: lightMuted),
+          style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
         ),
         const SizedBox(height: 14),
         Text(
@@ -176,7 +219,7 @@ class _SceneCard extends ConsumerWidget {
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge?.copyWith(
             fontSize: 26 * scale,
-            color: lightText,
+            color: titleColor,
           ),
         ),
         const SizedBox(height: 4),
@@ -184,7 +227,7 @@ class _SceneCard extends ConsumerWidget {
           nowPlaying?.artist ?? scene.artist,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(color: lightMuted),
+          style: theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
         ),
         const SizedBox(height: 14),
         _TrackProgress(
@@ -267,7 +310,7 @@ class _SceneCard extends ConsumerWidget {
   /// 1. scene.bgTop / scene.bgBottom 非空 → 使用配色面板保存的覆盖色；
   /// 2. 否则若 visual.gradientColors 非空 → 使用场景内置深色渐变；
   /// 3. 兜底 → 中性深色渐变，避免卡片在缺数据时露出纯白底。
-  Gradient _backgroundGradient() {
+  Gradient _backgroundGradient(BuildContext context) {
     if (scene.bgTop != null && scene.bgBottom != null) {
       return LinearGradient(
         begin: Alignment.topCenter,
@@ -285,11 +328,11 @@ class _SceneCard extends ConsumerWidget {
         stops: stops.length == colors.length ? stops : null,
       );
     }
-    // 兜底：中性深色渐变
-    return const LinearGradient(
+    // 兜底：语义深色玻璃（跟随主题，不再写死色值）。
+    return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: <Color>[Color(0xFF1A1A2E), Color(0xFF0F1020)],
+      colors: <Color>[context.appColors.bgSurface, context.appColors.bgPage],
     );
   }
 
