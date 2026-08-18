@@ -34,6 +34,7 @@ import 'widgets/shell/content_container.dart';
 import 'widgets/playback/music_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/noise_texture.dart';
+import 'widgets/common/app_confirm_dialog.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 星璃 · 应用外壳（浅色扁平化重构版）
@@ -135,27 +136,21 @@ class _AppShellState extends ConsumerState<AppShell> {
       // 延迟片刻，避免与冷启动动画抢屏。
       await Future<void>.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
-      final bool? go = await showDialog<bool>(
+      final bool? go = await AppConfirmDialog.show(
         context: context,
-        builder: (BuildContext c) => AlertDialog(
-          title: const Text('版本已更新'),
-          content: const Text(
-            '检测到应用已升级（新版本已包含最新功能）。\n'
-            '是否重新走一遍初始化流程？\n\n'
-            '提示：重走流程只会合并设置，不会清除任何数据。',
-            style: TextStyle(fontSize: 13),
+        title: '版本已更新',
+        content: Text(
+          '检测到应用已升级（新版本已包含最新功能）。\n'
+          '是否重新走一遍初始化流程？\n\n'
+          '提示：重走流程只会合并设置，不会清除任何数据。',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: context.appColors.textSecondary,
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(c).pop(false),
-              child: const Text('跳过'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(c).pop(true),
-              child: const Text('重新初始化'),
-            ),
-          ],
         ),
+        cancelLabel: '跳过',
+        confirmLabel: '重新初始化',
       );
       // cl58：无论用户选跳过还是重走，都记录「当前版本已处理过」，
       // 避免下次启动再次弹窗打扰。
@@ -179,25 +174,23 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return;
       await Future<void>.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
-      await showDialog<void>(
+      await AppConfirmDialog.show(
         context: context,
-        builder: (BuildContext c) => AlertDialog(
-          title: const Text('更新渠道已切换'),
-          content: Text(
-            '已切换到「${ch.label}」。\n\n'
-            '渠道决定 OTA 更新来源与更新日志：\n'
-            '· Beta（稳定）：较稳定，默认推荐\n'
-            '· Alpha（尝鲜）：功能更新更早\n\n'
-            '可前往 设置 → 关于 → 版本更新 检查该渠道的最新版本。',
-            style: const TextStyle(fontSize: 13),
+        title: '更新渠道已切换',
+        content: Text(
+          '已切换到「${ch.label}」。\n\n'
+          '渠道决定 OTA 更新来源与更新日志：\n'
+          '· Beta（稳定）：较稳定，默认推荐\n'
+          '· Alpha（尝鲜）：功能更新更早\n\n'
+          '可前往 设置 → 关于 → 版本更新 检查该渠道的最新版本。',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: context.appColors.textSecondary,
           ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(c).pop(),
-              child: const Text('知道了'),
-            ),
-          ],
         ),
+        cancelLabel: null,
+        confirmLabel: '知道了',
       );
       await repo.setChannelSwitchPending(false);
     } catch (_) {
@@ -307,21 +300,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       body: LiquidGlassCapture(
         child: Stack(
         children: <Widget>[
-          // ── 玻璃背景层：极淡的场景主色 + 噪点 ──
-          // 一层就够了：让玻璃组件透出"背景是场景色 + 颗粒"的干净质感。
+          // ── 玻璃背景层：画布极光渐变（随皮肤主色派生）+ 噪点 ──
+          // 全站统一极光/玻璃背景（画布 BG-aurora），深浅主题 + 11 套皮肤
+          // 下背景氛围自动同步；玻璃组件透出这层极光 + 颗粒的干净质感。
           Positioned.fill(
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: <Color>[
-                      context.appColors.accent.withValues(alpha: 0.10),
-                      context.appColors.bgPage,
-                    ],
-                    stops: const <double>[0, 0.6],
-                  ),
+                  gradient: context.appColors.auroraGradient,
                 ),
               ),
             ),
