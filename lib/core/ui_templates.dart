@@ -82,7 +82,7 @@ class UiGlassButton extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: const Color(0x59000000),
-          border: Border.all(color: const Color(0x40FFFFFF)),
+          border: Border.all(color: context.appColors.glassBorder,),
         ),
         child: Icon(icon, size: 20, color: ink),
       ),
@@ -112,7 +112,7 @@ class UiActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0x66000000),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: const Color(0x30FFFFFF)),
+          border: Border.all(color: context.appColors.glassBorder,),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -165,7 +165,7 @@ class UiMenuButton extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: const Color(0x2EFFFFFF)),
+              border: Border.all(color: context.appColors.glassBorder,),
             ),
             child: Row(
               children: <Widget>[
@@ -229,9 +229,9 @@ class UiIconButton extends StatelessWidget {
         width: label == null ? 44 : null,
         padding: EdgeInsets.symmetric(horizontal: label == null ? 0 : 14, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0x1FFFFFFF),
+          color: context.appColors.glassTint,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: const Color(0x18FFFFFF)),
+          border: Border.all(color: context.appColors.glassBorder,),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -417,7 +417,7 @@ class UiFoldPanel extends StatelessWidget {
           colors: <Color>[Color(0xFF3A3055), Color(0xFF151D2E)],
         ),
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: const Color(0x30FFFFFF)),
+        border: Border.all(color: context.appColors.glassBorder,),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -532,7 +532,7 @@ class UiInfoBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0x66000000),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: const Color(0x24FFFFFF)),
+        border: Border.all(color: context.appColors.glassBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -610,7 +610,7 @@ class UiMainMenu extends StatelessWidget {
           colors: <Color>[Color(0xFF2A2440), Color(0xFF151D2E)],
         ),
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: const Color(0x40FFFFFF)),
+        border: Border.all(color: context.appColors.glassBorder,),
         boxShadow: const <BoxShadow>[
           BoxShadow(color: Color(0x40000000), blurRadius: 20, offset: Offset(0, 8)),
         ],
@@ -1280,7 +1280,7 @@ final List<UiTemplate> kUiTemplates = <UiTemplate>[
                 children: <UiNode>[
                   UiNode.txt('md_t', '标题', '音频 · 音量与音源', size: 16, weight: '600', color: '#F2F2F7'),
                   UiNode.button('md_i1', '项', '主音量', accent: '#262634'),
-                  UiNode.button('md_i2', '项', '均衡器', accent: '#262634'),
+                  UiNode.button('md_i2', '项', '音效', accent: '#262634'),
                 ],
               ),
             ],

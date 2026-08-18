@@ -24,6 +24,7 @@ import '../providers/voxel/graphics_quality_provider.dart';
 import '../providers/voxel/hud_layout_provider.dart';
 import '../providers/voxel/world_audio_provider.dart';
 import '../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
+import '../widgets/common/experiment_consent_gate.dart';
 import '../providers/audio/audio_providers.dart';
 import '../providers/audio/audio_scheme.dart';
 import '../providers/audio/auto_play_providers.dart';
@@ -595,25 +596,25 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       );
     },
   ),
-  // cl76：视听结合（B站背景视频）开关——长按播放器「视听」可设模糊/同步/变速。
+  // cl76：视频背景（B站）开关——长按播放器「视频背景」可设模糊/同步/变速。
   'biliVisual': SettingItemDef(
-    title: '视听结合（B站背景视频）',
+    title: '视频背景（B站）',
     builder: (context, ref) => _toggle(
       context,
-      title: '视听结合（B站背景视频）',
+      title: '视频背景（B站）',
       subtitle: '当前曲目自动匹配 B站视频作背景画面（默认静音）；'
-          '长按播放器上的「视听」可设置模糊/同步/变速',
+          '长按播放器上的「视频背景」可设置模糊/同步/变速',
       value: ref.watch(biliVisualEnabledProvider),
       onChanged: (bool v) =>
           ref.read(biliVisualEnabledProvider.notifier).state = v,
     ),
   ),
   'musicEngine': SettingItemDef(
-    title: '播放引擎',
+    title: '播放方式',
     builder: (context, ref) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('播放引擎', style: Theme.of(context).textTheme.bodyMedium),
+        Text('播放方式', style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(height: 6),
         _chips<MusicEngine>(
           ref: ref,
@@ -1637,9 +1638,18 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
               subtitle:
                   Text(item.statusLabel, style: Theme.of(context).textTheme.bodySmall),
               value: consent.isEnabled(item),
-              onChanged: (bool v) => ref
-                  .read(experimentConsentProvider.notifier)
-                  .setEnabled(item.id, v),
+              onChanged: (bool v) async {
+                // 开启前若尚未同意实验条款，先弹「实验同意门」并等待其接受。
+                if (v && !consent.agreed) {
+                  final ExperimentConsentResult? r =
+                      await ExperimentConsentGate.show(context: context);
+                  if (r != ExperimentConsentResult.accepted) return;
+                  ref.read(experimentConsentProvider.notifier).agree();
+                }
+                ref
+                    .read(experimentConsentProvider.notifier)
+                    .setEnabled(item.id, v);
+              },
             ),
         ],
       );

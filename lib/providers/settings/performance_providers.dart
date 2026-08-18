@@ -285,10 +285,10 @@ final lodFrustumCullProvider = StateProvider<bool>((ref) => true);
 /// 音乐播放引擎（S2 · media_kit 迁移）。
 enum MusicEngine {
   /// just_audio：默认，Android 真 EQ 支持，行为已验证。
-  justAudio('just_audio'),
+  justAudio('默认'),
 
   /// media_kit（libmpv）：全格式 / Hi-Res / 无缝播放（EQ 走模拟层）。
-  mediaKit('media_kit (libmpv)');
+  mediaKit('增强');
 
   const MusicEngine(this.label);
 

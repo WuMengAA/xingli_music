@@ -6,49 +6,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_version.dart';
-import '../../core/settings_layout.dart';
-import '../../core/settings_item_registry.dart';
+import '../../core/terms/naming_dict.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
-import '../../core/terms/naming_dict.dart';
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/performance_providers.dart';
-import '../../providers/settings/settings_ui_providers.dart';
-import '../../services/ota_service.dart';
-import '../../providers/settings/settings_layout_provider.dart';
-import '../../providers/shell/shell_providers.dart';
 import '../../providers/sources/netease_provider.dart';
-import '../../widgets/sources/netease_login_sheet.dart';
 import '../../providers/theme/theme_providers.dart';
 import '../../services/audio/audio_service.dart';
+import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_chip.dart';
+import '../../widgets/liquid_glass.dart';
+import '../../widgets/notification/app_notify.dart';
 import '../../widgets/notification/notification_center.dart';
-import '../../widgets/shell/app_search_bar.dart';
 import '../../widgets/settings/llm_settings_sheet.dart';
 import '../../widgets/settings/log_upload_sheet.dart';
-import 'scene_editor_page.dart';
+import '../../widgets/sources/netease_login_sheet.dart';
 import '../scene/custom_scene_list_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
 import '../voxel/voxel_main_menu_page.dart';
+import 'scene_editor_page.dart';
 import 'server_settings_page.dart';
-import 'settings_organizer_page.dart';
-import '../../widgets/notification/app_notify.dart';
 
-/// 设置页 · Master-Detail（v2 M1 接入 PageScaffold；M4/M6/M2 分类更新）。
+/// 设置页（v2 画布重构 · 匹配 Ardot「Screen · 设置」3:288）。
 ///
-/// 六分类（v2 A1 已裁决新增第 6 槽「实验」）：
-/// ① 播放 / ② 音源 / ③ 场景 / ④ 通知中心 / ⑤ 关于 / ⑥ 实验。
+/// 单栏滚动 + 五张毛玻璃分组卡：**音频 / 画面 / 通知中心 / 实验 / 关于**，
+/// 卡片顺序与画布 y 轴一致（音频 → 画面 → 通知中心 → 实验 → 关于）。
 ///
-/// **一票否决项**：
-/// - **R12** `ServerSettingsPage` 必须从设置页可达（音源分类入口行 `push` 整页）。
-/// - **R13** `SceneEditorPage` 必须从设置页可达（场景分类入口行 `push` 整页）。
+/// 画布仅给到分组与入口行的层级示意，实际业务控件（滑块 / 选择器 /
+/// 开关 / 入口）全部保留并落入对应分组，provider 接线不变。
+///
+/// **一票否决项（保留）**：
+/// - **R12** `ServerSettingsPage` 从「音源」入口 `push` 整页可达。
+/// - **R13** `SceneEditorPage` 从「场景」入口 `push` 整页可达。
 class SettingsPage extends ConsumerWidget {
   const SettingsPage({super.key});
 
@@ -57,419 +54,76 @@ class SettingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final String query = ref.watch(searchQueryProvider(ShellPage.settings));
-    final SettingsSection section = ref.watch(settingsSectionProvider);
-    final List<SettingsSection> matches = ref.watch(
-      settingsSectionMatchesProvider,
-    );
-    // 布局驱动：整理器自定义过布局（或打包了资产）→ 用用户布局渲染。
-    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
-    final bool layoutDriven = layout.collections.isNotEmpty;
-
     return PageScaffold(
       title: '设置',
-      search: AppSearchBar(
-        hintText: '搜索设置项',
-        query: query,
-        onChanged: (String v) =>
-            ref.read(searchQueryProvider(ShellPage.settings).notifier).state = v,
-      ),
-      // 布局整理器入口（开发者自定义分类/组/排序，导出资产随包分发）。
-      actions: <Widget>[
-        IconButton(
-          tooltip: '整理设置布局',
-          icon: const Icon(Icons.dashboard_customize_outlined),
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const SettingsOrganizerPage(),
+      // 主题切换由 PageScaffold 内 ThemeSwitchButton 统一提供。
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpace.lg,
+          vertical: AppSpace.lg,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const _GroupCard(title: '音频', content: _AudioContent()),
+            const SizedBox(height: AppSpace.lg),
+            const _GroupCard(title: '画面', content: _VisualContent()),
+            const SizedBox(height: AppSpace.lg),
+            const _GroupCard(
+              title: '通知中心',
+              content: _NotificationContent(),
             ),
-          ),
-        ),
-      ],
-      body: Container(
-        decoration: BoxDecoration(
-          // R26r21：与外层毛玻璃面板同效果——透明，透出外层 frosted。
-          color: Colors.transparent,
-          borderRadius: AppRadius.brLg,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: layoutDriven
-            ? const _LayoutDrivenBody()
-            : Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  // ── Master：左侧竖向分类导航栏 ─────────────
-                  _CategoryRail(
-                    selected: section,
-                    matches: matches,
-                    onSelect: (SettingsSection s) =>
-                        ref.read(settingsSectionProvider.notifier).state = s,
-                  ),
-
-                  // ── Detail：右侧详情区 ─────────────────────
-                  Expanded(child: _SectionDetail(section: section)),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
-/// 左侧 52dp 竖向分类导航栏（Master · R21 重组）。
-///
-/// 按 [SettingsGroup] 分 7 组渲染：每组顶部小标（分组标题 + 图标），
-/// 组内是该组包含的 SettingsSection tile。点击 tile 仍按原 SettingsSection
-/// 切换详情（保留搜索/详情逻辑）。
-class _CategoryRail extends StatelessWidget {
-  const _CategoryRail({
-    required this.selected,
-    required this.matches,
-    required this.onSelect,
-  });
-
-  final SettingsSection selected;
-  final List<SettingsSection> matches;
-  final ValueChanged<SettingsSection> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: AppSize.rail,
-      // R26r21c：透明透出外层全屏玻璃，右侧细描边分隔 Master/Detail。
-      // Container 不能同时传 `color:` + `decoration:`（断言报错），只在
-      // decoration 里画右边线即可，背景由透明默认承担。
-      decoration: BoxDecoration(
-        border: Border(
-          right: BorderSide(
-            color: context.appColors.border.withValues(alpha: 0.6),
-          ),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          for (final SettingsGroup g in SettingsGroup.values) ...<Widget>[
-            _GroupHeader(group: g),
-            for (final SettingsSection s in g.sections)
-              // P1-02：搜索未命中该分类时弱化（保留槽位，避免误以为页面损坏）
-              _CategoryTile(
-                section: s,
-                selected: s == selected,
-                dimmed: !matches.contains(s),
-                onTap: () => onSelect(s),
-              ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpace.lg),
+            const _GroupCard(title: '实验', content: _ExperimentContent()),
+            const SizedBox(height: AppSpace.lg),
+            const _GroupCard(title: '关于', content: _AboutContent()),
+            const SizedBox(height: AppSpace.lg),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-/// 分组小标：图标 + 2 字标题（v3 整理新增）。
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({required this.group});
-
-  final SettingsGroup group;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.xs,
-        AppSpace.xs,
-        AppSpace.xs,
-        3,
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(group.icon, size: 13, color: context.appColors.textTertiary),
-          const SizedBox(width: 4),
-          // 分组标题长度可变（如「播放与音源」5 字），而 rail 固定 52dp、
-          // 去掉左右 padding 后仅剩 44dp：必须 Flexible + 省略号兜底，
-          // 否则窄屏/横屏下 Row 会 RenderFlex overflow。
-          Flexible(
-            child: Text(
-              group.label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              style: context.appText.tileLabel.copyWith(
-                color: context.appColors.textTertiary,
-                fontSize: 11,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 单个分类 tile（48×76dp）：26dp 图标在上、文字标签在下。
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile({
-    required this.section,
-    required this.selected,
-    this.dimmed = false,
-    required this.onTap,
-  });
-
-  final SettingsSection section;
-  final bool selected;
-  final bool dimmed;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color iconColor = selected
-        ? context.appColors.onAccent
-        : context.appColors.iconInactive;
-    final Color labelColor = selected
-        ? context.appColors.accent
-        : context.appColors.textSecondary;
-
-    return SizedBox(
-      width: AppSize.tileWidth,
-      // v3 分组后 rail 多出 5 个分组小标，tile 由 76 收到 64；
-      // 仍 ≥ Material 48dp 最小触控高度，勿再压缩。
-      height: 64,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: AppRadius.brMd,
-          child: AnimatedContainer(
-            duration: AppMotion.tab,
-            curve: AppMotion.ease,
-            decoration: BoxDecoration(
-              // R26r21：选中紫 / 未选中半透明白（与外层毛玻璃同质感）
-              color: selected
-                  ? context.appColors.accent
-                  : const Color(0x0DFFFFFF),
-              borderRadius: AppRadius.brMd,
-              border: Border.all(
-                color: selected ? context.appColors.accent : context.appColors.border,
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Opacity(
-              opacity: dimmed ? 0.4 : 1.0,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: <Widget>[
-                  Icon(section.icon, size: 24, color: iconColor),
-                  const SizedBox(height: 3),
-                  Text(
-                    section.label,
-                    style: context.appText.tileLabel.copyWith(color: labelColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );
   }
 }
 
-/// 右侧详情区（Detail）：按当前分类渲染不同内容。
-class _SectionDetail extends StatelessWidget {
-  const _SectionDetail({required this.section});
-
-  final SettingsSection section;
-
-  @override
-  Widget build(BuildContext context) {
-    switch (section) {
-      case SettingsSection.audio:
-        return const _AudioDetail();
-      case SettingsSection.visual:
-        return const _VisualDetail();
-      case SettingsSection.notification:
-        return const _NotificationDetail();
-      case SettingsSection.experiment:
-        return const _ExperimentDetail();
-      case SettingsSection.about:
-        return const _AboutDetail();
-    }
-  }
-}
-
-/// 布局驱动详情（用户通过整理器自定义后启用）：
-/// 左侧 = 合集列表，右侧 = 该合集下所有组的设置项（按注册表渲染）。
-class _LayoutDrivenBody extends ConsumerWidget {
-  const _LayoutDrivenBody();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
-    if (layout.collections.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    final String selectedId = ref.watch(
-      layoutSelectedCollectionProvider,
-    );
-    // 选中合集（找不到则首个）。
-    SettingCollection selected = layout.collections.first;
-    for (final SettingCollection c in layout.collections) {
-      if (c.id == selectedId) {
-        selected = c;
-        break;
-      }
-    }
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        // 左侧：合集列表。
-        SizedBox(
-          width: 96,
-          child: ListView(
-            children: <Widget>[
-              for (final SettingCollection c in layout.collections)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    onTap: () => ref
-                        .read(layoutSelectedCollectionProvider.notifier)
-                        .state = c.id,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: c.id == selected.id
-                            ? Theme.of(context)
-                                .colorScheme
-                                .primaryContainer
-                                .withValues(alpha: 0.5)
-                            : null,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        c.name,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              fontWeight: c.id == selected.id
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        // 右侧：选中合集下的组 + 设置项。
-        Expanded(
-          child: Material(
-            color: Colors.transparent,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpace.md),
-              children: <Widget>[
-                Text(selected.name,
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: AppSpace.sm),
-                for (final SettingGroup g in selected.groups) ...<Widget>[
-                  // #513：收纳折叠——「个性预设」组默认折叠，主界面保持简洁；
-                  // 全局画面质感（噪点 / 模糊 / 动画 / 液态玻璃等）收进此处。
-                  if (g.id == 'visual_fx')
-                    Theme(
-                      data: Theme.of(context)
-                          .copyWith(dividerColor: Colors.transparent),
-                      child: ExpansionTile(
-                        initiallyExpanded: false,
-                        shape: const Border(),
-                        tilePadding: EdgeInsets.zero,
-                        childrenPadding: EdgeInsets.zero,
-                        title: Text(
-                          g.name,
-                          style: Theme.of(context)
-                                  .textTheme
-                                  .titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700) ??
-                              context.appText.subtitle,
-                        ),
-                        children: <Widget>[
-                          for (final SettingItem item in g.items) ...<Widget>[
-                            buildSettingItem(context, ref, item.id),
-                            const Divider(height: 1),
-                          ],
-                        ],
-                      ),
-                    )
-                  else ...<Widget>[
-                    if (g.name.isNotEmpty) ...<Widget>[
-                      // cl42·⑦：分组标题放大（原 labelMedium ~12px 偏小）。
-                      // 用 titleSmall + 加粗，与集合名(titleMedium)形成清晰层级。
-                      Text(
-                        g.name,
-                        style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700) ??
-                            context.appText.subtitle,
-                      ),
-                      const SizedBox(height: 6),
-                    ],
-                    for (final SettingItem item in g.items) ...<Widget>[
-                      buildSettingItem(context, ref, item.id),
-                      const Divider(height: 1),
-                    ],
-                  ],
-                  const SizedBox(height: AppSpace.md),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// 详情区标题 + 列表通用骨架。
-class _DetailScaffold extends StatelessWidget {
-  const _DetailScaffold({required this.title, required this.children});
+/// 毛玻璃分组卡：标题 + 业务内容（content 内自行组织控件）。
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({required this.title, required this.content});
 
   final String title;
-  final List<Widget> children;
+  final Widget content;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      // ListTile 需要在 DecoratedBox 内部找到最近 Material 祖先，
-      // 否则「ListTile background color or ink splashes may be invisible」。
-      color: Colors.transparent,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpace.lg),
-        children: <Widget>[
-          Text(title, style: context.appText.title),
-          const SizedBox(height: AppSpace.lg),
-          ...children,
-        ],
+    return LiquidGlass(
+      radius: AppRadius.lg,
+      padding: const EdgeInsets.all(AppSpace.md),
+      child: Material(
+        // SwitchListTile / InkWell 需要最近 Material 祖先，否则 ink 不可见。
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title, style: context.appText.subtitle),
+            const SizedBox(height: AppSpace.md),
+            content,
+          ],
+        ),
       ),
     );
   }
 }
 
-/// 基础·音频：音量、静音、播放模式、音景 + 音源入口（R22 用户定版结构）。
-class _AudioDetail extends ConsumerWidget {
-  const _AudioDetail();
+/// 分组·音频：主音量、其他音量折叠、音量均衡、均衡器、音源、网易云、播放引擎。
+class _AudioContent extends ConsumerWidget {
+  const _AudioContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final double master = ref.watch(masterVolumeProvider);
     final BalanceMode balance = ref.watch(balanceModeProvider);
 
-    return _DetailScaffold(
-      title: SettingsSection.audio.title,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         // ── 主音量（R23i：全局整体音量，乘所有通道）──
         _SliderRow(
@@ -483,20 +137,20 @@ class _AudioDetail extends ConsumerWidget {
         ),
         // ── 其他音量（R26r21：折叠；主音量外置在上方）──
         const _OtherVolumesFold(),
-        // R15：音量均衡（高保真 / 普通）
+        // R15：声音效果（高质量 / 标准）
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpace.sm),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text('音量均衡', style: context.appText.body),
+              Text('声音效果', style: context.appText.body),
               const SizedBox(height: AppSpace.xs),
               Wrap(
                 spacing: AppSpace.xs,
                 children: <Widget>[
                   for (final BalanceMode m in BalanceMode.values)
                     ChoiceChip(
-                      label: Text(m == BalanceMode.hifi ? '高保真' : '普通'),
+                      label: Text(m == BalanceMode.hifi ? '高质量' : '标准'),
                       selected: balance == m,
                       onSelected: (_) {
                         ref.read(balanceModeProvider.notifier).state = m;
@@ -509,8 +163,8 @@ class _AudioDetail extends ConsumerWidget {
               const SizedBox(height: 2),
               Text(
                 balance == BalanceMode.hifi
-                    ? '保留原始动态，无任何增益处理'
-                    : '响度归一化 + 轻度压缩，低音量内容更清晰',
+                    ? '保留原始声音，不加任何处理'
+                    : '自动平衡音量，小声内容更清晰',
                 style: context.appText.artist,
               ),
             ],
@@ -519,8 +173,8 @@ class _AudioDetail extends ConsumerWidget {
         // R7/R8：EQ 入口（R16：跟随全局主题）
         _EntryRow(
           icon: Icons.graphic_eq_rounded,
-          title: '均衡器（10 段）',
-          subtitle: '31Hz ~ 16kHz · 7 组预设 · Android 真 EQ',
+          title: '音效',
+          subtitle: '低音到高音 · 多组预设 · 随设备生效',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => const EqualizerPage(),
@@ -554,9 +208,9 @@ class _AudioDetail extends ConsumerWidget {
         const _NeteaseSourceTile(),
         const SizedBox(height: AppSpace.lg),
 
-        // ── 播放引擎（R26c：从「画面 → 性能与质量」移入「音频」区）──
-        // 播放引擎属于音频范畴，与画面性能无关；与上方音量/音源同组。
-        Text('播放引擎', style: context.appText.body),
+        // ── 播放方式（R26c：从「画面 → 性能与质量」移入「音频」区）──
+        // 播放方式属于音频范畴，与画面性能无关；与上方音量/音源同组。
+        Text('播放方式', style: context.appText.body),
         const SizedBox(height: AppSpace.xs),
         Wrap(
           spacing: AppSpace.xs,
@@ -573,8 +227,7 @@ class _AudioDetail extends ConsumerWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          'just_audio：默认，Android 真 EQ；media_kit：全格式 / Hi-Res / '
-          '无缝播放（EQ 走模拟层）· 切换即时生效',
+          '默认：稳定兼容；增强：更多格式与高音质 · 切换即时生效',
           style: context.appText.artist,
         ),
       ],
@@ -582,9 +235,9 @@ class _AudioDetail extends ConsumerWidget {
   }
 }
 
-/// 基础·画面：外观 + 场景 + 游戏 + 性能（R22 用户定版结构）。
-class _VisualDetail extends ConsumerWidget {
-  const _VisualDetail();
+/// 分组·画面：外观 + 密度 + 场景 + 游戏 + 性能与质量 + 特效。
+class _VisualContent extends ConsumerWidget {
+  const _VisualContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -599,8 +252,8 @@ class _VisualDetail extends ConsumerWidget {
     final bool bg = ref.watch(bgAnimationEnabledProvider);
     final bool liquid = ref.watch(liquidGlassEnabledProvider);
 
-    return _DetailScaffold(
-      title: SettingsSection.visual.title,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         // ═══ 外观 ═══
         Text('外观', style: context.appText.subtitle),
@@ -892,14 +545,14 @@ class _VisualDetail extends ConsumerWidget {
   }
 }
 
-/// ④ 通知中心（v2 M6 三区块）+ R13 权限申请 / R14 说明。
-class _NotificationDetail extends ConsumerWidget {
-  const _NotificationDetail();
+/// 分组·通知中心（v2 M6 三区块）+ R13 权限申请 / R14 说明。
+class _NotificationContent extends ConsumerWidget {
+  const _NotificationContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _DetailScaffold(
-      title: SettingsSection.notification.title,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         // R13：权限申请入口（不依赖 adb）
         _EntryRow(
@@ -928,14 +581,14 @@ class _NotificationDetail extends ConsumerWidget {
   }
 }
 
-/// ⑤ 关于：应用名与版本号（P0-F6 / R18-R20）。
-class _AboutDetail extends StatelessWidget {
-  const _AboutDetail();
+/// 分组·关于：应用名与版本号（P0-F6 / R18-R20）。
+class _AboutContent extends StatelessWidget {
+  const _AboutContent();
 
   @override
   Widget build(BuildContext context) {
-    return _DetailScaffold(
-      title: SettingsSection.about.title,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Row(
           children: <Widget>[
@@ -1039,17 +692,17 @@ class _AboutDetail extends StatelessWidget {
   }
 }
 
-/// ⑥ 实验管理（v2 M2 · P1-M2-5 / A1 已裁决新增第 6 槽）。
-class _ExperimentDetail extends ConsumerWidget {
-  const _ExperimentDetail();
+/// 分组·实验管理（v2 M2 · P1-M2-5 / A1 已裁决新增第 6 槽）。
+class _ExperimentContent extends ConsumerWidget {
+  const _ExperimentContent();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ExperimentConsent consent = ref.watch(experimentConsentProvider);
     final List<ExperimentItem> items = ref.watch(experimentsProvider);
 
-    return _DetailScaffold(
-      title: SettingsSection.experiment.title,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         _EntryRow(
           icon: Icons.smart_toy_outlined,
@@ -1222,8 +875,8 @@ class _EntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      // R26r21：半透明白玻璃（与外层毛玻璃同质感），不再实色 bgCard。
-      color: const Color(0x0DFFFFFF),
+      // R26r21：跟随毛玻璃语义色 glassTint（随皮肤主色派生），不再实色 bgCard。
+      color: context.appColors.glassTint,
       borderRadius: AppRadius.brMd,
       child: InkWell(
         onTap: onTap,
@@ -1267,7 +920,7 @@ class _NeteaseSourceTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final NeteaseAuthState na = ref.watch(neteaseAuthProvider);
     return Material(
-      color: const Color(0x0DFFFFFF),
+      color: context.appColors.glassTint,
       borderRadius: AppRadius.brMd,
       child: InkWell(
         borderRadius: AppRadius.brMd,
@@ -1355,8 +1008,6 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
-
-
 
 
 /// 应用性能预设（R22）：切档位时若帧率仍是另一档位的默认值则联动切换；

@@ -42,7 +42,7 @@ class _BiliVisualOptionsContent extends ConsumerWidget {
               AppSpace.lg,
               AppSpace.sm,
             ),
-            child: Text('视听结合', style: context.appText.body),
+            child: Text('视频背景', style: context.appText.body),
           ),
           _Row(
             '背景模糊',
@@ -57,7 +57,7 @@ class _BiliVisualOptionsContent extends ConsumerWidget {
             (bool v) => ref.read(biliVisualSyncProvider.notifier).state = v,
           ),
           _Row(
-            '变速适配',
+            '自动校准',
             '时长相差过大时实时同步进度（默认关）',
             tempo,
             (bool v) =>

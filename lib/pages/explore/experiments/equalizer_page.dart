@@ -23,7 +23,7 @@ class EqualizerPage extends ConsumerWidget {
       backgroundColor: context.appColors.bgPage,
       body: SafeArea(
         child: PageScaffold(
-          title: '音效均衡器',
+          title: '音效',
           actions: const <Widget>[
             Padding(
               padding: EdgeInsets.only(right: 4),

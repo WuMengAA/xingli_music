@@ -202,13 +202,13 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             // R26skel-b6：音乐源音质/清晰度（VIP/大会员自动识别）。
             SettingItem(id: 'musicQuality', title: '网易云音质', kind: SettingKind.chips),
             SettingItem(id: 'biliQuality', title: 'B站清晰度', kind: SettingKind.chips),
-            // cl76：视听结合（B站背景视频）开关——长按播放器「视听」可设模糊/同步/变速。
-            SettingItem(id: 'biliVisual', title: '视听结合（B站背景视频）', kind: SettingKind.toggle),
+            // cl76：视频背景（B站）开关——长按播放器「视频背景」可设模糊/同步/变速。
+            SettingItem(id: 'biliVisual', title: '视频背景（B站）', kind: SettingKind.toggle),
           ],
         ),
         SettingGroup(
           id: 'audio_engine',
-          name: '播放引擎',
+          name: '播放方式',
           items: <SettingItem>[
             SettingItem(id: 'musicEngine', title: '播放引擎', kind: SettingKind.chips),
           ],
