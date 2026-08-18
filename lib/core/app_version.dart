@@ -88,6 +88,8 @@ abstract final class AppVersion {
   static const int? hotfix = null;
 
   /// 当日构建次数（01 起；同日每次构建 +1，发版时手动递增，次日清零）。
+  /// cl03（08.18）：主题重构收尾——默认浅色 + 独立深色配色 + 浅色玻璃场景卡 +
+  /// 不透明底部播放器卡片（versionCode 87 / versionName 0.26.08.18_beta_cl03）。
   /// cl36：安卓切歌防闪退补丁 + 通知系统重做(rootOverlay/多实例堆叠) +
   /// 水面默认关闭(高画质外) + 游戏中返回键(提醒/双击保存退出) +
   /// 存档最近保存时间 + 崩溃界面兜底(ErrorWidget.builder→CrashScreen)。
@@ -334,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 2;
+  static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
