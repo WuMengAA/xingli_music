@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 17;
+  static const int day = 18;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -329,7 +329,12 @@ abstract final class AppVersion {
   /// 引导返回大厅；buildCount 64→65（0.26.8.15_alpha_cl65）。
   /// cl04：开放世界 P2/P3/P4（编辑层 chunk 流式 + 分块存档按存档 ID 分目录 + 渲染距离/LOD 核实）
   /// + 构建修复（Windows 跨盘 Kotlin 增量编译规避 / Flutter 3.44.8 与 splits.abi 冲突官方 flag）。
-  static const int buildCount = 4;
+  /// cl02（08.18）：主题重构——全站毛玻璃随皮肤主色派生（去白/黑硬编码），
+  /// ContentContainer/AppDock/主题切换钮/设置页/整理器/UI 模板玻璃统一走
+  /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
+  /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
+  /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
+  static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -394,6 +399,37 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl03',
+    title: '主题与场景卡打磨：默认浅色 + 独立深色配色 + 浅色玻璃场景卡 + 不透明播放器',
+    details: <String>[
+      '默认启动主题改为「清新·浅色」（light），与画布观感一致（starlight 皮肤）',
+      '深色模式改为独立手调配色板（AppDarkColors.palette），中性色阶/状态色不再由浅色反推',
+      '首页场景大卡：保持 16:9，浅色主题背景跟随皮肤主色（auroraGradient），并支持多卡堆叠 deck 观感',
+      '音乐播放器改为不透明低特效独立底部卡片，保留播放控制与内嵌歌词',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl02',
+    title: '主题重构：全站毛玻璃随皮肤主色派生',
+    details: <String>[
+      '去除玻璃表面硬编码白/黑叠色：内容容器、底部 Dock、主题切换钮、设置页分类/入口/网易云 tile、设置整理器、UI 模板库的玻璃统一走 glassTint/glassBorder/bgSurface',
+      '毛玻璃与主色/描边语义色绑定（context.appColors），切换 11 套皮肤时玻璃质感与强调色同步变化，不再写死白色',
+      '整理器面板改用主题表面色（bgSurface/border），深色/浅色下对比正确',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl01',
+    title: '主题扩展：配色皮肤 6 → 11 套',
+    details: <String>[
+      '新增 5 套皮肤：极光青 / 流金黄 / 赤焰红 / 霓虹粉 / 靛蓝，补齐色相环空缺（原 6 套：星璃紫/星夜蓝/深海青/森林绿/暖阳橙/玫红）',
+      '皮肤为单一注册表驱动（ThemeSkins.all）：设置·个性化、OOBE 引导、主题切换浮钮自动同步，无需逐处接线',
+      '强调色与液态玻璃质感随皮肤主色自动重算（AppThemeColors.withSkin），深色态主色自动提亮，玻璃随配色同步',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.17',
     cl: 'beta_cl04',
