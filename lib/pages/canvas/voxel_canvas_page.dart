@@ -22,6 +22,7 @@ import '../../widgets/voxel/voxel_canvas_view.dart';
 import '../../pages/voxel/voxel_main_menu_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
 import '../../widgets/notification/app_notify.dart';
+import '../../widgets/common/share_panel.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 新版沉浸画布（V3）：2.5D 场景编辑后的可互动场景
@@ -448,8 +449,18 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
     );
   }
 
-  /// 分享当前场景：序列化为临时 JSON 文件并调起系统分享。
+  /// 分享当前场景：先弹出分享面板选择渠道，再序列化为临时 JSON 文件并调起系统分享。
   Future<void> _shareScene(VoxelSoundScene scene) async {
+    final ShareChannel? channel = await SharePanel.show(
+      context: context,
+      channels: <ShareChannel>[
+        ShareChannel(icon: Icons.chat_bubble_outline, label: '微信'),
+        ShareChannel(icon: Icons.group_outlined, label: 'QQ'),
+        ShareChannel(icon: Icons.link, label: '链接'),
+        ShareChannel(icon: Icons.share_rounded, label: '系统分享'),
+      ],
+    );
+    if (channel == null || !mounted) return; // 用户取消
     try {
       final XFile x = await sceneToTempXFile(scene);
       await Share.shareXFiles(
