@@ -33,7 +33,8 @@ final derivedPaletteProvider = Provider<DerivedPalette>((ref) {
 // ════════════════════════════════════════════════════════════════════════
 
 /// 主题模式（字符串持久化：light / dark / system）。
-final themeModeNameProvider = StateProvider<String>((ref) => 'system');
+/// 默认「清新·浅色」（启动即浅色，画布观感对应 starlight 皮肤）。
+final themeModeNameProvider = StateProvider<String>((ref) => 'light');
 
 /// 当前主题模式（映射为 Material ThemeMode）。
 final themeModeProvider = Provider<ThemeMode>((ref) {

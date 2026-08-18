@@ -162,7 +162,7 @@ class SettingsRepository {
   Future<void> setPlayMode(String v) => _prefs.setString(kPlayMode, v);
 
   // ── 主题 ─────────────────────────────────────────
-  String get themeMode => _prefs.getString(kThemeMode) ?? 'system';
+  String get themeMode => _prefs.getString(kThemeMode) ?? 'light';
   Future<void> setThemeMode(String v) => _prefs.setString(kThemeMode, v);
 
   String get themeSkin => _prefs.getString(kThemeSkin) ?? 'starlight';
