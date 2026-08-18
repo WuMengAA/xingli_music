@@ -620,6 +620,86 @@ Future<void> deleteSaveWithBackups(String id) async {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// cl05：自动检查点也算「存档」——玩过但没显式保存的世界也要出现在
+// 「世界存档」里（用户反馈：打开世界存档啥都没有）。
+// ─────────────────────────────────────────────────────────────
+
+/// 列出「有自动检查点、但无手动存档」的世界（玩过但未显式保存）。
+/// id 与检查点文件同名；name 取检查点 world.name，缺失回退「世界 <时间>」；
+/// 按最近保存倒序。
+Future<List<VoxelManualSaveMeta>> listCheckpointSaves() async {
+  final Directory d = await _voxelDir();
+  if (!await d.exists()) return <VoxelManualSaveMeta>[];
+  const String prefix = 'voxel_world_save_';
+  final List<VoxelManualSaveMeta> out = <VoxelManualSaveMeta>[];
+  await for (final FileSystemEntity e in d.list()) {
+    final String n = e.path.split(Platform.pathSeparator).last;
+    if (!n.startsWith(prefix) || !n.endsWith('.json')) continue;
+    final String id =
+        n.substring(prefix.length, n.length - '.json'.length);
+    // 已有手动存档的跳过（手动列表已覆盖该 id）。
+    if (await File(
+      '${d.path}${Platform.pathSeparator}voxel_save_$id.json',
+    ).exists()) {
+      continue;
+    }
+    try {
+      final File f = File(e.path);
+      final DateTime mtime = (await f.stat()).modified;
+      String name =
+          '世界 ${mtime.month.toString().padLeft(2, '0')}-${mtime.day.toString().padLeft(2, '0')} '
+          '${mtime.hour.toString().padLeft(2, '0')}:${mtime.minute.toString().padLeft(2, '0')}';
+      try {
+        final dynamic parsed = const JsonDecoder().convert(await f.readAsString());
+        if (parsed is Map<String, dynamic>) {
+          final dynamic wj = parsed['world'];
+          final dynamic wn = (wj is Map) ? wj['name'] : null;
+          if (wn is String && wn.trim().isNotEmpty) name = wn;
+        }
+      } catch (_) {
+        // 名称解析失败用时间回退名
+      }
+      out.add(VoxelManualSaveMeta(
+        id: id,
+        name: name,
+        createdAt: mtime,
+        lastSavedAt: mtime,
+      ));
+    } catch (_) {
+      // 损坏检查点跳过
+    }
+  }
+  out.sort((VoxelManualSaveMeta a, VoxelManualSaveMeta b) =>
+      (b.lastSavedAt ?? b.createdAt).compareTo(a.lastSavedAt ?? a.createdAt));
+  return out;
+}
+
+/// 删除「仅有自动检查点」的世界（检查点 + 备份 + chunk 目录）。
+Future<void> deleteCheckpointWithBackups(String id) async {
+  try {
+    final File f = await _voxelSavePathForId(id);
+    if (await f.exists()) await f.delete();
+  } catch (_) {
+    // 忽略
+  }
+  final List<VoxelManualSaveMeta> baks = await listBackups(id);
+  for (final VoxelManualSaveMeta b in baks) {
+    final List<String> parts = b.id.split('|');
+    if (parts.length == 2) await deleteBackup(parts[0], parts[1]);
+  }
+  try {
+    final Directory chunks = Directory(
+      '${(await voxelChunkBaseDir()).path}'
+      '${Platform.pathSeparator}voxel_chunks'
+      '${Platform.pathSeparator}$id',
+    );
+    if (await chunks.exists()) await chunks.delete(recursive: true);
+  } catch (_) {
+    // 忽略
+  }
+}
+
 /// 导出用：返回存档文件（供分享 / 复制）。
 Future<File> manualSaveFile(String id) async => File(await _manualPath(id));
 

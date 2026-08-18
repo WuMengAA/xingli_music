@@ -524,11 +524,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// R26c 是否疾跑（Ctrl）：移速 ×1.35（蹲下时无效）。
   bool _sprinting = false;
 
-  /// R26h：累计游戏内秒数（信息面板「游戏中时间」用；1 真实秒 =
-  /// dayLength 内 1/1200 天 = 72 游戏秒）。double 累加 + int notifier 节流刷新。
-  double _inGameSec = 0;
-  final ValueNotifier<int> _inGameSeconds = ValueNotifier<int>(0);
-
   /// 准星瞄准的目标方块（notifier：值变化自动通知瞄准框 painter 重绘）。
   final ValueNotifier<(int, int, int)?> _aimNotifier =
       ValueNotifier<(int, int, int)?>(null);
@@ -1080,7 +1075,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _clockText.dispose();
     _crackNotifier.dispose();
     _coordsText.dispose();
-    _inGameSeconds.dispose();
     _inv.dispose();
     // cl38 P1：_vitals 生命周期由 playerVitalsProvider 管理（ref.onDispose 清理），
     // 此处不再 dispose，避免与 provider 双重 dispose。
@@ -1192,12 +1186,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (_time.advance(dt)) _dirty = true;
     final String clock = '${_time.clock} · ${_time.mode.label}';
     if (_clockText.value != clock) _clockText.value = clock;
-
-    // R26h：累计游戏内秒数（信息面板「游戏中时间」；暂停时不推进，与真实
-    // 会话时长区分——前者是游戏内流逝、后者是挂机总墙钟）。
-    _inGameSec += dt * 86400 / _time.dayLength;
-    final int ig = _inGameSec.floor();
-    if (ig != _inGameSeconds.value) _inGameSeconds.value = ig;
 
     // R24 坐标系统：第一人称/第三人称下实时刷新玩家坐标 + 朝向 + 群系。
     if (_viewMode == _ViewMode.firstPerson ||
@@ -4342,7 +4330,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
             seedTag: _seedTag,
             coordsText: _coordsText,
             clockText: _clockText,
-            inGameSeconds: _inGameSeconds,
             sessionStart: _sessionStart,
           ),
         ),
@@ -6112,14 +6099,13 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
 }
 
 /// R26h：左上「信息显示」面板——竖向列出存档名 / 种子 / 坐标 / 群系 / 时间 /
-/// 现实时长 / 游戏时长。横向 ≤ 1/4 屏、竖向 ≤ 1/3 屏；位置由外层 _HudWrap 拖拽。
+/// 游玩时长。横向 ≤ 1/4 屏、竖向 ≤ 1/3 屏；位置由外层 _HudWrap 拖拽。
 class _WorldInfoPanel extends StatefulWidget {
   const _WorldInfoPanel({
     required this.worldName,
     required this.seedTag,
     required this.coordsText,
     required this.clockText,
-    required this.inGameSeconds,
     this.sessionStart,
   });
 
@@ -6127,7 +6113,6 @@ class _WorldInfoPanel extends StatefulWidget {
   final String seedTag;
   final ValueNotifier<String> coordsText;
   final ValueNotifier<String> clockText;
-  final ValueNotifier<int> inGameSeconds;
   final DateTime? sessionStart;
 
   @override
@@ -6155,17 +6140,6 @@ class _WorldInfoPanelState extends State<_WorldInfoPanel> {
     final String dur =
         h > 0 ? '$h时${m}分' : (m > 0 ? '$m分${sec}秒' : '${sec}秒');
     if (mounted && dur != _realDur) setState(() => _realDur = dur);
-  }
-
-  /// 游戏内秒数 → 人话（days/h/m）。
-  static String _fmtGame(int totalSec) {
-    final int days = totalSec ~/ 86400;
-    final int h = (totalSec % 86400) ~/ 3600;
-    final int m = (totalSec % 3600) ~/ 60;
-    if (days > 0) return '$days天${h}时${m}分';
-    if (h > 0) return '$h时${m}分';
-    final int s = totalSec % 60;
-    return m > 0 ? '$m分${s}秒' : '${s}秒';
   }
 
   @override
@@ -6220,12 +6194,7 @@ class _WorldInfoPanelState extends State<_WorldInfoPanel> {
                 builder: (_, String s, __) =>
                     _InfoRow(Icons.access_time, '时间', s),
               ),
-              _InfoRow(Icons.timer_outlined, '现实', _realDur),
-              ValueListenableBuilder<int>(
-                valueListenable: widget.inGameSeconds,
-                builder: (_, int g, __) =>
-                    _InfoRow(Icons.auto_awesome, '游戏', _fmtGame(g)),
-              ),
+              _InfoRow(Icons.timer_outlined, '游玩', _realDur),
             ],
           ),
         ),

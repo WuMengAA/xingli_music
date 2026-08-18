@@ -517,6 +517,8 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
           _SwitchRow(
             label: '生存模式',
             value: _survival,
+            // cl05：非作弊（创造）下不允许生存，禁用切换。
+            enabled: _cheats,
             onChanged: (bool v) => setState(() => _survival = v),
           ),
         ] else ...<Widget>[
@@ -744,11 +746,15 @@ class _SwitchRow extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final String label;
   final bool value;
   final ValueChanged<bool> onChanged;
+
+  /// cl05：禁用态（如非作弊下不允许生存）。
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -757,9 +763,11 @@ class _SwitchRow extends StatelessWidget {
           children: <Widget>[
             Expanded(
               child: Text(label,
-                  style: AppTextStyles.body.copyWith(color: Colors.white70)),
+                  style: AppTextStyles.body.copyWith(
+                    color: Colors.white70,
+                  )),
             ),
-            Switch(value: value, onChanged: onChanged),
+            Switch(value: value, onChanged: enabled ? onChanged : null),
           ],
         ),
       );

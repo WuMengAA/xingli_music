@@ -50,6 +50,13 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   Future<void> _refresh() async {
     setState(() => _loading = true);
     final List<VoxelManualSaveMeta> saves = await listManualSaves();
+    // cl05：并入「仅有自动检查点」的世界（玩过但未显式保存），世界存档不再空。
+    final Set<String> ids = <String>{for (final VoxelManualSaveMeta s in saves) s.id};
+    for (final VoxelManualSaveMeta c in await listCheckpointSaves()) {
+      if (!ids.contains(c.id)) saves.add(c);
+    }
+    saves.sort((VoxelManualSaveMeta a, VoxelManualSaveMeta b) =>
+        (b.lastSavedAt ?? b.createdAt).compareTo(a.lastSavedAt ?? a.createdAt));
     final Map<String, List<VoxelManualSaveMeta>> bk =
         <String, List<VoxelManualSaveMeta>>{};
     for (final VoxelManualSaveMeta s in saves) {
@@ -70,6 +77,10 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   void _snack(String msg) {
     if (mounted) appNotify(context, msg);
   }
+
+  /// cl05：该存档是否已有手动存档文件（否则为「仅有自动检查点」）。
+  Future<bool> _hasManualFile(String id) async =>
+      await (await manualSaveFile(id)).exists();
 
   Future<String?> _askName(String title, String hint, [String initial = '']) async {
     final TextEditingController c = TextEditingController(text: initial);
@@ -156,7 +167,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('允许作弊'),
-                subtitle: const Text('开启后游戏内可切换生存 / 创造'),
+                subtitle: const Text('关闭时固定创造模式；开启后可切换生存/创造'),
                 value: cheats,
                 onChanged: (bool v) => set(() => cheats = v),
               ),
@@ -248,13 +259,13 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     }
     if (!mounted || id == null) return;
     _snack('已进入空白世界「$finalName」（种子 $seed）');
-    // R28：作弊关 → 强制生存（不允许创造）；作弊开 → 默认创造（游戏内可切生存）。
+    // cl05：非作弊下默认创造且不可生存；作弊开默认创造（游戏内可切生存）。
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => VoxelWorld3DPage(
           seed: seed,
           options: opt,
-          survival: !opt.cheats,
+          survival: false,
           // #511：以新建存档 id 进入、跳过恢复（不弹「已恢复」）。
           saveId: id,
           isNewWorld: true,
@@ -335,8 +346,8 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           builder: (_) => VoxelWorld3DPage(
         seed: seed,
         options: opt,
-        // R28：作弊关 → 强制生存（不允许创造）；作弊开 → 默认创造。
-        survival: !opt.cheats,
+        // cl05：非作弊下默认创造且不可生存；作弊开默认创造（游戏内可切生存）。
+        survival: false,
         // R26fx：恢复玩家状态（位置/视角/编辑层/背包）——不再每次重置摄像头。
         initialSaveData: data,
         // #511：以本存档/备份身份隔离自动检查点。
@@ -650,7 +661,17 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                         final String? n =
                             await _askName('重命名存档', '新名称', s.name);
                         if (n == null || n.isEmpty || !mounted) return;
-                        await renameManualSave(s.id, n);
+                        if (await _hasManualFile(s.id)) {
+                          await renameManualSave(s.id, n);
+                        } else {
+                          // cl05：仅有自动检查点 → 提升为手动存档再改名。
+                          final Map<String, dynamic>? data =
+                              await readVoxelSaveForId(s.id);
+                          if (data != null) {
+                            await writeManualSave(data, n);
+                            await deleteCheckpointWithBackups(s.id);
+                          }
+                        }
                         await _refresh();
                         _snack('已重命名为「$n」');
                       },
@@ -660,7 +681,12 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                           '确定删除「${s.name}」及其 ${bks.length} 个备份？此操作不可恢复。',
                         );
                         if (!ok || !mounted) return;
-                        await deleteSaveWithBackups(s.id);
+                        if (await _hasManualFile(s.id)) {
+                          await deleteSaveWithBackups(s.id);
+                        } else {
+                          // cl05：仅有自动检查点的世界走检查点删除。
+                          await deleteCheckpointWithBackups(s.id);
+                        }
                         _expanded.remove(s.id);
                         await _refresh();
                         _snack('已删除「${s.name}」');

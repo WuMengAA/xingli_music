@@ -345,6 +345,56 @@ class LyricsOffset extends StateNotifier<int> {
 const String kLyricsShowTranslation = 'lyrics_show_translation';
 const String kLyricsOffsetMs = 'lyrics_offset_ms';
 
+// ── cl05：歌词字号 / 风格（Apple Music 风格）─────────────
+/// 歌词字号档。
+enum LyricSize { small, medium, large }
+
+/// 歌词风格：默认 / Apple Music（当前行更大更亮、其余更暗）。
+enum LyricStyle { normal, appleMusic }
+
+const String kLyricsSize = 'lyrics_size';
+const String kLyricsStyle = 'lyrics_style';
+
+final StateNotifierProvider<LyricsSizePrefs, LyricSize> lyricsSizeProvider =
+    StateNotifierProvider<LyricsSizePrefs, LyricSize>(
+  (Ref ref) => LyricsSizePrefs(ref.read(prefsProvider)),
+);
+
+class LyricsSizePrefs extends StateNotifier<LyricSize> {
+  LyricsSizePrefs(this._prefs)
+      : super(switch (_prefs.getString(kLyricsSize)) {
+          'small' => LyricSize.small,
+          'large' => LyricSize.large,
+          _ => LyricSize.medium,
+        });
+  final SharedPreferences _prefs;
+
+  void set(LyricSize s) {
+    state = s;
+    _prefs.setString(kLyricsSize, s.name);
+  }
+}
+
+final StateNotifierProvider<LyricsStylePrefs, LyricStyle> lyricsStyleProvider =
+    StateNotifierProvider<LyricsStylePrefs, LyricStyle>(
+  (Ref ref) => LyricsStylePrefs(ref.read(prefsProvider)),
+);
+
+class LyricsStylePrefs extends StateNotifier<LyricStyle> {
+  LyricsStylePrefs(this._prefs)
+      : super(_prefs.getString(kLyricsStyle) == 'appleMusic'
+            ? LyricStyle.appleMusic
+            : LyricStyle.normal);
+  final SharedPreferences _prefs;
+
+  void toggle() {
+    state = state == LyricStyle.appleMusic
+        ? LyricStyle.normal
+        : LyricStyle.appleMusic;
+    _prefs.setString(kLyricsStyle, state.name);
+  }
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // 三、展示
 // ════════════════════════════════════════════════════════════════════════
@@ -432,6 +482,8 @@ class _LyricsControlsMenu extends ConsumerWidget {
     final AppThemeColors colors = context.appColors;
     final bool showTranslation = ref.watch(lyricsShowTranslationProvider);
     final int offsetMs = ref.watch(lyricsOffsetMsProvider);
+    final LyricStyle style = ref.watch(lyricsStyleProvider);
+    final LyricSize size = ref.watch(lyricsSizeProvider);
 
     final List<PopupMenuEntry<String>> items = <PopupMenuEntry<String>>[
       if (hasTranslation)
@@ -462,6 +514,65 @@ class _LyricsControlsMenu extends ConsumerWidget {
             style: TextStyle(fontSize: 12, color: colors.textTertiary),
           ),
         ),
+      // cl05：歌词风格（默认 / Apple Music）+ 字号。
+      PopupMenuDivider(),
+      PopupMenuItem<String>(
+        value: 'style',
+        child: Row(
+          children: <Widget>[
+            Icon(
+              style == LyricStyle.appleMusic
+                  ? Icons.music_note_rounded
+                  : Icons.notes,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              style == LyricStyle.appleMusic ? '风格：Apple Music' : '风格：默认',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'size_small',
+        child: Row(
+          children: <Widget>[
+            Icon(
+              size == LyricSize.small ? Icons.check : Icons.text_fields,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            const Text('字号：小', style: TextStyle(fontSize: 13)),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'size_medium',
+        child: Row(
+          children: <Widget>[
+            Icon(
+              size == LyricSize.medium ? Icons.check : Icons.text_fields,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            const Text('字号：中', style: TextStyle(fontSize: 13)),
+          ],
+        ),
+      ),
+      PopupMenuItem<String>(
+        value: 'size_large',
+        child: Row(
+          children: <Widget>[
+            Icon(
+              size == LyricSize.large ? Icons.check : Icons.text_fields,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            const Text('字号：大', style: TextStyle(fontSize: 13)),
+          ],
+        ),
+      ),
     ];
 
     return PopupMenuButton<String>(
@@ -475,6 +586,14 @@ class _LyricsControlsMenu extends ConsumerWidget {
           ref.read(lyricsOffsetMsProvider.notifier).delay();
         } else if (v == 'advance') {
           ref.read(lyricsOffsetMsProvider.notifier).advance();
+        } else if (v == 'style') {
+          ref.read(lyricsStyleProvider.notifier).toggle();
+        } else if (v == 'size_small') {
+          ref.read(lyricsSizeProvider.notifier).set(LyricSize.small);
+        } else if (v == 'size_medium') {
+          ref.read(lyricsSizeProvider.notifier).set(LyricSize.medium);
+        } else if (v == 'size_large') {
+          ref.read(lyricsSizeProvider.notifier).set(LyricSize.large);
         }
       },
       itemBuilder: (_) => items,
@@ -544,14 +663,11 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
     return found;
   }
 
-  /// 把第 [index] 行滚到视口中央。
-  ///
-  /// 列表上下各留了 `(height - _extent) / 2` 的留白，
-  /// 因此目标偏移恰为 `index * _extent`。
-  void _centerOn(int index) {
+  /// 把第 [index] 行滚到视口中央（行高 [extent] 随字号/风格动态变化）。
+  void _centerOn(int index, double extent) {
     if (!_ctrl.hasClients) return;
     final double target =
-        (index * _extent).clamp(0.0, _ctrl.position.maxScrollExtent);
+        (index * extent).clamp(0.0, _ctrl.position.maxScrollExtent);
     if ((_ctrl.offset - target).abs() < 0.5) return;
     _ctrl.animateTo(
       target,
@@ -564,6 +680,9 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
   Widget build(BuildContext context) {
     final bool showTranslation = ref.watch(lyricsShowTranslationProvider);
     final int offsetMs = ref.watch(lyricsOffsetMsProvider);
+    // cl05：歌词字号 / 风格（Apple Music）驱动行高与高亮样式。
+    final LyricSize size = ref.watch(lyricsSizeProvider);
+    final LyricStyle style = ref.watch(lyricsStyleProvider);
     final List<LyricLine> transLines =
         ref.watch(lyricsTranslationProvider(widget.track)).valueOrNull ??
             const <LyricLine>[];
@@ -573,22 +692,30 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
     // 用户手动时间偏移：歌词整体快/慢时校正。
     final Duration effPos = pos + Duration(milliseconds: offsetMs);
 
+    final double scale = switch (size) {
+      LyricSize.small => 0.85,
+      LyricSize.medium => 1.0,
+      LyricSize.large => 1.2,
+    };
+    final double extent =
+        _extent * scale * (style == LyricStyle.appleMusic ? 1.25 : 1.0);
+
     final int index = _locate(effPos);
     if (index != _index) {
       _index = index;
       if (index >= 0) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _centerOn(index);
+          if (mounted) _centerOn(index, extent);
         });
       }
     }
 
-    final double pad = ((widget.height - _extent) / 2).clamp(0.0, 1000.0);
+    final double pad = ((widget.height - extent) / 2).clamp(0.0, 1000.0);
     final AppThemeColors colors = context.appColors;
 
     return ListView.builder(
       controller: _ctrl,
-      itemExtent: _extent,
+      itemExtent: extent,
       padding: EdgeInsets.symmetric(vertical: pad),
       itemCount: widget.lines.length,
       itemBuilder: (BuildContext context, int i) {
@@ -603,9 +730,19 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOut,
               style: TextStyle(
-                color: active ? colors.accent : colors.textTertiary,
-                fontSize: active ? 15 : 13,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                color: active
+                    ? colors.accent
+                    : (style == LyricStyle.appleMusic
+                        ? colors.textTertiary.withValues(alpha: 0.55)
+                        : colors.textTertiary),
+                fontSize: active
+                    ? (style == LyricStyle.appleMusic ? 19.0 : 15.0) * scale
+                    : 13.0 * scale,
+                fontWeight: active
+                    ? (style == LyricStyle.appleMusic
+                        ? FontWeight.w700
+                        : FontWeight.w600)
+                    : FontWeight.w400,
                 height: 1.25,
               ),
               child: Column(

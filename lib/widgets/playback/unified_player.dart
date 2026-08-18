@@ -1208,14 +1208,14 @@ class _FullscreenPlaybackOverlayState
       color: Colors.transparent,
       child: Stack(
         children: <Widget>[
-          // 全屏背景：主题表面 + 极光渐变（cl04 画布「点按放大至全屏」效果）。
+          // 全屏背景：纯主题表面（不显示外部极光/玻璃背景，用户反馈 cl05）。
           AnimatedOpacity(
             opacity: _visible ? 1 : 0,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: context.appColors.auroraGradient,
+                color: context.appColors.bgPage,
               ),
             ),
           ),
@@ -1233,17 +1233,65 @@ class _FullscreenPlaybackOverlayState
                   width: screen.width,
                   height: screen.height,
                   child: SafeArea(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 560),
-                        child: SingleChildScrollView(
+                    child: OrientationBuilder(
+                      builder: (BuildContext ctx, Orientation orientation) {
+                        final bool landscape =
+                            orientation == Orientation.landscape;
+                        final Widget controls = SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 16,
                           ),
-                          child: _buildContent(now, whiteNoise),
-                        ),
-                      ),
+                          child: _buildControls(now, whiteNoise,
+                              landscape: landscape),
+                        );
+                        final Widget lyrics =
+                            widget.lyricsSlot ?? const SizedBox.shrink();
+                        // 画布播放界面：横屏封面在左、歌词在右；竖屏封面在上、
+                        // 歌词在下。
+                        if (landscape) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Expanded(
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                        maxWidth: 440),
+                                    child: controls,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                        maxWidth: 480),
+                                    child: lyrics,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              _buildControls(now, whiteNoise,
+                                  landscape: false),
+                              if (widget.lyricsSlot != null) ...<Widget>[
+                                const SizedBox(height: 16),
+                                lyrics,
+                              ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1258,12 +1306,18 @@ class _FullscreenPlaybackOverlayState
   /// I：播放菜单内打开均衡器（复用 [showEqualizerSheet]，弹层展示）。
   void _openEqualizer(BuildContext context) => showEqualizerSheet(context);
 
-  Widget _buildContent(Track? now, bool whiteNoise) {
+  /// cl05：全屏播放器主体（封面/曲目/进度/控制/音量/白噪音；歌词由外层
+  /// 按横竖屏布局组合：横屏封面左歌词右、竖屏封面上下歌词）。
+  Widget _buildControls(
+    Track? now,
+    bool whiteNoise, {
+    required bool landscape,
+  }) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[        Row(
           children: <Widget>[
-            TrackCover(track: now, size: 96, radius: 20),
+            TrackCover(track: now, size: landscape ? 140 : 200, radius: 20),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -1361,12 +1415,6 @@ class _FullscreenPlaybackOverlayState
             ),
           ),
         ),
-        // ── 歌词区（可选）：调用方传入 lyricsSlot 时才出现 ──
-        // R23j：外层已包 SingleChildScrollView，无需（也不能）用 Flexible。
-        if (widget.lyricsSlot != null) ...<Widget>[
-          const SizedBox(height: 8),
-          widget.lyricsSlot!,
-        ],
         const SizedBox(height: 8),
         // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）；
         // cl52-B：白噪音 + 视听 + 均衡器并入（音质右边），与紧凑卡片一致。
