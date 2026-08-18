@@ -336,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 3;
+  static const int buildCount = 4;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +401,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl04',
+    title: '播放器全局唯一底部 + 界面极简：场景卡去播放器 · 术语通俗化 · 真实存档',
+    details: <String>[
+      '播放器卡片固定全局底部、全局唯一：场景卡移除进度条/歌词等播放器部件，回归纯场景展示，播放控制全部收敛到底部音乐卡',
+      '视频/音频缓冲或加载时，播放键原位显示「等待加载」转圈，不跳位、不打扰',
+      '全局专业术语通俗化：均衡器→音效、高保真→高质量、视听→视频背景、倍速→播放速度、睡眠定时→定时关闭、播放引擎→播放方式',
+      '世界页移除四张硬编码示例存档（假数据），改为真实存档列表 + 空态引导创建；存档备份默认折叠，列表更清爽',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.18',
     cl: 'beta_cl03',
