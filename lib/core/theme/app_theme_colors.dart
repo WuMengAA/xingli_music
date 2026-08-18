@@ -15,7 +15,12 @@ import 'light_tokens.dart';
 ///   `context.appColors.bgPage` / `bgSurface` / `textPrimary` / `accent` …
 
 /// 深色模式固定色阶（与 light_theme.dart 的 DarkColors 保持一致）。
+///
+/// 这里是**独立手调配色板**：所有深色语义色均为作者针对深底逐一定制的
+/// 值，**不**由浅色体系反推/取反得到。切换皮肤时由 [AppThemeColors.withSkin]
+/// 仅重算强调色族，中性色阶与状态色保持本表不变。
 abstract final class AppDarkColors {
+  // ── 中性色阶 ──────────────────────────────────
   static const Color bg = Color(0xFF121218);
   static const Color surface = Color(0xFF1C1C26);
   static const Color surfaceHigh = Color(0xFF262634);
@@ -29,6 +34,54 @@ abstract final class AppDarkColors {
 
   /// 深色下的错误浅底。
   static const Color dangerSoft = Color(0xFF3A2429);
+
+  // ── 品牌强调色（starlight 皮肤在深底上的手调值）──
+  static const Color accent = Color(0xFF9A8CFF);
+  static const Color accentSoft = Color(0xFF2A2740);
+  static const Color accentPressed = Color(0xFF8878F0);
+  static const Color onAccent = Color(0xFFFFFFFF);
+
+  // ── 状态色（深底手调）─────────────────────────
+  static const Color danger = Color(0xFFE06B6B);
+  static const Color success = Color(0xFF4CBF8C);
+  static const Color warning = Color(0xFFE8B657);
+
+  /// 全屏遮罩 / 进度底轨。
+  static const Color scrim = Color(0x99000000);
+  static const Color progressTrack = Color(0xFF3A3A4C);
+
+  /// 完整深色语义调色板（手调，独立于浅色）。
+  ///
+  /// [AppThemeColors.dark] 直接复用，避免在工厂里散落内联字面量。
+  static const AppThemeColors palette = AppThemeColors(
+    bgPage: bg,
+    bgSurface: surface,
+    bgSurfaceSunken: surfaceHigh,
+    bgCard: surface,
+    bgRail: surface,
+    bgTile: surfaceHigh,
+    bgDock: surface,
+    bgInput: surfaceHigh,
+    bgControl: surfaceHigh,
+    bgPlaceholder: placeholder,
+    textPrimary: text,
+    textSecondary: textMuted,
+    textTertiary: textDim,
+    accent: accent,
+    accentSoft: accentSoft,
+    accentPressed: accentPressed,
+    onAccent: onAccent,
+    iconPrimary: text,
+    iconInactive: textDim,
+    border: border,
+    divider: border,
+    danger: danger,
+    dangerSoft: dangerSoft,
+    success: success,
+    warning: warning,
+    scrim: scrim,
+    progressTrack: progressTrack,
+  );
 }
 
 /// 全局语义色（随主题明暗切换）。
@@ -130,6 +183,33 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   /// 强调色底上的文字（语义别名，等价于 [onAccent]）。
   Color get textOnAccent => onAccent;
 
+  /// 毛玻璃半透明叠加色（[LiquidGlass] 默认 tint）。
+  ///
+  /// 跟随当前皮肤主色 [accent] 派生（不再写死白色），
+  /// 深浅主题 + 6 套配色下毛玻璃质感自动同步。
+  Color get glassTint => accent.withValues(alpha: 0.10);
+
+  /// 毛玻璃描边色（[LiquidGlass] 默认 borderColor）。
+  ///
+  /// 跟随主题边框语义色 [border]，深浅主题下自动适配。
+  Color get glassBorder => border.withValues(alpha: 0.6);
+
+  /// 背景极光渐变（画布「清新·意境·浅色」观感）。
+  ///
+  /// 以主题底 [bgPage] 打底，叠皮肤主色 [accent] 派生的柔光，
+  /// 深浅主题 + 11 套皮肤下背景氛围自动同步（不再写死粉/紫色），
+  /// 与 LiquidGlass 的 glassTint/glassBorder 同源派生。
+  LinearGradient get auroraGradient => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: <Color>[
+          accent.withValues(alpha: 0.22),
+          bgPage,
+          accent.withValues(alpha: 0.16),
+        ],
+        stops: const <double>[0, 0.55, 1],
+      );
+
   /// 浅色主题值（与 AppColors 一致）。
   static const AppThemeColors light = AppThemeColors(
     bgPage: AppColors.bgPage,
@@ -161,36 +241,8 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     progressTrack: AppColors.progressTrack,
   );
 
-  /// 深色主题值（与 DarkColors 一致）。
-  static const AppThemeColors dark = AppThemeColors(
-    bgPage: AppDarkColors.bg,
-    bgSurface: AppDarkColors.surface,
-    bgSurfaceSunken: AppDarkColors.surfaceHigh,
-    bgCard: AppDarkColors.surface,
-    bgRail: AppDarkColors.surface,
-    bgTile: AppDarkColors.surfaceHigh,
-    bgDock: AppDarkColors.surface,
-    bgInput: AppDarkColors.surfaceHigh,
-    bgControl: AppDarkColors.surfaceHigh,
-    bgPlaceholder: AppDarkColors.placeholder,
-    textPrimary: AppDarkColors.text,
-    textSecondary: AppDarkColors.textMuted,
-    textTertiary: AppDarkColors.textDim,
-    accent: Color(0xFF9A8CFF),
-    accentSoft: Color(0xFF2A2740),
-    accentPressed: Color(0xFF8878F0),
-    onAccent: Color(0xFFFFFFFF),
-    iconPrimary: AppDarkColors.text,
-    iconInactive: AppDarkColors.textDim,
-    border: AppDarkColors.border,
-    divider: AppDarkColors.border,
-    danger: Color(0xFFE06B6B),
-    dangerSoft: AppDarkColors.dangerSoft,
-    success: Color(0xFF4CBF8C),
-    warning: Color(0xFFE8B657),
-    scrim: Color(0x99000000),
-    progressTrack: Color(0xFF3A3A4C),
-  );
+  /// 深色主题值（手调配色板，见 [AppDarkColors.palette]，不由浅色反推）。
+  static const AppThemeColors dark = AppDarkColors.palette;
 
   /// 按皮肤主色重算强调色族（R16：皮肤切换全局生效）。
   ///
