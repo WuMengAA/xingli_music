@@ -23,6 +23,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show VoxelWorld3DPage;
 import '../../widgets/notification/app_notify.dart';
+import '../../widgets/common/app_confirm_dialog.dart';
+import '../../widgets/common/reminder_banner.dart';
 
 /// 世界存档管理器页。
 class VoxelSaveManagerPage extends StatefulWidget {
@@ -58,11 +60,8 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         _saves = saves;
         _backups.clear();
         _backups.addAll(bk);
-        // 有备份的存档默认展开，让备份显眼可见（仍可手动收起）。
+        // cl03 全局默认折叠：存档备份一律默认收起（可手动展开），列表更清爽。
         _expanded.clear();
-        for (final VoxelManualSaveMeta s in saves) {
-          if ((bk[s.id]?.length ?? 0) > 0) _expanded.add(s.id);
-        }
         _loading = false;
       });
     }
@@ -101,22 +100,12 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   }
 
   Future<bool> _confirm(String title, String content) async {
-    final bool? r = await showDialog<bool>(
+    final bool? r = await AppConfirmDialog.show(
       context: context,
-      builder: (BuildContext dctx) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(dctx).pop(false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dctx).pop(true),
-            child: const Text('删除'),
-          ),
-        ],
-      ),
+      title: title,
+      message: content,
+      confirmLabel: '删除',
+      confirmDanger: true,
     );
     return r == true;
   }
@@ -589,7 +578,25 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         icon: const Icon(Icons.add),
         label: const Text('新建存档'),
       ),
-      body: _loading
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpace.lg,
+              AppSpace.md,
+              AppSpace.lg,
+              AppSpace.sm,
+            ),
+            child: ReminderBanner(
+              title: '定期备份你的世界',
+              body: '把当前世界存为命名存档，或每日备份，防止意外丢失进度。',
+              actionLabel: '新建存档',
+              onAction: _newSave,
+            ),
+          ),
+          Expanded(
+            child: _loading
           ? const Center(child: CircularProgressIndicator())
           : _saves.isEmpty
               ? Center(
@@ -672,6 +679,9 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                     );
                   },
                 ),
+          ),
+        ],
+      ),
     );
   }
 }
