@@ -130,12 +130,10 @@ class HomeSceneContent extends ConsumerWidget {
                 forceLive: bgRealtime,
               ),
             ),
-          // 画布布局较高，整体可滚动，避免窄屏/矮屏裁切。
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: AppSpace.lg),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
+          // cl04：首页不滚动——固定布局（问候语 + 场景卡 + 圆点 + 音乐卡）一屏内，
+          // 场景卡占剩余空间自适应（FittedBox 防溢出/裁切）。
+          Column(
+            children: <Widget>[
                 // ── 顶部：问候语 + 品牌名 ──────────────────────
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
@@ -169,17 +167,22 @@ class HomeSceneContent extends ConsumerWidget {
                 const SizedBox(height: AppSpace.md),
 
                 // ── 场景卡（柔光晕 + 背卡 + Hero + 圆点）────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                  child: Builder(
-                    builder: (BuildContext ctx) {
-                      final double screenW = MediaQuery.of(ctx).size.width;
-                      final double cardW = screenW * 0.94;
-                      final double cardH = cardW * 9 / 16;
-                      return Center(
-                        child: SizedBox(
-                          width: cardW,
-                          child: Stack(
+                // 占剩余空间自适应，不随页面滚动。
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                    child: Builder(
+                      builder: (BuildContext ctx) {
+                        final double screenW = MediaQuery.of(ctx).size.width;
+                        final double cardW = screenW * 0.94;
+                        final double cardH = cardW * 9 / 16;
+                        return Center(
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: SizedBox(
+                              width: cardW,
+                              height: cardH + 44,
+                              child: Stack(
                             clipBehavior: Clip.none,
                             children: <Widget>[
                               // scene-glow：卡后柔光晕（accent 派生，跟随皮肤）。
@@ -241,11 +244,13 @@ class HomeSceneContent extends ConsumerWidget {
                             ],
                           ),
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(height: AppSpace.md),
+              ),
+            ),
+            const SizedBox(height: AppSpace.md),
 
                 // ── 轮播圆点（carousel dots）──────────────────
                 Center(
@@ -279,7 +284,6 @@ class HomeSceneContent extends ConsumerWidget {
                 const SizedBox(height: AppSpace.lg),
               ],
             ),
-          ),
         ],
       ),
     );

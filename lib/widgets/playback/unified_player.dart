@@ -1172,14 +1172,10 @@ class _FullscreenPlaybackOverlayState
   bool _visible = false;
   bool _volOpen = false; // 全局液态玻璃卡片：默认展开的音量面板关闭
 
-  /// R23j：面板尺寸比例（相对屏幕宽度，0.5~1.0，可右下角拖拽调整）。
-  double _scale = 0.85;
-  double _scaleStart = 0.85;
-
   @override
   void initState() {
     super.initState();
-    // 挂载后下一帧触发进入动画（从 0.9 缩放 + 透明度 0 → 1）
+    // 挂载后下一帧触发进入动画（从 0.92 缩放 + 透明度 0 → 1）
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => setState(() => _visible = true),
     );
@@ -1212,20 +1208,21 @@ class _FullscreenPlaybackOverlayState
       color: Colors.transparent,
       child: Stack(
         children: <Widget>[
-          // 遮罩：点击关闭。R26r21：透明遮罩（两侧透明，露出底层应用）。
+          // 全屏背景：主题表面 + 极光渐变（cl04 画布「点按放大至全屏」效果）。
           AnimatedOpacity(
             opacity: _visible ? 1 : 0,
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
-            child: GestureDetector(
-              onTap: _requestClose,
-              child: Container(color: Colors.transparent),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: context.appColors.auroraGradient,
+              ),
             ),
           ),
-          // 面板：缩放 + 淡入，宽度可拖拽调整（R23j）
+          // 全屏播放器：整卡放大填满屏幕（缩放 + 淡入动画），内容垂直居中。
           Center(
             child: AnimatedScale(
-              scale: _visible ? 1.0 : 0.9,
+              scale: _visible ? 1.0 : 0.92,
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeOutCubic,
               child: AnimatedOpacity(
@@ -1233,61 +1230,26 @@ class _FullscreenPlaybackOverlayState
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeOutCubic,
                 child: SizedBox(
-                  width: screen.width * _scale,
-                  child: Stack(
-                    children: <Widget>[
-                      ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: screen.height - 96,
-                        ),
-                        child: _frostedPanel(
-                          context,
-                          SingleChildScrollView(
-                            child: _buildContent(now, whiteNoise),
+                  width: screen.width,
+                  height: screen.height,
+                  child: SafeArea(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
                           ),
-                          radius: 32,
-                          padding: const EdgeInsets.all(24),
-                          // R26r21：面板背景透明（仅 frosted 半透明 + 细描边），
-                          // 配合透明遮罩 → 音乐菜单两侧与背景都透明。
-                          transparent: true,
-                        ),
-                      ),
-                    // 右下角拖拽手柄：等比调面板大小
-                    Positioned(
-                      right: 4,
-                      bottom: 4,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onPanStart: (_) => _scaleStart = _scale,
-                        onPanUpdate: (DragUpdateDetails d) {
-                          final double next =
-                              _scaleStart + d.delta.dx / screen.width;
-                          setState(
-                            () => _scale = next.clamp(0.5, 1.0),
-                          );
-                        },
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: context.appColors.bgControl
-                                .withValues(alpha: 0.8),
-                          ),
-                          child: Icon(
-                            Icons.open_in_full_rounded,
-                            size: 14,
-                            color: context.appColors.iconInactive,
-                          ),
+                          child: _buildContent(now, whiteNoise),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
       ],
       ),
     );
@@ -1301,7 +1263,7 @@ class _FullscreenPlaybackOverlayState
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[        Row(
           children: <Widget>[
-            TrackCover(track: now, size: 72, radius: 16),
+            TrackCover(track: now, size: 96, radius: 20),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

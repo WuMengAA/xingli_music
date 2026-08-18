@@ -16,8 +16,10 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/performance_providers.dart';
+import '../../providers/settings/settings_persistence_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/theme/theme_providers.dart';
+import '../../repositories/settings_repository.dart';
 import '../../services/audio/audio_service.dart';
 import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
@@ -28,6 +30,7 @@ import '../../widgets/notification/app_notify.dart';
 import '../../widgets/notification/notification_center.dart';
 import '../../widgets/settings/llm_settings_sheet.dart';
 import '../../widgets/settings/log_upload_sheet.dart';
+import '../../widgets/settings/version_update_sheet.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../scene/custom_scene_list_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
@@ -65,18 +68,35 @@ class SettingsPage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            const _GroupCard(title: '音频', content: _AudioContent()),
-            const SizedBox(height: AppSpace.lg),
-            const _GroupCard(title: '画面', content: _VisualContent()),
+            const _GroupCard(
+              icon: Icons.music_note_rounded,
+              title: '音频',
+              content: _AudioContent(),
+            ),
             const SizedBox(height: AppSpace.lg),
             const _GroupCard(
+              icon: Icons.palette_rounded,
+              title: '画面',
+              content: _VisualContent(),
+            ),
+            const SizedBox(height: AppSpace.lg),
+            const _GroupCard(
+              icon: Icons.notifications_rounded,
               title: '通知中心',
               content: _NotificationContent(),
             ),
             const SizedBox(height: AppSpace.lg),
-            const _GroupCard(title: '实验', content: _ExperimentContent()),
+            const _GroupCard(
+              icon: Icons.science_rounded,
+              title: '实验',
+              content: _ExperimentContent(),
+            ),
             const SizedBox(height: AppSpace.lg),
-            const _GroupCard(title: '关于', content: _AboutContent()),
+            const _GroupCard(
+              icon: Icons.info_rounded,
+              title: '关于',
+              content: _AboutContent(),
+            ),
             const SizedBox(height: AppSpace.lg),
           ],
         ),
@@ -85,15 +105,17 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-/// 毛玻璃分组卡：标题 + 业务内容（content 内自行组织控件）。
+/// 毛玻璃分组卡（设置「大分类」）：强调色图标 + 标题 + 业务内容。
 class _GroupCard extends StatelessWidget {
-  const _GroupCard({required this.title, required this.content});
+  const _GroupCard({required this.icon, required this.title, required this.content});
 
+  final IconData icon;
   final String title;
   final Widget content;
 
   @override
   Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
     return LiquidGlass(
       radius: AppRadius.lg,
       padding: const EdgeInsets.all(AppSpace.md),
@@ -103,7 +125,30 @@ class _GroupCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(title, style: context.appText.subtitle),
+            // 大分类头：强调色圆底图标 + 标题，视觉上区分各大类。
+            Row(
+              children: <Widget>[
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: c.accentSoft,
+                    borderRadius: AppRadius.brMd,
+                  ),
+                  child: Icon(icon, size: 17, color: c.accent),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: context.appText.subtitle.copyWith(
+                      color: c.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: AppSpace.md),
             content,
           ],
@@ -582,11 +627,11 @@ class _NotificationContent extends ConsumerWidget {
 }
 
 /// 分组·关于：应用名与版本号（P0-F6 / R18-R20）。
-class _AboutContent extends StatelessWidget {
+class _AboutContent extends ConsumerWidget {
   const _AboutContent();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -642,6 +687,29 @@ class _AboutContent extends StatelessWidget {
         _InfoRow(label: '语义版本', value: AppVersion.semver),
         const _InfoRow(label: '开源协议', value: 'MIT'),
         const SizedBox(height: AppSpace.sm),
+        // cl04：恢复「版本更新 / 版本日志 / 更新渠道」入口（画布设置必备项）。
+        _EntryRow(
+          icon: Icons.system_update_alt_rounded,
+          title: '版本更新',
+          subtitle: '检查 GitHub 与官方网站是否有新版本',
+          onTap: () => showVersionUpdateSheet(context),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.history_rounded,
+          title: '版本日志',
+          subtitle: '查看历史更新日志（最新在前）',
+          onTap: () => showVersionLogSheet(context),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _EntryRow(
+          icon: Icons.layers_outlined,
+          title: '更新渠道',
+          subtitle:
+              '${ref.read(settingsRepositoryProvider).updateChannel.label} · 切换后重启生效',
+          onTap: () => _pickChannel(context, ref),
+        ),
+        const SizedBox(height: AppSpace.lg),
         // cl59：GitHub 仓库（含分支标注）。
         _EntryRow(
           icon: Icons.code_rounded,
@@ -689,6 +757,57 @@ class _AboutContent extends StatelessWidget {
   /// cl59：复制 GitHub 仓库地址。
   void _copyRepo(BuildContext context) {
     appNotify(context, '已复制仓库地址：github.com/WuMengAA/xingli_music');
+  }
+
+  /// cl04：更新渠道切换（Beta 稳定 / Alpha 尝鲜；写渠道 + 待重启标记）。
+  Future<void> _pickChannel(BuildContext context, WidgetRef ref) async {
+    final SettingsRepository repo = ref.read(settingsRepositoryProvider);
+    final UpdateChannel current = repo.updateChannel;
+    final UpdateChannel? picked = await showModalBottomSheet<UpdateChannel>(
+      context: context,
+      backgroundColor: context.appColors.bgSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+      ),
+      builder: (BuildContext c) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AppSpace.lg),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text('更新渠道', style: context.appText.subtitle),
+                  const SizedBox(height: 4),
+                  Text(
+                    '渠道决定 OTA 更新来源与更新日志；切换后重启生效',
+                    style: context.appText.caption,
+                  ),
+                ],
+              ),
+            ),
+            for (final UpdateChannel ch in UpdateChannel.values)
+              RadioListTile<UpdateChannel>(
+                title: Text(ch.label),
+                subtitle: Text(
+                  ch == UpdateChannel.beta ? '较稳定，默认推荐' : '尝鲜，功能更新更早',
+                ),
+                value: ch,
+                groupValue: current,
+                onChanged: (_) => Navigator.of(c).pop(ch),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || picked == current) return;
+    await repo.setUpdateChannel(picked);
+    await repo.setChannelSwitchPending(true);
+    if (context.mounted) {
+      appNotify(context, '已切换到 ${picked.label} 渠道，重启后生效并进入升级引导');
+    }
   }
 }
 
