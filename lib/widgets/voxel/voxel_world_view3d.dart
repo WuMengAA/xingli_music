@@ -64,7 +64,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
-import '../../widgets/common/voxel_world_hud.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../services/voxel/voxel_music_engine.dart';
 import '../../services/voxel/voxel_audio_bundle.dart';
@@ -4324,7 +4323,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       controls.add(
         _HudWrap(
           id: HudIds.worldInfo,
-          defaultPos: const Offset(0.02, 0.02),
+          // cl05：默认下移避开顶部居中音乐卡（原 0.02,0.02 会被音乐卡压住）。
+          defaultPos: const Offset(0.02, 0.18),
           child: _WorldInfoPanel(
             worldName: _worldName,
             seedTag: _seedTag,
@@ -4422,7 +4422,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       controls.add(
         _HudWrap(
           id: HudIds.foldPanel,
-          defaultPos: const Offset(0.02, 0.14),
+          // cl05：按预设 UI 弹在右上「更多」旁（原左上 0.02,0.14 与信息面板
+          // 挤在一起）；仍可拖拽，位置钳制在屏内。
+          defaultPos: const Offset(0.6, 0.16),
           child: _FoldPanel(
             showWorldInfo: _showWorldInfo,
             onToggleWorldInfo: () =>
@@ -4934,6 +4936,23 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final String peerText = peers.isEmpty
         ? '暂无同伴'
         : '同伴 ${peers.length}：${peers.map((p) => p.name).join('、')}';
+    // cl06：联机「当前状态 + 延迟」（延迟以最近通信间隔估算，连接存活即刷新）。
+    final String statusText = switch (net.status) {
+      ConnStatus.connecting => '连接中…',
+      ConnStatus.connected => '已连接',
+      ConnStatus.reconnecting => '重连中（第 ${net.reconnectAttempt} 次）',
+      ConnStatus.error => '已断开',
+      ConnStatus.idle => '未连接',
+    };
+    final Color statusColor = switch (net.status) {
+      ConnStatus.connected => const Color(0xFF5BD67B),
+      ConnStatus.reconnecting => const Color(0xFFFFD66B),
+      ConnStatus.error => const Color(0xFFFF6B6B),
+      _ => const Color(0x99F2F5FA),
+    };
+    final String lag = net.lastSeenAt == null
+        ? '—'
+        : '${DateTime.now().difference(net.lastSeenAt!).inMilliseconds}ms';
     return Positioned(
       left: AppSpace.md,
       top: 56,
@@ -4978,6 +4997,22 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                 Text(isHost ? '一起听 · 你为 DJ' : '一起听 · 跟随房主',
                     style: const TextStyle(
                         color: Color(0xCCFFF2DA), fontSize: 11)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.network_check, size: 14, color: statusColor),
+                const SizedBox(width: 4),
+                Text(statusText,
+                    style: TextStyle(color: statusColor, fontSize: 12)),
+                const SizedBox(width: 8),
+                Text('延迟 $lag',
+                    style: const TextStyle(
+                        color: Color(0x99F2F5FA),
+                        fontSize: 11,
+                        fontFamily: 'monospace')),
               ],
             ),
             const SizedBox(height: 8),
@@ -5457,8 +5492,10 @@ class _HudWrap extends ConsumerWidget {
     // 后画面异常」的伴随 bug）。改用 MediaQuery 视口尺寸计算归一化位置，
     // 直接返回 Positioned（作为 Stack 的直接子级，合法）。
     final Size size = MediaQuery.of(context).size;
-    final double left = pos.dx * size.width;
-    final double top = pos.dy * size.height;
+    // cl05：读取位置也钳制到 [0, 0.92]，杜绝旧布局/误拖拽把面板拖出屏幕
+    // （左上信息面板跑出屏幕 / 面板越界）。
+    final double left = pos.dx.clamp(0.0, 0.92) * size.width;
+    final double top = pos.dy.clamp(0.0, 0.92) * size.height;
     final Widget content = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanUpdate: edit
@@ -6065,31 +6102,6 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                   ],
                 ),
               ),
-            ),
-            // 游戏内 HUD（预设组件 VoxelWorldHud）：坐标 / 模式 / 菜单设置 /
-            // 快捷栏 / 建造工具栏，全部跟随主题与液态玻璃。
-            ValueListenableBuilder<VoxelCamera>(
-              valueListenable: _cameraOut,
-              builder: (BuildContext ctx, VoxelCamera cam, Widget? _) {
-                final AppThemeColors hudColors = ctx.appColors;
-                return VoxelWorldHud(
-                  coordX: cam.position.x.round(),
-                  coordY: cam.position.y.round(),
-                  coordZ: cam.position.z.round(),
-                  modeLabel: widget.survival ? '生存模式' : '创造模式',
-                  hotbarChildren: List<Widget>.generate(
-                    9,
-                    (_) => Icon(Icons.square, size: 16, color: hudColors.iconPrimary),
-                  ),
-                  buildToolChildren: <Widget>[
-                    Icon(Icons.edit_outlined, size: 22, color: hudColors.iconPrimary),
-                    Icon(Icons.brush_outlined, size: 22, color: hudColors.iconPrimary),
-                    Icon(Icons.delete_outline, size: 22, color: hudColors.iconPrimary),
-                  ],
-                  onMenu: () => Navigator.of(ctx).pop(),
-                  onSettings: () => appNotify(ctx, '游戏设置'),
-                );
-              },
             ),
           ],
         ),

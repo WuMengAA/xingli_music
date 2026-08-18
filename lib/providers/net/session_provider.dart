@@ -178,6 +178,7 @@ class NetSessionState {
     this.reconnectAttempt = 0,
     this.roomCode,
     this.relayUrl,
+    this.lastSeenAt,
   });
 
   final NetRole role;
@@ -196,6 +197,9 @@ class NetSessionState {
   final String? roomCode; // 中转模式：房间号（房主展示给好友）
   final String? relayUrl; // 中转模式：中转服务器地址
 
+  /// cl06：最近一次收到远端消息的时间（HUD 显示联机「延迟/当前状态」）。
+  final DateTime? lastSeenAt;
+
   NetSessionState copyWith({
     NetRole? role,
     ConnStatus? status,
@@ -212,6 +216,7 @@ class NetSessionState {
     int? reconnectAttempt,
     String? roomCode,
     String? relayUrl,
+    DateTime? lastSeenAt,
   }) =>
       NetSessionState(
         role: role ?? this.role,
@@ -229,6 +234,7 @@ class NetSessionState {
         reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
         roomCode: roomCode ?? this.roomCode,
         relayUrl: relayUrl ?? this.relayUrl,
+        lastSeenAt: lastSeenAt ?? this.lastSeenAt,
       );
 
   PeerInfo? peer(String id) {
@@ -502,6 +508,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
   }
 
   void _onMessage(String from, NetMessage msg) {
+    // cl06：记录最近通信时间，HUD 用其估算联机延迟/存活状态。
+    state = state.copyWith(lastSeenAt: DateTime.now());
     switch (msg.type) {
       case NetMsgType.welcome:
         // 仅接受带 seed 的权威 welcome（NetNode 自动发的无 seed 忽略）。
