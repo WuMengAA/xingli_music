@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/theme/app_theme_colors.dart';
 import '../providers/settings/performance_providers.dart';
 import '../providers/shell/liquid_glass_capture_provider.dart';
 
@@ -33,8 +34,8 @@ class LiquidGlass extends ConsumerStatefulWidget {
     this.radius = 24,
     this.style = GlassStyle.frosted,
     this.blur,
-    this.tint = const Color(0x22FFFFFF),
-    this.borderColor = const Color(0x33FFFFFF),
+    this.tint,
+    this.borderColor,
     this.refraction = 5,
     this.dispersion = 1.2,
     this.padding = EdgeInsets.zero,
@@ -56,10 +57,15 @@ class LiquidGlass extends ConsumerStatefulWidget {
   final double? blur;
 
   /// 毛玻璃半透明叠加色（仅 [GlassStyle.frosted]）。
-  final Color tint;
+  ///
+  /// 为 `null` 时跟随主题语义色 [AppThemeColors.glassTint]
+  /// （由皮肤主色派生，不写死白色）。
+  final Color? tint;
 
   /// 毛玻璃描边色（仅 [GlassStyle.frosted]）。
-  final Color borderColor;
+  ///
+  /// 为 `null` 时跟随主题语义色 [AppThemeColors.glassBorder]。
+  final Color? borderColor;
 
   /// 折射强度（仅 [GlassStyle.liquid]，0~20）。
   final double refraction;
@@ -117,16 +123,21 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
     // 模糊强度完全跟随全局性能体系（glassBlurProvider / 手动覆盖）。
     final double blur = widget.blur ?? ref.watch(glassBlurProvider);
     final double radius = widget.radius;
+    // 主题语义色兜底：tint/borderColor 未显式传入时跟随皮肤主色 / 边框色，
+    // 实现「配色不写死、可切换皮肤」——毛玻璃随明暗主题与 6 套配色同步变化。
+    final AppThemeColors colors = context.appColors;
+    final Color resolvedTint = widget.tint ?? colors.glassTint;
+    final Color resolvedBorder = widget.borderColor ?? colors.glassBorder;
     // 性能档把半透明叠加减到接近 0（关闭一切半透明效果）
     final Color tint = perf == PerformanceMode.performance
-        ? widget.tint.withValues(alpha: widget.tint.a * 0.15)
-        : widget.tint;
+        ? resolvedTint.withValues(alpha: resolvedTint.a * 0.15)
+        : resolvedTint;
     final Widget child = Container(
       padding: widget.padding,
       decoration: BoxDecoration(
         color: tint,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: widget.borderColor, width: 1),
+        border: Border.all(color: resolvedBorder, width: 1),
       ),
       child: widget.child,
     );

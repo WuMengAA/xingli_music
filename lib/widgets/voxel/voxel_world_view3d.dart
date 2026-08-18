@@ -64,6 +64,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
+import '../../widgets/common/voxel_world_hud.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../services/voxel/voxel_music_engine.dart';
 import '../../services/voxel/voxel_audio_bundle.dart';
@@ -6077,6 +6078,31 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                   ],
                 ),
               ),
+            ),
+            // 游戏内 HUD（预设组件 VoxelWorldHud）：坐标 / 模式 / 菜单设置 /
+            // 快捷栏 / 建造工具栏，全部跟随主题与液态玻璃。
+            ValueListenableBuilder<VoxelCamera>(
+              valueListenable: _cameraOut,
+              builder: (BuildContext ctx, VoxelCamera cam, Widget? _) {
+                final AppThemeColors hudColors = ctx.appColors;
+                return VoxelWorldHud(
+                  coordX: cam.position.x.round(),
+                  coordY: cam.position.y.round(),
+                  coordZ: cam.position.z.round(),
+                  modeLabel: widget.survival ? '生存模式' : '创造模式',
+                  hotbarChildren: List<Widget>.generate(
+                    9,
+                    (_) => Icon(Icons.square, size: 16, color: hudColors.iconPrimary),
+                  ),
+                  buildToolChildren: <Widget>[
+                    Icon(Icons.edit_outlined, size: 22, color: hudColors.iconPrimary),
+                    Icon(Icons.brush_outlined, size: 22, color: hudColors.iconPrimary),
+                    Icon(Icons.delete_outline, size: 22, color: hudColors.iconPrimary),
+                  ],
+                  onMenu: () => Navigator.of(ctx).pop(),
+                  onSettings: () => appNotify(ctx, '游戏设置'),
+                );
+              },
             ),
           ],
         ),

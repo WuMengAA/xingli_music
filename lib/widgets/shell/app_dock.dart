@@ -133,8 +133,10 @@ class AppDock extends StatelessWidget {
                 radius: AppSize.dockRadius,
                 // 与统一播放器同为毛玻璃（frosted），背景透出 AppShell 玻璃层
                 style: GlassStyle.frosted,
-                // blur 跟随全局性能模式
-                tint: const Color(0x1AFFFFFF),
+                // blur 跟随全局性能模式；tint 不写死白色，跟随皮肤主色派生
+                // 的 glassTint（LiquidGlass 默认回退值一致，此处显式写出
+                // 仅作语义澄清，毛玻璃随明暗主题与 11 套配色同步变化）。
+                tint: context.appColors.glassTint,
 
                 child: SizedBox(
                 height: dockH,

@@ -42,9 +42,10 @@ class ThemeSwitchButton extends ConsumerWidget {
         child: LiquidGlass(
           radius: 24,
           style: GlassStyle.frosted,
-          // blur 跟随全局性能模式
-          tint: const Color(0x0DFFFFFF),
-          borderColor: const Color(0x1AFFFFFF),
+          // blur 跟随全局性能模式；tint/borderColor 不写死白色，
+          // 跟随皮肤主色派生的 glassTint / glassBorder（毛玻璃随皮肤变化）
+          tint: context.appColors.glassTint,
+          borderColor: context.appColors.glassBorder,
           child: IconButton(
             tooltip: '主题',
             onPressed: () => _showThemeSheet(context),

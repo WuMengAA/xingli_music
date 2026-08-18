@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/notification_event.dart';
 import '../../providers/settings/notification_providers.dart';
+import '../common/global_toast.dart';
 
 /// 全局通知 toast（R27·重写）：
 ///
@@ -177,7 +177,7 @@ class _ToastCardState extends State<_ToastCard>
   @override
   Widget build(BuildContext context) {
     // 滑入/滑出用 SlideTransition（偏移 = 相对自身尺寸的比例，而非屏幕全宽平移），
-    // 绝不占满屏幕；宽度 = 屏幕 1/2，内容放大 200%（cl76·热更新测试便于观察）。
+    // 绝不占满屏幕；宽度 = 屏幕 1/2，卡片视觉由 GlobalToast 预设（Ardot 3:563）提供。
     return Positioned(
       right: AppSpace.md,
       top: widget.topOffset(),
@@ -188,66 +188,13 @@ class _ToastCardState extends State<_ToastCard>
             opacity: _opacity,
             child: SlideTransition(
               position: _offset,
-              child: Container(
+              // 卡片视觉统一复用预设组件 GlobalToast（Ardot 3:563），
+              // 保留原有滑入/滑出动画与右上角半屏宽度定位。
+              child: GlobalToast(
                 width: MediaQuery.sizeOf(context).width / 2,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                decoration: BoxDecoration(
-                  color:
-                      context.appColors.bgCard.withValues(alpha: 0.94),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: context.appColors.border),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.14),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                // 放大 200%：文字用 2.0 textScaler，圆点/间距/padding 同步加倍。
-                child: MediaQuery(
-                  data: MediaQuery.of(context)
-                      .copyWith(textScaler: const TextScaler.linear(2.0)),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: context.appColors.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text.rich(
-                          TextSpan(
-                            children: <InlineSpan>[
-                              TextSpan(
-                                text: widget.event.title,
-                                style: context.appText.caption.copyWith(
-                                  color: context.appColors.textPrimary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              if (widget.event.message.isNotEmpty)
-                                TextSpan(
-                                  text: ' · ${widget.event.message}',
-                                  style: context.appText.caption.copyWith(
-                                    color: context.appColors.textSecondary,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                title: widget.event.title,
+                subtitle: widget.event.message,
+                onClose: widget.onFinish,
               ),
             ),
           ),

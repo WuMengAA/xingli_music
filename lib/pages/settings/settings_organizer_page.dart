@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/settings_layout.dart';
 import '../../core/settings_item_registry.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../widgets/notification/app_notify.dart';
@@ -64,7 +65,7 @@ class SettingsOrganizerPage extends ConsumerWidget {
           SizedBox(
             width: 180,
             child: Container(
-              color: const Color(0x0A000000),
+              color: context.appColors.bgSurface,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -274,7 +275,7 @@ class _CollectionCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Card(
       elevation: 0,
-      color: const Color(0x0A000000),
+      color: context.appColors.bgSurface,
       margin: const EdgeInsets.only(bottom: AppSpace.md),
       child: Padding(
         padding: const EdgeInsets.all(AppSpace.sm),
@@ -324,7 +325,7 @@ class _CollectionCard extends ConsumerWidget {
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: const Color(0x22000000),
+                    color: context.appColors.border,
                     style: BorderStyle.solid,
                   ),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -344,7 +345,7 @@ class _CollectionCard extends ConsumerWidget {
                 alignment: Alignment.center,
                 margin: const EdgeInsets.only(top: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0x0A000000),
+                  color: context.appColors.bgSurface,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Text(
@@ -532,7 +533,7 @@ class _GroupCard extends ConsumerWidget {
         margin: const EdgeInsets.only(top: 6),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: const Color(0x0D000000),
+          color: context.appColors.bgSurface,
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         child: Column(

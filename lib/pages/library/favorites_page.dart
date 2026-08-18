@@ -21,6 +21,7 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../services/stats/track_stats_db.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/common/app_confirm_dialog.dart';
 import 'playlist_detail_page.dart';
 
 // ════════════════════════════════════════════════════════════════════════
@@ -344,22 +345,12 @@ class _PlaylistCard extends ConsumerWidget {
         builder: (_) => PlaylistDetailPage(playlistId: playlist.id!),
       )),
       onLongPress: () async {
-        final bool? ok = await showDialog<bool>(
+        final bool? ok = await AppConfirmDialog.show(
           context: context,
-          builder: (BuildContext c) => AlertDialog(
-            title: Text('删除歌单「${playlist.name}」？', style: c.appText.title),
-            content: Text('歌单内的歌曲不会从曲库删除。', style: c.appText.bodyMuted),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: Text('取消', style: c.appText.body),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: Text('删除', style: c.appText.body.copyWith(color: c.appColors.danger)),
-              ),
-            ],
-          ),
+          title: '删除歌单「${playlist.name}」？',
+          message: '歌单内的歌曲不会从曲库删除。',
+          confirmLabel: '删除',
+          confirmDanger: true,
         );
         if (ok == true) {
           await ref.read(trackStatsDbProvider).deletePlaylist(playlist.id!);

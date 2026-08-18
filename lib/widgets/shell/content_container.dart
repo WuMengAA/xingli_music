@@ -24,9 +24,9 @@ class ContentContainer extends StatelessWidget {
         radius: 28,
         style: GlassStyle.frosted,
         // 全屏铺满：去掉 maxWidth 限制，内容区占满可用宽度/高度。
-        // tint/描边取极淡值，毛玻璃质感主要由背景模糊提供。
-        tint: const Color(0x18FFFFFF),
-        borderColor: const Color(0x1FFFFFFF),
+        // 不显式传 tint/borderColor —— 由 LiquidGlass 内部回退到
+        // context.appColors.glassTint / glassBorder（随皮肤主色派生），
+        // 实现「配色不写死、可切换皮肤」；毛玻璃质感主要由背景模糊提供。
         child: child,
       ),
     );
