@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../lyrics/lyrics_view.dart';
 import 'unified_player.dart';
 
@@ -32,10 +33,34 @@ class MusicCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return UnifiedPlayer(
-      onOpenNowPlaying: onOpenNowPlaying,
-      // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
-      lyricsSlot: const LyricsView(),
+    final AppThemeColors c = context.appColors;
+    // 独立 UI 卡片：不透明实底 + 细描边 + 轻投影（低特效）。
+    // 内部紧凑面板本就是 transparent 毛玻璃，透出本容器实色后不再有玻璃
+    // 扭曲观感；播放控制与歌词逻辑完全保留（不改动 UnifiedPlayer）。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: c.border.withValues(alpha: 0.6),
+          width: 1,
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: c.scrim.withValues(alpha: 0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: UnifiedPlayer(
+          onOpenNowPlaying: onOpenNowPlaying,
+          // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
+          lyricsSlot: const LyricsView(),
+        ),
+      ),
     );
   }
 }
