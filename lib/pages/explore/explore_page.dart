@@ -1,26 +1,33 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../core/terms/naming_dict.dart';
 import '../../models/experiment.dart';
 import '../../providers/explore/experiment_providers.dart';
-import '../../providers/sources/netease_provider.dart';
+import '../../providers/shell/shell_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
-import '../../widgets/common/state_chip.dart';
-import '../../pages/voxel/voxel_main_menu_page.dart';
-import '../sources/aggregate_search_page.dart';
+import '../../widgets/common/aggregate_search_sheet.dart';
+import '../../widgets/liquid_glass.dart';
 import 'consent_gate.dart';
 import 'experiments/companion_page.dart';
 import 'experiments/recommend_page.dart';
 
-/// 探索页 = 实验场所（v2 M2 重写）。
+/// 探索页（v2 M2 重写，按画布「Screen · 探索」3:238 重建）。
 ///
-/// - 顶部常驻「功能」区（R26r21：列表形式——聚合搜索 / 智能推荐 / AI 陪伴 /
-///   星璃世界，按序排列；2.5D 系列已删，音效并入 3D 世界）。
-/// - 下方：未同意 → 全屏 [ConsentGate]；已同意 → 实验列表
-///   （数据驱动 `experimentsProvider`，逐项启停过滤）。
+/// 结构（自上而下，与画布一致）：
+///   1. 搜索栏（点击打开聚合搜索弹层）
+///   2. 精选大卡（今日场景精选）
+///   3. 场景音乐区 + 2 张场景卡
+///   4. 热门歌单区 + 2 行歌单
+///   5. 实验场所说明条
+///   6. 功能区（聚合搜索 / 智能推荐 / AI 陪伴 / 星璃世界）
+///   7. 实验区（数据驱动 `experimentsProvider`，按 165×110 卡片网格渲染）
+///
+/// 视觉全部走设计系统：`PageScaffold` + `LiquidGlass` + `context.appColors`
+/// / `context.appText` + `AppSpace` / `AppRadius`，不写死任何颜色字面量。
 class ExplorePage extends ConsumerWidget {
   const ExplorePage({super.key});
 
@@ -28,53 +35,316 @@ class ExplorePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final ExperimentConsent consent = ref.watch(experimentConsentProvider);
 
-    // R26r21：整页单一滚动列表——说明条置顶 → 功能（4 行）→ 实验列表；
-    // 功能区不再独占空间，整体随页面滚动，下方实验内容始终可达。
+    // —— 四种功能入口的跳转动作（局部函数声明，捕获 context / ref）——
+    void openSearch() => unawaited(
+          AggregateSearchSheet.show(
+            context: context,
+            tabs: const <String>['歌曲', '歌单', '用户'],
+          ),
+        );
+    void goRecommend() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const RecommendPage()),
+        );
+    void goCompanion() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const CompanionPage()),
+        );
+    // 星璃世界走 Shell Tab 切换（IndexedStack 唯一真源）。
+    void goWorld() => setShellPage(ref, ShellPage.world);
+    // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
+    void goLibrary() => setShellPage(ref, ShellPage.library);
+
     return PageScaffold(
       title: '探索',
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpace.sm, vertical: AppSpace.sm),
-        children: <Widget>[
-          const _ExperimentNotice(),
-          const SizedBox(height: AppSpace.md),
-          const _FunctionSection(),
-          const SizedBox(height: AppSpace.md),
-          if (consent.agreed)
-            _ExperimentList(consent: consent)
-          else
-            const Padding(
-              padding: EdgeInsets.only(top: AppSpace.lg),
-              child: ConsentGate(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _SearchBar(onTap: openSearch),
+            const SizedBox(height: AppSpace.md),
+            _FeaturedCard(onTap: goWorld),
+            const SizedBox(height: AppSpace.lg),
+            _SectionLabel('场景音乐'),
+            const SizedBox(height: AppSpace.md),
+            _SceneRow(onTap: goWorld),
+            const SizedBox(height: AppSpace.lg),
+            _SectionLabel('热门歌单'),
+            const SizedBox(height: AppSpace.md),
+            _PlaylistRow(
+              title: '深夜电台',
+              meta: '128 首 · 每周更新',
+              onTap: goLibrary,
             ),
-        ],
+            const SizedBox(height: AppSpace.sm),
+            _PlaylistRow(
+              title: '晨间唤醒',
+              meta: '86 首 · 轻松律动',
+              onTap: goLibrary,
+            ),
+            const SizedBox(height: AppSpace.lg),
+            _NoticeBar(),
+            const SizedBox(height: AppSpace.lg),
+            _SectionLabel('功能'),
+            const SizedBox(height: AppSpace.md),
+            _FunctionSection(
+              onAggregate: openSearch,
+              onRecommend: goRecommend,
+              onCompanion: goCompanion,
+              onWorld: goWorld,
+            ),
+            const SizedBox(height: AppSpace.lg),
+            _SectionLabel('实验'),
+            const SizedBox(height: AppSpace.md),
+            _ExperimentSection(consent: consent),
+            const SizedBox(height: AppSpace.md),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// R26r21：顶部说明条（「这里是实验场所……」置顶）。
-class _ExperimentNotice extends StatelessWidget {
-  const _ExperimentNotice();
+/// 区块小标题（画布 section-label，15/w600）。
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: c.textPrimary,
+      ),
+    );
+  }
+}
+
+/// 顶部搜索栏（345×44，圆角 22，毛玻璃）。点击打开聚合搜索弹层。
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return GestureDetector(
+      onTap: onTap,
+      child: LiquidGlass(
+        radius: 22,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(
+          children: <Widget>[
+            Icon(Icons.search_rounded, size: 18, color: c.iconInactive),
+            const SizedBox(width: AppSpace.sm),
+            Expanded(
+              child: Text('探索音乐、场景与歌单', style: context.appText.hint),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 精选大卡（345×160，圆角 20）。画布为紫色渐变 hero，用主题强调色派生，
+/// 不写死品牌色。点击进入星璃世界（场景）。
+class _FeaturedCard extends StatelessWidget {
+  const _FeaturedCard({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 160,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: <Color>[c.accent, c.accentSoft],
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Spacer(),
+            Text(
+              '今日场景精选',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ).copyWith(color: c.onAccent),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '夜航 · 星河群岛 · 黄昏氛围',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ).copyWith(color: c.onAccent.withValues(alpha: 0.85)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 场景音乐区：两张 165×150 场景卡（圆角 18），左右排布。
+class _SceneRow extends StatelessWidget {
+  const _SceneRow({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _SceneCard(
+            name: '雨夜咖啡馆',
+            meta: 'Lo-Fi · 专注',
+            onTap: onTap,
+          ),
+        ),
+        const SizedBox(width: AppSpace.md),
+        Expanded(
+          child: _SceneCard(
+            name: '深海潜行',
+            meta: '环境 · 放松',
+            onTap: onTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// 单张场景卡：封面占位（141×80）+ 名称 + 描述。
+class _SceneCard extends StatelessWidget {
+  const _SceneCard({
+    required this.name,
+    required this.meta,
+    required this.onTap,
+  });
+
+  final String name;
+  final String meta;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return GestureDetector(
+      onTap: onTap,
+      child: LiquidGlass(
+        radius: 18,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Container(
+              width: double.infinity,
+              height: 80,
+              decoration: BoxDecoration(
+                color: c.bgPlaceholder,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.landscape_rounded,
+                  size: 28, color: c.iconInactive),
+            ),
+            const SizedBox(height: 10),
+            Text(name, style: context.appText.subtitle),
+            const SizedBox(height: 2),
+            Text(meta, style: context.appText.artist),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 歌单行（345×64，圆角 16）：封面 + 标题 + 副信息 + 箭头。
+class _PlaylistRow extends StatelessWidget {
+  const _PlaylistRow({
+    required this.title,
+    required this.meta,
+    required this.onTap,
+  });
+
+  final String title;
+  final String meta;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return GestureDetector(
+      onTap: onTap,
+      child: LiquidGlass(
+        radius: 16,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: c.bgPlaceholder,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.album_rounded,
+                  size: 24, color: c.iconInactive),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(title, style: context.appText.trackName),
+                  const SizedBox(height: 2),
+                  Text(meta, style: context.appText.artist),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: AppSize.iconSm, color: c.iconInactive),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 实验场所说明条（345×48，圆角 12）。画布为浅紫提示条。
+class _NoticeBar extends StatelessWidget {
+  const _NoticeBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
     return Container(
       width: double.infinity,
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: context.appColors.accentSoft,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        color: c.accentSoft,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.science_rounded,
-              size: AppSize.iconSm, color: context.appColors.accent),
+          Icon(Icons.science_rounded, size: 18, color: c.accent),
           const SizedBox(width: AppSpace.sm),
           Expanded(
             child: Text(
-              '这里是实验场所：功能可能不稳定，数据本地处理不上传。',
+              '实验场所 · 功能可能不稳定，数据本地处理不上传',
               style: context.appText.caption,
             ),
           ),
@@ -84,267 +354,183 @@ class _ExperimentNotice extends StatelessWidget {
   }
 }
 
-/// R26r21：功能模块入口（常驻，**列表形式**、纵向紧凑）。顺序：
-/// 聚合搜索 → 智能推荐 → AI 陪伴 → 星璃世界（2.5D 已删）。
-class _FunctionSection extends ConsumerWidget {
-  const _FunctionSection();
+/// 功能区：聚合搜索 / 智能推荐 / AI 陪伴 / 星璃世界（345×56，圆角 16）。
+class _FunctionSection extends StatelessWidget {
+  const _FunctionSection({
+    required this.onAggregate,
+    required this.onRecommend,
+    required this.onCompanion,
+    required this.onWorld,
+  });
+
+  final VoidCallback onAggregate;
+  final VoidCallback onRecommend;
+  final VoidCallback onCompanion;
+  final VoidCallback onWorld;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final NeteaseAuthState netease = ref.watch(neteaseAuthProvider);
-
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('功能', style: context.appText.subtitle),
-        const SizedBox(height: AppSpace.sm),
-        _FuncTile(
-          icon: Icons.travel_explore_rounded,
+        _FuncRow(
           title: '聚合搜索',
-          subtitle: netease.isLoggedIn
-              ? '网易云 · 已登录：${netease.account?.nickname ?? '网易云用户'}'
-              : '网易云 · 未登录（进入可登录）',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const AggregateSearchPage(),
-            ),
-          ),
+          subtitle: '网易云 / B站 / 本地 三源合一',
+          onTap: onAggregate,
+          trailing: Icon(Icons.search_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
-        _FuncTile(
-          icon: Icons.auto_awesome_rounded,
+        const SizedBox(height: AppSpace.sm),
+        _FuncRow(
           title: '智能推荐',
           subtitle: '外部音源优先 · 按类型筛选',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const RecommendPage()),
-          ),
+          onTap: onRecommend,
+          trailing: Icon(Icons.auto_awesome_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
-        _FuncTile(
-          icon: Icons.smart_toy_outlined,
+        const SizedBox(height: AppSpace.sm),
+        _FuncRow(
           title: 'AI 陪伴',
           subtitle: '关键词触发 · 联动应用内资源',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const CompanionPage()),
-          ),
+          onTap: onCompanion,
+          trailing: Icon(Icons.smart_toy_outlined, size: AppSize.iconSm, color: c.iconInactive),
         ),
-          _FuncTile(
-            icon: Icons.view_in_ar_rounded,
-            title: '星璃世界',
-            subtitle: '3D 体素世界 · 空间音效',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                // H1r2：入口先到独立主菜单页（新的世界/读取存档/多人联机/游戏设置）。
-                builder: (_) => const VoxelMainMenuPage(),
-              ),
-            ),
-          ),
+        const SizedBox(height: AppSpace.sm),
+        _FuncRow(
+          title: '星璃世界',
+          subtitle: '3D 体素世界 · 空间音效',
+          onTap: onWorld,
+          trailing: Icon(Icons.view_in_ar_rounded, size: AppSize.iconSm, color: c.iconInactive),
+        ),
       ],
     );
   }
 }
 
-/// 功能行（列表形式：紧凑行 = 图标 + 标题 + 副题 + 箭头，纵向高度小）。
-class _FuncTile extends StatelessWidget {
-  const _FuncTile({
-    required this.icon,
+/// 功能行（列表形式：标题 + 副题 + 尾部图标，纵向紧凑）。
+class _FuncRow extends StatelessWidget {
+  const _FuncRow({
     required this.title,
     required this.subtitle,
     required this.onTap,
+    required this.trailing,
   });
 
-  final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
+  final Widget trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpace.sm),
-      child: Material(
-        color: context.appColors.bgCard,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: context.appColors.border),
-            ),
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.md, vertical: 10),
-            child: Row(
-              children: <Widget>[
-                Icon(icon,
-                    size: AppSize.iconSm, color: context.appColors.accent),
-                const SizedBox(width: AppSpace.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: context.appText.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: context.appText.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+    final AppThemeColors c = context.appColors;
+    return GestureDetector(
+      onTap: onTap,
+      child: LiquidGlass(
+        radius: 16,
+        padding: const EdgeInsets.only(
+            left: 20, right: 16, top: 10, bottom: 10),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: c.textPrimary,
+                    ),
                   ),
-                ),
-                Icon(Icons.chevron_right_rounded,
-                    size: AppSize.iconSm,
-                    color: context.appColors.iconInactive),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: c.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            trailing,
+          ],
         ),
       ),
     );
   }
 }
 
-/// 已同意后的实验列表（R26r21：说明条已上移置顶，这里只渲染网格、随外层滚动）。
-class _ExperimentList extends ConsumerWidget {
-  const _ExperimentList({required this.consent});
-
+/// 实验区（数据驱动 `experimentsProvider`，按同意状态逐项过滤）。
+///
+/// 未同意 → 全屏 [ConsentGate]；已同意 → 165×110 卡片网格（双列）。
+class _ExperimentSection extends ConsumerWidget {
+  const _ExperimentSection({required this.consent});
   final ExperimentConsent consent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final List<ExperimentItem> experiments = ref.watch(experimentsProvider);
-    // 逐项启停过滤（P1-M2-5）
     final List<ExperimentItem> visible = experiments
         .where((ExperimentItem e) => consent.isEnabled(e))
         .toList();
 
-    final double width = MediaQuery.sizeOf(context).width;
-    final bool landscape = width >= AppSize.landscapeBreakpoint;
+    if (!consent.agreed) {
+      return const ConsentGate();
+    }
+    if (visible.isEmpty) {
+      return Text('所有实验均已停用。', style: context.appText.bodyMuted);
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text('实验', style: context.appText.subtitle),
-        const SizedBox(height: AppSpace.sm),
-        if (visible.isEmpty)
-          const _NoExperiments()
-        else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: landscape ? 320 : 280,
-              mainAxisSpacing: AppSpace.gridRowGap,
-              crossAxisSpacing: AppSpace.md,
-              childAspectRatio: 1.5,
-            ),
-            itemCount: visible.length,
-            itemBuilder: (BuildContext context, int i) {
-              final ExperimentItem e = visible[i];
-              return _ExperimentCard(item: e);
-            },
-          ),
-      ],
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 165 / 110,
+      crossAxisSpacing: AppSpace.md,
+      mainAxisSpacing: AppSpace.md,
+      children: visible.map((ExperimentItem e) => _ExpCard(item: e)).toList(),
     );
   }
 }
 
-/// 单张实验卡。
-class _ExperimentCard extends ConsumerWidget {
-  const _ExperimentCard({required this.item});
-
+/// 单张实验卡（165×110，圆角 16）：标题 + 描述。点击进入对应实验页。
+class _ExpCard extends StatelessWidget {
+  const _ExpCard({required this.item});
   final ExperimentItem item;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final bool retired = item.status == ExperimentStatus.retired;
 
     return Opacity(
       opacity: retired ? 0.5 : 1.0,
-      child: Material(
-        // R16：实验卡底色跟随主题
-        color: context.appColors.bgCard,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: InkWell(
-          onTap: retired
-              ? null // 已下线禁入（P0-M2-4）
-              : () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => item.builder()),
-                  ),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: context.appColors.border),
-            ),
-            padding: const EdgeInsets.all(AppSpace.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Icon(item.icon,
-                        size: AppSize.icon,
-                        color: retired
-                            ? context.appColors.iconInactive
-                            : context.appColors.accent),
-                    const Spacer(),
-                    StateChip(
-                      tone: _toneOf(item.status),
-                      label: item.statusLabel,
-                    ),
-                  ],
+      child: GestureDetector(
+        onTap: retired
+            ? null
+            : () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => item.builder()),
                 ),
-                const Spacer(),
-                Text(item.name, style: context.appText.subtitle),
-                const SizedBox(height: 2),
-                Text(
+        child: LiquidGlass(
+          radius: 16,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(item.name, style: context.appText.subtitle),
+              const SizedBox(height: 6),
+              Expanded(
+                child: Text(
                   item.description,
                   style: context.appText.artist,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpace.xs),
-                Text(
-                  retired ? '已下线，暂不可进入' : '点击进入',
-                  style: context.appText.caption.copyWith(
-                    color: retired
-                        ? context.appColors.textTertiary
-                        : context.appColors.accent,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-
-  ChipTone _toneOf(ExperimentStatus s) => switch (s) {
-        ExperimentStatus.experimenting => ChipTone.experimenting,
-        ExperimentStatus.stable => ChipTone.stable,
-        ExperimentStatus.retired => ChipTone.retired,
-      };
-}
-
-class _NoExperiments extends StatelessWidget {
-  const _NoExperiments();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        '所有实验均已停用。\n可到设置 → ${Terms.experiment} 中重新启用。',
-        style: context.appText.bodyMuted,
-        textAlign: TextAlign.center,
       ),
     );
   }
