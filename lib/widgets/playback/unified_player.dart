@@ -375,6 +375,9 @@ Widget _buildTransportRow(
   required VoidCallback onToggleFav,
 }) {
   final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
+  // cl03：缓冲/加载中 → 播放键位置显示「等待加载」转圈（不跳位、默认折叠不打扰）。
+  final bool buffering =
+      ref.watch(playbackStateProvider).valueOrNull == PlaybackState.loading;
   final PlayMode mode = ref.watch(playModeProvider);
   final bool muted = ref.watch(musicMutedProvider);
   final double playSize = fullscreen ? 40 : 32;
@@ -411,18 +414,37 @@ Widget _buildTransportRow(
           ref.read(playbackActionsProvider).next(direction: -1),
         ),
       ),
-      PlaybackIconButton(
-        svgName: isPlaying ? AppIcons.pause : AppIcons.play,
-        size: playSize,
-        tooltip: isPlaying ? '暂停' : '播放',
-        onTap: () async {
-          final String msg =
-              await ref.read(playbackActionsProvider).toggle();
-          if (msg.isNotEmpty && context.mounted) {
-            showPlaybackToast(context, msg);
-          }
-        },
-      ),
+      if (buffering)
+        Tooltip(
+          message: '等待加载',
+          child: SizedBox(
+            width: playSize + 12,
+            height: playSize + 12,
+            child: Center(
+              child: SizedBox(
+                width: playSize * 0.6,
+                height: playSize * 0.6,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: context.appColors.accent,
+                ),
+              ),
+            ),
+          ),
+        )
+      else
+        PlaybackIconButton(
+          svgName: isPlaying ? AppIcons.pause : AppIcons.play,
+          size: playSize,
+          tooltip: isPlaying ? '暂停' : '播放',
+          onTap: () async {
+            final String msg =
+                await ref.read(playbackActionsProvider).toggle();
+            if (msg.isNotEmpty && context.mounted) {
+              showPlaybackToast(context, msg);
+            }
+          },
+        ),
       PlaybackIconButton(
         svgName: AppIcons.next,
         size: sideSize,
@@ -604,7 +626,7 @@ Widget _buildBottomActions(
         _BiliVisualToggleButton(),
         // cl52-B：均衡器（视听右边，图标形式）。
         Tooltip(
-          message: '均衡器',
+          message: '音效',
           child: InkWell(
             onTap: () => showEqualizerSheet(context),
             borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -616,7 +638,7 @@ Widget _buildBottomActions(
                   Icon(Icons.equalizer_rounded,
                       size: 18, color: colors.textSecondary),
                   const SizedBox(width: 4),
-                  Text('均衡', style: context.appText.caption),
+                  Text('音效', style: context.appText.caption),
                 ],
               ),
             ),
@@ -655,7 +677,7 @@ Future<void> showEqualizerSheet(BuildContext context) {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('均衡器', style: context.appText.subtitle),
+                  child: Text('音效', style: context.appText.subtitle),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -714,7 +736,7 @@ Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('倍速播放', style: context.appText.subtitle),
+                  child: Text('播放速度', style: context.appText.subtitle),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -798,7 +820,7 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: Text('睡眠定时', style: context.appText.subtitle),
+                  child: Text('定时关闭', style: context.appText.subtitle),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
@@ -909,7 +931,7 @@ class _SpeedButton extends ConsumerWidget {
     final double spd = ref.watch(musicSpeedProvider);
     final bool active = (spd - 1.0).abs() > 0.001;
     return Tooltip(
-      message: '倍速播放',
+      message: '播放速度',
       child: InkWell(
         onTap: () => showSpeedSheet(context, ref),
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -944,9 +966,9 @@ class _SleepTimerButton extends ConsumerWidget {
         ? '本曲结束'
         : st.remaining != null
             ? _fmtCountdown(st.remaining!)
-            : '睡眠';
+            : '定时';
     return Tooltip(
-      message: '睡眠定时',
+      message: '定时关闭',
       child: InkWell(
         onTap: () => showSleepTimerSheet(context, ref),
         borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -1024,8 +1046,8 @@ class _BiliVisualToggleButton extends ConsumerWidget {
     final Color accent = context.appColors.accent;
     return Tooltip(
       message: on
-          ? '关闭视听结合（长按设置模糊/同步/变速）'
-          : '开启视听结合（B站背景视频）',
+          ? '关闭视频背景（长按设置模糊/同步/变速）'
+          : '开启视频背景（B站）',
       child: InkWell(
         onTap: () =>
             ref.read(biliVisualEnabledProvider.notifier).state = !on,
@@ -1049,7 +1071,7 @@ class _BiliVisualToggleButton extends ConsumerWidget {
               ),
               const SizedBox(width: 4),
               Text(
-                '视听',
+                '视频背景',
                 style: context.appText.caption
                     .copyWith(color: on ? accent : null),
               ),
@@ -1305,7 +1327,7 @@ class _FullscreenPlaybackOverlayState
             PlaybackIconButton(
               icon: Icons.equalizer_rounded,
               size: AppSize.iconSm,
-              tooltip: '均衡器',
+              tooltip: '音效',
               onTap: () => _openEqualizer(context),
             ),
             PlaybackIconButton(

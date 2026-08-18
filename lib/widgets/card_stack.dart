@@ -4,11 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/scene.dart';
 import '../core/motion/motion.dart';
 import '../core/theme/app_theme_colors.dart';
-import '../models/track.dart';
-import '../providers/audio/audio_providers.dart';
 import 'app_icon.dart';
 import 'liquid_glass.dart';
-import 'lyrics/lyrics_view.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
 
 /// 场景卡片（主视觉单元）
@@ -18,16 +15,12 @@ import '../providers/settings/scene_card_opacity_provider.dart';
 class SceneCardStack extends StatefulWidget {
   final List<Scene> scenes;
   final int currentIndex;
-  final Track? nowPlaying;
-  final bool isPlaying;
   final void Function(int) onSceneChanged;
 
   const SceneCardStack({
     super.key,
     required this.scenes,
     required this.currentIndex,
-    this.nowPlaying,
-    this.isPlaying = false,
     required this.onSceneChanged,
     this.onLongPress,
   });
@@ -66,8 +59,6 @@ class _SceneCardStackState extends State<SceneCardStack> {
                 child: _SceneCard(
                   key: ValueKey('deck-$k-${widget.scenes[idx].id}'),
                   scene: widget.scenes[idx],
-                  nowPlaying: null,
-                  isPlaying: false,
                   pressed: false,
                   onPressStart: () {},
                   onPressEnd: () {},
@@ -95,8 +86,6 @@ class _SceneCardStackState extends State<SceneCardStack> {
         child: _SceneCard(
           key: ValueKey(current.id),
           scene: current,
-          nowPlaying: widget.nowPlaying,
-          isPlaying: widget.isPlaying,
           pressed: _pressed,
           onPressStart: () => setState(() => _pressed = true),
           onPressEnd: () => setState(() => _pressed = false),
@@ -127,8 +116,6 @@ class _SceneCardStackState extends State<SceneCardStack> {
 /// 单张场景卡片（官方 Card）
 class _SceneCard extends ConsumerWidget {
   final Scene scene;
-  final Track? nowPlaying;
-  final bool isPlaying;
   final bool pressed;
   final VoidCallback onPressStart;
   final VoidCallback onPressEnd;
@@ -137,8 +124,6 @@ class _SceneCard extends ConsumerWidget {
   const _SceneCard({
     super.key,
     required this.scene,
-    required this.nowPlaying,
-    required this.isPlaying,
     required this.pressed,
     required this.onPressStart,
     required this.onPressEnd,
@@ -161,14 +146,6 @@ class _SceneCard extends ConsumerWidget {
 
     // 场景卡片背景浓度：越低越通透（视频背景透出），越高越实。默认 0.25。
     final double opacity = ref.watch(sceneCardOpacityProvider);
-
-    // 歌词判定：当前曲目有非空歌词才展开右半区；否则整卡居中、右半区折叠。
-    final Track? playing = ref.watch(nowPlayingProvider);
-    final bool hasLyrics = playing != null &&
-        ref.watch(parsedLyricsProvider(playing)).maybeWhen(
-              data: (List<LyricLine> lines) => lines.isNotEmpty,
-              orElse: () => false,
-            );
 
     final double cardW = MediaQuery.of(context).size.width * 0.94;
     final double cardH = cardW * 9 / 16;
@@ -214,7 +191,7 @@ class _SceneCard extends ConsumerWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          nowPlaying?.title ?? scene.track,
+          scene.track,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge?.copyWith(
@@ -224,15 +201,10 @@ class _SceneCard extends ConsumerWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          nowPlaying?.artist ?? scene.artist,
+          scene.artist,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
-        ),
-        const SizedBox(height: 14),
-        _TrackProgress(
-          color: scene.visual.accent,
-          isPlaying: isPlaying,
         ),
       ],
     );
@@ -270,30 +242,19 @@ class _SceneCard extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 20),
-                    // 有歌词：左右两栏（左元数据 / 右歌词，各占 1/2）；
-                    // 无歌词：整卡居中、右半区折叠。
-                    child: hasLyrics
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              Expanded(child: metadata),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: LyricsView(height: cardH - 40),
-                              ),
-                            ],
-                          )
-                        : FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.center,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(
-                                minWidth: 320,
-                                maxWidth: 420,
-                              ),
-                              child: metadata,
-                            ),
-                          ),
+                    // 纯场景展示卡：播放控制/歌词全部收敛到全局底部播放器，
+                    // 本卡只呈现场景信息（cl03 全局唯一底部播放器）。
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 320,
+                          maxWidth: 420,
+                        ),
+                        child: metadata,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -341,34 +302,5 @@ class _SceneCard extends ConsumerWidget {
     if (w < 400) return 0.9;
     if (w > 800) return 1.1;
     return 1.0;
-  }
-}
-
-/// 播放进度（官方 LinearProgressIndicator，独立订阅位置流）
-class _TrackProgress extends ConsumerWidget {
-  final Color color;
-  final bool isPlaying;
-
-  const _TrackProgress({required this.color, required this.isPlaying});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final Duration? pos = ref.watch(musicPositionProvider).valueOrNull;
-    final Duration? dur = ref.watch(musicDurationProvider).valueOrNull;
-    final double value = (pos != null && dur != null && dur > Duration.zero)
-        ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0)
-        : 0.0;
-
-    return Row(
-      children: [
-        Expanded(
-          child: LinearProgressIndicator(
-            value: isPlaying ? value : 0,
-            minHeight: 2,
-            color: color.withValues(alpha: 0.7),
-          ),
-        ),
-      ],
-    );
   }
 }
