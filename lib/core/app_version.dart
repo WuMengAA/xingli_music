@@ -336,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 4;
+  static const int buildCount = 5;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +401,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl05',
+    title: '首页不滚动 + 播放卡点按放大全屏 + 设置大分类/版本渠道日志',
+    details: <String>[
+      '首页改为不滚动固定布局：问候语 + 场景卡（占剩余空间自适应）+ 圆点 + 底部音乐卡一屏内，窄屏/矮屏不再裁切',
+      '音乐播放卡点按放大至全屏（画布效果）：整卡放大填满屏幕（极光背景 + 缩放淡入动画），封面更大、内容垂直居中',
+      '设置页五大分类加图标头（音频/画面/通知中心/实验/关于），大类更清晰',
+      '设置-关于恢复「版本更新(OTA)」「版本日志(历史)」「更新渠道(Beta/Alpha 切换，重启生效)」三个入口',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.18',
     cl: 'beta_cl04',
