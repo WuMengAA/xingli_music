@@ -336,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 5;
+  static const int buildCount = 6;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +401,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.18',
+    cl: 'beta_cl06',
+    title: '世界存档不再空 + 游戏时长修复 + 创造默认 + 播放器画布歌词界面 + 歌词风格',
+    details: <String>[
+      '世界存档不再空：玩过但没显式保存的世界（自动检查点）也会出现在「世界存档」，可进入/删除/重命名',
+      '修复信息面板「游戏时长 1s=60s」离谱计数：改为真实游玩时长（墙钟）',
+      '非作弊下默认创造且不可生存；作弊开启默认创造、游戏内可切换生存（联机大厅同步）',
+      '播放器全屏改为画布歌词界面：去除外部极光背景，横屏封面在左歌词在右、竖屏封面在上歌词在下',
+      '歌词新增字号（小/中/大）与风格（默认 / Apple Music）调节，选择自动保存',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.18',
     cl: 'beta_cl05',
