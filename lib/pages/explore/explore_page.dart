@@ -6,8 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/experiment.dart';
+import '../../models/scene.dart';
+import '../../models/track_stats.dart';
+import '../../pages/library/playlist_detail_page.dart';
 import '../../providers/explore/experiment_providers.dart';
+import '../../providers/scene/scene_providers.dart';
+import '../../providers/session/session_providers.dart';
 import '../../providers/shell/shell_providers.dart';
+import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/aggregate_search_sheet.dart';
 import '../../widgets/liquid_glass.dart';
@@ -51,7 +57,6 @@ class ExplorePage extends ConsumerWidget {
     // 星璃世界走 Shell Tab 切换（IndexedStack 唯一真源）。
     void goWorld() => setShellPage(ref, ShellPage.world);
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
-    void goLibrary() => setShellPage(ref, ShellPage.library);
 
     return PageScaffold(
       title: '探索',
@@ -63,25 +68,18 @@ class ExplorePage extends ConsumerWidget {
           children: <Widget>[
             _SearchBar(onTap: openSearch),
             const SizedBox(height: AppSpace.md),
-            _FeaturedCard(onTap: goLibrary),
+            // 精选大卡：读真实活跃场景（activeSceneProvider），点击回到主页场景卡。
+            const _FeaturedCard(),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel('场景音乐'),
             const SizedBox(height: AppSpace.md),
-            _SceneRow(onTap: goLibrary),
+            // 场景音乐区：读真实场景列表（sceneOrderProvider），点击切换主页场景。
+            const _SceneRow(),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel('热门歌单'),
             const SizedBox(height: AppSpace.md),
-            _PlaylistRow(
-              title: '深夜电台',
-              meta: '128 首 · 每周更新',
-              onTap: goLibrary,
-            ),
-            const SizedBox(height: AppSpace.sm),
-            _PlaylistRow(
-              title: '晨间唤醒',
-              meta: '86 首 · 轻松律动',
-              onTap: goLibrary,
-            ),
+            // 热门歌单区：读真实歌单（playlistsProvider），点击进入歌单详情。
+            const _PlaylistRowSection(),
             const SizedBox(height: AppSpace.lg),
             _NoticeBar(),
             const SizedBox(height: AppSpace.lg),
@@ -152,16 +150,17 @@ class _SearchBar extends StatelessWidget {
 }
 
 /// 精选大卡（345×160，圆角 20）。画布为紫色渐变 hero，用主题强调色派生，
-/// 不写死品牌色。点击进入曲库（真实音乐内容）。
-class _FeaturedCard extends StatelessWidget {
-  const _FeaturedCard({required this.onTap});
-  final VoidCallback onTap;
+/// 不写死品牌色。**读真实活跃场景**（[activeSceneProvider]）——展示当前
+/// 场景名 + 音景描述，点击回主页场景卡（真实场景内容），不再用假文案。
+class _FeaturedCard extends ConsumerWidget {
+  const _FeaturedCard();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppThemeColors c = context.appColors;
+    final Scene scene = ref.watch(activeSceneProvider);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => setShellPage(ref, ShellPage.home),
       child: Container(
         height: 160,
         padding: const EdgeInsets.all(20),
@@ -178,7 +177,7 @@ class _FeaturedCard extends StatelessWidget {
           children: <Widget>[
             const Spacer(),
             Text(
-              '今日场景精选',
+              scene.name,
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -186,7 +185,9 @@ class _FeaturedCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '用精选配乐，构筑你的星璃世界',
+              scene.soundscape.isNotEmpty
+                  ? '${scene.soundscape} · 点击进入'
+                  : '点击进入主页场景',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,
@@ -199,50 +200,46 @@ class _FeaturedCard extends StatelessWidget {
   }
 }
 
-/// 场景音乐区：两张 165×150 场景卡（圆角 18），左右排布。
-class _SceneRow extends StatelessWidget {
-  const _SceneRow({required this.onTap});
-  final VoidCallback onTap;
+/// 场景音乐区：读真实场景列表（[sceneOrderProvider]），取前 2 个场景渲染
+/// 165×150 场景卡。点击 → 切换主页当前场景并回到主页（真实场景卡）。
+class _SceneRow extends ConsumerWidget {
+  const _SceneRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final List<Scene> scenes = ref.watch(sceneOrderProvider);
+    if (scenes.isEmpty) return const SizedBox.shrink();
+    final List<Scene> shown = scenes.take(2).toList();
     return Row(
       children: <Widget>[
-        Expanded(
-          child: _SceneCard(
-            name: '雨夜咖啡馆',
-            meta: 'Lo-Fi · 专注',
-            onTap: onTap,
+        for (int i = 0; i < shown.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: AppSpace.md),
+          Expanded(
+            child: _SceneCard(
+              scene: shown[i],
+              onTap: () {
+                // 切换主页当前场景到该场景，并回到主页场景卡。
+                final int idx = scenes.indexOf(shown[i]);
+                ref.read(currentSceneIndexProvider.notifier).state = idx;
+                setShellPage(ref, ShellPage.home);
+              },
+            ),
           ),
-        ),
-        const SizedBox(width: AppSpace.md),
-        Expanded(
-          child: _SceneCard(
-            name: '深海潜行',
-            meta: '环境 · 放松',
-            onTap: onTap,
-          ),
-        ),
+        ],
       ],
     );
   }
 }
 
-/// 单张场景卡：封面占位（141×80）+ 名称 + 描述。
+/// 单张场景卡：真实 [Scene] 数据（名称 + 音景描述 + 场景图标）。
 class _SceneCard extends StatelessWidget {
-  const _SceneCard({
-    required this.name,
-    required this.meta,
-    required this.onTap,
-  });
+  const _SceneCard({required this.scene, required this.onTap});
 
-  final String name;
-  final String meta;
+  final Scene scene;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
     return GestureDetector(
       onTap: onTap,
       child: LiquidGlass(
@@ -255,16 +252,32 @@ class _SceneCard extends StatelessWidget {
               width: double.infinity,
               height: 80,
               decoration: BoxDecoration(
-                color: c.bgPlaceholder,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: scene.visual.gradientColors,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.landscape_rounded,
-                  size: 28, color: c.iconInactive),
+              child: Center(
+                child: Text(
+                  scene.visual.glyph,
+                  style: TextStyle(
+                    fontSize: 28,
+                    color: scene.visual.accent.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(height: 10),
-            Text(name, style: context.appText.subtitle),
+            Text(scene.name, style: context.appText.subtitle),
             const SizedBox(height: 2),
-            Text(meta, style: context.appText.artist),
+            Text(
+              scene.soundscape.isNotEmpty ? scene.soundscape : scene.mood,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.appText.artist,
+            ),
           ],
         ),
       ),
@@ -272,16 +285,73 @@ class _SceneCard extends StatelessWidget {
   }
 }
 
-/// 歌单行（345×64，圆角 16）：封面 + 标题 + 副信息 + 箭头。
-class _PlaylistRow extends StatelessWidget {
-  const _PlaylistRow({
-    required this.title,
-    required this.meta,
-    required this.onTap,
-  });
+/// 热门歌单区：读真实歌单（[playlistsProvider]），取前 2 个渲染 345×64 行。
+/// 点击 → 打开对应 [PlaylistDetailPage]。空歌单时显示空态引导（不再放假数据）。
+class _PlaylistRowSection extends ConsumerWidget {
+  const _PlaylistRowSection();
 
-  final String title;
-  final String meta;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<Playlist>> playlists = ref.watch(playlistsProvider);
+    return playlists.when(
+      loading: () => const SizedBox(
+        height: 64,
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      ),
+      error: (Object e, StackTrace st) => const SizedBox.shrink(),
+      data: (List<Playlist> list) {
+        if (list.isEmpty) {
+          return LiquidGlass(
+            radius: 16,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.queue_music_rounded,
+                    size: 18, color: context.appColors.iconInactive),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(
+                    '还没有歌单，去曲库收藏歌曲后会自动生成',
+                    style: context.appText.caption,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        final List<Playlist> shown = list.take(2).toList();
+        return Column(
+          children: <Widget>[
+            for (int i = 0; i < shown.length; i++) ...<Widget>[
+              if (i > 0) const SizedBox(height: AppSpace.sm),
+              _PlaylistRow(
+                playlist: shown[i],
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        PlaylistDetailPage(playlistId: shown[i].id ?? -1),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// 歌单行（345×64，圆角 16）：封面 + 标题 + 副信息 + 箭头（真实歌单数据）。
+class _PlaylistRow extends StatelessWidget {
+  const _PlaylistRow({required this.playlist, required this.onTap});
+
+  final Playlist playlist;
   final VoidCallback onTap;
 
   @override
@@ -301,7 +371,7 @@ class _PlaylistRow extends StatelessWidget {
                 color: c.bgPlaceholder,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.album_rounded,
+              child: Icon(Icons.queue_music_rounded,
                   size: 24, color: c.iconInactive),
             ),
             const SizedBox(width: 12),
@@ -309,9 +379,12 @@ class _PlaylistRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(title, style: context.appText.trackName),
+                  Text(playlist.name, style: context.appText.trackName),
                   const SizedBox(height: 2),
-                  Text(meta, style: context.appText.artist),
+                  Text(
+                    '${playlist.trackCount} 首',
+                    style: context.appText.artist,
+                  ),
                 ],
               ),
             ),

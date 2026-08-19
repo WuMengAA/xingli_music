@@ -11,10 +11,12 @@ import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/audio/music_quality_provider.dart';
+import '../../providers/sources/bilibili_provider.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
+import '../../widgets/playback/unified_player.dart' show showEqualizerSheet, showSleepTimerSheet, showSpeedSheet;
 import '../../widgets/sources/music_quality_sheet.dart';
 
 /// 整页正在播放（#552：从零重建）。
@@ -185,20 +187,183 @@ class NowPlayingPage extends ConsumerWidget {
             const SizedBox(height: AppSpace.sm),
             const _CollapsibleVolumeRow(),
             const SizedBox(height: AppSpace.xs),
-            Center(
-              child: OutlinedButton.icon(
-                onPressed: () => showMusicQualitySheet(context),
-                icon: const Icon(Icons.high_quality_rounded, size: 16),
-                label: Text(
-                  _qualityLabel(ref),
-                  style: context.appText.caption,
+            // 快捷操作胶囊行（画布 3:348：搜索/音质/白噪音/视听/倍速）。
+            // 全部绑定真实功能：搜索/音质/倍速走弹层或页面，白噪音/视听走
+            // 全局开关（跟随场景/全局生效来源）。队列/下载无后端，不摆空按钮。
+            const _QuickActionsRow(),
+            const SizedBox(height: AppSpace.xs),
+            // 底部工具行（画布 3:131-146：睡眠定时 / 均衡器）。
+            // 画布另有「下载」「队列」按钮，本项目暂无对应后端，不摆设。
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                _ToolChip(
+                  icon: Icons.bedtime_rounded,
+                  label: '睡眠定时',
+                  onTap: () => showSleepTimerSheet(context, ref),
                 ),
-                style: OutlinedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                const SizedBox(width: AppSpace.sm),
+                _ToolChip(
+                  icon: Icons.equalizer_rounded,
+                  label: '均衡器',
+                  onTap: () => unawaited(showEqualizerSheet(context)),
                 ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 快捷操作胶囊行（画布 3:348：搜索 / 音质 / 白噪音 / 视听 / 倍速）。
+///
+/// 数据与动作全部接真实后端，禁止伪造状态：
+/// - 搜索：push [AggregateSearchPage]
+/// - 音质：弹 [showMusicQualitySheet]
+/// - 白噪音：翻转 [whiteNoiseEnabledProvider]（生效来源跟随场景/全局）
+/// - 视听：翻转 [biliVisualEnabledProvider]（B站视频背景）
+/// - 倍速：弹 [showSpeedSheet]
+class _QuickActionsRow extends ConsumerWidget {
+  const _QuickActionsRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool whiteNoise = ref.watch(whiteNoiseEnabledProvider);
+    final bool visualOn = ref.watch(biliVisualEnabledProvider);
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: AppSpace.xs,
+      runSpacing: AppSpace.xs,
+      children: <Widget>[
+        _ActionChip(
+          icon: Icons.search_rounded,
+          label: '搜索',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const AggregateSearchPage(),
+            ),
+          ),
+        ),
+        _ActionChip(
+          icon: Icons.high_quality_rounded,
+          label: _qualityLabel(ref),
+          onTap: () => unawaited(showMusicQualitySheet(context)),
+        ),
+        _ActionChip(
+          icon: Icons.spa_rounded,
+          label: '白噪音',
+          active: whiteNoise,
+          onTap: () => ref
+              .read(whiteNoiseEnabledProvider.notifier)
+              .state = !whiteNoise,
+        ),
+        _ActionChip(
+          icon: Icons.movie_filter_rounded,
+          label: '视听',
+          active: visualOn,
+          onTap: () => ref
+              .read(biliVisualEnabledProvider.notifier)
+              .state = !visualOn,
+        ),
+        _ActionChip(
+          icon: Icons.speed_rounded,
+          label: '倍速',
+          onTap: () => unawaited(showSpeedSheet(context, ref)),
+        ),
+      ],
+    );
+  }
+}
+
+/// 单个快捷操作胶囊（画布 qa-* 61×36 r18）。active 高亮强调色。
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.active = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+        decoration: BoxDecoration(
+          color: active ? c.accentSoft : c.bgSurface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: active ? c.accent : c.border,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              icon,
+              size: 15,
+              color: active ? c.accent : c.iconInactive,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: context.appText.caption.copyWith(
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                color: active ? c.accent : c.textSecondary,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 底部工具胶囊（画布 btn-queue/btn-sleep/btn-download/btn-eq 44×36 r18）。
+/// 只挂有真实后端的能力（睡眠定时 / 均衡器），下载/队列无后端不摆设。
+class _ToolChip extends StatelessWidget {
+  const _ToolChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.pill),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
+        decoration: BoxDecoration(
+          color: c.bgSurface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: c.border, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, size: 15, color: c.iconInactive),
+            const SizedBox(width: 6),
+            Text(label, style: context.appText.caption),
           ],
         ),
       ),
@@ -312,9 +477,9 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
     final bool seekable = duration != null && duration.inMilliseconds > 0;
     final double ratio = _dragRatio ??
         (seekable
-            ? (position.inMilliseconds / duration!.inMilliseconds)
-                .clamp(0.0, 1.0)
+            ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
             : 0.0);
+    // duration 在 seekable 分支已通过非空判断（flow analysis 提升）。
 
     return Column(
       mainAxisSize: MainAxisSize.min,

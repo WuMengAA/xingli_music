@@ -334,9 +334,12 @@ abstract final class AppVersion {
   /// cl02（08.18）：主题重构——全站毛玻璃随皮肤主色派生（去白/黑硬编码），
   /// ContentContainer/AppDock/主题切换钮/设置页/整理器/UI 模板玻璃统一走
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
-  /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
-  /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 1;
+  /// cl02（08.19）：画布文字→真实功能——探索页场景/歌单/精选大卡接真实数据
+  /// （activeSceneProvider / sceneOrderProvider / playlistsProvider），删假数据；
+  /// 首页场景卡文字层级对齐画布（SCENE 标签→场景名主→音景 pill→切歌副→滑动提示）；
+  /// 整页播放器补快捷操作胶囊行（搜索/音质/白噪音/视听/倍速）+ 工具行（睡眠/均衡器），
+  /// 队列/下载无后端不摆空按钮。
+  static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +404,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.19',
+    cl: 'alpha_cl02',
+    title: '画布文字 → 真实功能：探索页接真实数据 + 场景卡层级对齐 + 播放器快捷操作',
+    details: <String>[
+      '探索页：精选大卡读真实活跃场景（activeSceneProvider），场景音乐区读真实场景列表（sceneOrderProvider）前 2 个、点击切换主页场景，热门歌单读真实歌单（playlistsProvider）前 2 个、点击进歌单详情；移除硬编码假数据（雨夜咖啡馆/深夜电台等）与「点击仅切 Tab」的占位行为',
+      '首页场景卡：文字层级对齐画布 3:23——当前场景·SCENE 标签 → 场景名 19px 主标题 → 音景 pill（真实 soundscape）→ 切歌预览副行 → 滑动切换提示',
+      '整页播放器：补画布 3:80 快捷操作胶囊行（搜索 / 音质 / 白噪音 / 视听 / 倍速，全部绑定真实 provider 或弹层）+ 工具行（睡眠定时 / 均衡器）；队列/下载无后端不摆空按钮',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.19',
     cl: 'alpha_cl01',

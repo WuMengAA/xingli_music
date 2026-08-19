@@ -36,13 +36,13 @@ android {
         // light 插件（minSdk 21）已移除，光线传感器用自写 MethodChannel。
         minSdkVersion = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = 93
+        versionCode = 94
         // R18/R19：安装/应用信息显示完整展示版本串（0.26.08.15_alpha_cl76_hotfix6），
         // 而非 pubspec 截断的 "0.26.8"（flutter.versionName 只取 x.y.z）。
         // 规范（用户 2026-08-16）：0.26.08.XX_alpha_clXXX_hotfixX（月补零两位、
         // cl 过百三位、hotfix 为补丁序号）。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion（含 hotfix 后缀）同步更新！
-        versionName = "0.26.08.19_alpha_cl01"
+        versionName = "0.26.08.19_alpha_cl02"
         // 架构裁剪改由 android 顶层 `splits { abi }` 统一处理（见本块下方），
         // 这里不再用 ndk.abiFilters：它与 splits / --split-per-abi 冲突，且实测
         // 管不住 Flutter 引擎 .so（多余）。x86_64 仍由文件末尾 androidComponents 排除。

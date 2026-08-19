@@ -151,60 +151,105 @@ class _SceneCard extends ConsumerWidget {
     final double cardH = cardW * 9 / 16;
 
     // 元数据列（左半区 / 无歌词时整卡居中显示）。
+    // 对齐画布「scene-card-hero」(3:23) 文字层级：SCENE 标签 → 场景名主 →
+    // 音景 pill → 切歌预览 → 滑动提示。全部取真实 Scene 字段，不放假数据。
     final Widget metadata = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
+        // 「当前场景 · SCENE」标签（画布 3:26，12px 次级）。
         Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            AppIcon(scene.icon, size: 18, color: scene.visual.accent),
-            const SizedBox(width: 8),
+            AppIcon(scene.icon, size: 14, color: scene.visual.accent),
+            const SizedBox(width: 6),
             Text(
-              scene.name,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontSize: 18 * scale,
+              '当前场景 · SCENE',
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontSize: 12 * scale,
+                color: mutedColor,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // 场景名（画布 3:27，19px Bold 主标题）。
+        Text(
+          scene.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 19 * scale,
+            color: titleColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // 音景 pill（画布 3:28/3:29：真实 soundscape 描述，空则回退 mood）。
+        if (scene.soundscape.isNotEmpty || scene.mood.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: context.appColors.bgSurface.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(
+                color: context.appColors.border.withValues(alpha: 0.5),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              scene.soundscape.isNotEmpty ? scene.soundscape : scene.mood,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 11 * scale,
+                fontWeight: FontWeight.w500,
                 color: titleColor,
               ),
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                scene.mood,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: scene.visual.accent.withValues(alpha: 0.6),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ),
-            const Spacer(),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          scene.desc,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodySmall?.copyWith(color: mutedColor),
-        ),
-        const SizedBox(height: 14),
+          ),
+        const SizedBox(height: 16),
+        // 切歌预览（真实 track/artist，画布场景卡之后的歌曲信息）。
         Text(
           scene.track,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: 26 * scale,
+            fontSize: 15 * scale,
             color: titleColor,
+            fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           scene.artist,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.bodyMedium?.copyWith(color: mutedColor),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontSize: 12 * scale,
+            color: mutedColor,
+          ),
+        ),
+        const SizedBox(height: 14),
+        // 滑动切换提示（画布 3:30，11px 次级；真实可横滑切换场景）。
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.swipe_left_rounded,
+              size: 13 * scale,
+              color: mutedColor.withValues(alpha: 0.8),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '滑动切换场景',
+              style: theme.textTheme.labelSmall?.copyWith(
+                fontSize: 11 * scale,
+                color: mutedColor,
+              ),
+            ),
+          ],
         ),
       ],
     );
