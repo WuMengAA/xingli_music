@@ -339,7 +339,7 @@ abstract final class AppVersion {
   /// 首页场景卡文字层级对齐画布（SCENE 标签→场景名主→音景 pill→切歌副→滑动提示）；
   /// 整页播放器补快捷操作胶囊行（搜索/音质/白噪音/视听/倍速）+ 工具行（睡眠/均衡器），
   /// 队列/下载无后端不摆空按钮。
-  static const int buildCount = 2;
+  static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -404,6 +404,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.19',
+    cl: 'alpha_cl03',
+    title: '2.5D 画布群系音效 + 世界主页精简 + 播放页四件套',
+    details: <String>[
+      '2.5D 画布：音效随群系刷新（7 群系→推荐音效 id 集）+ 用户自行添加自定义音效块（file_picker 选音频→会话内注册→resolveBlockTypeById 统一解析）',
+      '世界主页精简为 3 入口：我的存档 / 开放世界 / 游戏设置，去掉多余装饰（光晕/骨架屏/空态），对接入口全部正确',
+      '播放页四件套：封面提色到背景渐变（blur24 + ColorFilter 矩阵提色）+ 动态粒子背景（3s 循环伪随机粒子层）+ 光源遮罩（RadialGradient 光晕 + 底部 scrim）+ 歌词跳动回弹（AnimatedScale 1.06 + easeOutBack 380ms，Apple Music 风格）',
+      '音乐卡片去白底：移除 bgSurface 实底，透出 ContentContainer 毛玻璃',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.19',
     cl: 'alpha_cl02',

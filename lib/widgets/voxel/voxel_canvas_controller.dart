@@ -222,7 +222,7 @@ class VoxelCanvasController extends ChangeNotifier {
     if (typeId == null) {
       pitchFrac = 0.5;
     } else {
-      final int idx = kVoxelBlockTypes.indexOf(voxelBlockTypeById(typeId));
+      final int idx = kVoxelBlockTypes.indexOf(resolveBlockTypeById(typeId));
       pitchFrac = kVoxelBlockTypes.length <= 1
           ? 0.5
           : idx / (kVoxelBlockTypes.length - 1);

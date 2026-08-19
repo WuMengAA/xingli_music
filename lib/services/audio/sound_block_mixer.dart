@@ -41,7 +41,7 @@ class SoundBlockMixer {
     _previewing = true;
     // 逐类混合：数量越多音量越高（cap 1.0）
     for (final MapEntry<String, int> e in counts.entries) {
-      final VoxelBlockType type = voxelBlockTypeById(e.key);
+      final VoxelBlockType type = resolveBlockTypeById(e.key);
       final String? path = await _resolveSfxPath(type.sfxKey);
       if (path == null) continue;
       final double volume = (type.baseVolume * e.value).clamp(0.0, 1.0);
@@ -78,8 +78,13 @@ class SoundBlockMixer {
   /// 与 [preview] 不同：不停止整场音景、不进入循环调度，
   /// 直接经 SFX 通道叠加播放（音量 = 单块基准音量），
   /// 供新版沉浸画布「点击方块发声」互动使用。
+  ///
+  /// 自定义音效（[VoxelBlockType.customPath] 非空）直接播放该文件；
+  /// 否则走 sfxKey → 资源目录解析（预设块）。
   Future<void> playType(VoxelBlockType type) async {
-    final String? path = await _resolveSfxPath(type.sfxKey);
+    final String? path = type.customPath?.isNotEmpty == true
+        ? type.customPath
+        : await _resolveSfxPath(type.sfxKey);
     if (path == null) return;
     await _audio.playSfx(path, volume: type.baseVolume.clamp(0.0, 1.0));
   }

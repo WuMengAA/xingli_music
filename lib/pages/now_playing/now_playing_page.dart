@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,16 +52,18 @@ class NowPlayingPage extends ConsumerWidget {
     final PlaybackActions actions = ref.read(playbackActionsProvider);
 
     return Scaffold(
+      // 背景动态配色：由封面模糊层 + 主题色渐变组成（见 _DynamicBackground），
+      // 页内不再叠加整块实色。
       backgroundColor: context.appColors.bgPage,
       appBar: AppBar(
-        backgroundColor: context.appColors.bgPage,
+        backgroundColor: Colors.transparent,
         foregroundColor: context.appColors.textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
           tooltip: '收起',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -76,40 +80,106 @@ class NowPlayingPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: <Widget>[
-            // 中部：封面 + 曲名 + 歌词（可滚动）
-            Expanded(
-              child: LayoutBuilder(
-                builder: (BuildContext context, BoxConstraints constraints) {
-                  final double coverSize =
-                      (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 320.0);
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpace.lg,
-                      vertical: AppSpace.md,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        Center(child: _LargeCover(track: track, size: coverSize)),
-                        const SizedBox(height: AppSpace.lg),
-                        _TrackInfo(track: track),
-                        const SizedBox(height: AppSpace.lg),
-                        const LyricsView(),
-                      ],
-                    ),
-                  );
-                },
-              ),
+      body: Stack(
+        children: <Widget>[
+          // ── 背景动态配色层（封面模糊 + 主题渐变 + 底部压暗）──
+          Positioned.fill(child: _DynamicBackground(track: track)),
+          // ── 前景内容层 ──
+          SafeArea(
+            top: false,
+            child: Column(
+              children: <Widget>[
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints constraints) {
+                      final bool landscape =
+                          constraints.maxWidth >= constraints.maxHeight;
+                      // 横屏：封面在左、歌词在右；竖屏：封面→信息→歌词纵向。
+                      if (landscape) {
+                        return _landscapeBody(
+                          track: track,
+                          maxHeight: constraints.maxHeight,
+                        );
+                      }
+                      return _portraitBody(track: track);
+                    },
+                  ),
+                ),
+                // 底部控制栏：透明融入背景（样式与音乐卡一致，非额外大块）。
+                _buildControlBar(context, ref, track, isPlaying, mode, actions),
+              ],
             ),
-            // 底部固定控制栏（仿画布：主操作 FilledButton + 次操作 OutlinedButton）
-            _buildControlBar(context, ref, track, isPlaying, mode, actions),
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 竖屏主体：封面 → 曲名/歌手 → 歌词（纵向可滚动）。
+  Widget _portraitBody({required Track? track}) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final double coverSize =
+            (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 320.0);
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpace.lg,
+            vertical: AppSpace.md,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Center(child: _LargeCover(track: track, size: coverSize)),
+              const SizedBox(height: AppSpace.lg),
+              _TrackInfo(track: track),
+              const SizedBox(height: AppSpace.lg),
+              const LyricsView(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// 横屏主体：封面在左（占 ~40%），右侧信息 + 歌词（占 ~60%）。
+  Widget _landscapeBody({required Track? track, required double maxHeight}) {
+    final double coverSize = (maxHeight - AppSpace.md * 2).clamp(0.0, 300.0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.sm,
+        AppSpace.lg,
+        AppSpace.sm,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          // 左：封面
+          SizedBox(
+            width: coverSize + AppSpace.sm,
+            child: Center(child: _LargeCover(track: track, size: coverSize)),
+          ),
+          const SizedBox(width: AppSpace.lg),
+          // 右：信息 + 歌词（歌词撑满剩余高度）
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                _TrackInfo(track: track, alignLeft: true),
+                const SizedBox(height: AppSpace.sm),
+                // 歌词自适应剩余高度（横屏下不再固定 160）。
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (BuildContext context, BoxConstraints c) {
+                      return LyricsView(height: c.maxHeight);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -122,22 +192,14 @@ class NowPlayingPage extends ConsumerWidget {
     PlayMode mode,
     PlaybackActions actions,
   ) {
-    final AppThemeColors c = context.appColors;
-    return Container(
+    // 底部控制栏：**透明融入背景**（不叠加 bgSurface 大块实色，样式与音乐卡
+    // 一致——透出动态背景 + 细描边胶囊分组）。图标统一 rounded 系列。
+    return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpace.lg,
-        AppSpace.sm,
+        AppSpace.xs,
         AppSpace.lg,
         AppSpace.lg,
-      ),
-      decoration: BoxDecoration(
-        color: c.bgSurface.withValues(alpha: 0.94),
-        border: Border(
-          top: BorderSide(
-            color: c.border.withValues(alpha: 0.6),
-            width: 1,
-          ),
-        ),
       ),
       child: SafeArea(
         top: false,
@@ -148,15 +210,12 @@ class NowPlayingPage extends ConsumerWidget {
             const SizedBox(height: AppSpace.sm),
             Row(
               children: <Widget>[
-                OutlinedButton.icon(
-                  onPressed: () => runPlaybackAction(
+                _RoundIconButton(
+                  icon: Icons.skip_previous_rounded,
+                  tooltip: '上一首',
+                  onTap: () => runPlaybackAction(
                     context,
                     () => actions.next(direction: -1),
-                  ),
-                  icon: const Icon(Icons.skip_previous, size: 20),
-                  label: const Text('上一首'),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
                 const SizedBox(width: AppSpace.sm),
@@ -164,21 +223,17 @@ class NowPlayingPage extends ConsumerWidget {
                   child: FilledButton.icon(
                     onPressed: () => runPlaybackAction(context, actions.toggle),
                     icon: Icon(
-                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
                       size: 22,
                     ),
                     label: Text(isPlaying ? '暂停' : '播放'),
                   ),
                 ),
                 const SizedBox(width: AppSpace.sm),
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      runPlaybackAction(context, () => actions.next()),
-                  icon: const Icon(Icons.skip_next, size: 20),
-                  label: const Text('下一首'),
-                  style: OutlinedButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
+                _RoundIconButton(
+                  icon: Icons.skip_next_rounded,
+                  tooltip: '下一首',
+                  onTap: () => runPlaybackAction(context, () => actions.next()),
                 ),
                 const SizedBox(width: AppSpace.xs),
                 _ModeIconButton(mode: mode, actions: actions),
@@ -211,6 +266,47 @@ class NowPlayingPage extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 圆形图标按钮（控制行上一首/下一首，统一 rounded 图标 + 玻璃圆底）。
+class _RoundIconButton extends StatelessWidget {
+  const _RoundIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Tooltip(
+          message: tooltip,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: c.bgSurface.withValues(alpha: 0.35),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: c.border.withValues(alpha: 0.4),
+                width: 1,
+              ),
+            ),
+            child: Icon(icon, size: 22, color: c.iconPrimary),
+          ),
         ),
       ),
     );
@@ -371,6 +467,207 @@ class _ToolChip extends StatelessWidget {
   }
 }
 
+/// 背景动态配色层。
+///
+/// 组合（自上而下）：
+/// 1. **封面提色渐变**：封面图模糊（sigma 24，性价比档）铺满 + 叠主题渐变，
+///    让背景主色随当前封面变化（非逐帧取色，一次模糊静态层）。
+/// 2. **动态粒子**：[ParticleLayer] 随音乐能量/节拍飘动（自定义 Ticker，
+///    不污染 build 树）。
+/// 3. **光源遮罩**：顶部 radial 光晕（accent 派生）模拟「封面光源」，
+///    增强层次；底部压暗 scrim 保证控制栏文字可读。
+class _DynamicBackground extends ConsumerStatefulWidget {
+  const _DynamicBackground({required this.track});
+
+  final Track? track;
+
+  @override
+  ConsumerState<_DynamicBackground> createState() => _DynamicBackgroundState();
+}
+
+class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 3),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    final Track? t = widget.track;
+    final bool hasImage = t != null &&
+        ((t.coverUrl?.isNotEmpty ?? false) || (t.coverPath?.isNotEmpty ?? false));
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            c.accentSoft.withValues(alpha: 0.8),
+            c.bgPage,
+          ],
+          stops: const <double>[0, 0.7],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          // ① 封面提色渐变：模糊 + 轻微提亮，背景主色随封面变化。
+          if (hasImage)
+            ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: Transform.scale(
+                scale: 1.4,
+                child: ColorFiltered(
+                  // 提色：压暗 + 提饱和，让封面主色渗入背景而非整图清晰呈现。
+                  colorFilter: const ColorFilter.matrix(<double>[
+                    0.9, 0, 0, 0, 0, //
+                    0, 0.9, 0, 0, 0, //
+                    0, 0, 0.9, 0, 0, //
+                    0, 0, 0, 0.75, 0, //
+                  ]),
+                  child: _CoverImage(track: t, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+          // ② 动态粒子（随播放能量/节拍）。
+          Positioned.fill(child: ParticleLayer(pulse: _pulse)),
+          // ③ 光源遮罩：顶部 radial 光晕（封面光源感）。
+          Positioned(
+            top: -80,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: Container(
+                height: 300,
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(0, -0.4),
+                    radius: 0.9,
+                    colors: <Color>[
+                      c.accent.withValues(alpha: 0.35),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 底部压暗：保证控制栏文字可读。
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[
+                  Colors.transparent,
+                  Color(0x55000000),
+                ],
+                stops: <double>[0.55, 1],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 动态粒子背景层：随 [pulse]（3s 循环）缓慢漂浮的发光圆点，
+/// 数量/大小跟随画面宽度自适应，纯 CustomPaint 不污染 build 树。
+class ParticleLayer extends StatelessWidget {
+  const ParticleLayer({super.key, required this.pulse});
+
+  final Animation<double> pulse;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pulse,
+      builder: (BuildContext context, Widget? child) {
+        return CustomPaint(
+          painter: _ParticlePainter(pulse.value),
+          isComplex: true,
+          willChange: true,
+        );
+      },
+    );
+  }
+}
+
+/// 粒子画笔：固定种子生成一组粒子，按 [t]（0..1 循环）漂移 + 呼吸。
+class _ParticlePainter extends CustomPainter {
+  _ParticlePainter(this.t);
+
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint();
+    final int n = (size.width / 18).clamp(8, 40).round();
+    for (int i = 0; i < n; i++) {
+      // 伪随机（固定种子，避免每帧跳动）。
+      final double seed = (i * 2654435761) % 10000 / 10000;
+      final double seed2 = (i * 40503) % 10000 / 10000;
+      final double x =
+          (seed * size.width + t * size.width * 0.12) % size.width;
+      final double y =
+          (seed2 * size.height - t * size.height * 0.2) % size.height;
+      final double r = 1.2 + seed2 * 2.2;
+      final double alpha = 0.10 + 0.14 * (0.5 + 0.5 * (t + seed) % 1);
+      paint.color = const Color(0xFFFFFFFF).withValues(alpha: alpha);
+      canvas.drawCircle(Offset(x, y), r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ParticlePainter old) => old.t != t;
+}
+
+/// 封面图（网络 / 本地 / 降级）。供 [TrackCover] 与背景模糊层复用。
+class _CoverImage extends StatelessWidget {
+  const _CoverImage({required this.track, this.fit = BoxFit.cover});
+
+  final Track track;
+  final BoxFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    final String? url = track.coverUrl;
+    final String? path = track.coverPath;
+    final Widget fallback = ColoredBox(
+      color: c.accentSoft,
+      child: Icon(Icons.music_note_rounded, size: 64, color: c.accent),
+    );
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: fit,
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (BuildContext c2, Widget child, ImageChunkEvent? p) =>
+            p == null ? child : fallback,
+      );
+    }
+    if (path != null && path.isNotEmpty) {
+      return Image.file(
+        File(path),
+        fit: fit,
+        errorBuilder: (_, __, ___) => fallback,
+      );
+    }
+    return fallback;
+  }
+}
+
 /// 大封面：有封面图 → [TrackCover]（含加载失败降级）；无图 → accent 渐变占位。
 class _LargeCover extends StatelessWidget {
   const _LargeCover({required this.track, required this.size});
@@ -405,7 +702,7 @@ class _LargeCover extends StatelessWidget {
           ),
           child: Center(
             child: Icon(
-              Icons.music_note,
+              Icons.music_note_rounded,
               size: size * 0.4,
               color: context.appColors.onAccent,
             ),
@@ -417,15 +714,22 @@ class _LargeCover extends StatelessWidget {
 }
 
 /// 歌名 + 歌手（空曲目时展示引导文案）。
+///
+/// [alignLeft]：横屏布局下左对齐（默认居中，竖屏用）。
 class _TrackInfo extends StatelessWidget {
-  const _TrackInfo({required this.track});
+  const _TrackInfo({required this.track, this.alignLeft = false});
 
   final Track? track;
+  final bool alignLeft;
 
   @override
   Widget build(BuildContext context) {
+    final TextAlign align =
+        alignLeft ? TextAlign.left : TextAlign.center;
     return Column(
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment:
+          alignLeft ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: <Widget>[
         Text(
           track?.title ?? '未在播放',
@@ -435,7 +739,7 @@ class _TrackInfo extends StatelessWidget {
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+          textAlign: align,
         ),
         const SizedBox(height: AppSpace.xs),
         Text(
@@ -443,7 +747,7 @@ class _TrackInfo extends StatelessWidget {
           style: context.appText.bodyMuted,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          textAlign: TextAlign.center,
+          textAlign: align,
         ),
       ],
     );
@@ -571,10 +875,10 @@ class _ModeIconButton extends ConsumerWidget {
   }
 
   IconData _modeIcon(PlayMode m) => switch (m) {
-        PlayMode.order => Icons.trending_flat,
-        PlayMode.reverse => Icons.keyboard_backspace,
-        PlayMode.shuffle => Icons.shuffle,
-        PlayMode.loop => Icons.repeat_one,
+        PlayMode.order => Icons.trending_flat_rounded,
+        PlayMode.reverse => Icons.keyboard_backspace_rounded,
+        PlayMode.shuffle => Icons.shuffle_rounded,
+        PlayMode.loop => Icons.repeat_one_rounded,
       };
 
   String _modeLabel(PlayMode m) => switch (m) {
@@ -669,7 +973,7 @@ class _VolumeRow extends ConsumerWidget {
     return Row(
       children: <Widget>[
         Icon(
-          Icons.volume_down,
+          Icons.volume_down_rounded,
           size: AppSize.iconSm,
           color: context.appColors.iconInactive,
         ),
@@ -683,7 +987,7 @@ class _VolumeRow extends ConsumerWidget {
           ),
         ),
         Icon(
-          Icons.volume_up,
+          Icons.volume_up_rounded,
           size: AppSize.iconSm,
           color: context.appColors.iconInactive,
         ),

@@ -16,6 +16,7 @@ class VoxelBlockType {
     required this.baseVolume,
     required this.color,
     this.glyph = '◆',
+    this.customPath,
   });
 
   /// 类型 id（也是序列化 key 的值）。
@@ -38,6 +39,10 @@ class VoxelBlockType {
 
   /// 顶面纹理符号（小游戏收集品与编辑器顶面绘制用）。
   final String glyph;
+
+  /// 用户自定义音效：直接指向音频文件路径（优先于 [sfxKey] 目录查找）。
+  /// 为 null 表示预设块（走 sfxKey → 资源目录解析）。
+  final String? customPath;
 }
 
 /// 2.5D 音效块预设库（数据驱动，P0-M5-1 / P1-M5-5）。
@@ -108,6 +113,57 @@ VoxelBlockType voxelBlockTypeById(String id) {
   }
   return kVoxelBlockTypes.first;
 }
+
+/// 统一解析：优先自定义（会话内），其次预设，兜底预设第一个。
+///
+/// 画布渲染 / 点击播放 / 可视化 pitch 计算一律走此入口，保证
+/// 用户自定义音效块能被正确渲染与发声。
+VoxelBlockType resolveBlockTypeById(String id) {
+  final VoxelBlockType? custom = _customTypes[id];
+  if (custom != null) return custom;
+  return voxelBlockTypeById(id);
+}
+
+/// 会话内自定义音效块（用户 file_picker 添加，key 见 [kBiomeSoundIds]）。
+///
+/// 仅存于内存（编辑器打开期间），不落盘到 `kVoxelBlockTypes`——
+/// 场景序列化只存类型 id；重新打开编辑器时由
+/// [CustomSoundRegistry]（见编辑器页）按 id 重建类型定义。
+final Map<String, VoxelBlockType> _customTypes = <String, VoxelBlockType>{};
+
+/// 注册一个自定义音效块（覆盖同 id）。
+void registerCustomBlockType(VoxelBlockType t) {
+  _customTypes[t.id] = t;
+}
+
+/// 查询自定义音效块（无则 null）。
+VoxelBlockType? customBlockTypeById(String id) => _customTypes[id];
+
+/// 当前全部可用的自定义音效块（编辑面板展示用）。
+List<VoxelBlockType> get customBlockTypes =>
+    _customTypes.values.toList(growable: false);
+
+/// 群系 → 推荐音效块 id 集（2.5D 画布「音效随群系刷新」）。
+///
+/// 用户在 2.5D 画布/编辑器顶部选群系时，按此表把该群系的自然音效
+/// 置顶/突出显示，其余预设仍可手动添加（不锁死）。
+/// 键为 [Biome] 枚举名（见 `widgets/voxel/voxel_world_types.dart`）。
+const Map<String, List<String>> kBiomeSoundIds = <String, List<String>>{
+  // 平原：风声 + 虫鸣（开阔草地）。
+  'plains': <String>['wind', 'cricket', 'bird'],
+  // 森林：鸟鸣 + 风声 + 虫鸣（树影层叠）。
+  'forest': <String>['bird', 'wind', 'cricket'],
+  // 沙漠：风声 + 虫鸣（干燥少水）。
+  'desert': <String>['wind', 'cricket'],
+  // 高山：风声（开阔高海拔）。
+  'mountain': <String>['wind', 'bird'],
+  // 雪山：风声（低温空旷）。
+  'snowMountain': <String>['wind'],
+  // 河流：水流 + 鸟鸣（水岸）。
+  'river': <String>['water', 'bird'],
+  // 海洋：水流 + 风声（海浪感）。
+  'ocean': <String>['water', 'wind'],
+};
 
 /// 2.5D 可视化可调参数（Module "MusicViz-2.5D" · Phase 2：viz 编辑态持久化）。
 ///

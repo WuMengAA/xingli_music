@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -172,10 +173,83 @@ class _VoxelSoundEditorPageState extends ConsumerState<VoxelSoundEditorPage> {
 }
 
 /// 音效块面板（选择类型）。
-class _BlockPanel extends StatelessWidget {
+///
+/// 增强（#555）：
+/// - **群系音效**：顶部 7 个群系 chips（平原/森林/沙漠/高山/雪山/河流/海洋），
+///   选中后该群系推荐音效置顶高亮（[kBiomeSoundIds] 映射），其余预设仍可点选。
+/// - **自定义音效**：「+ 自定义」按钮 → file_picker 选音频 → 命名 → 注册进
+///   会话内 [registerCustomBlockType]，与预设合并展示；点击方块即播放该文件。
+class _BlockPanel extends ConsumerStatefulWidget {
   const _BlockPanel({required this.controller});
 
   final VoxelCanvasController controller;
+
+  @override
+  ConsumerState<_BlockPanel> createState() => _BlockPanelState();
+}
+
+class _BlockPanelState extends ConsumerState<_BlockPanel> {
+  /// 当前选中的群系（null = 不筛选，全部展示）。
+  String? _biome;
+
+  /// 合并后的可用类型：预设 + 会话内自定义。
+  List<VoxelBlockType> get _types => <VoxelBlockType>[
+        ...kVoxelBlockTypes,
+        ...customBlockTypes,
+      ];
+
+  /// 群系推荐音效 id 集（选中群系时置顶高亮）。
+  List<String>? get _recommended => _biome == null ? null : kBiomeSoundIds[_biome];
+
+  Future<void> _addCustom() async {
+    final FilePickerResult? result = await FilePicker.pickFiles(
+      type: FileType.audio,
+      allowMultiple: false,
+    );
+    final String? path = result?.files.single.path;
+    if (path == null || !mounted) return;
+    final String name = path.split(RegExp(r'[/\\]')).last;
+    // 命名弹窗：默认取文件名（去扩展名）。
+    final TextEditingController ctrl =
+        TextEditingController(text: name.replaceAll(RegExp(r'\.\w+$'), ''));
+    final String? finalName = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('自定义音效'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: '名称'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
+    if (finalName == null || finalName.isEmpty || !mounted) return;
+    // 注册自定义块：唯一 id（时间戳），sfxKey 置空、customPath 指向文件。
+    registerCustomBlockType(
+      VoxelBlockType(
+        id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
+        name: finalName,
+        icon: Icons.audio_file_rounded,
+        sfxKey: '',
+        baseVolume: 0.3,
+        color: const Color(0xFF9B7BFF),
+        glyph: '♪',
+        customPath: path,
+      ),
+    );
+    setState(() {});
+    appNotify(context, '已添加自定义音效「$finalName」');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -188,22 +262,58 @@ class _BlockPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('音效块', style: AppTextStyles.subtitle),
+          // 群系音效 chips 行。
+          SizedBox(
+            height: 34,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: <Widget>[
+                for (final String b in kBiomeSoundIds.keys) ...<Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(right: AppSpace.xs),
+                    child: ChoiceChip(
+                      label: Text(_biomeLabel(b)),
+                      selected: _biome == b,
+                      onSelected: (bool sel) =>
+                          setState(() => _biome = sel ? b : null),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
           const SizedBox(height: AppSpace.sm),
+          Row(
+            children: <Widget>[
+              Text('音效块', style: AppTextStyles.subtitle),
+              const Spacer(),
+              // 自定义音效入口。
+              TextButton.icon(
+                onPressed: _addCustom,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('自定义'),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpace.xs),
           Expanded(
             child: ListenableBuilder(
-              listenable: controller,
+              listenable: widget.controller,
               builder: (BuildContext context, Widget? child) {
                 return GridView.count(
                   crossAxisCount: 3,
                   mainAxisSpacing: AppSpace.xs,
                   crossAxisSpacing: AppSpace.xs,
                   children: <Widget>[
-                    for (final VoxelBlockType type in kVoxelBlockTypes)
+                    // 先展示群系推荐（选中时），再展示其余。
+                    for (final VoxelBlockType type
+                        in _sortedTypes())
                       _BlockTypeTile(
                         type: type,
-                        selected: controller.selected.id == type.id,
-                        onTap: () => controller.selected = type,
+                        recommended: _recommended?.contains(type.id) ?? false,
+                        selected: widget.controller.selected.id == type.id,
+                        onTap: () => widget.controller.selected = type,
                       ),
                   ],
                 );
@@ -214,6 +324,33 @@ class _BlockPanel extends StatelessWidget {
       ),
     );
   }
+
+  /// 群系推荐音效置顶 + 高亮；未选群系按原顺序（预设在前、自定义在后）。
+  List<VoxelBlockType> _sortedTypes() {
+    final List<String>? rec = _recommended;
+    if (rec == null || rec.isEmpty) return _types;
+    final List<VoxelBlockType> recTypes = <VoxelBlockType>[];
+    final List<VoxelBlockType> rest = <VoxelBlockType>[];
+    for (final VoxelBlockType t in _types) {
+      if (rec.contains(t.id)) {
+        recTypes.add(t);
+      } else {
+        rest.add(t);
+      }
+    }
+    return <VoxelBlockType>[...recTypes, ...rest];
+  }
+
+  static String _biomeLabel(String key) => switch (key) {
+        'plains' => '平原',
+        'forest' => '森林',
+        'desert' => '沙漠',
+        'mountain' => '高山',
+        'snowMountain' => '雪山',
+        'river' => '河流',
+        'ocean' => '海洋',
+        _ => key,
+      };
 }
 
 class _BlockTypeTile extends StatelessWidget {
@@ -221,16 +358,21 @@ class _BlockTypeTile extends StatelessWidget {
     required this.type,
     required this.selected,
     required this.onTap,
+    this.recommended = false,
   });
 
   final VoxelBlockType type;
   final bool selected;
+  final bool recommended;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final bool isCustom = type.customPath?.isNotEmpty == true;
     return Material(
-      color: selected ? AppColors.accentSoft : AppColors.bgCard,
+      color: selected
+          ? AppColors.accentSoft
+          : (recommended ? const Color(0x1A9B7BFF) : AppColors.bgCard),
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
         onTap: onTap,
@@ -239,7 +381,9 @@ class _BlockTypeTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: selected ? AppColors.accent : AppColors.borderDefault,
+              color: selected
+                  ? AppColors.accent
+                  : (recommended ? const Color(0x669B7BFF) : AppColors.borderDefault),
             ),
           ),
           padding: const EdgeInsets.all(AppSpace.xs),
@@ -256,6 +400,13 @@ class _BlockTypeTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              if (isCustom)
+                Text(
+                  '自定义',
+                  style: AppTextStyles.caption.copyWith(fontSize: 9),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
             ],
           ),
         ),

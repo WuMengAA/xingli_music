@@ -173,7 +173,7 @@ class _VoxelPainter extends CustomPainter {
         cell.$2,
       )];
       if (typeId == null) continue;
-      final VoxelBlockType type = voxelBlockTypeById(typeId);
+      final VoxelBlockType type = resolveBlockTypeById(typeId);
       final String key = VoxelCanvasController.keyOf(cell.$1, cell.$2);
 
       // ── Module "MusicViz-2.5D"：音乐驱动的高度起伏 + 脉冲 + 亮度 ──

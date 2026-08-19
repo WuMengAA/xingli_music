@@ -726,7 +726,13 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
         return Center(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: AnimatedDefaultTextStyle(
+            // Apple Music 风格「跳动回弹」：激活行 scale 1.0→1.06→1.0，
+            // 弹性曲线模拟轻快弹跳；非激活行保持 1.0（无动画）。
+            child: AnimatedScale(
+              scale: active ? 1.06 : 1.0,
+              duration: const Duration(milliseconds: 380),
+              curve: Curves.easeOutBack,
+              child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOut,
               style: TextStyle(
@@ -771,7 +777,8 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
                     ),
                 ],
               ),
-            ),
+              ), // AnimatedDefaultTextStyle
+            ), // AnimatedScale
           ),
         );
       },

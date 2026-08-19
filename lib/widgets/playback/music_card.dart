@@ -48,19 +48,20 @@ class MusicCard extends ConsumerWidget {
                 builder: (_) => const NowPlayingPage(),
               ),
             );
-    return Container(
-      // 仅保留实底 + 细描边，移除背景外的额外遮罩（scrim 投影）。
-      // 背景（bgSurface）保留，符合「不要背景外的遮罩、不是不要背景」的要求。
-      decoration: BoxDecoration(
-        color: c.bgSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: c.border.withValues(alpha: 0.6),
-          width: 1,
+    // 独立 UI 卡片：**透明背景**（无 c.bgSurface 实底白），透出下层
+    // ContentContainer 的 frosted 玻璃（全 Tab 常驻在玻璃容器上）。
+    // 仅保留细描边 + 圆角界定卡片范围；内部 UnifiedPlayer 紧凑面板自带
+    // 极淡 tint 玻璃，叠加后无白底、无重影。播放控制与歌词逻辑完全保留。
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: c.border.withValues(alpha: 0.4),
+            width: 1,
+          ),
         ),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
         child: UnifiedPlayer(
           onOpenNowPlaying: openNowPlaying,
           // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。

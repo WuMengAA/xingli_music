@@ -171,7 +171,7 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
     final String? typeId =
         _controller.blocks[VoxelCanvasController.keyOf(col, row)];
     if (typeId == null) return;
-    await _ensureMixer.playType(voxelBlockTypeById(typeId));
+    await _ensureMixer.playType(resolveBlockTypeById(typeId));
   }
 
   @override
