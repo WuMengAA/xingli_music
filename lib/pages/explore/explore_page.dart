@@ -63,11 +63,11 @@ class ExplorePage extends ConsumerWidget {
           children: <Widget>[
             _SearchBar(onTap: openSearch),
             const SizedBox(height: AppSpace.md),
-            _FeaturedCard(onTap: goWorld),
+            _FeaturedCard(onTap: goLibrary),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel('场景音乐'),
             const SizedBox(height: AppSpace.md),
-            _SceneRow(onTap: goWorld),
+            _SceneRow(onTap: goLibrary),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel('热门歌单'),
             const SizedBox(height: AppSpace.md),
@@ -152,7 +152,7 @@ class _SearchBar extends StatelessWidget {
 }
 
 /// 精选大卡（345×160，圆角 20）。画布为紫色渐变 hero，用主题强调色派生，
-/// 不写死品牌色。点击进入星璃世界（场景）。
+/// 不写死品牌色。点击进入曲库（真实音乐内容）。
 class _FeaturedCard extends StatelessWidget {
   const _FeaturedCard({required this.onTap});
   final VoidCallback onTap;
@@ -186,7 +186,7 @@ class _FeaturedCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '夜航 · 星河群岛 · 黄昏氛围',
+              '用精选配乐，构筑你的星璃世界',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w400,

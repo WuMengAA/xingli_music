@@ -75,11 +75,11 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 18;
+  static const int day = 19;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
-  static const UpdateChannel channel = UpdateChannel.beta;
+  static const UpdateChannel channel = UpdateChannel.alpha;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -336,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 8;
+  static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +401,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.19',
+    cl: 'alpha_cl01',
+    title: '音乐卡片独立化 + 整页播放器 + 星璃世界命名规范',
+    details: <String>[
+      '版权：世界入口「我的世界」更名「星璃世界」（规避《Minecraft》商标侵权）；技术标识符（Minecraft* 类名 / sourceId:\'minecraft\' / minecraft_music 目录）保留不动',
+      '音乐卡片独立化：移除场景页内嵌副本、AppShell 改为全 Tab 常驻单例，根除双播放器根因',
+      '整页播放器：点击音乐卡片弹出整页 NowPlayingPage（实底、非透明 Overlay），底部固定控制栏仿画布（上一首 / 播放暂停 / 下一首 / 播放模式 / 音量 / 音质）',
+      '探索页清理：移除虚构场景卡片跳转，导向真实曲库',
+      '命名规范：naming_dict 扩充 world / canvas / voxel 延伸命名空间，画布与应用术语统一',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.19',
     cl: 'beta_cl08',

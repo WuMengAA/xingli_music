@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../lyrics/lyrics_view.dart';
 import 'unified_player.dart';
+import '../../pages/now_playing/now_playing_page.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 独立可复用的「音乐卡」UI（#419）
@@ -27,8 +28,9 @@ class MusicCard extends ConsumerWidget {
 
   /// 透传「点击信息区（封面 + 曲名）」回调。
   ///
-  /// 默认 null → 由 [UnifiedPlayer] 打开全屏播放卡片（R23j）；
-  /// 传入则优先走外部回调（兼容旧接入）。
+  /// 默认 null → [MusicCard] 自行 `Navigator.push` 至整页 [NowPlayingPage]
+  /// （#549，取代 [UnifiedPlayer] 的透明 Overlay）；传入则优先走外部回调
+  /// （兼容游戏内 HUD 等旧接入）。
   final VoidCallback? onOpenNowPlaying;
 
   @override
@@ -37,6 +39,15 @@ class MusicCard extends ConsumerWidget {
     // 独立 UI 卡片：不透明实底 + 细描边 + 轻投影（低特效）。
     // 内部紧凑面板本就是 transparent 毛玻璃，透出本容器实色后不再有玻璃
     // 扭曲观感；播放控制与歌词逻辑完全保留（不改动 UnifiedPlayer）。
+    // #549：默认点击信息区 → 打开整页播放器（[NowPlayingPage]），而非
+    // [UnifiedPlayer] 的透明 Overlay。外部显式传入 onOpenNowPlaying 时仍
+    // 走外部回调（兼容游戏内 HUD 等旧接入，保持零回归）。
+    final VoidCallback openNowPlaying = onOpenNowPlaying ??
+        () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const NowPlayingPage(),
+              ),
+            );
     return Container(
       // 仅保留实底 + 细描边，移除背景外的额外遮罩（scrim 投影）。
       // 背景（bgSurface）保留，符合「不要背景外的遮罩、不是不要背景」的要求。
@@ -51,7 +62,7 @@ class MusicCard extends ConsumerWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: UnifiedPlayer(
-          onOpenNowPlaying: onOpenNowPlaying,
+          onOpenNowPlaying: openNowPlaying,
           // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
           lyricsSlot: const LyricsView(),
         ),

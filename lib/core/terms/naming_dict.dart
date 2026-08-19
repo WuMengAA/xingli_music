@@ -37,6 +37,22 @@ abstract final class Terms {
   /// 通知中心（三合一：运行状态 / 媒体控制 / 场景状态）。
   static const String notificationCenter = '通知中心';
 
+  // ── 延伸命名空间（世界 / 画布 / 播放，避免各页自行拼写「我的世界」等）──
+  /// 星璃世界（底部 Dock「世界」Tab 入口；原误用《我的世界》商标，统一更名）。
+  static const String world = '星璃世界';
+
+  /// 体素世界（3D 开放世界本体）。
+  static const String voxelWorld = '体素世界';
+
+  /// 2.5D 音效画布（场景音效可视化编辑界面）。
+  static const String canvas = '2.5D 音效画布';
+
+  /// 正在播放（整页播放器标题）。
+  static const String playing = '正在播放';
+
+  /// 存档（名词；区别于动词 [save]）。
+  static const String manualSave = '存档';
+
   // ── 常用动词 / 短语（避免各页自行拼写）───────────────────
   /// 添加（音源 / 场景等）。
   static const String add = '添加';

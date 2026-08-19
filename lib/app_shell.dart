@@ -331,9 +331,8 @@ class _AppShellState extends ConsumerState<AppShell> {
                   final double bottomPad = keyboardInset.clamp(0.0, room);
 
                   // 布局对齐场景页：内容(弹性) + 底部播放器(带边距)。
-                  // 播放器在 ContentContainer 内部、IndexedStack 下方，
-                  // 与场景页 PageScaffold.body 的「内容 + 播放面板」同构；
-                  // 仅非场景页显示（场景页自带播放面板，避免双播放器）。
+                  // 播放器在 ContentContainer 内部、IndexedStack 下方，始终常驻
+                  // （所有 Tab 共用单个 [MusicCard] 实例，场景页不再内嵌，避免双播放器）。
                   return ContentContainer(
                     child: Column(
                       children: <Widget>[
@@ -359,18 +358,16 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   ),
                           ),
                         ),
-                        if (pageIndex != ShellPage.home) ...<Widget>[
-                          const SizedBox(height: AppSpace.sm),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpace.md,
-                              AppSpace.sm,
-                              AppSpace.md,
-                              AppSpace.sm,
-                            ),
-                            child: const MusicCard(),
+                        const SizedBox(height: AppSpace.sm),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            AppSpace.md,
+                            AppSpace.sm,
+                            AppSpace.md,
+                            AppSpace.sm,
                           ),
-                        ],
+                          child: const MusicCard(),
+                        ),
                       ],
                     ),
                   );

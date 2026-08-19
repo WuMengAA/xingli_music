@@ -14,7 +14,6 @@ import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
-import '../../widgets/playback/music_card.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
@@ -271,15 +270,6 @@ class HomeSceneContent extends ConsumerWidget {
                         ),
                     ],
                   ),
-                ),
-                const SizedBox(height: AppSpace.lg),
-
-                // ── 底部胶囊音乐卡（复用 MusicCard）────────────
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                  // 歌词区：LyricsView 内嵌进音乐卡，自行跟随 audio_providers 的
-                  // 当前曲目与播放进度（全屏播放时显示）。
-                  child: const MusicCard(),
                 ),
                 const SizedBox(height: AppSpace.lg),
               ],

@@ -175,7 +175,9 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
           size: 22,
           active: _fullscreen,
           tooltip: _fullscreen ? '退出全屏' : '全屏播放',
-          onTap: _fullscreen ? _exitFullscreen : _enterFullscreen,
+          onTap: _fullscreen
+              ? _exitFullscreen
+              : (widget.onOpenNowPlaying ?? _enterFullscreen),
         ),
         PlaybackIconButton(
           icon: _collapsed

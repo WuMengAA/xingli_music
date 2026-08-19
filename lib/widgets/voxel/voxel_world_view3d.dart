@@ -718,7 +718,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     } else if (widget.isNewWorld) {
       _currentMeta = <String, dynamic>{
         'id': _effectiveSaveId,
-        'name': widget.saveName ?? '我的世界',
+        'name': widget.saveName ?? '星璃世界',
         'createdAt': DateTime.now().toIso8601String(),
         'kind': 'manual',
       };
@@ -3642,7 +3642,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// R26r15：备份=快照「当前正在玩的世界」（自动存档），**不切换**世界——
   /// 备份后你仍运行原存档，需手动在存档列表点「进入」才读取该备份。
   /// 备份落到「当前世界所属存档」：正在玩某备份(_meta.parent)则归父存档；
-  /// 否则归最近手动存档；都没有则新建「我的世界」。保证「备份的备份还是备份」
+  /// 否则归最近手动存档；都没有则新建「星璃世界」。保证「备份的备份还是备份」
   /// （平铺、不套娃）。这是唯一的备份入口，语义与使用处文案完全统一。
   Future<void> _doBackupCurrent() async {
     final Map<String, dynamic>? cur = await readVoxelSaveForId(_saveId);
@@ -3666,9 +3666,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final List<VoxelManualSaveMeta> saves = await listManualSaves();
     if (!mounted) return;
     if (saves.isEmpty) {
-      final String id = await writeManualSave(cur, '我的世界');
+      final String id = await writeManualSave(cur, '星璃世界');
       await createBackup(id);
-      if (mounted) _snack('已新建并备份「我的世界」');
+      if (mounted) _snack('已新建并备份「星璃世界」');
       return;
     }
     await createBackup(saves.first.id);

@@ -1,11 +1,12 @@
-import '../../core/theme/app_theme_colors.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/utils/format.dart';
+import '../../core/terms/naming_dict.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
@@ -13,39 +14,36 @@ import '../../providers/audio/music_quality_provider.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
+import '../../widgets/lyrics/lyrics_view.dart';
 import '../../widgets/sources/music_quality_sheet.dart';
 
-/// ⚠️ 封存归档（R26 第 9 项反馈）：纯色大底全屏播放器入口已封存、等待删除。
-/// 游戏内与主页的音乐 UI 已由顶部居中的液态玻璃播放器 [UnifiedPlayer] 取代；
-/// 本页不再有任何 `Navigator.push` 入口（app_shell 与 voxel_world_view3d 均已切断）。
+/// 整页正在播放（#552：从零重建）。
 ///
-/// 完整播放页（架构 §5 T05 / PRD P1-04、P1-05、P1-10、P1-12）
+/// 取代 [UnifiedPlayer] 的透明 Overlay 全屏播放——用户反馈「不要简简单单的透明
+/// 背景」。点击音乐卡信息区（[MusicCard] 默认 `onOpenNowPlaying`）即 `Navigator.push`
+/// 至此整页。
 ///
-/// 原由 `MiniPlayer` 左胶囊点击打开（`AppShell` 中接入 `Navigator.push`），现已封存。
-/// 浅色扁平化页面，取色一律走 [AppColors] / [AppTextStyles]，
-/// 禁止任何颜色十六进制字面量与暗色画布资产（门禁 C1 / V2）。
+/// ### 布局（底部控制栏仿 [voxel_canvas_page]）
+/// - 顶部：返回（收起）+ 标题「正在播放」。
+/// - 中部：大封面 + 曲名 + 歌手 + 歌词（可滚动）。
+/// - **底部固定控制栏**：主操作 FilledButton（播放 / 暂停，占满）+ 次操作
+///   OutlinedButton（上一首 / 下一首）+ 播放模式切换；其上为进度条、其下为
+///   可折叠音量 + 音质入口。
 ///
 /// 数据源全部来自既有 provider（唯一真源，禁止本地 setState 推断播放态）：
 /// - [nowPlayingProvider] 当前曲目
-/// - [isPlayingProvider] 播放 / 暂停（Stream，永远与引擎一致）
+/// - [isPlayingProvider] 播放 / 暂停（永远与引擎一致）
 /// - [musicPositionProvider] / [musicDurationProvider] 进度
 /// - [playModeProvider] 播放模式
 /// - [musicVolumeProvider] 音量
-/// - [playbackActionsProvider] 播放动作唯一入口（返回值经 SnackBar 消费）
-///
-/// 窄屏兜底（P1-10）：整页放在 [SingleChildScrollView] 内，任意高度 / 320dp
-/// 窄屏都不会溢出；封面尺寸由 [LayoutBuilder] 按可用宽度派生。
-@Deprecated(
-  '封存归档、等待删除：音乐 UI 已统一迁移至 UnifiedPlayer（顶部居中液态玻璃播放器）',
-)
+/// - [playbackActionsProvider] 播放动作唯一入口（返回值经 toast 消费）
 class NowPlayingPage extends ConsumerWidget {
   const NowPlayingPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Track? track = ref.watch(nowPlayingProvider);
-    final bool isPlaying =
-        ref.watch(isPlayingProvider).valueOrNull ?? false;
+    final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
     final PlayMode mode = ref.watch(playModeProvider);
     final PlaybackActions actions = ref.read(playbackActionsProvider);
 
@@ -63,9 +61,8 @@ class NowPlayingPage extends ConsumerWidget {
           tooltip: '收起',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('正在播放', style: context.appText.title),
+        title: Text(Terms.playing, style: context.appText.title),
         actions: <Widget>[
-          // R26skel-b6：音乐面板上的聚合搜索入口。
           IconButton(
             icon: const Icon(Icons.search_rounded),
             tooltip: '聚合搜索',
@@ -79,53 +76,130 @@ class NowPlayingPage extends ConsumerWidget {
       ),
       body: SafeArea(
         top: false,
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            // 封面 = 可用宽度减去左右内边距，封顶 320dp（P1-10 窄屏自适应）
-            final double coverSize =
-                (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 320.0);
-            return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.lg,
-                vertical: AppSpace.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  Center(child: _LargeCover(track: track, size: coverSize)),
-                  const SizedBox(height: AppSpace.lg),
-                  _TrackInfo(track: track),
-                  const SizedBox(height: AppSpace.lg),
-                  const _SeekBarSection(),
-                  const SizedBox(height: AppSpace.lg),
-                  _ControlsRow(
-                    isPlaying: isPlaying,
-                    mode: mode,
-                    actions: actions,
-                  ),
-                  const SizedBox(height: AppSpace.sm),
-                  // R26skel-b6：音乐面板音质/清晰度入口（点开改）。
-                  Center(
-                    child: OutlinedButton.icon(
-                      onPressed: () => showMusicQualitySheet(context),
-                      icon: const Icon(Icons.high_quality_rounded, size: 16),
-                      label: Text(
-                        _qualityLabel(ref),
-                        style: context.appText.caption,
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                      ),
+        child: Column(
+          children: <Widget>[
+            // 中部：封面 + 曲名 + 歌词（可滚动）
+            Expanded(
+              child: LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final double coverSize =
+                      (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 320.0);
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.lg,
+                      vertical: AppSpace.md,
                     ),
-                  ),
-                  const SizedBox(height: AppSpace.lg),
-                  const _CollapsibleVolumeRow(),
-                ],
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Center(child: _LargeCover(track: track, size: coverSize)),
+                        const SizedBox(height: AppSpace.lg),
+                        _TrackInfo(track: track),
+                        const SizedBox(height: AppSpace.lg),
+                        const LyricsView(),
+                      ],
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+            // 底部固定控制栏（仿画布：主操作 FilledButton + 次操作 OutlinedButton）
+            _buildControlBar(context, ref, track, isPlaying, mode, actions),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildControlBar(
+    BuildContext context,
+    WidgetRef ref,
+    Track? track,
+    bool isPlaying,
+    PlayMode mode,
+    PlaybackActions actions,
+  ) {
+    final AppThemeColors c = context.appColors;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        AppSpace.sm,
+        AppSpace.lg,
+        AppSpace.lg,
+      ),
+      decoration: BoxDecoration(
+        color: c.bgSurface.withValues(alpha: 0.94),
+        border: Border(
+          top: BorderSide(
+            color: c.border.withValues(alpha: 0.6),
+            width: 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const _SeekBarSection(),
+            const SizedBox(height: AppSpace.sm),
+            Row(
+              children: <Widget>[
+                OutlinedButton.icon(
+                  onPressed: () => runPlaybackAction(
+                    context,
+                    () => actions.next(direction: -1),
+                  ),
+                  icon: const Icon(Icons.skip_previous, size: 20),
+                  label: const Text('上一首'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => runPlaybackAction(context, actions.toggle),
+                    icon: Icon(
+                      isPlaying ? Icons.pause : Icons.play_arrow,
+                      size: 22,
+                    ),
+                    label: Text(isPlaying ? '暂停' : '播放'),
+                  ),
+                ),
+                const SizedBox(width: AppSpace.sm),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      runPlaybackAction(context, () => actions.next()),
+                  icon: const Icon(Icons.skip_next, size: 20),
+                  label: const Text('下一首'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+                const SizedBox(width: AppSpace.xs),
+                _ModeIconButton(mode: mode, actions: actions),
+              ],
+            ),
+            const SizedBox(height: AppSpace.sm),
+            const _CollapsibleVolumeRow(),
+            const SizedBox(height: AppSpace.xs),
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: () => showMusicQualitySheet(context),
+                icon: const Icon(Icons.high_quality_rounded, size: 16),
+                label: Text(
+                  _qualityLabel(ref),
+                  style: context.appText.caption,
+                ),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -148,7 +222,6 @@ class _LargeCover extends StatelessWidget {
     if (hasImage) {
       return TrackCover(track: t, size: size, radius: AppRadius.lg);
     }
-    // 主色渐变占位（派生自 context.appColors.accent，不引动态主题）
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: SizedBox(
@@ -159,7 +232,10 @@ class _LargeCover extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: <Color>[context.appColors.accentSoft, context.appColors.accent],
+              colors: <Color>[
+                context.appColors.accentSoft,
+                context.appColors.accent,
+              ],
             ),
           ),
           child: Center(
@@ -209,10 +285,7 @@ class _TrackInfo extends StatelessWidget {
   }
 }
 
-/// 进度区：可拖拽 / 点按的进度条 + 当前 / 总时长（P1-05）。
-///
-/// 直播流（`duration == null`）退化为纯装饰轨道，不响应手势（与 MiniPlayer
-/// 同款策略）。拖拽中显示临时比例，松手后经 [audioServiceProvider.seek] 提交。
+/// 进度区：可拖拽 / 点按的进度条 + 当前 / 总时长。
 class _SeekBarSection extends ConsumerStatefulWidget {
   const _SeekBarSection();
 
@@ -221,7 +294,6 @@ class _SeekBarSection extends ConsumerStatefulWidget {
 }
 
 class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
-  /// 拖拽中的临时比例；`null` = 未拖拽，跟随播放流
   double? _dragRatio;
 
   Future<void> _commit(Duration? duration) async {
@@ -237,11 +309,10 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
     final Duration position =
         ref.watch(musicPositionProvider).valueOrNull ?? Duration.zero;
     final Duration? duration = ref.watch(musicDurationProvider).valueOrNull;
-    final bool seekable =
-        duration != null && duration.inMilliseconds > 0;
+    final bool seekable = duration != null && duration.inMilliseconds > 0;
     final double ratio = _dragRatio ??
         (seekable
-            ? (position.inMilliseconds / duration.inMilliseconds)
+            ? (position.inMilliseconds / duration!.inMilliseconds)
                 .clamp(0.0, 1.0)
             : 0.0);
 
@@ -297,8 +368,7 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
               formatDuration(
                 duration != null
                     ? Duration(
-                        milliseconds:
-                            (ratio * duration.inMilliseconds).round())
+                        milliseconds: (ratio * duration.inMilliseconds).round())
                     : position,
               ),
               style: context.appText.caption,
@@ -311,121 +381,53 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
   }
 }
 
-/// 4 个控制按钮：上一首 / 播放暂停 / 下一首 / 播放模式（P1-04）。
-///
-/// 所有动作走 [runPlaybackAction]，返回值（空串 = 成功）统一 SnackBar 消费。
-/// 播放模式循环顺序与 `MiniPlayer` / `MorePanel` 完全一致。
-class _ControlsRow extends StatelessWidget {
-  const _ControlsRow({
-    required this.isPlaying,
-    required this.mode,
-    required this.actions,
-  });
+/// 播放模式图标按钮（循环顺序与全局一致）。点击切换并轻提示。
+class _ModeIconButton extends ConsumerWidget {
+  const _ModeIconButton({required this.mode, required this.actions});
 
-  final bool isPlaying;
   final PlayMode mode;
   final PlaybackActions actions;
 
-  static IconData _modeIcon(PlayMode m) => switch (m) {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return IconButton(
+      icon: Icon(
+        _modeIcon(mode),
+        size: 22,
+        color: context.appColors.iconPrimary,
+      ),
+      tooltip: '播放模式：${_modeLabel(mode)}',
+      onPressed: () {
+        final PlayMode next = _nextMode(mode);
+        actions.setMode(next);
+        showPlaybackToast(context, '播放模式：${_modeLabel(next)}');
+      },
+    );
+  }
+
+  IconData _modeIcon(PlayMode m) => switch (m) {
         PlayMode.order => Icons.trending_flat,
         PlayMode.reverse => Icons.keyboard_backspace,
         PlayMode.shuffle => Icons.shuffle,
         PlayMode.loop => Icons.repeat_one,
       };
 
-  static String _modeLabel(PlayMode m) => switch (m) {
+  String _modeLabel(PlayMode m) => switch (m) {
         PlayMode.order => '顺序',
         PlayMode.reverse => '倒叙',
         PlayMode.shuffle => '随机',
         PlayMode.loop => '单曲循环',
       };
 
-  static PlayMode _nextMode(PlayMode m) => switch (m) {
+  PlayMode _nextMode(PlayMode m) => switch (m) {
         PlayMode.order => PlayMode.reverse,
         PlayMode.reverse => PlayMode.shuffle,
         PlayMode.shuffle => PlayMode.loop,
         PlayMode.loop => PlayMode.order,
       };
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: <Widget>[
-        _ControlButton(
-          icon: Icons.skip_previous,
-          tooltip: '上一首',
-          onTap: () => runPlaybackAction(
-            context,
-            () => actions.next(direction: -1),
-          ),
-        ),
-        _ControlButton(
-          icon: isPlaying ? Icons.pause : Icons.play_arrow,
-          tooltip: isPlaying ? '暂停' : '播放',
-          primary: true,
-          onTap: () => runPlaybackAction(context, actions.toggle),
-        ),
-        _ControlButton(
-          icon: Icons.skip_next,
-          tooltip: '下一首',
-          onTap: () => runPlaybackAction(context, () => actions.next()),
-        ),
-        _ControlButton(
-          icon: _modeIcon(mode),
-          tooltip: '播放模式：${_modeLabel(mode)}',
-          onTap: () {
-            final PlayMode next = _nextMode(mode);
-            actions.setMode(next);
-            showPlaybackToast(context, '播放模式：${_modeLabel(next)}');
-          },
-        ),
-      ],
-    );
-  }
 }
 
-/// 单个控制按钮：主按钮（播放/暂停）accent 圆底放大，其余浅底常规尺寸。
-class _ControlButton extends StatelessWidget {
-  const _ControlButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.primary = false,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final bool primary;
-
-  @override
-  Widget build(BuildContext context) {
-    final double size = primary ? 64 : 48;
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: primary ? context.appColors.accent : context.appColors.bgControl,
-          ),
-          child: Icon(
-            icon,
-            size: primary ? 32 : AppSize.icon,
-            color: primary ? context.appColors.onAccent : context.appColors.iconPrimary,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 音量行（R26skel-b6：默认折叠，点标题展开）。
+/// 音量行（默认折叠，点标题展开）。
 class _CollapsibleVolumeRow extends ConsumerStatefulWidget {
   const _CollapsibleVolumeRow();
 
@@ -451,15 +453,23 @@ class _CollapsibleVolumeRowState
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
               children: <Widget>[
-                Icon(_open ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                    size: AppSize.iconSm, color: context.appColors.iconInactive),
+                Icon(
+                  _open ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+                  size: AppSize.iconSm,
+                  color: context.appColors.iconInactive,
+                ),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: Text('音量 · ${(volume * 100).round()}%',
                       style: context.appText.body),
                 ),
-                Icon(_open ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
-                    size: AppSize.iconSm, color: context.appColors.iconInactive),
+                Icon(
+                  _open
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: AppSize.iconSm,
+                  color: context.appColors.iconInactive,
+                ),
               ],
             ),
           ),
@@ -476,14 +486,14 @@ class _CollapsibleVolumeRowState
   }
 }
 
-/// R26skel-b6：当前音质/清晰度标签（音乐面板入口按钮文案）。
+/// 当前音质 / 清晰度标签（音质入口按钮文案）。
 String _qualityLabel(WidgetRef ref) {
   final MusicQuality mq = ref.watch(musicQualityProvider);
   final BiliVideoQuality bq = ref.watch(biliVideoQualityProvider);
   return '音质 ${mq.label} · 清晰度 ${bq.label}';
 }
 
-/// 音量行：图标 + 滑块。拖动实时更新 provider 并接线到真实音频服务（R10）。
+/// 音量行：图标 + 滑块。拖动实时更新 provider 并接线到真实音频服务。
 class _VolumeRow extends ConsumerWidget {
   const _VolumeRow({required this.volume});
 

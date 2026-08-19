@@ -1,6 +1,6 @@
-/// 世界 Tab · 星璃世界入口（我的世界）。
+/// 世界 Tab · 星璃世界入口。
 ///
-/// 视觉对齐画布「Screen · 我的世界」(3:194)：
+/// 视觉对齐画布「Screen · 星璃世界」(3:194)：
 /// 顶部氛围光晕 + 标题 + 创建按钮 → 「我的存档」2×2 玻璃卡网格（**真实存档**）
 /// → 「开放世界」入口行 → 「游戏设置」入口行。
 ///
@@ -19,6 +19,7 @@ import '../../pages/voxel/voxel_lobby_page.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/liquid_glass.dart';
 import '../../widgets/voxel/voxel_save.dart';
+import '../../core/terms/naming_dict.dart';
 
 /// 世界页（底部 Dock「世界」Tab）。
 class WorldPage extends ConsumerStatefulWidget {
@@ -64,7 +65,7 @@ class _WorldPageState extends ConsumerState<WorldPage> {
     );
 
     return PageScaffold(
-      title: '我的世界',
+      title: Terms.world,
       actions: <Widget>[createButton],
       body: Stack(
         children: <Widget>[

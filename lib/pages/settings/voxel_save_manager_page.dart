@@ -277,7 +277,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
 
   /// R26r15：备份=快照「当前正在运行的世界」（自动存档），**不切换**世界——
   /// 备份后仍运行原存档，需手动在列表点「进入」才读取该备份。备份落到当前世界
-  /// 所属存档（_meta.parent 优先，否则最近手动存档，否则新建「我的世界」），
+  /// 所属存档（_meta.parent 优先，否则最近手动存档，否则新建「星璃世界」），
   /// 保证「备份的备份还是备份」（平铺、不套娃）。这是唯一的备份入口，与游戏内
   /// 「备份当前世界」语义/文案完全一致。
   Future<void> _backupCurrent() async {
@@ -297,13 +297,13 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     }
     if (cur == null) {
       if (targetId == null) {
-        // 既无运行世界也无存档：新建一个「我的世界」并备份。
+        // 既无运行世界也无存档：新建一个「星璃世界」并备份。
         final Map<String, dynamic> data =
             freshWorldSave(VoxelWorld.defaultSeed);
-        final String id = await writeManualSave(data, '我的世界');
+        final String id = await writeManualSave(data, '星璃世界');
         await createBackup(id);
         await _refresh();
-        _snack('已新建并备份「我的世界」');
+        _snack('已新建并备份「星璃世界」');
         return;
       }
       // 有存档但无运行世界：退化为快照最近存档。
