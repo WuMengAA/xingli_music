@@ -71,7 +71,7 @@ flutter build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
 
 ## 当前版本
 
-- `0.26.08.17_beta_cl04`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
+- `0.26.08.19_beta_cl08`（见 `lib/core/app_version.dart`、`android/app/build.gradle`、`pubspec.yaml`）
 
 ## 开源与更新
 
