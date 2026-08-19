@@ -94,13 +94,18 @@ if [ "$BUILD_WIN" = "1" ]; then
   # 7z 中文路径/非交互 glob 坑：先复制到 ASCII 临时目录，再压缩成 ASCII 名，
   # 最后 mv 成中文名（MEMORY 2026-08-17）。
   TMP="D:/temp/xingli_win_build"
-  rm -rf "$TMP" && mkdir -p "$TMP"
+  # 清理旧残留（上次中断可能留脏目录；失败不中断——沙箱可能拦批量删除）。
+  rm -rf "$TMP" 2>/dev/null || true
+  mkdir -p "$TMP"
   cp -r "$WINREL/." "$TMP/xingli_music/"
   ( cd "$TMP" && "C:/Program Files/7-Zip/7z.exe" a -tzip -mx=9 "$TMP/x.zip" xingli_music >/dev/null )
   WIN_ZIP="$RELEASE_DIR/${BASE}_pc_${CODENAME}_win_portable.zip"
   mv "$TMP/x.zip" "$WIN_ZIP"
-  rm -rf "$TMP"
+  # ⚠️ sha256 必须在清理临时目录【之前】生成——沙箱对批量 rm -rf 会弹
+  # SAFE_DELETE 确认并中断 set -e，导致哈希步丢失（cl02 实测踩中）。
   ( cd "$RELEASE_DIR" && sha256sum "${BASE}_pc_${CODENAME}_win_portable.zip" > "${BASE}_pc_${CODENAME}_win_portable.zip.sha256" )
+  # 清理临时目录：失败不中断（被沙箱拦时仅残留 D:/temp 垃圾，产物已完整）。
+  rm -rf "$TMP" 2>/dev/null || true
   echo "    便携包：$WIN_ZIP"
 fi
 
