@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,8 +13,8 @@ import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
-import '../../providers/settings/performance_providers.dart';
 import '../../providers/settings/settings_persistence_providers.dart';
+import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/theme/theme_providers.dart';
 import '../../repositories/settings_repository.dart';
@@ -33,10 +31,9 @@ import '../../widgets/settings/log_upload_sheet.dart';
 import '../../widgets/settings/version_update_sheet.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../scene/custom_scene_list_page.dart';
-import '../scene/voxel_sound_editor_page.dart';
-import '../voxel/voxel_main_menu_page.dart';
 import 'scene_editor_page.dart';
 import 'server_settings_page.dart';
+import 'voxel_game_settings_page.dart';
 
 /// 设置页（v2 画布重构 · 匹配 Ardot「Screen · 设置」3:288）。
 ///
@@ -288,14 +285,6 @@ class _VisualContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final String mode = ref.watch(themeModeNameProvider);
     final String skinId = ref.watch(themeSkinProvider);
-    final PerformanceMode perf = ref.watch(performanceModeProvider);
-    final FpsLimit fps = ref.watch(fpsLimitProvider);
-    final EngineBackend backend = ref.watch(engineBackendProvider);
-    final bool vulkanOk = ref.watch(vulkanSupportedProvider);
-    final bool noise = ref.watch(noiseEnabledProvider);
-    final double blur = ref.watch(glassBlurProvider);
-    final bool bg = ref.watch(bgAnimationEnabledProvider);
-    final bool liquid = ref.watch(liquidGlassEnabledProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,186 +393,18 @@ class _VisualContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpace.lg),
 
-        // ═══ 游戏 ═══
-        Text('游戏', style: context.appText.subtitle),
-        const SizedBox(height: AppSpace.xs),
+        // ═══ 游戏设置（统一入口，跳转游戏「包厢」）═══
+        // B1：机制 / 画质等游戏相关设置全部收敛进「游戏设置」独立页，
+        // 此处仅留一个跳转入口，消除与主设置页的重复与套娃。
         _EntryRow(
-          icon: Icons.graphic_eq_rounded,
-          title: '世界音效设置',
-          subtitle: '水 / 风 / 叶 / 鸟 四轨 · 随机位变化的空间音效',
+          icon: Icons.games_outlined,
+          title: '游戏设置',
+          subtitle: '画质 · 机制 · 世界音效 · 存档 · 游戏 UI 大小',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => const VoxelSoundEditorPage(),
+              builder: (_) => const VoxelGameSettingsPage(),
             ),
           ),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        // R26skel：世界存档唯一入口 = 游戏主菜单（避免绕过主菜单新建/恢复存档）。
-        _EntryRow(
-          icon: Icons.save_outlined,
-          title: '世界存档',
-          subtitle: '经游戏主菜单进入：新建 / 恢复 / 导出 / 重命名 / 删除',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const VoxelMainMenuPage(),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpace.lg),
-
-        // ═══ 性能与质量（预设）═══
-        Text('性能与质量', style: context.appText.subtitle),
-        const SizedBox(height: AppSpace.xs),
-        Text(
-          '预设一键应用：性能（特效关 / 24fps）· 质量（特效全开 / 60fps）；'
-          '下方可单独覆盖。',
-          style: context.appText.artist,
-        ),
-        const SizedBox(height: AppSpace.sm),
-        Wrap(
-          spacing: AppSpace.xs,
-          children: <Widget>[
-            for (final PerformanceMode m in PerformanceMode.values)
-              ChoiceChip(
-                label: Text(m == PerformanceMode.performance ? '性能优先' : '质量优先'),
-                selected: perf == m,
-                onSelected: (_) => _applyPerformancePreset(ref, m),
-              ),
-          ],
-        ),
-        const SizedBox(height: AppSpace.sm),
-        Text('帧率限制', style: context.appText.body),
-        const SizedBox(height: AppSpace.xs),
-        Wrap(
-          spacing: AppSpace.xs,
-          children: <Widget>[
-            for (final FpsLimit f in FpsLimit.values)
-              ChoiceChip(
-                label: Text(f.label),
-                selected: fps == f,
-                onSelected: (_) {
-                  ref.read(fpsLimitProvider.notifier).state = f;
-                },
-              ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          '限制体素动画 / 可视化刷新率：24 最低耗、120 最流畅（低端机建议 24）。',
-          style: context.appText.artist,
-        ),
-        const SizedBox(height: AppSpace.sm),
-
-        // ── 体素区块 / LOD（R23m：16×16 区块，视距与 LOD 可调）──
-        _ChunkStepperRow(
-          label: '视距',
-          value: ref.watch(viewDistanceChunksProvider),
-          min: 2,
-          max: 12,
-          hint: '区块（1 区块 = 16 格），默认 4',
-          onChanged: (int v) =>
-              ref.read(viewDistanceChunksProvider.notifier).state = v,
-        ),
-        _ChunkStepperRow(
-          label: 'LOD 起始',
-          value: ref.watch(lodStartChunksProvider),
-          min: 0,
-          max: 6,
-          hint: '距相机多少区块外开始降精度，默认 2',
-          onChanged: (int v) =>
-              ref.read(lodStartChunksProvider.notifier).state = v,
-        ),
-        _ChunkStepperRow(
-          label: 'LOD 步长',
-          value: ref.watch(lodStepChunksProvider),
-          min: 1,
-          max: 4,
-          hint: '每 N 区块降一级精度（步长 ×2），默认 1',
-          onChanged: (int v) =>
-              ref.read(lodStepChunksProvider.notifier).state = v,
-        ),
-        const SizedBox(height: AppSpace.sm),
-
-        // ── 图形后端（Windows）──
-        if (!kIsWeb && Platform.isWindows) ...<Widget>[
-          Text('图形后端', style: context.appText.body),
-          const SizedBox(height: AppSpace.xs),
-          Wrap(
-            spacing: AppSpace.xs,
-            children: <Widget>[
-              for (final EngineBackend e in EngineBackend.values)
-                ChoiceChip(
-                  label: Text(e.label),
-                  selected: backend == e,
-                  // Vulkan 引擎不支持 → 灰显不可选（R22）
-                  onSelected: (e == EngineBackend.impellerVulkan && !vulkanOk)
-                      ? null
-                      : (_) {
-                          ref.read(engineBackendProvider.notifier).state = e;
-                        },
-                ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'Vulkan 引擎暂不支持（Windows Impeller 仅 DX11）· 切换后重启生效',
-            style: context.appText.artist,
-          ),
-          const SizedBox(height: AppSpace.xs),
-          // 当前实际生效后端（main.cpp 启动时写入）
-          ref.watch(engineBackendActiveProvider).when(
-                data: (String v) => Text(
-                  '当前生效：${engineBackendLabel(v)}（上次启动确定）',
-                  style: context.appText.artist,
-                ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-          const SizedBox(height: AppSpace.sm),
-        ],
-
-        // ── 特效开关组 ──
-        Text('特效', style: context.appText.body),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text('噪点纹理', style: context.appText.body),
-          subtitle: Text(noise ? '开' : '关（跟随档位或手动）',
-              style: context.appText.artist),
-          value: noise,
-          onChanged: (bool v) {
-            ref.read(noiseOverrideProvider.notifier).state = v;
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text('玻璃模糊', style: context.appText.body),
-          subtitle: Text(blur > 0 ? '强度 $blur' : '关', style: context.appText.artist),
-          value: blur > 0,
-          onChanged: (bool v) {
-            ref.read(glassBlurOverrideProvider.notifier).state = v ? 12 : 0;
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text('背景动画', style: context.appText.body),
-          subtitle: Text(bg ? '开' : '关', style: context.appText.artist),
-          value: bg,
-          onChanged: (bool v) {
-            ref.read(bgAnimationOverrideProvider.notifier).state = v;
-          },
-        ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          title: Text('液态玻璃（折射）', style: context.appText.body),
-          subtitle: Text(liquid ? '开' : '关', style: context.appText.artist),
-          value: liquid,
-          onChanged: (bool v) {
-            ref.read(liquidGlassOverrideProvider.notifier).state = v;
-          },
         ),
       ],
     );
@@ -1129,79 +950,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 
-/// 应用性能预设（R22）：切档位时若帧率仍是另一档位的默认值则联动切换；
-/// 手动改过的帧率保留。特效默认跟随档位（override 为 null）。
-void _applyPerformancePreset(WidgetRef ref, PerformanceMode m) {
-  ref.read(performanceModeProvider.notifier).state = m;
-  final FpsLimit current = ref.read(fpsLimitProvider);
-  final FpsLimit otherDefault = m == PerformanceMode.performance
-      ? FpsLimit.fps60
-      : FpsLimit.fps24;
-  if (current == otherDefault) {
-    ref.read(fpsLimitProvider.notifier).state = defaultFpsFor(m);
-  }
-}
 
-/// 区块参数行（R23m）：- / 值 / + 步进 + 说明。
-class _ChunkStepperRow extends StatelessWidget {
-  const _ChunkStepperRow({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.hint,
-    required this.onChanged,
-  });
-
-  final String label;
-  final int value;
-  final int min;
-  final int max;
-  final String hint;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: Text(label, style: context.appText.body),
-              ),
-              IconButton(
-                icon: const Icon(Icons.remove_circle_outline, size: 18),
-                visualDensity: VisualDensity.compact,
-                color: context.appColors.iconInactive,
-                onPressed: value > min ? () => onChanged(value - 1) : null,
-              ),
-              SizedBox(
-                width: 28,
-                child: Text(
-                  '$value',
-                  textAlign: TextAlign.center,
-                  style: context.appText.body.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, size: 18),
-                visualDensity: VisualDensity.compact,
-                color: context.appColors.iconInactive,
-                onPressed: value < max ? () => onChanged(value + 1) : null,
-              ),
-            ],
-          ),
-          Text(hint, style: context.appText.artist),
-        ],
-      ),
-    );
-  }
-}
 
 /// R26r21：音频区「其他音量」折叠组（主音量外置；其余 5 通道 + 静音/播放模式/
 /// 白噪音/背景声静音收进此组，点标题展开/收起，默认收起）。

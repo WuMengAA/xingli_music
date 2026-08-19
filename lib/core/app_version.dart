@@ -336,7 +336,7 @@ abstract final class AppVersion {
   /// glassTint/glassBorder/bgSurface（context.appColors），配色可切换且不再写死。
   /// cl01（08.18）：主题扩展——配色皮肤 6→11 套（极光青/流金黄/赤焰红/霓虹粉/靛蓝），
   /// 注册表驱动自动接入设置/OOBE/主题切换；强调色与液态玻璃随皮肤主色自动重算。
-  static const int buildCount = 6;
+  static const int buildCount = 8;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -401,6 +401,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.19',
+    cl: 'beta_cl08',
+    title: '设置收敛进游戏设置 + 音乐卡片去遮罩',
+    details: <String>[
+      '设置页「游戏 / 性能与质量 / 特效」三大段收敛进「游戏设置」唯一入口，主设置页不再重复，机制 / 画质 / 特效统一经游戏设置管理',
+      '游戏设置补全：图形后端 + 噪点纹理 / 玻璃模糊 / 背景动画 / 液态玻璃（折射）等项并入画质组',
+      '音乐卡片去除背景外的额外遮罩（scrim 投影），保留实底背景，层次更干净',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.18',
     cl: 'beta_cl06',

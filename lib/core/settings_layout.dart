@@ -240,6 +240,13 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
             SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
             SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
+            // B1：将主设置页「性能与质量」里的图形后端与特效收敛进游戏设置，
+            // 避免与主设置页重复，统一经「游戏设置」入口管理。
+            SettingItem(id: 'engineBackend', title: '图形后端（Windows）'),
+            SettingItem(id: 'fxNoise', title: '噪点纹理'),
+            SettingItem(id: 'fxBlur', title: '玻璃模糊'),
+            SettingItem(id: 'fxBg', title: '背景动画'),
+            SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）'),
           ],
         ),
         // 机制：存档机制 / 世界机制 / 自定义世界机制。

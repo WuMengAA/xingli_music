@@ -38,6 +38,8 @@ class MusicCard extends ConsumerWidget {
     // 内部紧凑面板本就是 transparent 毛玻璃，透出本容器实色后不再有玻璃
     // 扭曲观感；播放控制与歌词逻辑完全保留（不改动 UnifiedPlayer）。
     return Container(
+      // 仅保留实底 + 细描边，移除背景外的额外遮罩（scrim 投影）。
+      // 背景（bgSurface）保留，符合「不要背景外的遮罩、不是不要背景」的要求。
       decoration: BoxDecoration(
         color: c.bgSurface,
         borderRadius: BorderRadius.circular(24),
@@ -45,13 +47,6 @@ class MusicCard extends ConsumerWidget {
           color: c.border.withValues(alpha: 0.6),
           width: 1,
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: c.scrim.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
