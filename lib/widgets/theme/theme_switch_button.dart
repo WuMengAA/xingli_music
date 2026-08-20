@@ -5,7 +5,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
 import '../../providers/theme/theme_providers.dart';
-import '../liquid_glass.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 全局主题切换按钮（右上角）
@@ -34,27 +33,18 @@ class ThemeSwitchButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final String mode = ref.watch(themeModeNameProvider);
 
+    // R27 原生极简：去掉玻璃圆钮这一带边界的容器装饰，直接复用系统原生
+    // [IconButton]（Material 自带 48dp 触控区与无障碍语义），仅靠图标色彩
+    // 表达当前主题状态，无背景卡片 / 边框 / 圆角。弹出面板逻辑不变。
     return Padding(
       padding: const EdgeInsets.only(left: AppSpace.xs),
-      child: SizedBox(
-        width: AppSize.touchMin,
-        height: AppSize.touchMin,
-        child: LiquidGlass(
-          radius: 24,
-          style: GlassStyle.frosted,
-          // blur 跟随全局性能模式；tint/borderColor 不写死白色，
-          // 跟随皮肤主色派生的 glassTint / glassBorder（毛玻璃随皮肤变化）
-          tint: context.appColors.glassTint,
-          borderColor: context.appColors.glassBorder,
-          child: IconButton(
-            tooltip: '主题',
-            onPressed: () => _showThemeSheet(context),
-            icon: Icon(
-              _iconFor(mode),
-              size: AppSize.iconSm,
-              color: context.appColors.iconPrimary,
-            ),
-          ),
+      child: IconButton(
+        tooltip: '主题',
+        onPressed: () => _showThemeSheet(context),
+        icon: Icon(
+          _iconFor(mode),
+          size: AppSize.iconSm,
+          color: context.appColors.iconPrimary,
         ),
       ),
     );

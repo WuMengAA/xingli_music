@@ -16,7 +16,6 @@ import '../../widgets/common/album_card.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/library/card_view.dart';
-import '../../widgets/liquid_glass.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/shell/app_search_bar.dart';
 
@@ -56,23 +55,18 @@ class LibraryPage extends ConsumerWidget {
       title: Terms.library,
       // 顶部聚合搜索入口（本地 / 网易云 / B站 三源合一）。
       actions: const <Widget>[_AggregateSearchButton()],
-      search: LiquidGlass(
-        radius: 22,
-        child: AppSearchBar(
-          hintText: '搜索歌曲、歌手、专辑',
-          query: query,
-          onChanged: (String v) =>
-              ref.read(searchQueryProvider(ShellPage.library).notifier).state =
-                  v,
-        ),
+      search: AppSearchBar(
+        hintText: Terms.librarySearchHint,
+        query: query,
+        onChanged: (String v) =>
+            ref.read(searchQueryProvider(ShellPage.library).notifier).state =
+                v,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Stack(
           clipBehavior: Clip.none,
           children: <Widget>[
-            // 画布 ambient-glow：顶部柔光（装饰，不承载交互）。
-            const _AmbientGlow(),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -85,7 +79,7 @@ class LibraryPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: <Widget>[
                     Expanded(
-                      child: Text('最近播放',
+                      child: Text(Terms.recentlyPlayed,
                           style: context.appText.title),
                     ),
                     const _ViewToggle(),
@@ -95,9 +89,9 @@ class LibraryPage extends ConsumerWidget {
                 // 曲库列表（卡片 / 列表随样式切换）。
                 library.when(
                   loading: () =>
-                      const LoadingView(label: '曲库加载中…'),
+                      const LoadingView(label: Terms.loading),
                   error: (Object e, StackTrace st) => ErrorView(
-                    message: '曲库加载失败，请稍后重试',
+                    message: Terms.loadFailed,
                     onRetry: () =>
                         ref.invalidate(effectiveMusicLibraryProvider),
                   ),
@@ -145,20 +139,20 @@ class LibraryPage extends ConsumerWidget {
                 _TimeSinkBanner(totalMs: ref.watch(totalPlayMsProvider)),
                 const SizedBox(height: 20),
                 // 「听歌排行」。
-                Text('听歌排行', style: context.appText.title),
+                Text(Terms.topCharts, style: context.appText.title),
                 const SizedBox(height: 12),
                 stats.when(
                   loading: () =>
-                      const LoadingView(label: '排行加载中…'),
+                      const LoadingView(label: Terms.topChartsLoading),
                   error: (Object e, StackTrace st) => ErrorView(
-                    message: '排行加载失败，请稍后重试',
+                    message: Terms.loadFailed,
                     onRetry: () => ref.invalidate(playStatsProvider),
                   ),
                   data: (List<TrackStats> list) {
                     if (list.isEmpty) {
                       return const EmptyView(
-                        title: '还没有播放记录',
-                        message: '播放几首歌后，这里会按播放次数排行',
+                        title: Terms.noPlayHistory,
+                        message: Terms.noPlayHistoryMsg,
                       );
                     }
                     final List<TrackStats> top = list.take(10).toList();
@@ -223,7 +217,7 @@ class LibraryPage extends ConsumerWidget {
       }
     }
     if (matched == null || !context.mounted) {
-      if (context.mounted) appNotify(context, '曲库中找不到该曲目');
+      if (context.mounted) appNotify(context, Terms.trackNotFound);
       return;
     }
     final String msg =
@@ -238,59 +232,13 @@ class _AggregateSearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.pill),
-        onTap: () => showAggregateSearchSheet(context),
-        child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: c.accent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.travel_explore_rounded,
-                  size: 16, color: c.onAccent),
-              const SizedBox(width: 4),
-              Text('聚合搜索',
-                  style: context.appText.button.copyWith(color: c.onAccent)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// 顶部柔光（画布 ambient-glow 220×220，装饰）。
-class _AmbientGlow extends StatelessWidget {
-  const _AmbientGlow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: Container(
-          width: 220,
-          height: 220,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: RadialGradient(
-              colors: <Color>[
-                context.appColors.accent.withValues(alpha: 0.18),
-                context.appColors.accent.withValues(alpha: 0.0),
-              ],
-            ),
-          ),
-        ),
+    return FilledButton.icon(
+      onPressed: () => showAggregateSearchSheet(context),
+      icon: const Icon(Icons.travel_explore_rounded, size: 16),
+      label: Text(Terms.aggregateSearch),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
       ),
     );
   }
@@ -301,10 +249,10 @@ class _FilterChips extends ConsumerWidget {
   const _FilterChips();
 
   static const List<_ChipDef> _chips = <_ChipDef>[
-    _ChipDef(label: '歌曲', source: null),
-    _ChipDef(label: '专辑', source: TrackSource.local),
-    _ChipDef(label: '在线', source: TrackSource.stream),
-    _ChipDef(label: '音景', source: TrackSource.soundscape),
+    _ChipDef(label: Terms.filterTracks, source: null),
+    _ChipDef(label: Terms.filterAlbums, source: TrackSource.local),
+    _ChipDef(label: Terms.filterOnline, source: TrackSource.stream),
+    _ChipDef(label: Terms.filterSoundscape, source: TrackSource.soundscape),
   ];
 
   @override
@@ -350,36 +298,17 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return SizedBox(
-      height: 34,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(17),
-          onTap: onTap,
-          child: Container(
-            constraints: const BoxConstraints(minWidth: 64),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: selected ? c.accentSoft : c.bgSurface,
-              borderRadius: BorderRadius.circular(17),
-              border: Border.all(
-                color: selected ? c.accent : c.border,
-                width: 1,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: (selected ? context.appText.button : context.appText.caption)
-                    .copyWith(
-                  color: selected ? c.accent : c.textSecondary,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      showCheckmark: false,
+      selectedColor: c.accentSoft,
+      backgroundColor: c.bgSurface,
+      labelStyle: (selected ? context.appText.button : context.appText.caption)
+          .copyWith(color: selected ? c.accent : c.textSecondary),
+      visualDensity: VisualDensity.compact,
+      labelPadding: const EdgeInsets.symmetric(horizontal: 14),
     );
   }
 }
@@ -392,78 +321,21 @@ class _ViewToggle extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AppThemeColors c = context.appColors;
     final LibraryViewStyle style = ref.watch(libraryViewStyleProvider);
-    return Container(
-      height: 28,
-      width: 121,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: c.bgSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.border, width: 1),
-      ),
-      child: Row(
-        children: <Widget>[
-          _ToggleSeg(
-            label: '卡片',
-            selected: style == LibraryViewStyle.card,
-            onTap: () =>
-                ref.read(libraryViewStyleProvider.notifier).setStyle(
-                      LibraryViewStyle.card,
-                    ),
-          ),
-          _ToggleSeg(
-            label: '列表',
-            selected: style == LibraryViewStyle.list,
-            onTap: () =>
-                ref.read(libraryViewStyleProvider.notifier).setStyle(
-                      LibraryViewStyle.list,
-                    ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 单个切换段（选中 = 强调色底 + onAccent 字）。
-class _ToggleSeg extends StatelessWidget {
-  const _ToggleSeg({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(11),
-          onTap: onTap,
-          child: Container(
-            decoration: BoxDecoration(
-              color: selected ? c.accent : Colors.transparent,
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Center(
-              child: Text(
-                label,
-                style: context.appText.caption.copyWith(
-                  color: selected ? c.onAccent : c.textSecondary,
-                ),
-              ),
-            ),
-          ),
+    return SegmentedButton<LibraryViewStyle>(
+      selected: <LibraryViewStyle>{style},
+      onSelectionChanged: (Set<LibraryViewStyle> sel) =>
+          ref.read(libraryViewStyleProvider.notifier).setStyle(sel.first),
+      segments: const <ButtonSegment<LibraryViewStyle>>[
+        ButtonSegment<LibraryViewStyle>(
+          value: LibraryViewStyle.card,
+          label: Text(Terms.viewCard),
         ),
-      ),
+        ButtonSegment<LibraryViewStyle>(
+          value: LibraryViewStyle.list,
+          label: Text(Terms.viewList),
+        ),
+      ],
     );
   }
 }
@@ -478,8 +350,7 @@ class _TrackRowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return LiquidGlass(
-      radius: 16,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -564,8 +435,7 @@ class _RankRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
     final bool top = rank <= 3;
-    return LiquidGlass(
-      radius: 16,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -620,8 +490,7 @@ class _TimeSinkBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return LiquidGlass(
-      radius: 18,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Container(
         decoration: BoxDecoration(
@@ -639,7 +508,7 @@ class _TimeSinkBanner extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text('累计听歌时长',
+            Text(Terms.totalPlaytime,
                 style: context.appText.caption
                     .copyWith(color: c.textSecondary)),
             const SizedBox(height: 6),

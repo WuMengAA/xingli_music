@@ -16,7 +16,7 @@ import '../../providers/shell/shell_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/aggregate_search_sheet.dart';
-import '../../widgets/liquid_glass.dart';
+import '../../core/terms/naming_dict.dart';
 import 'consent_gate.dart';
 import 'experiments/companion_page.dart';
 import 'experiments/recommend_page.dart';
@@ -32,8 +32,9 @@ import 'experiments/recommend_page.dart';
 ///   6. 功能区（聚合搜索 / 智能推荐 / AI 陪伴 / 星璃世界）
 ///   7. 实验区（数据驱动 `experimentsProvider`，按 165×110 卡片网格渲染）
 ///
-/// 视觉全部走设计系统：`PageScaffold` + `LiquidGlass` + `context.appColors`
-/// / `context.appText` + `AppSpace` / `AppRadius`，不写死任何颜色字面量。
+/// 视觉全部走设计系统：`PageScaffold` + `context.appColors` / `context.appText`
+/// + `AppSpace` / `AppRadius`，靠留白、排版层级与原生控件（GestureDetector /
+/// InkWell / ListTile）区分区块，不写死任何颜色字面量。
 class ExplorePage extends ConsumerWidget {
   const ExplorePage({super.key});
 
@@ -45,7 +46,7 @@ class ExplorePage extends ConsumerWidget {
     void openSearch() => unawaited(
           AggregateSearchSheet.show(
             context: context,
-            tabs: const <String>['歌曲', '歌单', '用户'],
+            tabs: const <String>[Terms.exploreTabTracks, Terms.exploreTabPlaylists, Terms.exploreTabUsers],
           ),
         );
     void goRecommend() => Navigator.of(context).push(
@@ -59,7 +60,7 @@ class ExplorePage extends ConsumerWidget {
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
     return PageScaffold(
-      title: '探索',
+      title: Terms.tabExplore,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
             horizontal: AppSpace.sm, vertical: AppSpace.sm),
@@ -71,19 +72,19 @@ class ExplorePage extends ConsumerWidget {
             // 精选大卡：读真实活跃场景（activeSceneProvider），点击回到主页场景卡。
             const _FeaturedCard(),
             const SizedBox(height: AppSpace.lg),
-            _SectionLabel('场景音乐'),
+            _SectionLabel(Terms.sceneMusic),
             const SizedBox(height: AppSpace.md),
             // 场景音乐区：读真实场景列表（sceneOrderProvider），点击切换主页场景。
             const _SceneRow(),
             const SizedBox(height: AppSpace.lg),
-            _SectionLabel('热门歌单'),
+            _SectionLabel(Terms.hotPlaylists),
             const SizedBox(height: AppSpace.md),
             // 热门歌单区：读真实歌单（playlistsProvider），点击进入歌单详情。
             const _PlaylistRowSection(),
             const SizedBox(height: AppSpace.lg),
             _NoticeBar(),
             const SizedBox(height: AppSpace.lg),
-            _SectionLabel('功能'),
+            _SectionLabel(Terms.features),
             const SizedBox(height: AppSpace.md),
             _FunctionSection(
               onAggregate: openSearch,
@@ -92,7 +93,7 @@ class ExplorePage extends ConsumerWidget {
               onWorld: goWorld,
             ),
             const SizedBox(height: AppSpace.lg),
-            _SectionLabel('实验'),
+            _SectionLabel(Terms.lab),
             const SizedBox(height: AppSpace.md),
             _ExperimentSection(consent: consent),
             const SizedBox(height: AppSpace.md),
@@ -122,7 +123,7 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-/// 顶部搜索栏（345×44，圆角 22，毛玻璃）。点击打开聚合搜索弹层。
+/// 顶部搜索栏（345×44，圆角 22，裸输入框外观）。点击打开聚合搜索弹层。
 class _SearchBar extends StatelessWidget {
   const _SearchBar({required this.onTap});
   final VoidCallback onTap;
@@ -132,15 +133,14 @@ class _SearchBar extends StatelessWidget {
     final AppThemeColors c = context.appColors;
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlass(
-        radius: 22,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
         child: Row(
           children: <Widget>[
             Icon(Icons.search_rounded, size: 18, color: c.iconInactive),
             const SizedBox(width: AppSpace.sm),
             Expanded(
-              child: Text('探索音乐、场景与歌单', style: context.appText.hint),
+              child: Text(Terms.exploreSearchHint, style: context.appText.hint),
             ),
           ],
         ),
@@ -242,8 +242,7 @@ class _SceneCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlass(
-        radius: 18,
+      child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,8 +306,7 @@ class _PlaylistRowSection extends ConsumerWidget {
       error: (Object e, StackTrace st) => const SizedBox.shrink(),
       data: (List<Playlist> list) {
         if (list.isEmpty) {
-          return LiquidGlass(
-            radius: 16,
+          return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: <Widget>[
@@ -317,7 +315,7 @@ class _PlaylistRowSection extends ConsumerWidget {
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: Text(
-                    '还没有歌单，去曲库收藏歌曲后会自动生成',
+                    Terms.playlistEmpty,
                     style: context.appText.caption,
                   ),
                 ),
@@ -359,8 +357,7 @@ class _PlaylistRow extends StatelessWidget {
     final AppThemeColors c = context.appColors;
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlass(
-        radius: 16,
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: <Widget>[
@@ -404,13 +401,8 @@ class _NoticeBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return Container(
-      width: double.infinity,
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: c.accentSoft,
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Row(
         children: <Widget>[
           Icon(Icons.science_rounded, size: 18, color: c.accent),
@@ -447,28 +439,28 @@ class _FunctionSection extends StatelessWidget {
     return Column(
       children: <Widget>[
         _FuncRow(
-          title: '聚合搜索',
+          title: Terms.aggregateSearch,
           subtitle: '网易云 / B站 / 本地 三源合一',
           onTap: onAggregate,
           trailing: Icon(Icons.search_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
-          title: '智能推荐',
+          title: Terms.smartRecommend,
           subtitle: '外部音源优先 · 按类型筛选',
           onTap: onRecommend,
           trailing: Icon(Icons.auto_awesome_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
-          title: 'AI 陪伴',
+          title: Terms.aiCompanion,
           subtitle: '关键词触发 · 联动应用内资源',
           onTap: onCompanion,
           trailing: Icon(Icons.smart_toy_outlined, size: AppSize.iconSm, color: c.iconInactive),
         ),
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
-          title: '星璃世界',
+          title: Terms.starliteWorld,
           subtitle: '3D 体素世界 · 空间音效',
           onTap: onWorld,
           trailing: Icon(Icons.view_in_ar_rounded, size: AppSize.iconSm, color: c.iconInactive),
@@ -497,8 +489,7 @@ class _FuncRow extends StatelessWidget {
     final AppThemeColors c = context.appColors;
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlass(
-        radius: 16,
+      child: Padding(
         padding: const EdgeInsets.only(
             left: 20, right: 16, top: 10, bottom: 10),
         child: Row(
@@ -585,8 +576,7 @@ class _ExpCard extends StatelessWidget {
             : () => Navigator.of(context).push(
                   MaterialPageRoute<void>(builder: (_) => item.builder()),
                 ),
-        child: LiquidGlass(
-          radius: 16,
+        child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

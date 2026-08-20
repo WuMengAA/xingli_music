@@ -203,9 +203,11 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: <Color>[
-          accent.withValues(alpha: 0.22),
+          // R27 原生极简：极光降为「清淡氛围主题层」——柔光透明度整体减半，
+          // 仅在背景边角留一点色温，不与前景内容争夺注意力。
+          accent.withValues(alpha: 0.10),
           bgPage,
-          accent.withValues(alpha: 0.16),
+          accent.withValues(alpha: 0.07),
         ],
         stops: const <double>[0, 0.55, 1],
       );

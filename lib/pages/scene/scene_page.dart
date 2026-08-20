@@ -165,7 +165,7 @@ class HomeSceneContent extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpace.md),
 
-                // ── 场景卡（柔光晕 + 背卡 + Hero + 圆点）────────
+                // ── 场景卡（柔光晕 + Hero + 圆点）────────
                 // 占剩余空间自适应，不随页面滚动。
                 Expanded(
                   child: Padding(
@@ -196,24 +196,6 @@ class HomeSceneContent extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: c.accent.withValues(alpha: 0.16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // scene-card-back：背卡（白色半透明 + 细描边），
-                              // 在 Hero 后微微探出，形成双层玻璃景深。
-                              Positioned(
-                                top: 14,
-                                left: 6,
-                                right: 6,
-                                child: Container(
-                                  height: cardH,
-                                  decoration: BoxDecoration(
-                                    color: c.bgCard.withValues(alpha: 0.45),
-                                    borderRadius: BorderRadius.circular(28),
-                                    border: Border.all(
-                                      color: c.border.withValues(alpha: 0.5),
-                                      width: 1,
                                     ),
                                   ),
                                 ),
@@ -466,12 +448,6 @@ class _VoxelBgToggle extends StatelessWidget {
               color: enabled
                   ? context.appColors.accent.withValues(alpha: 0.22)
                   : context.appColors.bgSurface,
-              border: Border.all(
-                color: enabled
-                    ? context.appColors.accent
-                    : context.appColors.accentSoft,
-                width: 1.5,
-              ),
             ),
             child: Icon(
               live
@@ -522,10 +498,6 @@ class _SceneIconButton extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: context.appColors.bgSurface,
-                border: Border.all(
-                  color: context.appColors.accentSoft,
-                  width: 1.5,
-                ),
               ),
               child: Icon(icon, size: 18,
                   color: context.appColors.iconPrimary),

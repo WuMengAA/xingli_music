@@ -28,7 +28,7 @@ class WorldPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PageScaffold(
-      title: Terms.world,
+      title: Terms.worldTitle,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
@@ -39,7 +39,7 @@ class WorldPage extends ConsumerWidget {
               // 我的存档 → 完整存档管理器。
               _EntryRow(
                 icon: Icons.public_rounded,
-                label: '我的存档',
+                label: Terms.manualSave,
                 subtitle: '新建 / 恢复进入 / 导出 / 重命名 / 删除',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -51,7 +51,7 @@ class WorldPage extends ConsumerWidget {
               // 开放世界 → 联机大厅（创建 / 加入 / 局域网）。
               _EntryRow(
                 icon: Icons.language_rounded,
-                label: '开放世界',
+                label: Terms.freeExplore,
                 subtitle: '进入实时体素世界，自由探索与建造',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -63,7 +63,7 @@ class WorldPage extends ConsumerWidget {
               // 游戏设置 → 独立「包厢」游戏设置页。
               _EntryRow(
                 icon: Icons.settings_outlined,
-                label: '游戏设置',
+                label: Terms.worldRules,
                 subtitle: '画面 · 操作 · 音频 · 性能偏好设置',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -103,14 +103,6 @@ class _EntryRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 18),
-          decoration: BoxDecoration(
-            color: c.bgSurface.withValues(alpha: 0.6),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(
-              color: c.border.withValues(alpha: 0.5),
-              width: 1,
-            ),
-          ),
           child: Row(
             children: <Widget>[
               Container(

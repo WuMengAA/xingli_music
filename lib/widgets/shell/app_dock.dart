@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/layout/responsive_layout.dart';
+import '../../core/terms/naming_dict.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
-import '../liquid_glass.dart';
 
 /// Dock 单个 Tab 的静态描述
 @immutable
@@ -35,27 +35,27 @@ const List<DockItem> kDockItems = <DockItem>[
   DockItem(
     icon: Icons.home_outlined,
     selectedIcon: Icons.home,
-    label: '主页',
+    label: Terms.tabHome,
   ),
   DockItem(
     icon: Icons.library_music_outlined,
     selectedIcon: Icons.library_music,
-    label: '曲库',
+    label: Terms.tabLibrary,
   ),
   DockItem(
     icon: Icons.public_outlined,
     selectedIcon: Icons.public,
-    label: '世界',
+    label: Terms.tabWorld,
   ),
   DockItem(
     icon: Icons.explore_outlined,
     selectedIcon: Icons.explore,
-    label: '探索',
+    label: Terms.tabExplore,
   ),
   DockItem(
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
-    label: '设置',
+    label: Terms.tabSettings,
   ),
 ];
 
@@ -116,51 +116,33 @@ class AppDock extends StatelessWidget {
     final ResponsiveLayout rl = ResponsiveLayout.of(context);
     final double dockH =
         AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
+    // R27 原生极简：去掉「满宽药丸玻璃容器」这一带边界的装饰元素。
+    // Dock 不再有背景卡片 / 边框 / 圆角裁切，仅保留居中等宽约束下的等分 Tab
+    // 行，直接浮在场景背景上；选中态由 [_DockTab] 的 Ø44 紫圆与文字高亮
+    // （系统原生控件语义）来区分，符合平台原生审美且轻盈通透。
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: rl.dockMaxWidth),
-        child: ClipRRect(
-          // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius），不另立常量
-          borderRadius: BorderRadius.circular(AppSize.dockRadius),
-          child: Container(
-            height: dockH,
-            // 液态玻璃：半透明 + 背景模糊 + 边缘高光
-            decoration: BoxDecoration(
-              color: Colors.transparent,
-            ),
-            clipBehavior: Clip.antiAlias,
-              child: LiquidGlass(
-                radius: AppSize.dockRadius,
-                // 与统一播放器同为毛玻璃（frosted），背景透出 AppShell 玻璃层
-                style: GlassStyle.frosted,
-                // blur 跟随全局性能模式；tint 不写死白色，跟随皮肤主色派生
-                // 的 glassTint（LiquidGlass 默认回退值一致，此处显式写出
-                // 仅作语义澄清，毛玻璃随明暗主题与 11 套配色同步变化）。
-                tint: context.appColors.glassTint,
-
-                child: SizedBox(
-                height: dockH,
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Row(
-                    // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
-                    // 设计坐标 x=0/104/208/312（390dp 基准）。
-                    children: <Widget>[
-                      for (int i = 0; i < items.length; i++)
-                        Expanded(
-                          child: _DockTab(
-                            item: items[i],
-                            selected: selectedIndex == i,
-                            // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
-                            showLabel: rl.dockShowLabels &&
-                                density != UiDensity.compact,
-                            onTap: () => onTabSelected(i),
-                          ),
-                        ),
-                    ],
+        child: SizedBox(
+          height: dockH,
+          child: Material(
+            type: MaterialType.transparency,
+            child: Row(
+              // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
+              // 设计坐标 x=0/104/208/312（390dp 基准）。
+              children: <Widget>[
+                for (int i = 0; i < items.length; i++)
+                  Expanded(
+                    child: _DockTab(
+                      item: items[i],
+                      selected: selectedIndex == i,
+                      // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
+                      showLabel: rl.dockShowLabels &&
+                          density != UiDensity.compact,
+                      onTap: () => onTabSelected(i),
+                    ),
                   ),
-                ),
-              ),
+              ],
             ),
           ),
         ),

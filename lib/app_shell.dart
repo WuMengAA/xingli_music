@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/app_version.dart';
+import 'core/terms/naming_dict.dart';
+import 'core/layout/responsive_layout.dart';
 import 'core/theme/app_theme_colors.dart';
 import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
@@ -31,6 +33,7 @@ import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/notification/app_notify.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
+import 'widgets/shell/responsive_floating_layer.dart';
 import 'widgets/playback/music_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/noise_texture.dart';
@@ -55,12 +58,18 @@ import 'widgets/common/app_confirm_dialog.dart';
 /// 本文件只负责三件事：
 ///
 /// ```
-/// Scaffold(#FFFFFF)
-/// └ SafeArea(top)
-///   ├ Expanded → ContentContainer → IndexedStack(5 页，全部保活)
-///   ├ MiniPlayer（全局唯一一份，5 页持续可见）
-///   └ SafeArea(bottom) → AppDock（5 Tab）
+/// Scaffold(bgPage)
+/// └ Stack
+///   ├ Positioned.fill → 极光渐变背景层
+///   ├ Positioned.fill → 噪点层（可关）
+///   ├ SafeArea(bottom:false) → ContentContainer → IndexedStack(5 页，全部保活)
+///   └ ResponsiveFloatingLayer（叠加·脱离文档流）→ 播放控件 + AppDock（5 Tab）
 /// ```
+///
+/// 播放控件与 dock 栏位于**外层 Stack 的叠加层**，不再占据 Column 文档流
+/// 空间；5 个 Tab 页面自身的布局边界 / 结构 / 占位完全不受影响。为避免遮挡
+/// 下层内容，内容区在 [ContentContainer] 处补等量 `bottom` 预留（高度按视口
+/// 与密度估算）。叠加层随底部安全区与软键盘自适应抬升。
 ///
 /// 🚫 **禁止**在本文件 import 任何暗色画布资产：`core/theme/` 下的动态派生
 /// 主题与派生色板、`widgets/` 根目录下的噪点 / 粒子 / 调色盘 / 控制栏 /
@@ -76,6 +85,13 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// 软键盘弹出时，内容区至少保留的高度（低于此值不再继续压缩，
   /// 否则 `Padding` 会把 `IndexedStack` 约束成负高度）。
   static const double _minContentHeight = 120;
+
+  /// 悬浮播放控件折叠态高度（仅 header，估算，用于内容区底部预留）。
+  static const double _playerCollapsedH = 72;
+
+  /// 悬浮播放控件展开态高度（header + 进度 + 传输 + 操作行，估算余量，
+  /// 略放大以保证「不遮挡关键内容」优先）。
+  static const double _playerExpandedH = 180;
 
   /// 5 个常驻页面，顺序**必须**与 [ShellPage] 常量一一对应。
   ///
@@ -138,7 +154,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return;
       final bool? go = await AppConfirmDialog.show(
         context: context,
-        title: '版本已更新',
+        title: Terms.updated,
         content: Text(
           '检测到应用已升级（新版本已包含最新功能）。\n'
           '是否重新走一遍初始化流程？\n\n'
@@ -149,8 +165,8 @@ class _AppShellState extends ConsumerState<AppShell> {
             color: context.appColors.textSecondary,
           ),
         ),
-        cancelLabel: '跳过',
-        confirmLabel: '重新初始化',
+        cancelLabel: Terms.skip,
+        confirmLabel: Terms.reinitialize,
       );
       // cl58：无论用户选跳过还是重走，都记录「当前版本已处理过」，
       // 避免下次启动再次弹窗打扰。
@@ -176,7 +192,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (!mounted) return;
       await AppConfirmDialog.show(
         context: context,
-        title: '更新渠道已切换',
+        title: Terms.channelSwitched,
         content: Text(
           '已切换到「${ch.label}」。\n\n'
           '渠道决定 OTA 更新来源与更新日志：\n'
@@ -190,7 +206,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           ),
         ),
         cancelLabel: null,
-        confirmLabel: '知道了',
+        confirmLabel: Terms.gotIt,
       );
       await repo.setChannelSwitchPending(false);
     } catch (_) {
@@ -238,7 +254,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       // v2 A5：通知中心自动记录场景事件（P2-M6-4）
       if (previous == null || previous.id != next.id) {
         ref.read(recentNotificationsProvider.notifier).append(
-              '场景',
+              Terms.sceneSwitch,
               '切换到「${next.name}」',
             );
       }
@@ -248,8 +264,8 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.listen<Track?>(nowPlayingProvider, (Track? previous, Track? next) {
       if (next != null && previous?.uri != next.uri) {
         ref.read(recentNotificationsProvider.notifier).append(
-              '播放',
-              '${next.title} · ${next.artist}',
+                  Terms.play,
+                  '${next.title} · ${next.artist}',
             );
       }
     });
@@ -266,22 +282,32 @@ class _AppShellState extends ConsumerState<AppShell> {
             SnackBar(
               content: Text('新版本 ${next.tag} 已下载并通过 SHA-256 校验'),
               action: SnackBarAction(
-                label: '安装',
+                label: Terms.install,
                 onPressed: () => unawaited(_installApk(path)),
               ),
             ),
           );
         } else if (next.isError) {
-          appNotify(context, '更新下载失败：${next.error ?? '未知错误'}');
+          appNotify(context, '${Terms.downloadFailed}：${next.error ?? '未知错误'}');
         }
       },
     );
 
     final int pageIndex = ref.watch(shellPageIndexProvider);
     final int? selectedTab = ref.watch(selectedTabIndexProvider);
-    final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     // 低端设备优化：省电模式关闭全屏噪点层（最大渲染开销之一）
     final bool noiseOn = ref.watch(noiseEnabledProvider);
+
+    // 悬浮层（播放控件 + dock）脱离文档流后的底部预留：保证下层 5 个 Tab
+    // 页面内容不被遮挡，且页面自身布局 / 占位完全不变（仅 AppShell 这一层
+    // 补高度）。dock 高度随密度收缩；播放控件高度随视口（紧凑/小屏折叠）。
+    final ResponsiveLayout rl = ResponsiveLayout.of(context);
+    final UiDensity density = ref.watch(uiDensityProvider);
+    final double dockH =
+        AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
+    final double playerH =
+        rl.playerCollapsedByDefault ? _playerCollapsedH : _playerExpandedH;
+    final double floatingReserve = playerH + AppSpace.sm + dockH;
 
     // R10/R11：运行期同步写回持久化（唯一触发点）
     ref.watch(settingsSyncProvider);
@@ -324,23 +350,25 @@ class _AppShellState extends ConsumerState<AppShell> {
             Expanded(
               child: LayoutBuilder(
                 builder: (BuildContext context, BoxConstraints constraints) {
-                  // 键盘补偿：最多压缩到只剩 _minContentHeight，避免负约束
+                  // 底部预留：等于悬浮层（播放控件 + dock）高度，保证下层内容
+                  // 不被遮挡；键盘补偿已由此前 resizeToAvoidBottomInset:false
+                  // 转为叠加层自行抬升，此处不再叠加 keyboardInset。
                   final double room =
                       (constraints.maxHeight - _minContentHeight)
                           .clamp(0.0, double.infinity);
-                  final double bottomPad = keyboardInset.clamp(0.0, room);
+                  final double bottomPad = floatingReserve.clamp(0.0, room);
 
-                  // 布局对齐场景页：内容(弹性) + 底部播放器(带边距)。
-                  // 播放器在 ContentContainer 内部、IndexedStack 下方，始终常驻
-                  // （所有 Tab 共用单个 [MusicCard] 实例，场景页不再内嵌，避免双播放器）。
+                  // 内容区（弹性）承载 IndexedStack(5 页)。播放控件与 dock 已
+                  // 移至外层 Stack 的叠加层（[ResponsiveFloatingLayer]），此处
+                  // 仅补 bottom 预留；5 个 Tab 自身布局 / 占位完全不变。
                   return ContentContainer(
                     child: Column(
                       children: <Widget>[
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.only(bottom: bottomPad),
-                            // cl53-E：非主页内容区底部做圆角（与音乐卡/玻璃
-                            // 表面衔接），主页内容自带场景视频背景不裁。
+                            // cl53-E：非主页内容区圆角（与玻璃表面衔接），
+                            // 主页内容自带场景视频背景不裁。
                             child: pageIndex == ShellPage.home
                                 ? IndexedStack(
                                     index: pageIndex,
@@ -358,44 +386,34 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   ),
                           ),
                         ),
-                        const SizedBox(height: AppSpace.sm),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpace.md,
-                            AppSpace.sm,
-                            AppSpace.md,
-                            AppSpace.sm,
-                          ),
-                          child: const MusicCard(),
-                        ),
                       ],
                     ),
                   );
                 },
               ),
             ),
-
-            // ── 底部 Dock ────────────────────────────────────
-            // 【裁决 A7】手势条机型交给 SafeArea 让位；
-            // 无手势条机型（padding.bottom == 0）用 minimum 兜 2dp，
-            // 保证药丸不会直接贴死屏幕下沿。
-            SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 2),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSize.shellEdgeInset,
-                ),
-                child: AppDock(
-                  selectedIndex: selectedTab,
-                  onTabSelected: (int index) => setShellPage(ref, index),
-                  density: ref.watch(uiDensityProvider),
-                ),
-              ),
-            ),
           ],
         ),
         ),
+          // ── 悬浮层：播放控件 + dock 栏（脱离文档流，叠加于内容之上）──
+          // 两枚独立浮层（播放控件在上、dock 在下）由 [ResponsiveFloatingLayer]
+          // 自适应锚定到屏幕底部：窄屏贴近边缘、宽屏收窄居中，随安全区/键盘抬升。
+          // 绘制顺序在本层 → FAB → 通知 toast，故 FAB 仍浮于 dock 之上。
+          ResponsiveFloatingLayer(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                const MusicCard(),
+                const SizedBox(height: AppSpace.sm),
+                AppDock(
+                  selectedIndex: selectedTab,
+                  onTabSelected: (int index) => setShellPage(ref, index),
+                  density: density,
+                ),
+              ],
+            ),
+          ),
           // ── AI 陪伴全局浮层（FAB，浮在 Dock 上方）──
           //
           // ⚠️ 必须挂在**外层 Stack**，不能放进上面的 Column：

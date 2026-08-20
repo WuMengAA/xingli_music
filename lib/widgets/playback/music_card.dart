@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_theme_colors.dart';
 import '../lyrics/lyrics_view.dart';
 import 'unified_player.dart';
 import '../../pages/now_playing/now_playing_page.dart';
@@ -35,39 +34,22 @@ class MusicCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AppThemeColors c = context.appColors;
-    // 独立 UI 卡片：不透明实底 + 细描边 + 轻投影（低特效）。
-    // 内部紧凑面板本就是 transparent 毛玻璃，透出本容器实色后不再有玻璃
-    // 扭曲观感；播放控制与歌词逻辑完全保留（不改动 UnifiedPlayer）。
+    // 独立 UI 卡片（R27 原生极简）：**不做任何容器边界装饰**——
+    // 去除此前 24dp 圆角裁切与细描边，让 [UnifiedPlayer] 直接浮在场景背景上，
+    // 靠留白与排版层级与页面其它内容区分，不引入卡片/边框/玻璃等边界元素。
     // #549：默认点击信息区 → 打开整页播放器（[NowPlayingPage]），而非
     // [UnifiedPlayer] 的透明 Overlay。外部显式传入 onOpenNowPlaying 时仍
-    // 走外部回调（兼容游戏内 HUD 等旧接入，保持零回归）。
+    // 走外部回调（兼容游戏内 HUD  & 等旧接入，保持零回归）。
     final VoidCallback openNowPlaying = onOpenNowPlaying ??
         () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const NowPlayingPage(),
               ),
             );
-    // 独立 UI 卡片：**透明背景**（无 c.bgSurface 实底白），透出下层
-    // ContentContainer 的 frosted 玻璃（全 Tab 常驻在玻璃容器上）。
-    // 仅保留细描边 + 圆角界定卡片范围；内部 UnifiedPlayer 紧凑面板自带
-    // 极淡 tint 玻璃，叠加后无白底、无重影。播放控制与歌词逻辑完全保留。
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: c.border.withValues(alpha: 0.4),
-            width: 1,
-          ),
-        ),
-        child: UnifiedPlayer(
-          onOpenNowPlaying: openNowPlaying,
-          // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
-          lyricsSlot: const LyricsView(),
-        ),
-      ),
+    return UnifiedPlayer(
+      onOpenNowPlaying: openNowPlaying,
+      // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
+      lyricsSlot: const LyricsView(),
     );
   }
 }

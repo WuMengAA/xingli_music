@@ -17,6 +17,17 @@ import '../core/theme/app_theme_colors.dart';
 import '../providers/settings/performance_providers.dart';
 import '../providers/shell/liquid_glass_capture_provider.dart';
 
+/// ── 原生极简模式总开关（R27 风格转向）────────────────────────────────
+///
+/// `true` 时全站 [LiquidGlass] 调用（30 余处）一次性退化为**纯内容直通**：
+/// 去除半透明叠加色（tint）、细描边（border）、背景模糊（BackdropFilter）
+/// 与圆角裁切，仅保留 `padding`。
+///
+/// 设计依据：以「极简主义」为视觉基底 —— 不使用背景卡片 / 边框 / 任何带容器
+/// 边界的装饰元素，改由留白、排版层级与系统原生控件区分内容区块；极光渐变
+/// 降为清淡氛围主题层。改回 `false` 即可整体回滚到极光玻璃风格。
+const bool kNativeMinimal = true;
+
 /// 玻璃风格。
 enum GlassStyle {
   /// 经典毛玻璃：背景模糊 + 半透明 + 细描边。
@@ -105,6 +116,10 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
     // 液态玻璃开关（R21 效果选配）：关闭时走毛玻璃路径。
     // R20 期间 Windows 禁用 FragmentShader 的降级已随无障碍桥崩溃
     // 根治（ExcludeSemantics）而还原——各平台均可使用液态玻璃。
+    // 原生极简模式：直通内容，不做任何容器边界装饰（见 [kNativeMinimal]）。
+    if (kNativeMinimal) {
+      return Padding(padding: widget.padding, child: widget.child);
+    }
     final bool liquidOn = ref.watch(liquidGlassEnabledProvider);
     if (widget.style == GlassStyle.liquid && liquidOn) {
       return _buildLiquid(context);

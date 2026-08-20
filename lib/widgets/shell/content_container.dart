@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/light_tokens.dart';
-import '../liquid_glass.dart';
 
 /// 内容容器（架构 §1.6 / PRD P0-B1）
 ///
@@ -17,18 +16,11 @@ class ContentContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // R27 原生极简：去玻璃表面（无 tint / border / 模糊 / 圆角裁切），
+    // 仅保留四边留白，内容直接浮在场景背景上，靠留白与排版区分层级。
     return Padding(
-      // 四边等距外边距（露出圆角）。
       padding: const EdgeInsets.all(AppSpace.md),
-      child: LiquidGlass(
-        radius: 28,
-        style: GlassStyle.frosted,
-        // 全屏铺满：去掉 maxWidth 限制，内容区占满可用宽度/高度。
-        // 不显式传 tint/borderColor —— 由 LiquidGlass 内部回退到
-        // context.appColors.glassTint / glassBorder（随皮肤主色派生），
-        // 实现「配色不写死、可切换皮肤」；毛玻璃质感主要由背景模糊提供。
-        child: child,
-      ),
+      child: child,
     );
   }
 }

@@ -23,7 +23,6 @@ import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_chip.dart';
-import '../../widgets/liquid_glass.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/notification/notification_center.dart';
 import '../../widgets/settings/llm_settings_sheet.dart';
@@ -55,7 +54,7 @@ class SettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return PageScaffold(
-      title: '设置',
+      title: Terms.tabSettings,
       // 主题切换由 PageScaffold 内 ThemeSwitchButton 统一提供。
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(
@@ -67,31 +66,31 @@ class SettingsPage extends ConsumerWidget {
           children: <Widget>[
             const _GroupCard(
               icon: Icons.music_note_rounded,
-              title: '音频',
+              title: Terms.groupAudio,
               content: _AudioContent(),
             ),
             const SizedBox(height: AppSpace.lg),
             const _GroupCard(
               icon: Icons.palette_rounded,
-              title: '画面',
+              title: Terms.groupVisual,
               content: _VisualContent(),
             ),
             const SizedBox(height: AppSpace.lg),
             const _GroupCard(
               icon: Icons.notifications_rounded,
-              title: '通知中心',
+              title: Terms.notificationCenter,
               content: _NotificationContent(),
             ),
             const SizedBox(height: AppSpace.lg),
             const _GroupCard(
               icon: Icons.science_rounded,
-              title: '实验',
+              title: Terms.groupLab,
               content: _ExperimentContent(),
             ),
             const SizedBox(height: AppSpace.lg),
             const _GroupCard(
               icon: Icons.info_rounded,
-              title: '关于',
+              title: Terms.groupAbout,
               content: _AboutContent(),
             ),
             const SizedBox(height: AppSpace.lg),
@@ -113,12 +112,11 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return LiquidGlass(
-      radius: AppRadius.lg,
+    return Padding(
       padding: const EdgeInsets.all(AppSpace.md),
       child: Material(
         // SwitchListTile / InkWell 需要最近 Material 祖先，否则 ink 不可见。
-        color: Colors.transparent,
+        type: MaterialType.transparency,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -551,13 +549,8 @@ class _AboutContent extends ConsumerWidget {
                 style: context.appText.bodyMuted,
               );
             }
-            return Container(
-              width: double.infinity,
+            return Padding(
               padding: const EdgeInsets.all(AppSpace.md),
-              decoration: BoxDecoration(
-                color: context.appColors.bgCard,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
               child: SelectableText(notes, style: context.appText.body),
             );
           },
@@ -815,9 +808,8 @@ class _EntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      // R26r21：跟随毛玻璃语义色 glassTint（随皮肤主色派生），不再实色 bgCard。
-      color: context.appColors.glassTint,
-      borderRadius: AppRadius.brMd,
+      // 原生极简（R27）：去掉整行背卡填充，仅保留 InkWell 点击反馈。
+      type: MaterialType.transparency,
       child: InkWell(
         onTap: onTap,
         borderRadius: AppRadius.brMd,
@@ -860,8 +852,8 @@ class _NeteaseSourceTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final NeteaseAuthState na = ref.watch(neteaseAuthProvider);
     return Material(
-      color: context.appColors.glassTint,
-      borderRadius: AppRadius.brMd,
+      // 原生极简（R27）：去掉整行背卡填充，仅保留 InkWell 点击反馈。
+      type: MaterialType.transparency,
       child: InkWell(
         borderRadius: AppRadius.brMd,
         onTap: () async {
