@@ -1,6 +1,6 @@
 # 星璃音乐 xingli_music · 项目状态快照
 
-> 最后更新：2026-08-10 02:15 · Flutter 3.44.8 · git 未提交（50 文件改动）
+> 最后更新：2026-08-20 13:05 · Flutter 3.44.8 · git `2895b8b`（cl04 已提交）
 > 用途：压缩上下文用。续接开发前先读本文件，不必翻历史对话。
 
 ## 一、当前可用状态
@@ -45,6 +45,13 @@
 ### 批次 D · 传感器（8/9）
 - 移除 light 依赖（minSdk21 挡 4.4）→ 自写 `MainActivity.java` MethodChannel 读 TYPE_LIGHT/TYPE_HEART_RATE
 - 陀螺仪走 sensors_plus（gyroscopeProvider/heartRateProvider）
+
+### 批次 E · 原生极简转向 + 悬浮层 + 文案规范（8/20，cl04，`2895b8b`）
+- **文案规范落地**：`core/terms/naming_dict.dart` 单一事实源（`Terms` 常量词典，全站硬编码替换）；规范文档 `docs/ui_copy_spec.md`
+- **悬浮层重构**：播放控件与 dock 脱离文档流 → `widgets/shell/responsive_floating_layer.dart` 自适应浮层容器；AppShell 改悬浮叠加绘制（内容→浮层→FAB→toast），底部防遮挡
+- **原生极简总开关**：`widgets/liquid_glass.dart` `kNativeMinimal = true`——全站 30+ 处 LiquidGlass 一次性退化为纯 Padding 直通（去 tint/border/blur/圆角）；改回 `false` 整体回滚
+- **去容器边界**：ContentContainer 仅留 14dp 留白；auroraGradient 减半为清淡氛围层；MusicCard 去 24dp 描边、AppDock 去玻璃药丸、ThemeSwitchButton 改系统 IconButton；五大页面（settings/explore/library/scene/world）分组卡→留白+原生控件、chip→ChoiceChip、视图切换→SegmentedButton、聚合搜索→FilledButton、删背卡/描边
+- 验证：`flutter analyze lib` 0 error（144 预存 lint 基线）；Windows EXE + Android APK（arm64/arm32）双平台构建通过
 
 ## 三、平台版本决策
 - **Android 最低 5.0（API 21）**，目标 16；4.4 放弃（用户拍板）
