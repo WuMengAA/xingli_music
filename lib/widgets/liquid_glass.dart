@@ -17,15 +17,20 @@ import '../core/theme/app_theme_colors.dart';
 import '../providers/settings/performance_providers.dart';
 import '../providers/shell/liquid_glass_capture_provider.dart';
 
-/// ── 原生极简模式总开关（R27 风格转向）────────────────────────────────
+/// ── 原生极简模式总开关（R27 风格转向，R32 白名单化）────────────────────
 ///
-/// `true` 时全站 [LiquidGlass] 调用（30 余处）一次性退化为**纯内容直通**：
+/// `true` 时全站 [LiquidGlass] 调用（30 余处）默认退化为**纯内容直通**：
 /// 去除半透明叠加色（tint）、细描边（border）、背景模糊（BackdropFilter）
 /// 与圆角裁切，仅保留 `padding`。
 ///
 /// 设计依据：以「极简主义」为视觉基底 —— 不使用背景卡片 / 边框 / 任何带容器
 /// 边界的装饰元素，改由留白、排版层级与系统原生控件区分内容区块；极光渐变
-/// 降为清淡氛围主题层。改回 `false` 即可整体回滚到极光玻璃风格。
+/// 降为清淡氛围主题层。
+///
+/// **白名单放行**：R32 起少数「核心浮层」经 [LiquidGlass.forceGlass] 显式
+/// 恢复玻璃质感（Dock 栏、音乐控制栏）——类似 Windows 11 / iOS 的玻璃焦点，
+/// 基底保持原生极简，仅这两处浮层带玻璃。改回 `false` 即可整体回滚到
+/// 极光玻璃全站风格。
 const bool kNativeMinimal = true;
 
 /// 玻璃风格。
@@ -50,6 +55,7 @@ class LiquidGlass extends ConsumerStatefulWidget {
     this.refraction = 5,
     this.dispersion = 1.2,
     this.padding = EdgeInsets.zero,
+    this.forceGlass = false,
   });
 
   /// 玻璃内容。
@@ -87,6 +93,12 @@ class LiquidGlass extends ConsumerStatefulWidget {
   /// 内容内边距。
   final EdgeInsetsGeometry padding;
 
+  /// 原生极简模式下的白名单放行（R32）。
+  ///
+  /// `true` 时即使全局 [kNativeMinimal] 开启，本处仍渲染玻璃效果。
+  /// 仅「核心浮层」使用（Dock 栏、音乐控制栏），其余 30 余处保持默认直通。
+  final bool forceGlass;
+
   @override
   ConsumerState<LiquidGlass> createState() => _LiquidGlassState();
 }
@@ -116,8 +128,9 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
     // 液态玻璃开关（R21 效果选配）：关闭时走毛玻璃路径。
     // R20 期间 Windows 禁用 FragmentShader 的降级已随无障碍桥崩溃
     // 根治（ExcludeSemantics）而还原——各平台均可使用液态玻璃。
-    // 原生极简模式：直通内容，不做任何容器边界装饰（见 [kNativeMinimal]）。
-    if (kNativeMinimal) {
+    // 原生极简模式：默认直通内容（见 [kNativeMinimal]）；仅白名单
+    // （[forceGlass]）的核心浮层恢复玻璃，构成「极简基底 + 玻璃焦点」。
+    if (kNativeMinimal && !widget.forceGlass) {
       return Padding(padding: widget.padding, child: widget.child);
     }
     final bool liquidOn = ref.watch(liquidGlassEnabledProvider);

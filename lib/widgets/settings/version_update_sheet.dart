@@ -319,7 +319,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                               ),
                               child: Text('可更新',
                                   style: context.appText.caption
-                                      .copyWith(color: Colors.white)),
+                                      .copyWith(color: colors.onAccent)),
                             )
                           else
                             Text('当前 / 旧版',
@@ -490,8 +490,8 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                 ),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.memory, size: 18,
-                        color: Color(0xFF9AA3B2)),
+                    // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
+                    Icon(Icons.memory, size: 18, color: colors.textTertiary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -596,10 +596,11 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                     const SizedBox(height: 4),
                     Row(
                       children: <Widget>[
-                        const Icon(
+                        // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
+                        Icon(
                           Icons.cloud_download_outlined,
                           size: 14,
-                          color: Color(0xFF9AA3B2),
+                          color: colors.textTertiary,
                         ),
                         const SizedBox(width: 6),
                         Expanded(
@@ -625,8 +626,9 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                 ),
                 child: Row(
                   children: <Widget>[
-                    const Icon(Icons.check_circle,
-                        color: Color(0xFF34C759), size: 20),
+                    // R32 一.5：去固定 iOS 绿，改 success 语义色。
+                    Icon(Icons.check_circle,
+                        color: colors.success, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -650,8 +652,9 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const Icon(Icons.error_outline,
-                        color: Color(0xFFFF3B30), size: 20),
+                    // R32 一.5：去固定 iOS 红，改 danger 语义色。
+                    Icon(Icons.error_outline,
+                        color: colors.danger, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

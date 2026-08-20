@@ -297,6 +297,8 @@ Widget _frostedPanel(
     return LiquidGlass(
       radius: radius,
       style: GlassStyle.frosted,
+      // R32 白名单：播放控制栏为唯二玻璃焦点之一（极简基底 + 玻璃焦点）。
+      forceGlass: true,
       // blur 跟随全局性能模式（省电=0 关闭模糊）
       tint: glassTint ?? const Color(0x0AFFFFFF),
       borderColor: glassBorder ?? const Color(0x26FFFFFF),
@@ -323,6 +325,8 @@ Widget _frostedPanel(
           const Positioned.fill(child: NoiseTexture(seed: 11)),
           LiquidGlass(
             radius: 0,
+            // R32 白名单：全屏播放态同样作为玻璃焦点（模糊 + 半透明）。
+            forceGlass: true,
             // blur 跟随全局性能模式（省电=0 关闭模糊）
             tint: const Color(0x14FFFFFF),
             borderColor: const Color(0x33FFFFFF),

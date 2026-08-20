@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/app_version.dart';
 import 'core/terms/naming_dict.dart';
-import 'core/layout/responsive_layout.dart';
 import 'core/theme/app_theme_colors.dart';
 import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
@@ -85,14 +84,6 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// 软键盘弹出时，内容区至少保留的高度（低于此值不再继续压缩，
   /// 否则 `Padding` 会把 `IndexedStack` 约束成负高度）。
   static const double _minContentHeight = 120;
-
-  /// 悬浮播放控件折叠态高度（仅 header，估算，用于内容区底部预留）。
-  static const double _playerCollapsedH = 72;
-
-  /// 悬浮播放控件展开态高度（header + 进度 + 传输 + 操作行，估算余量，
-  /// 略放大以保证「不遮挡关键内容」优先）。
-  static const double _playerExpandedH = 180;
-
   /// 5 个常驻页面，顺序**必须**与 [ShellPage] 常量一一对应。
   ///
   /// 全部 `const`：配合 [IndexedStack] 实现「切 Tab 不重建、滚动位置不丢」
@@ -300,14 +291,14 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     // 悬浮层（播放控件 + dock）脱离文档流后的底部预留：保证下层 5 个 Tab
     // 页面内容不被遮挡，且页面自身布局 / 占位完全不变（仅 AppShell 这一层
-    // 补高度）。dock 高度随密度收缩；播放控件高度随视口（紧凑/小屏折叠）。
-    final ResponsiveLayout rl = ResponsiveLayout.of(context);
+    // 补高度）。dock 高度随密度收缩。
     final UiDensity density = ref.watch(uiDensityProvider);
     final double dockH =
         AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
-    final double playerH =
-        rl.playerCollapsedByDefault ? _playerCollapsedH : _playerExpandedH;
-    final double floatingReserve = playerH + AppSpace.sm + dockH;
+    // R32 一.1：移除 Dock 上方的空白边界限制区域。
+    // 播放控件是玻璃焦点（半透明模糊），内容滑入其下自然透出、与浮层浑然
+    // 一体，无需再为它强制留白；仅保留 Dock 高度（实底选中态）的底部防遮挡。
+    final double floatingReserve = dockH;
 
     // R10/R11：运行期同步写回持久化（唯一触发点）
     ref.watch(settingsSyncProvider);
@@ -367,23 +358,13 @@ class _AppShellState extends ConsumerState<AppShell> {
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.only(bottom: bottomPad),
-                            // cl53-E：非主页内容区圆角（与玻璃表面衔接），
-                            // 主页内容自带场景视频背景不裁。
-                            child: pageIndex == ShellPage.home
-                                ? IndexedStack(
-                                    index: pageIndex,
-                                    children: _pages,
-                                  )
-                                : ClipRRect(
-                                    borderRadius: const BorderRadius.vertical(
-                                      bottom:
-                                          Radius.circular(AppRadius.lg),
-                                    ),
-                                    child: IndexedStack(
-                                      index: pageIndex,
-                                      children: _pages,
-                                    ),
-                                  ),
+                            // R32 一.1：移除内容区底部圆角裁切（cl53-E 原为
+                            // 与玻璃表面衔接，原生极简下玻璃表面已无，圆角仅是
+                            // 多余的边角约束）；5 页统一无圆角直通。
+                            child: IndexedStack(
+                              index: pageIndex,
+                              children: _pages,
+                            ),
                           ),
                         ),
                       ],

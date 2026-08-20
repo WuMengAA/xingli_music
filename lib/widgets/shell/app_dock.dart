@@ -6,6 +6,7 @@ import '../../core/terms/naming_dict.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
+import '../liquid_glass.dart';
 
 /// Dock 单个 Tab 的静态描述
 @immutable
@@ -66,10 +67,10 @@ const List<DockItem> kDockItems = <DockItem>[
 ///
 /// 结构（自外向内）：
 /// ```
-/// ClipRRect(r=38)            ← ① 水波纹裁剪兜底，必须在最外层
-/// └ Container h=76 #E6E6E6 + 1px 白描边
-///   └ Material(transparency) ← ② InkWell 需要 Material 祖先
-///     └ Row → 4 × Expanded   ← ③ 严格等分（热区 ≈97×76 ≫ 44×44）
+/// LiquidGlass(forceGlass, r=38) ← ① 核心浮层白名单玻璃焦点（R32）
+/// └ SizedBox h=76              ← ② 固定 Dock 高度
+///   └ Material(transparency)   ← ③ InkWell 需要 Material 祖先
+///     └ Row → 5 × Expanded     ← ④ 严格等分（热区 ≈97×76 ≫ 44×44）
 /// ```
 ///
 /// 本组件**不读任何 provider**（纯组件、可单测），状态由 `AppShell` 注入。
@@ -116,33 +117,43 @@ class AppDock extends StatelessWidget {
     final ResponsiveLayout rl = ResponsiveLayout.of(context);
     final double dockH =
         AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
-    // R27 原生极简：去掉「满宽药丸玻璃容器」这一带边界的装饰元素。
-    // Dock 不再有背景卡片 / 边框 / 圆角裁切，仅保留居中等宽约束下的等分 Tab
-    // 行，直接浮在场景背景上；选中态由 [_DockTab] 的 Ø44 紫圆与文字高亮
-    // （系统原生控件语义）来区分，符合平台原生审美且轻盈通透。
+    // R32 玻璃焦点：Dock 为「极简基底 + 玻璃焦点」中的唯二玻璃之一。
+    // 用 LiquidGlass(forceGlass) 白名单恢复玻璃药丸（毛玻璃模糊 + 半透明 +
+    // 细描边，tint/border 跟随皮肤主色），模糊强度跟随全局性能模式
+    // （省电=0 直通无玻璃，均衡/流畅恢复玻璃）；基底其余页面保持原生极简。
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: rl.dockMaxWidth),
-        child: SizedBox(
-          height: dockH,
-          child: Material(
-            type: MaterialType.transparency,
-            child: Row(
-              // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
-              // 设计坐标 x=0/104/208/312（390dp 基准）。
-              children: <Widget>[
-                for (int i = 0; i < items.length; i++)
-                  Expanded(
-                    child: _DockTab(
-                      item: items[i],
-                      selected: selectedIndex == i,
-                      // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
-                      showLabel: rl.dockShowLabels &&
-                          density != UiDensity.compact,
-                      onTap: () => onTabSelected(i),
+        child: LiquidGlass(
+          // R32 白名单：仅核心浮层放行玻璃
+          forceGlass: true,
+          // 药丸圆角 = 高度一半，取自 Token（AppSize.dockRadius）
+          radius: AppSize.dockRadius,
+          style: GlassStyle.frosted,
+          // tint/borderColor 不写死白色，跟随皮肤主色派生的玻璃语义色
+          tint: context.appColors.glassTint,
+          borderColor: context.appColors.glassBorder,
+          child: SizedBox(
+            height: dockH,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Row(
+                // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
+                // 设计坐标 x=0/104/208/312（390dp 基准）。
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++)
+                    Expanded(
+                      child: _DockTab(
+                        item: items[i],
+                        selected: selectedIndex == i,
+                        // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
+                        showLabel: rl.dockShowLabels &&
+                            density != UiDensity.compact,
+                        onTap: () => onTabSelected(i),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -195,7 +206,8 @@ class _DockTab extends ConsumerWidget {
               child: Icon(
                 selected ? item.selectedIcon : item.icon,
                 size: AppSize.icon,
-                color: selected ? Colors.white : c.iconInactive,
+                // R32 一.5：选中态用 onAccent 语义色（强调底上文字，随主题/皮肤）
+                color: selected ? c.onAccent : c.iconInactive,
               ),
             ),
             // 紧凑屏（手表等）隐藏文字标签，只留图标

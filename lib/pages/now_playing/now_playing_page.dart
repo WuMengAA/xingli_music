@@ -18,6 +18,7 @@ import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
+import '../../widgets/playback/playback_controls.dart';
 import '../../widgets/playback/unified_player.dart' show showEqualizerSheet, showSleepTimerSheet, showSpeedSheet;
 import '../../widgets/sources/music_quality_sheet.dart';
 
@@ -210,8 +211,11 @@ class NowPlayingPage extends ConsumerWidget {
             const SizedBox(height: AppSpace.sm),
             Row(
               children: <Widget>[
-                _RoundIconButton(
+                // R32 一.2：图标统一为外部音乐控制栏样式（PlaybackIconButton：
+                // 纯图标 + 主题色，无描边圆底容器），播放键保持居中主按钮。
+                PlaybackIconButton(
                   icon: Icons.skip_previous_rounded,
+                  size: 24,
                   tooltip: '上一首',
                   onTap: () => runPlaybackAction(
                     context,
@@ -219,24 +223,33 @@ class NowPlayingPage extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpace.sm),
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () => runPlaybackAction(context, actions.toggle),
-                    icon: Icon(
-                      isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: 22,
-                    ),
-                    label: Text(isPlaying ? '暂停' : '播放'),
-                  ),
+                PlaybackIconButton(
+                  icon: isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 40,
+                  tooltip: isPlaying ? '暂停' : '播放',
+                  onTap: () => runPlaybackAction(context, actions.toggle),
                 ),
                 const SizedBox(width: AppSpace.sm),
-                _RoundIconButton(
+                PlaybackIconButton(
                   icon: Icons.skip_next_rounded,
+                  size: 24,
                   tooltip: '下一首',
                   onTap: () => runPlaybackAction(context, () => actions.next()),
                 ),
                 const SizedBox(width: AppSpace.xs),
-                _ModeIconButton(mode: mode, actions: actions),
+                PlaybackIconButton(
+                  icon: _npModeIcon(mode),
+                  size: 24,
+                  tint: true,
+                  tooltip: '播放模式：${_npModeLabel(mode)}',
+                  onTap: () {
+                    final PlayMode next = _npNextMode(mode);
+                    actions.setMode(next);
+                    showPlaybackToast(context, '播放模式：${_npModeLabel(next)}');
+                  },
+                ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
@@ -266,47 +279,6 @@ class NowPlayingPage extends ConsumerWidget {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 圆形图标按钮（控制行上一首/下一首，统一 rounded 图标 + 玻璃圆底）。
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Tooltip(
-          message: tooltip,
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: c.bgSurface.withValues(alpha: 0.35),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: c.border.withValues(alpha: 0.4),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, size: 22, color: c.iconPrimary),
-          ),
         ),
       ),
     );
@@ -851,50 +823,33 @@ class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
 }
 
 /// 播放模式图标按钮（循环顺序与全局一致）。点击切换并轻提示。
-class _ModeIconButton extends ConsumerWidget {
-  const _ModeIconButton({required this.mode, required this.actions});
+// ════════════════════════════════════════════════════════════════════════
+// 播放模式图标 / 文案 / 切换（R32 一.2：与外部控制栏样式统一后的顶层函数）
+// ════════════════════════════════════════════════════════════════════════
 
-  final PlayMode mode;
-  final PlaybackActions actions;
+/// 播放模式 → 图标（Material rounded，与外部音乐控制栏同源）。
+IconData _npModeIcon(PlayMode m) => switch (m) {
+      PlayMode.order => Icons.trending_flat_rounded,
+      PlayMode.reverse => Icons.keyboard_backspace_rounded,
+      PlayMode.shuffle => Icons.shuffle_rounded,
+      PlayMode.loop => Icons.repeat_one_rounded,
+    };
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return IconButton(
-      icon: Icon(
-        _modeIcon(mode),
-        size: 22,
-        color: context.appColors.iconPrimary,
-      ),
-      tooltip: '播放模式：${_modeLabel(mode)}',
-      onPressed: () {
-        final PlayMode next = _nextMode(mode);
-        actions.setMode(next);
-        showPlaybackToast(context, '播放模式：${_modeLabel(next)}');
-      },
-    );
-  }
+/// 播放模式 → 文案。
+String _npModeLabel(PlayMode m) => switch (m) {
+      PlayMode.order => '顺序',
+      PlayMode.reverse => '倒叙',
+      PlayMode.shuffle => '随机',
+      PlayMode.loop => '单曲循环',
+    };
 
-  IconData _modeIcon(PlayMode m) => switch (m) {
-        PlayMode.order => Icons.trending_flat_rounded,
-        PlayMode.reverse => Icons.keyboard_backspace_rounded,
-        PlayMode.shuffle => Icons.shuffle_rounded,
-        PlayMode.loop => Icons.repeat_one_rounded,
-      };
-
-  String _modeLabel(PlayMode m) => switch (m) {
-        PlayMode.order => '顺序',
-        PlayMode.reverse => '倒叙',
-        PlayMode.shuffle => '随机',
-        PlayMode.loop => '单曲循环',
-      };
-
-  PlayMode _nextMode(PlayMode m) => switch (m) {
-        PlayMode.order => PlayMode.reverse,
-        PlayMode.reverse => PlayMode.shuffle,
-        PlayMode.shuffle => PlayMode.loop,
-        PlayMode.loop => PlayMode.order,
-      };
-}
+/// 播放模式循环切换（order → reverse → shuffle → loop → order）。
+PlayMode _npNextMode(PlayMode m) => switch (m) {
+      PlayMode.order => PlayMode.reverse,
+      PlayMode.reverse => PlayMode.shuffle,
+      PlayMode.shuffle => PlayMode.loop,
+      PlayMode.loop => PlayMode.order,
+    };
 
 /// 音量行（默认折叠，点标题展开）。
 class _CollapsibleVolumeRow extends ConsumerStatefulWidget {
