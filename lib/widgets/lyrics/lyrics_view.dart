@@ -381,10 +381,11 @@ final StateNotifierProvider<LyricsStylePrefs, LyricStyle> lyricsStyleProvider =
 );
 
 class LyricsStylePrefs extends StateNotifier<LyricStyle> {
+  // R32 二.2：所有歌词默认采用 Apple Music 风格（仅显式选过「默认」才回退）。
   LyricsStylePrefs(this._prefs)
-      : super(_prefs.getString(kLyricsStyle) == 'appleMusic'
-            ? LyricStyle.appleMusic
-            : LyricStyle.normal);
+      : super(_prefs.getString(kLyricsStyle) == 'normal'
+            ? LyricStyle.normal
+            : LyricStyle.appleMusic);
   final SharedPreferences _prefs;
 
   void toggle() {
@@ -440,10 +441,26 @@ class LyricsView extends ConsumerWidget {
               height: h,
               child: Stack(
                 children: <Widget>[
-                  _LyricsScroller(
-                    lines: lines,
-                    height: h,
-                    track: current,
+                  // R32 二.2：Apple Music 风格——歌词上下边缘渐变淡出，
+                  // 与背景融合（非整行突兀截断）；滚动到边缘的歌词自然渐隐。
+                  ShaderMask(
+                    shaderCallback: (Rect bounds) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: <Color>[
+                        Colors.transparent,
+                        Colors.black,
+                        Colors.black,
+                        Colors.transparent,
+                      ],
+                      stops: <double>[0, 0.12, 0.88, 1],
+                    ).createShader(bounds),
+                    blendMode: BlendMode.dstIn,
+                    child: _LyricsScroller(
+                      lines: lines,
+                      height: h,
+                      track: current,
+                    ),
                   ),
                   Positioned(
                     top: 0,

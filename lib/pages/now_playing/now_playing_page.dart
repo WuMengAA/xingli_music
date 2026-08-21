@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/utils/format.dart';
+import '../../core/utils/palette_extractor.dart';
+import '../../core/utils/app_motion.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
@@ -442,8 +444,9 @@ class _ToolChip extends StatelessWidget {
 /// 背景动态配色层。
 ///
 /// 组合（自上而下）：
-/// 1. **封面提色渐变**：封面图模糊（sigma 24，性价比档）铺满 + 叠主题渐变，
-///    让背景主色随当前封面变化（非逐帧取色，一次模糊静态层）。
+/// 1. **封面提色渐变**：实时提取封面主色（[PaletteExtractor]）→ 主色渐变
+///    铺底，切曲时 [TweenAnimationBuilder] 平滑过渡；叠封面模糊层（sigma 24，
+///    性价比档）作为氛围，让背景主色随封面自然变化。
 /// 2. **动态粒子**：[ParticleLayer] 随音乐能量/节拍飘动（自定义 Ticker，
 ///    不污染 build 树）。
 /// 3. **光源遮罩**：顶部 radial 光晕（accent 派生）模拟「封面光源」，
@@ -464,6 +467,29 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
     duration: const Duration(seconds: 3),
   )..repeat();
 
+  /// 当前曲目封面提取的主色（R32 一.4）；未提取到则回退 accent。
+  Color? _dominant;
+
+  /// 上一帧实际显示的主色（供 [TweenAnimationBuilder] 作平滑过渡起点）。
+  Color? _displayAccent;
+
+  @override
+  void initState() {
+    super.initState();
+    _extract();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DynamicBackground old) {
+    super.didUpdateWidget(old);
+    if (old.track != widget.track) _extract();
+  }
+
+  Future<void> _extract() async {
+    final Color? c = await PaletteExtractor.dominantOf(widget.track);
+    if (mounted && c != null) setState(() => _dominant = c);
+  }
+
   @override
   void dispose() {
     _pulse.dispose();
@@ -476,79 +502,91 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
     final Track? t = widget.track;
     final bool hasImage = t != null &&
         ((t.coverUrl?.isNotEmpty ?? false) || (t.coverPath?.isNotEmpty ?? false));
+    // R32 一.4：提色渐变。begin=上一帧显示色，end=提取主色（未提取到用 accent
+    // 兜底），切曲时 700ms easeOutCubic 平滑过渡；提取完成后再自然过渡到新色。
+    final Color accentFrom = _displayAccent ?? c.accent;
+    final Color accentTo = _dominant ?? c.accent;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            c.accentSoft.withValues(alpha: 0.8),
-            c.bgPage,
-          ],
-          stops: const <double>[0, 0.7],
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          // ① 封面提色渐变：模糊 + 轻微提亮，背景主色随封面变化。
-          if (hasImage)
-            ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-              child: Transform.scale(
-                scale: 1.4,
-                child: ColorFiltered(
-                  // 提色：压暗 + 提饱和，让封面主色渗入背景而非整图清晰呈现。
-                  colorFilter: const ColorFilter.matrix(<double>[
-                    0.9, 0, 0, 0, 0, //
-                    0, 0.9, 0, 0, 0, //
-                    0, 0, 0.9, 0, 0, //
-                    0, 0, 0, 0.75, 0, //
-                  ]),
-                  child: _CoverImage(track: t, fit: BoxFit.cover),
-                ),
-              ),
+    return TweenAnimationBuilder<Color>(
+      duration: const Duration(milliseconds: 700),
+      curve: Curves.easeOutCubic,
+      tween: Tween<Color>(begin: accentFrom, end: accentTo),
+      builder: (BuildContext context, Color accent, Widget? child) {
+        _displayAccent = accent;
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: <Color>[
+                accent.withValues(alpha: 0.55),
+                c.bgPage,
+              ],
+              stops: const <double>[0, 0.7],
             ),
-          // ② 动态粒子（随播放能量/节拍）。
-          Positioned.fill(child: ParticleLayer(pulse: _pulse)),
-          // ③ 光源遮罩：顶部 radial 光晕（封面光源感）。
-          Positioned(
-            top: -80,
-            left: 0,
-            right: 0,
-            child: IgnorePointer(
-              child: Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const Alignment(0, -0.4),
-                    radius: 0.9,
-                    colors: <Color>[
-                      c.accent.withValues(alpha: 0.35),
-                      Colors.transparent,
-                    ],
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              // ① 封面提色渐变：模糊 + 轻微提亮，背景主色随封面变化。
+              if (hasImage)
+                ImageFiltered(
+                  imageFilter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+                  child: Transform.scale(
+                    scale: 1.4,
+                    child: ColorFiltered(
+                      // 提色：压暗 + 提饱和，让封面主色渗入背景而非整图清晰呈现。
+                      colorFilter: const ColorFilter.matrix(<double>[
+                        0.9, 0, 0, 0, 0, //
+                        0, 0.9, 0, 0, 0, //
+                        0, 0, 0.9, 0, 0, //
+                        0, 0, 0, 0.75, 0, //
+                      ]),
+                      child: _CoverImage(track: t, fit: BoxFit.cover),
+                    ),
+                  ),
+                ),
+              // ② 动态粒子（随播放能量/节拍）。
+              Positioned.fill(child: ParticleLayer(pulse: _pulse)),
+              // ③ 光源遮罩：顶部 radial 光晕（封面光源感）。
+              Positioned(
+                top: -80,
+                left: 0,
+                right: 0,
+                child: IgnorePointer(
+                  child: Container(
+                    height: 300,
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0, -0.4),
+                        radius: 0.9,
+                        colors: <Color>[
+                          c.accent.withValues(alpha: 0.35),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ),
-          // 底部压暗：保证控制栏文字可读。
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[
-                  Colors.transparent,
-                  Color(0x55000000),
-                ],
-                stops: <double>[0.55, 1],
+              // 底部压暗：保证控制栏文字可读。
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      Colors.transparent,
+                      Color(0x55000000),
+                    ],
+                    stops: <double>[0.55, 1],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -653,10 +691,9 @@ class _LargeCover extends StatelessWidget {
     final bool hasImage = t != null &&
         ((t.coverPath?.isNotEmpty ?? false) ||
             (t.coverUrl?.isNotEmpty ?? false));
-    if (hasImage) {
-      return TrackCover(track: t, size: size, radius: AppRadius.lg);
-    }
-    return ClipRRect(
+    final Widget inner = hasImage
+        ? TrackCover(track: t, size: size, radius: AppRadius.lg)
+        : ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: SizedBox(
         width: size,
@@ -682,6 +719,8 @@ class _LargeCover extends StatelessWidget {
         ),
       ),
     );
+    // R32 批2：Hero 共享元素——与播放栏折叠态封面同 tag，实现曲线位移过渡。
+    return Hero(tag: NpHeroTags.cover, child: inner);
   }
 }
 
@@ -703,15 +742,18 @@ class _TrackInfo extends StatelessWidget {
       crossAxisAlignment:
           alignLeft ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: <Widget>[
-        Text(
-          track?.title ?? '未在播放',
-          style: context.appText.title.copyWith(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
+        Hero(
+          tag: NpHeroTags.title,
+          child: Text(
+            track?.title ?? '未在播放',
+            style: context.appText.title.copyWith(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: align,
           ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: align,
         ),
         const SizedBox(height: AppSpace.xs),
         Text(

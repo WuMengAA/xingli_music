@@ -20,6 +20,7 @@ import '../common/playback_feedback.dart';
 import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
+import '../../core/utils/app_motion.dart';
 import '../sources/music_quality_sheet.dart';
 import 'bili_visual_options_sheet.dart';
 import 'equalizer_panel.dart';
@@ -57,6 +58,7 @@ class UnifiedPlayer extends ConsumerStatefulWidget {
     this.onOpenNowPlaying,
     this.lyricsSlot,
     this.initialCollapsed,
+    this.heroTag,
   });
 
   /// 点击左侧信息区（封面 + 曲名）的回调。
@@ -64,6 +66,13 @@ class UnifiedPlayer extends ConsumerStatefulWidget {
   /// R23j：默认（不传）直接打开**全屏播放卡片**（[UnifiedPlayer] 自带
   /// Overlay，可拖拽调大小）；传入了则优先走外部回调（兼容旧接入）。
   final VoidCallback? onOpenNowPlaying;
+
+  /// 共享元素转场 tag（R32 批2）：非空时，折叠态的封面与曲名会以 [Hero]
+  /// 形式参与「播放栏 → 正在播放」的曲线位移过渡。
+  ///
+  /// 默认 null（不启用），避免游戏内 HUD 等多实例 [UnifiedPlayer] 出现
+  /// 重复 tag；仅 AppShell 的 [MusicCard] 显式传入。
+  final String? heroTag;
 
   /// 可选歌词区（通常传 `LyricsView`）。
   ///
@@ -144,20 +153,29 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
         ? false
         : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
 
+    final Widget cover = TrackCover(track: now, size: 44, radius: 10);
+    final Widget titleText = Text(
+      now?.title ?? '星璃 · 无限音乐空间',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: context.appText.trackName,
+    );
+    // R32 批2：Hero 共享元素（封面 + 曲名），参与「播放栏 → 正在播放」过渡。
+    final Widget coverWidget = widget.heroTag != null
+        ? Hero(tag: widget.heroTag!, child: cover)
+        : cover;
+    final Widget titleWidget = widget.heroTag != null
+        ? Hero(tag: '${widget.heroTag}${NpHeroTags.title}', child: titleText)
+        : titleText;
     final Widget header = Row(
       children: <Widget>[
-        TrackCover(track: now, size: 44, radius: 10),
+        coverWidget,
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(
-                now?.title ?? '星璃 · 无限音乐空间',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.appText.trackName,
-              ),
+              titleWidget,
               const SizedBox(height: 2),
               Text(
                 now?.artist ?? '从曲库挑一首开始',

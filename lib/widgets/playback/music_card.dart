@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../lyrics/lyrics_view.dart';
+import '../../core/utils/app_motion.dart';
 import 'unified_player.dart';
 import '../../pages/now_playing/now_playing_page.dart';
 
@@ -42,12 +43,12 @@ class MusicCard extends ConsumerWidget {
     // 走外部回调（兼容游戏内 HUD  & 等旧接入，保持零回归）。
     final VoidCallback openNowPlaying = onOpenNowPlaying ??
         () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const NowPlayingPage(),
-              ),
+              NowPlayingRoute(page: const NowPlayingPage()),
             );
     return UnifiedPlayer(
       onOpenNowPlaying: openNowPlaying,
+      // R32 批2：共享元素转场——折叠态封面/曲名作为 Hero 起点。
+      heroTag: NpHeroTags.cover,
       // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
       lyricsSlot: const LyricsView(),
     );
