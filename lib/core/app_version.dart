@@ -361,7 +361,12 @@ abstract final class AppVersion {
   /// （unified_player）公开控件——buildTransportRow / ProgressSlider /
   /// buildVolumePanel / buildBottomActions，双端视觉完全一致、不另设计。
   /// unified_player 对应组件提升为 public 供跨文件复用。
-  static const int buildCount = 10;
+  /// cl11（08.22）：真修 #579 减号颜色崩溃（全屏进入瞬间的红屏/崩溃界面）。
+  /// 根因 = 全屏页 _DynamicBackground 用通用 `Tween<Color>`，其 lerp 对非 num
+  /// 类型 fall back 到 begin + (end - begin)*t，对 Color 调 `-` 运算符
+  /// → NoSuchMethodError: Class 'Color' has no instance method '-'。改为
+  /// `ColorTween`（走 Color.lerp）+ `TweenAnimationBuilder<Color?>` 接受 null。
+  static const int buildCount = 11;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -426,6 +431,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl11',
+    title: '真修 #579 全屏进入瞬间减号颜色崩溃',
+    details: <String>[
+      '根因：全屏页 _DynamicBackground 用通用 Tween<Color>，其 lerp 对非 num 类型 fall back 到 begin + (end - begin)*t，即对 Color 调 `-` 运算符 → NoSuchMethodError: Class \'Color\' has no instance method \'-\'（全屏进入瞬间红屏/崩溃界面，1 秒后随重建恢复）',
+      '修复：Tween<Color> 改 ColorTween（走 Color.lerp），TweenAnimationBuilder 泛型改 <Color?> 接受 null 初值，从根本上消除 Color 减法',
+      'cl07 曾在 changelog 标注「#579 修复减号颜色崩溃」但当时无完整堆栈未真修，本次据 app.log 真实堆栈（tween.dart:346 Tween.lerp）定位并修复',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl10',

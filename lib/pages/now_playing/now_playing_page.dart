@@ -346,23 +346,24 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
     final Color accentFrom = _prevAccent ?? c.accent;
     final Color accentTo = _dominant ?? c.accent;
 
-    return TweenAnimationBuilder<Color>(
+    return TweenAnimationBuilder<Color?>(
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeOutCubic,
-      tween: Tween<Color>(begin: accentFrom, end: accentTo),
+      tween: ColorTween(begin: accentFrom, end: accentTo),
       // 仅在动画结束后落定「上一帧主色」，供下次切曲作平滑起点；
       // 不写在 builder 内，避免 build 期写入状态导致重建/无限循环。
       onEnd: () {
         _prevAccent = accentTo;
       },
-      builder: (BuildContext context, Color accent, Widget? child) {
+      builder: (BuildContext context, Color? accent, Widget? child) {
+        final Color a = accent ?? c.accent;
         return DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: <Color>[
-                accent.withValues(alpha: 0.55),
+                a.withValues(alpha: 0.55),
                 c.bgPage,
               ],
               stops: const <double>[0, 0.7],
