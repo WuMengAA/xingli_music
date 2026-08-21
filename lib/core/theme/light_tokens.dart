@@ -337,6 +337,24 @@ abstract final class AppShadow {
 // 6. 字体 Token —— PRD §6.6
 // ─────────────────────────────────────────────────────────────────────────
 
+/// 全局字体回退链（#582 修复黄色双下划线）。
+///
+/// 当系统默认字体缺少某字形（如场景 glyph `✦` U+2726、各种 emoji / 特殊符号）
+/// 时，Flutter 在 debug 模式会渲染「豆腐块 + 黄色双下划线」的缺失字形指示。
+/// 这里给出一组跨平台符号 / emoji 字体作为回退，让这些字形走系统符号字体
+/// 正常显示，从而消除黄色双下划线。
+///
+/// 顺序无关紧要：引擎会从主字体（系统默认）起，依次在回退链里寻找首个含该
+/// 字形的字体。
+const List<String> kFontFallback = <String>[
+  'Segoe UI Symbol',
+  'Segoe UI Emoji',
+  'Noto Sans Symbols',
+  'Noto Sans Symbols2',
+  'Noto Color Emoji',
+  'Apple Color Emoji',
+];
+
 /// 文字样式。字体族跟随系统（iOS = PingFang SC，Android = Noto Sans CJK），
 /// 不引入自定义字体。
 abstract final class AppTextStyles {
@@ -346,6 +364,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.3,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 16 / w600 · 区块小标题。
@@ -354,6 +373,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.3,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 14 / w400 · 正文、设置项。
@@ -362,6 +382,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
     height: 1.4,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 14 / w400 / 次级色 · 说明性正文。
@@ -370,6 +391,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
     height: 1.4,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 14 / w600 · 迷你播放器歌名、专辑卡曲名。
@@ -378,6 +400,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.25,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 12 / w400 · 歌手名。
@@ -386,6 +409,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.25,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 11 / w400 · 时长、辅助信息。
@@ -394,6 +418,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.2,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 10 / w500 · Dock Tab 文字标签。
@@ -402,6 +427,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w500,
     color: AppColors.iconInactive,
     height: 1.2,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 9 / w400 · 设置分类 tile 文字（52dp 栏内仅容 2 个汉字）。
@@ -410,6 +436,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
     height: 1.15,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 14 / w400 / 占位色 · 搜索栏 hint。
@@ -418,6 +445,7 @@ abstract final class AppTextStyles {
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.2,
+    fontFamilyFallback: kFontFallback,
   );
 
   /// 14 / w600 · 按钮文字（FilledButton / TextButton / OutlinedButton）。
@@ -430,6 +458,7 @@ abstract final class AppTextStyles {
     fontSize: 14,
     fontWeight: FontWeight.w600,
     height: 1.2,
+    fontFamilyFallback: kFontFallback,
   );
 }
 

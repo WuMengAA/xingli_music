@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'light_tokens.dart';
+
 // ═════════════════════════════════════════════════════════════
 // ⚠️ 作用域声明（UI 全面重构后，务必遵守）
 //
@@ -69,34 +71,41 @@ ThemeData buildAppTheme(Color primary, {Brightness brightness = Brightness.dark}
         color: baseText.withValues(alpha: 0.9),
         fontWeight: FontWeight.w500,
         letterSpacing: 0.5,
+        fontFamilyFallback: kFontFallback,
       ),
       titleLarge: TextStyle(
         color: baseText.withValues(alpha: 0.9),
         fontWeight: FontWeight.w500,
         letterSpacing: 0.4,
+        fontFamilyFallback: kFontFallback,
       ),
       titleMedium: TextStyle(
         color: baseText.withValues(alpha: 0.8),
         fontWeight: FontWeight.w400,
         letterSpacing: 0.3,
+        fontFamilyFallback: kFontFallback,
       ),
       bodyLarge: TextStyle(
         color: baseText.withValues(alpha: 0.8),
         fontWeight: FontWeight.w400,
         height: 1.5,
+        fontFamilyFallback: kFontFallback,
       ),
       bodyMedium: TextStyle(
         color: baseText.withValues(alpha: 0.65),
         fontWeight: FontWeight.w300,
         height: 1.4,
+        fontFamilyFallback: kFontFallback,
       ),
       bodySmall: TextStyle(
         color: baseText.withValues(alpha: 0.45),
         fontWeight: FontWeight.w300,
+        fontFamilyFallback: kFontFallback,
       ),
       labelSmall: TextStyle(
         color: baseText.withValues(alpha: 0.35),
         fontWeight: FontWeight.w300,
+        fontFamilyFallback: kFontFallback,
       ),
     ),
 

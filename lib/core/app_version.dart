@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 19;
+  static const int day = 21;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -339,7 +339,18 @@ abstract final class AppVersion {
   /// 首页场景卡文字层级对齐画布（SCENE 标签→场景名主→音景 pill→切歌副→滑动提示）；
   /// 整页播放器补快捷操作胶囊行（搜索/音质/白噪音/视听/倍速）+ 工具行（睡眠/均衡器），
   /// 队列/下载无后端不摆空按钮。
-  static const int buildCount = 3;
+  /// cl04（08.20）：原生极简转向——玻璃白名单（LiquidGlass + kNativeMinimal=true，
+  /// 全站 30+ 处退化为纯 Padding 直通，仅 forceGlass 白名单的 Dock 与播放控制栏
+  /// 保留玻璃）+ 悬浮层重构（ResponsiveFloatingLayer 双独立浮层）+ 文案规范落地。
+  /// cl05（08.20）：玻璃白名单 + Dock/播放栏玻璃焦点 + 正在播放样式统一。
+  /// cl06（08.21）：封面提色渐变 + AM 歌词跳动回弹 + 播放栏展开转场。
+  /// cl07（08.21）：R32 批3 跨模块修复 8 项——#577 播放控制栏布局样式优化、
+  /// #578 存档列表统一并入检查点世界（listAllSaves 合并取数）、#579 减号颜色崩溃、
+  /// #580 Dock 与各页滑动模糊过渡+上下方模糊（滚动磨砂边/FrostEdgeBar、Dock 羽化带、
+  /// Tab 切换模糊脉冲）、#581 场景卡去双模糊改实色堆叠+字号放大、#582 字体不支持
+  /// 黄双下划线、#583 主题切换后玻璃失效（LiquidGlassCapture ref.listen 重捕获）、
+  /// #584 3D 世界不跟随主题（频谱条/画布/配色面板改 context.appColors）。
+  static const int buildCount = 7;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -404,6 +415,21 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.21',
+    cl: 'alpha_cl07',
+    title: 'R32 批3 跨模块修复 8 项：模糊过渡 + 场景卡 + 存档 + 主题',
+    details: <String>[
+      '#577 音乐控制栏布局样式优化',
+      '#578 存档列表统一并入仅检查点世界（listAllSaves 合并手动+检查点，管理器页/联机大厅/游戏内三处取数统一）',
+      '#579 修复减号颜色崩溃',
+      '#580 Dock 与各页滑动模糊过渡+上下方模糊（滚动磨砂边 FrostEdgeBar 随滚动淡入、Dock 顶部羽化带、Tab 切换模糊脉冲）',
+      '#581 场景卡片取消双模糊改不透明实色堆叠 + 实色浓度可调（默认 0.7）+ 字号放大',
+      '#582 修复字体不支持导致的黄色双下划线',
+      '#583 修复主题切换后玻璃失效（LiquidGlassCapture 监听主题/皮肤变化重新捕获背景快照）',
+      '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.19',
     cl: 'alpha_cl03',

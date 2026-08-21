@@ -675,6 +675,32 @@ Future<List<VoxelManualSaveMeta>> listCheckpointSaves() async {
   return out;
 }
 
+/// 列出「全部存档」：手动存档 + 仅自动检查点（玩过但未显式保存）的世界，
+/// 按最近保存时间倒序。统一入口，避免各处列表只取 [listManualSaves] 而漏掉
+/// 「仅检查点」世界（表现为"存档列表未列出存档"）。
+///
+/// 任一子查询异常均被吞掉（与 [listManualSaves]/[listCheckpointSaves] 一致），
+/// 不会因单个坏文件导致整张列表空白。
+Future<List<VoxelManualSaveMeta>> listAllSaves() async {
+  List<VoxelManualSaveMeta> saves;
+  try {
+    saves = await listManualSaves();
+  } catch (_) {
+    saves = <VoxelManualSaveMeta>[];
+  }
+  final Set<String> ids = <String>{for (final VoxelManualSaveMeta s in saves) s.id};
+  try {
+    for (final VoxelManualSaveMeta c in await listCheckpointSaves()) {
+      if (!ids.contains(c.id)) saves.add(c);
+    }
+  } catch (_) {
+    // 检查点枚举失败不影响手动存档列表
+  }
+  saves.sort((VoxelManualSaveMeta a, VoxelManualSaveMeta b) =>
+      (b.lastSavedAt ?? b.createdAt).compareTo(a.lastSavedAt ?? a.createdAt));
+  return saves;
+}
+
 /// 删除「仅有自动检查点」的世界（检查点 + 备份 + chunk 目录）。
 Future<void> deleteCheckpointWithBackups(String id) async {
   try {

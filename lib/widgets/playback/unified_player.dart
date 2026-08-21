@@ -216,7 +216,10 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
       child: header,
     );
 
-    return Center(
+    // R32 批3：底部锚定——卡片底部贴住停靠位，展开（歌词/音量面板）时
+    // 整卡向上生长，进度条/控制行/操作行因底部固定**不再向上位移**。
+    return Align(
+      alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
         child: _frostedPanel(
@@ -226,7 +229,11 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
             children: <Widget>[
               headerArea,
 
-              // ── 可折叠区域：进度条 + 控制行 + 音量面板 ──
+              // ── 可折叠区域（整卡统一过渡 AnimatedSize）──
+              // 结构（自上而下）：歌词面板 / 音量面板（均位于进度条上方）
+              // → 进度条 → 控制行 → 底部操作行。展开时面板向上推、封面区上移，
+              // 而进度条+控制+操作因卡片底部锚定保持不动（R32 批3 不向上位移）。
+              // 封面（header）与歌词保持静止，仅随卡片高度过渡。
               AnimatedSize(
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeOutCubic,
@@ -235,6 +242,18 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                     : Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
+                          // 歌词面板（进度条上方；封面与歌词保持静止）
+                          _lyricsOpen && widget.lyricsSlot != null
+                              ? Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: widget.lyricsSlot!,
+                                )
+                              : const SizedBox.shrink(),
+                          // 音量面板（进度条上方）
+                          Consumer(
+                            builder: (BuildContext context, WidgetRef ref, _) =>
+                                _buildVolumePanel(ref, _volOpen),
+                          ),
                           const SizedBox(height: 8),
                           _ProgressSlider(
                             onSeek: (double v) => unawaited(ref
@@ -258,18 +277,6 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                               if (now == null) return;
                               unawaited(toggleFavoriteTrack(ref, now));
                             },
-                          ),
-                          Consumer(builder: (BuildContext context, WidgetRef ref, _) => _buildVolumePanel(ref, _volOpen)),
-                          // cl52-B：内嵌歌词（按钮展开后显示在传输行下方）。
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeOutCubic,
-                            child: _lyricsOpen && widget.lyricsSlot != null
-                                ? Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: widget.lyricsSlot!,
-                                  )
-                                : const SizedBox(width: double.infinity),
                           ),
                           // ⑧：搜索 + 音质入口下沉到音乐卡片底部（全局液态玻璃卡片）；
                           // cl52-B：白噪音 + 视听 + 均衡器也并入底部（音质右边）。
@@ -525,12 +532,10 @@ Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
   void cue(AudioCategory c) =>
       unawaited(ref.read(audioServiceProvider).playCategoryCue(c));
 
-  return AnimatedSize(
-    duration: const Duration(milliseconds: 200),
-    curve: Curves.easeOutCubic,
-    child: volOpen
-        ? Column(
-            children: <Widget>[
+  return volOpen
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
               const SizedBox(height: 6),
               // 主音量：不属于分类，是所有分类的总输出
               _VolRow(
@@ -608,8 +613,7 @@ Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
               ),
             ],
           )
-        : const SizedBox(width: double.infinity),
-  );
+      : const SizedBox.shrink();
 }
 
 /// ⑧⑩：音乐卡片底部操作行——搜索 + 音质 / 清晰度 + 白噪音 + 视听 + 均衡器。

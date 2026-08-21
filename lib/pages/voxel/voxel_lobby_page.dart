@@ -78,9 +78,9 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
     _loadSaves();
   }
 
-  /// 载入本地手动存档列表，供主持「使用本地存档作共享世界」选择。
+  /// 载入本地存档列表（手动 + 仅检查点世界），供主持「使用本地存档作共享世界」选择。
   Future<void> _loadSaves() async {
-    final List<VoxelManualSaveMeta> s = await listManualSaves();
+    final List<VoxelManualSaveMeta> s = await listAllSaves();
     if (mounted) setState(() => _saves = s);
   }
 

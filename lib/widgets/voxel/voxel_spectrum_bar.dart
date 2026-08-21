@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/light_tokens.dart';
+import '../../core/theme/app_theme_colors.dart';
 import 'voxel_canvas_controller.dart';
 
 /// 2.5D 实时频谱条（Module "MusicViz-2.5D" · Phase 2：真实频谱条）。
@@ -32,6 +32,8 @@ class VoxelSpectrumBar extends StatelessWidget {
         size: Size.infinite,
         painter: _SpectrumPainter(
           controller: controller,
+          // #584：频谱条强调色跟随全局主题/皮肤（不再写死品牌紫）。
+          accent: context.appColors.accent,
           repaint: controller,
         ),
       ),
@@ -43,10 +45,12 @@ class VoxelSpectrumBar extends StatelessWidget {
 class _SpectrumPainter extends CustomPainter {
   _SpectrumPainter({
     required this.controller,
+    required this.accent,
     super.repaint,
   });
 
   final VoxelCanvasController controller;
+  final Color accent;
 
   static const double _gap = 2.0;
   static const double _radius = 3.0;
@@ -65,10 +69,10 @@ class _SpectrumPainter extends CustomPainter {
       final double barH = (usableH * v).clamp(_minBar, usableH);
       final double x = i * (bw + _gap);
       final double y = size.height - barH;
-      // 低频(accent 紫) → 高频(青)，频段渐变。
+      // 低频(accent 紫) → 高频(青)，频段渐变（#584：accent 跟随主题）。
       final Color c = n <= 1
-          ? AppColors.accent
-          : Color.lerp(AppColors.accent, Colors.cyanAccent, i / (n - 1))!;
+          ? accent
+          : Color.lerp(accent, Colors.cyanAccent, i / (n - 1))!;
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, y, bw, barH),

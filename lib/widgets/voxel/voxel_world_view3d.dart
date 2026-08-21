@@ -3831,7 +3831,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   // ignore: unused_element（已由 _openMySaves 取代；保留备用）
   Future<void> _openSaveMenu({bool inGame = true}) async {
-    List<VoxelManualSaveMeta> saves = await listManualSaves();
+    List<VoxelManualSaveMeta> saves = await listAllSaves();
     if (!mounted || !context.mounted) return;
     final TextEditingController seedCtrl = TextEditingController();
     await showModalBottomSheet<void>(
@@ -3845,7 +3845,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         return StatefulBuilder(
           builder: (BuildContext c, StateSetter setSheet) {
             Future<void> refresh() async {
-              final List<VoxelManualSaveMeta> s = await listManualSaves();
+              final List<VoxelManualSaveMeta> s = await listAllSaves();
               if (c.mounted) setSheet(() => saves = s);
             }
 

@@ -5,7 +5,6 @@ import '../models/scene.dart';
 import '../core/motion/motion.dart';
 import '../core/theme/app_theme_colors.dart';
 import 'app_icon.dart';
-import 'liquid_glass.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
 
 /// 场景卡片（主视觉单元）
@@ -54,16 +53,15 @@ class _SceneCardStackState extends State<SceneCardStack> {
             offset: Offset(0, -k * 10),
             child: Transform.scale(
               scale: 1 - k * 0.04,
-              child: Opacity(
-                opacity: 0.45,
-                child: _SceneCard(
-                  key: ValueKey('deck-$k-${widget.scenes[idx].id}'),
-                  scene: widget.scenes[idx],
-                  pressed: false,
-                  onPressStart: () {},
-                  onPressEnd: () {},
-                  onLongPress: null,
-                ),
+              // #581：取消双模糊、仅不透明卡片堆叠——预览卡不再半透明，
+              // 直接以实底错开堆叠，露出卡堆层次。
+              child: _SceneCard(
+                key: ValueKey('deck-$k-${widget.scenes[idx].id}'),
+                scene: widget.scenes[idx],
+                pressed: false,
+                onPressStart: () {},
+                onPressEnd: () {},
+                onLongPress: null,
               ),
             ),
           ),
@@ -166,7 +164,7 @@ class _SceneCard extends ConsumerWidget {
             Text(
               '当前场景 · SCENE',
               style: theme.textTheme.labelMedium?.copyWith(
-                fontSize: 12 * scale,
+                fontSize: 13 * scale,
                 color: mutedColor,
                 letterSpacing: 0.4,
               ),
@@ -180,7 +178,7 @@ class _SceneCard extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: 19 * scale,
+            fontSize: 22 * scale,
             color: titleColor,
             fontWeight: FontWeight.w700,
           ),
@@ -203,7 +201,7 @@ class _SceneCard extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11 * scale,
+                fontSize: 12 * scale,
                 fontWeight: FontWeight.w500,
                 color: titleColor,
               ),
@@ -216,7 +214,7 @@ class _SceneCard extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleLarge?.copyWith(
-            fontSize: 15 * scale,
+            fontSize: 17 * scale,
             color: titleColor,
             fontWeight: FontWeight.w600,
           ),
@@ -227,7 +225,7 @@ class _SceneCard extends ConsumerWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: 12 * scale,
+            fontSize: 14 * scale,
             color: mutedColor,
           ),
         ),
@@ -245,7 +243,7 @@ class _SceneCard extends ConsumerWidget {
             Text(
               '滑动切换场景',
               style: theme.textTheme.labelSmall?.copyWith(
-                fontSize: 11 * scale,
+                fontSize: 12 * scale,
                 color: mutedColor,
               ),
             ),
@@ -259,46 +257,53 @@ class _SceneCard extends ConsumerWidget {
         // cl46-E：中间场景卡片默认 16:9（与音画比例一致，视觉更稳定）。
         width: cardW,
         height: cardH,
-        // 液态玻璃场景卡片：高透明玻璃 + 场景渐变叠加
-        child: LiquidGlass(
-          radius: 16,
-          // 背景浓度（透明度）作用于深色叠加层：opacity 越低越通透。
-          child: Opacity(
-            opacity: opacity,
-            child: Container(
-              // 场景渐变叠加在玻璃之上（深色渐变保证文字对比度）
-              decoration: BoxDecoration(
-                gradient: gradient,
+        // 不透明场景卡片（#581：取消双模糊，仅不透明卡片堆叠）。
+        // 背景为完全不透明的实色渐变；provider 控制「实色浓度」叠加层，
+        // 越高越实、文字对比越稳，不再有半透明/玻璃带来的双模糊重影。
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: gradient,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.28),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Container(
+            // 实色浓度叠加层（provider）：0.1 偏渐变、0.9 偏实色。
+            decoration: BoxDecoration(
+              color: context.appColors.bgSurface.withValues(alpha: opacity),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Card(
+              // 透明 Card，让外层渐变 + 实色叠加透过。
+              color: Colors.transparent,
+              elevation: 0,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Card(
-                // 透明 Card，让 Container 的渐变透过；投影由外层 Container 提供
-                color: Colors.transparent,
-                elevation: 0,
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: InkWell(
-                  onTapDown: (_) => onPressStart(),
-                  onTapUp: (_) => onPressEnd(),
-                  onTapCancel: onPressEnd,
-                  onLongPress: onLongPress,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 20),
-                    // 纯场景展示卡：播放控制/歌词全部收敛到全局底部播放器，
-                    // 本卡只呈现场景信息（cl03 全局唯一底部播放器）。
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.center,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          minWidth: 320,
-                          maxWidth: 420,
-                        ),
-                        child: metadata,
+              child: InkWell(
+                onTapDown: (_) => onPressStart(),
+                onTapUp: (_) => onPressEnd(),
+                onTapCancel: onPressEnd,
+                onLongPress: onLongPress,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  // 纯场景展示卡：播放控制/歌词全部收敛到全局底部播放器，
+                  // 本卡只呈现场景信息（cl03 全局唯一底部播放器）。
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.center,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: 320,
+                        maxWidth: 460,
                       ),
+                      child: metadata,
                     ),
                   ),
                 ),

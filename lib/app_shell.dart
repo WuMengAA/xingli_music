@@ -32,7 +32,10 @@ import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/notification/app_notify.dart';
 import 'widgets/shell/app_dock.dart';
 import 'widgets/shell/content_container.dart';
+import 'widgets/shell/frost_edge_bar.dart';
 import 'widgets/shell/responsive_floating_layer.dart';
+import 'widgets/shell/scroll_blur.dart';
+import 'widgets/shell/tab_switch_blur.dart';
 import 'widgets/playback/music_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/noise_texture.dart';
@@ -286,6 +289,10 @@ class _AppShellState extends ConsumerState<AppShell> {
 
     final int pageIndex = ref.watch(shellPageIndexProvider);
     final int? selectedTab = ref.watch(selectedTabIndexProvider);
+    // 批3 #580 · A：切 Tab 时复位滚动磨砂进度（新页尚未滚动，条边保持隐藏）。
+    ref.listen<int>(shellPageIndexProvider, (int? _, int __) {
+      ref.read(pageScrollBlurProvider.notifier).state = 0;
+    });
     // 低端设备优化：省电模式关闭全屏噪点层（最大渲染开销之一）
     final bool noiseOn = ref.watch(noiseEnabledProvider);
 
@@ -352,7 +359,17 @@ class _AppShellState extends ConsumerState<AppShell> {
                   // 内容区（弹性）承载 IndexedStack(5 页)。播放控件与 dock 已
                   // 移至外层 Stack 的叠加层（[ResponsiveFloatingLayer]），此处
                   // 仅补 bottom 预留；5 个 Tab 自身布局 / 占位完全不变。
-                  return ContentContainer(
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: (ScrollNotification n) {
+                      // 批3 #580 · A：捕获活动页滚动，驱动顶部/底部磨砂边淡入。
+                      final double px = n.metrics.pixels;
+                      final double p = scrollBlurProgress(px);
+                      if ((ref.read(pageScrollBlurProvider) - p).abs() > 0.01) {
+                        ref.read(pageScrollBlurProvider.notifier).state = p;
+                      }
+                      return false;
+                    },
+                    child: ContentContainer(
                     child: Column(
                       children: <Widget>[
                         Expanded(
@@ -369,6 +386,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                         ),
                       ],
                     ),
+                    ),
                   );
                 },
               ),
@@ -376,6 +394,44 @@ class _AppShellState extends ConsumerState<AppShell> {
           ],
         ),
         ),
+          // ── 批3 #580 · A 顶部磨砂边（滑动模糊过渡 · 顶）──
+          // 浮于内容上缘（状态栏下方），随活动页滚动淡入；停在顶部时自动隐藏。
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              top: true,
+              bottom: false,
+              child: SizedBox(
+                height: 22,
+                child: const FrostEdgeBar(top: true),
+              ),
+            ),
+          ),
+          // ── 批3 #580 · A 底部磨砂边（滑动模糊过渡 · 底 / 上下方模糊）──
+          // 浮于内容下缘（Dock 上方），随活动页滚动淡入；停在底部时自动隐藏。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: floatingReserve,
+            height: 22,
+            child: const FrostEdgeBar(top: false),
+          ),
+          // ── 批3 #580 · B Dock 顶部常驻羽化模糊带 ──
+          // 不依赖滚动，始终以极淡强度浮于 Dock 正上方，使内容滑入 Dock 时
+          // 自然羽化（上下方模糊的「下」侧），Dock 与内容之间无硬边。
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: floatingReserve,
+            height: 18,
+            child: const DockTopFeather(),
+          ),
+          // ── 批3 #580 · C 切 Tab 进出场磨砂脉冲 ──
+          // 绘于 Dock / 浮层之下，切换页面时对内容区做一次短暂整屏磨砂脉冲，
+          // 让 Tab 切换柔和过渡（模糊过渡而非硬切）。
+          const Positioned.fill(child: TabSwitchBlurPulse()),
           // ── 悬浮层：播放控件 + dock 栏（脱离文档流，叠加于内容之上）──
           // 两枚独立浮层（播放控件在上、dock 在下）由 [ResponsiveFloatingLayer]
           // 自适应锚定到屏幕底部：窄屏贴近边缘、宽屏收窄居中，随安全区/键盘抬升。

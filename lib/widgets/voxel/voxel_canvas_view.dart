@@ -2,7 +2,7 @@ import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 
-import '../../core/theme/light_tokens.dart';
+import '../../core/theme/app_theme_colors.dart';
 import '../../models/voxel.dart';
 import 'voxel_canvas_controller.dart';
 
@@ -93,6 +93,10 @@ class VoxelCanvasView extends StatelessWidget {
                 tileW: tileW,
                 tileH: tileH,
                 showGrid: showGrid,
+                // #584：网格/选中/符号色跟随全局主题（不再写死静态色）。
+                border: context.appColors.border,
+                accent: context.appColors.accent,
+                onAccent: context.appColors.onAccent,
                 repaint: controller,
               ),
             ),
@@ -130,6 +134,9 @@ class _VoxelPainter extends CustomPainter {
     required this.tileW,
     required this.tileH,
     required this.showGrid,
+    required this.border,
+    required this.accent,
+    required this.onAccent,
     // repaint: 控制器自身作为重绘信号源——applyEnvelope（每帧）与编辑
     // （setBlock/load）都 notifyListeners → 自动重绘。
     super.repaint,
@@ -138,6 +145,9 @@ class _VoxelPainter extends CustomPainter {
   final VoxelCanvasController controller;
   final double offsetX;
   final double offsetY;
+  final Color border;
+  final Color accent;
+  final Color onAccent;
   final double tileW;
   final double tileH;
   final bool showGrid;
@@ -147,7 +157,7 @@ class _VoxelPainter extends CustomPainter {
     final Paint gridPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = AppColors.borderDefault;
+      ..color = border;
 
     // 底格
     for (int row = 0; row < controller.rows; row++) {
@@ -202,7 +212,7 @@ class _VoxelPainter extends CustomPainter {
     canvas.drawCircle(
       sel,
       6,
-      Paint()..color = AppColors.accent,
+      Paint()..color = accent,
     );
   }
 
@@ -266,7 +276,7 @@ class _VoxelPainter extends CustomPainter {
         text: type.glyph,
         style: TextStyle(
           fontSize: tileH * 0.7 * topScale,
-          color: AppColors.onAccent,
+          color: onAccent,
         ),
       ),
       textDirection: TextDirection.ltr,

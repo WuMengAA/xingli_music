@@ -49,14 +49,9 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
 
   Future<void> _refresh() async {
     setState(() => _loading = true);
-    final List<VoxelManualSaveMeta> saves = await listManualSaves();
-    // cl05：并入「仅有自动检查点」的世界（玩过但未显式保存），世界存档不再空。
-    final Set<String> ids = <String>{for (final VoxelManualSaveMeta s in saves) s.id};
-    for (final VoxelManualSaveMeta c in await listCheckpointSaves()) {
-      if (!ids.contains(c.id)) saves.add(c);
-    }
-    saves.sort((VoxelManualSaveMeta a, VoxelManualSaveMeta b) =>
-        (b.lastSavedAt ?? b.createdAt).compareTo(a.lastSavedAt ?? a.createdAt));
+    // 全部统一：手动存档 + 仅自动检查点（玩过但未显式保存）的世界，
+    // 保证「存档列表未列出存档」不再发生。
+    final List<VoxelManualSaveMeta> saves = await listAllSaves();
     final Map<String, List<VoxelManualSaveMeta>> bk =
         <String, List<VoxelManualSaveMeta>>{};
     for (final VoxelManualSaveMeta s in saves) {

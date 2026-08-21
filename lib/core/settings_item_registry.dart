@@ -896,17 +896,18 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ),
     ),
   ),
-  // cl50：场景卡片背景透明度（0.1~0.9，默认 0.25），用户可自调。
+  // #581：场景卡片实色浓度（0.1~0.9，默认 0.7）。卡片为不透明实底，
+  // 本项仅调节「实色浓度」叠加层，越高越实、文字越稳。
   'sceneCardOpacity': SettingItemDef(
-    title: '场景卡片透明度',
+    title: '场景卡片实色浓度',
     builder: (context, ref) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('场景卡片透明度（背景浓度）', style: context.appText.bodyMuted),
+          Text('场景卡片实色浓度', style: context.appText.bodyMuted),
           const SizedBox(height: 2),
-          Text('越低越通透、露出视频背景；越高卡片越实',
+          Text('越高卡片越实、文字对比越稳；越低渐变越透出',
               style: context.appText.caption),
           const SizedBox(height: 6),
           Row(

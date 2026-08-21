@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/scene.dart';
 import '../../providers/scene/scene_custom_providers.dart';
@@ -56,9 +57,10 @@ class _SceneColorPanelState extends ConsumerState<SceneColorPanel> {
   void initState() {
     super.initState();
     final Scene s = widget.scene;
+    // #584：默认回退强调色跟随全局主题（不再写死品牌紫）。
     _bgTop = s.bgTop ?? (s.visual.gradientColors.isNotEmpty
         ? s.visual.gradientColors.first
-        : AppColors.accent);
+        : context.appColors.accent);
     _bgBottom = s.bgBottom ??
         (s.visual.gradientColors.length > 1
             ? s.visual.gradientColors.last
@@ -199,7 +201,9 @@ class _GradientSwatch extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.borderDefault,
+            color: selected
+                ? context.appColors.accent
+                : context.appColors.border,
             width: selected ? 2 : 1,
           ),
         ),
@@ -233,13 +237,15 @@ class _ColorSwatch extends StatelessWidget {
           color: color,
           shape: BoxShape.circle,
           border: Border.all(
-            color: selected ? AppColors.accent : AppColors.borderDefault,
+            color: selected
+                ? context.appColors.accent
+                : context.appColors.border,
             width: selected ? 2 : 1,
           ),
         ),
         child: isCustom
-            ? const Icon(Icons.colorize_rounded,
-                size: 18, color: AppColors.onAccent)
+            ? Icon(Icons.colorize_rounded,
+                size: 18, color: context.appColors.onAccent)
             : null,
       ),
     );
@@ -279,7 +285,7 @@ class _HuePickerDialogState extends State<_HuePickerDialog> {
             decoration: BoxDecoration(
               color: current,
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.borderDefault),
+              border: Border.all(color: context.appColors.border),
             ),
           ),
           const SizedBox(height: AppSpace.md),

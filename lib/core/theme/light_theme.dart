@@ -442,20 +442,40 @@ ThemeData buildDarkTheme(Color primary) {
 
     textTheme: TextTheme(
       headlineSmall: TextStyle(
-          color: DarkColors.text, fontSize: 18, fontWeight: FontWeight.w600),
+          color: DarkColors.text,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          fontFamilyFallback: kFontFallback),
       titleLarge: TextStyle(
-          color: DarkColors.text, fontSize: 18, fontWeight: FontWeight.w600),
+          color: DarkColors.text,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          fontFamilyFallback: kFontFallback),
       titleMedium: TextStyle(
-          color: DarkColors.text, fontSize: 16, fontWeight: FontWeight.w600),
+          color: DarkColors.text,
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          fontFamilyFallback: kFontFallback),
       titleSmall: TextStyle(
-          color: DarkColors.text, fontSize: 14, fontWeight: FontWeight.w600),
-      bodyLarge: TextStyle(color: DarkColors.text, fontSize: 14),
-      bodyMedium: TextStyle(color: DarkColors.textMuted, fontSize: 14),
-      bodySmall: TextStyle(color: DarkColors.textDim, fontSize: 12),
+          color: DarkColors.text,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          fontFamilyFallback: kFontFallback),
+      bodyLarge: TextStyle(
+          color: DarkColors.text, fontSize: 14, fontFamilyFallback: kFontFallback),
+      bodyMedium: TextStyle(
+          color: DarkColors.textMuted, fontSize: 14, fontFamilyFallback: kFontFallback),
+      bodySmall: TextStyle(
+          color: DarkColors.textDim, fontSize: 12, fontFamilyFallback: kFontFallback),
       labelLarge: TextStyle(
-          color: DarkColors.text, fontSize: 14, fontWeight: FontWeight.w600),
-      labelMedium: TextStyle(color: DarkColors.textMuted, fontSize: 12),
-      labelSmall: TextStyle(color: DarkColors.textDim, fontSize: 10),
+          color: DarkColors.text,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          fontFamilyFallback: kFontFallback),
+      labelMedium: TextStyle(
+          color: DarkColors.textMuted, fontSize: 12, fontFamilyFallback: kFontFallback),
+      labelSmall: TextStyle(
+          color: DarkColors.textDim, fontSize: 10, fontFamilyFallback: kFontFallback),
     ),
 
     iconTheme: IconThemeData(color: DarkColors.text, size: 26),

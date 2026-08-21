@@ -209,6 +209,9 @@ class NowPlayingPage extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
+            // R32 批3：音量行上移进度条上方，与音乐控制栏布局一致（除歌词位置）。
+            const _CollapsibleVolumeRow(),
+            const SizedBox(height: AppSpace.xs),
             const _SeekBarSection(),
             const SizedBox(height: AppSpace.sm),
             Row(
@@ -255,11 +258,9 @@ class NowPlayingPage extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: AppSpace.sm),
-            const _CollapsibleVolumeRow(),
-            const SizedBox(height: AppSpace.xs),
             // 快捷操作胶囊行（画布 3:348：搜索/音质/白噪音/视听/倍速）。
             // 全部绑定真实功能：搜索/音质/倍速走弹层或页面，白噪音/视听走
-            // 全局开关（跟随场景/全局生效来源）。队列/下载无后端，不摆空按钮。
+            // 全局开关（跟随场景/全局生效来源）。队列/下载无后端，不摆设。
             const _QuickActionsRow(),
             const SizedBox(height: AppSpace.xs),
             // 底部工具行（画布 3:131-146：睡眠定时 / 均衡器）。
@@ -471,7 +472,9 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
   Color? _dominant;
 
   /// 上一帧实际显示的主色（供 [TweenAnimationBuilder] 作平滑过渡起点）。
-  Color? _displayAccent;
+  /// 仅在动画 [onEnd] 时更新，绝不写在 build 内（避免 build 期状态写入
+  /// 触发的重建/无限循环）。
+  Color? _prevAccent;
 
   @override
   void initState() {
@@ -504,15 +507,19 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
         ((t.coverUrl?.isNotEmpty ?? false) || (t.coverPath?.isNotEmpty ?? false));
     // R32 一.4：提色渐变。begin=上一帧显示色，end=提取主色（未提取到用 accent
     // 兜底），切曲时 700ms easeOutCubic 平滑过渡；提取完成后再自然过渡到新色。
-    final Color accentFrom = _displayAccent ?? c.accent;
+    final Color accentFrom = _prevAccent ?? c.accent;
     final Color accentTo = _dominant ?? c.accent;
 
     return TweenAnimationBuilder<Color>(
       duration: const Duration(milliseconds: 700),
       curve: Curves.easeOutCubic,
       tween: Tween<Color>(begin: accentFrom, end: accentTo),
+      // 仅在动画结束后落定「上一帧主色」，供下次切曲作平滑起点；
+      // 不写在 builder 内，避免 build 期写入状态导致重建/无限循环。
+      onEnd: () {
+        _prevAccent = accentTo;
+      },
       builder: (BuildContext context, Color accent, Widget? child) {
-        _displayAccent = accent;
         return DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
