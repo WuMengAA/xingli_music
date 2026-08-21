@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 21;
+  static const int day = 22;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -350,7 +350,11 @@ abstract final class AppVersion {
   /// Tab 切换模糊脉冲）、#581 场景卡去双模糊改实色堆叠+字号放大、#582 字体不支持
   /// 黄双下划线、#583 主题切换后玻璃失效（LiquidGlassCapture ref.listen 重捕获）、
   /// #584 3D 世界不跟随主题（频谱条/画布/配色面板改 context.appColors）。
-  static const int buildCount = 7;
+  /// cl08（08.22）：全屏播放页与音乐卡对齐（控制栏补收藏钮，与卡一致）+ 整卡
+  /// 放大过渡（NpHeroTags.card 两端 Hero 配对，点开整页随卡放大）+ 存档列表空
+  /// 修复（listManualSaves 跳过备份文件、createBackup 回溯主档 id、旧全局档
+  /// voxel_world_save.json 迁移为按 id 检查点）。
+  static const int buildCount = 8;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -415,6 +419,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl08',
+    title: '全屏播放页与音乐卡对齐 + 整卡放大过渡 + 存档列表空修复',
+    details: <String>[
+      '全屏控制栏与音乐卡对齐：补收藏按钮（消费 isFav / trackKeyOf + isFavoriteProvider + toggleFavoriteTrack），控制行布局与卡一致',
+      '整卡放大过渡：NpHeroTags.card 新增整卡 tag，紧凑播放卡与整页播放页两端 Hero 配对，点开整页随卡放大（移除内层封面/标题独立 Hero，避免嵌套 Hero 飞行冲突）',
+      '存档列表空修复：listManualSaves 跳过备份文件（voxel_save_<id>_bak_<ts> 不当主档，杜绝再备份嵌套套娃）；createBackup 入口回溯主档 id；旧全局档 voxel_world_save.json 迁移为按 id 检查点（voxel_world_save_<id>.json）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.21',
     cl: 'alpha_cl07',

@@ -24,7 +24,59 @@ Future<Directory> _appDataDir() async {
   final Directory dir = await getApplicationSupportDirectory();
   await dir.create(recursive: true);
   await _migrateFromDocuments(dir);
+  await _migrateGlobalCheckpoint(dir);
   return dir;
+}
+
+bool _globalMigrated = false;
+
+/// 一次性迁移：把旧版**全局自动档** `voxel_world_save.json` 升级为
+/// 按存档 id 隔离的检查点 `voxel_world_save_<id>.json`。
+///
+/// cl05 起自动检查点按存档 id 落盘（[writeVoxelSaveForId]），但更早版本
+/// （R24d，旧全局共用档）玩过且未显式保存的世界只写全局
+/// `voxel_world_save.json`——它前缀既不是 `voxel_save_`（手动）也不是
+/// `voxel_world_save_`（带下划线的按 id 检查点），导致**永远不出现在存档
+/// 列表**（表现为「玩过却显示暂无存档」）。这里检测到全局档时给它生成
+/// 一个稳定 id 并落成按 id 检查点，列表即可正常收录；成功后删除全局档，
+/// 避免每次启动重复迁移。
+Future<void> _migrateGlobalCheckpoint(Directory target) async {
+  if (_globalMigrated) return;
+  _globalMigrated = true;
+  final File global =
+      File('${target.path}${Platform.pathSeparator}$_kVoxelSaveFile');
+  try {
+    if (!await global.exists()) return;
+    final dynamic parsed =
+        const JsonDecoder().convert(await global.readAsString());
+    if (parsed is! Map<String, dynamic>) return;
+    final dynamic wj = parsed['world'];
+    if (wj is! Map) return; // 无世界数据，不迁移
+    // 生成稳定 id：基于存档时间（savedAt 毫秒 radix36），与手动存档风格一致。
+    final int savedAt =
+        parsed['savedAt'] is int ? parsed['savedAt'] as int : 0;
+    final String id = 'g_${(savedAt == 0 ? DateTime.now().millisecondsSinceEpoch : savedAt).toRadixString(36)}';
+    final File perId = File(
+      '${target.path}${Platform.pathSeparator}voxel_world_save_$id.json',
+    );
+    if (await perId.exists()) return; // 已迁移过（id 稳定幂等）
+    // 补 _meta（列表展示用）；缺少时给「世界 <迁移时间>」默认名。
+    final dynamic m = parsed['_meta'];
+    final String name = (m is Map && m['name'] is String)
+        ? m['name'] as String
+        : '世界 ${DateTime.fromMillisecondsSinceEpoch(savedAt == 0 ? DateTime.now().millisecondsSinceEpoch : savedAt).toString().substring(0, 16)}';
+    parsed['_meta'] = <String, dynamic>{
+      'id': id,
+      'name': name,
+      'createdAt':
+          (m is Map && m['createdAt'] is String) ? m['createdAt'] as String : DateTime.now().toIso8601String(),
+      'lastSavedAt': DateTime.now().toIso8601String(),
+    };
+    await perId.writeAsString(const JsonEncoder().convert(parsed));
+    await global.delete(); // 迁移成功，清除旧全局档防重复
+  } catch (_) {
+    // 迁移失败静默（不影响后续游玩；下次启动再试）
+  }
 }
 
 bool _migratedFromDocuments = false;
@@ -339,6 +391,9 @@ Future<void> touchManualSaveLastSaved(String id) async {
 }
 
 /// 列出全部手动存档（按创建时间倒序）；损坏文件跳过。
+/// 仅返回**主存档**（文件名 `voxel_save_<id>.json`，id 不含 `_bak_`）——
+/// 备份文件由 [listBackups] 单独管理，**不再**被本函数误当主档返回
+/// （修复 cl07 前的备份无限嵌套：备份被当成存档、其备份再被当成存档……）。
 Future<List<VoxelManualSaveMeta>> listManualSaves() async {
   final Directory d = await _voxelDir();
   if (!await d.exists()) return <VoxelManualSaveMeta>[];
@@ -350,6 +405,9 @@ Future<List<VoxelManualSaveMeta>> listManualSaves() async {
       _kManualPrefix.length,
       n.length - _kManualSuffix.length,
     );
+    // 跳过备份文件（`voxel_save_<id>_bak_<ts>.json`）：它们是同档历史快照，
+    // 不是独立存档。此前漏判会把备份当主档列出并允许继续备份 → 无限套娃。
+    if (id.contains('_bak_')) continue;
     try {
       final String raw = await File(e.path).readAsString();
       final dynamic parsed = const JsonDecoder().convert(raw);
@@ -535,7 +593,14 @@ Future<List<VoxelManualSaveMeta>> listBackups(String id) async {
 
 /// 把「当前正在游玩的世界」（自动存档）快照为一个备份，挂到 [id] 存档下。
 /// 自动存档为空时回退用该存档自身数据；两者皆空则不产生备份。
+///
+/// [id] 理论上应是主存档 id；若误传备份 id（含 `_bak_`），自动回溯到其
+/// 最早主档 id，杜绝「备份的备份」无限嵌套（cl07 前出现过 7 层 `_bak_`）。
 Future<String?> createBackup(String id, [Map<String, dynamic>? current]) async {
+  // 备份 id 形如 `<main>_bak_<ts>`（或更深的 `_bak_..._bak_...`）：取第一段作主档。
+  if (id.contains('_bak_')) {
+    id = id.split('_bak_').first;
+  }
   final Map<String, dynamic> data = current ??
       await readVoxelSave() ??
       await readManualSave(id) ??

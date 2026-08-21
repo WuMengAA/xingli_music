@@ -12,9 +12,11 @@ import '../../core/utils/palette_extractor.dart';
 import '../../core/utils/app_motion.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../models/track.dart';
+import '../../models/track_stats.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/audio/music_quality_provider.dart';
+import '../../providers/stats/track_stats_providers.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/playback_feedback.dart';
@@ -53,6 +55,13 @@ class NowPlayingPage extends ConsumerWidget {
     final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
     final PlayMode mode = ref.watch(playModeProvider);
     final PlaybackActions actions = ref.read(playbackActionsProvider);
+    // R32 批3：收藏按钮与音乐控制栏对齐——当前曲目是否已收藏。
+    final String favKey = track == null
+        ? ''
+        : trackKeyOf(track.title, track.artist, track.sourceId);
+    final bool isFav = favKey.isEmpty
+        ? false
+        : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
 
     return Scaffold(
       // 背景动态配色：由封面模糊层 + 主题色渐变组成（见 _DynamicBackground），
@@ -83,37 +92,51 @@ class NowPlayingPage extends ConsumerWidget {
           ),
         ],
       ),
-      body: Stack(
-        children: <Widget>[
-          // ── 背景动态配色层（封面模糊 + 主题渐变 + 底部压暗）──
-          Positioned.fill(child: _DynamicBackground(track: track)),
-          // ── 前景内容层 ──
-          SafeArea(
-            top: false,
-            child: Column(
-              children: <Widget>[
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (BuildContext context, BoxConstraints constraints) {
-                      final bool landscape =
-                          constraints.maxWidth >= constraints.maxHeight;
-                      // 横屏：封面在左、歌词在右；竖屏：封面→信息→歌词纵向。
-                      if (landscape) {
-                        return _landscapeBody(
-                          track: track,
-                          maxHeight: constraints.maxHeight,
-                        );
-                      }
-                      return _portraitBody(track: track);
-                    },
+      body: Hero(
+        // R32 批3：整卡放大过渡——与播放栏紧凑卡同 tag，点开时整页主体
+        // 随播放卡放大（覆盖整屏），封面/歌词内部的独立 Hero 继续提供
+        // 位移细节；同一 tag 两端（播放卡↔整页）配对成共享元素动画。
+        tag: NpHeroTags.card,
+        child: Stack(
+          children: <Widget>[
+            // ── 背景动态配色层（封面模糊 + 主题渐变 + 底部压暗）──
+            Positioned.fill(child: _DynamicBackground(track: track)),
+            // ── 前景内容层 ──
+            SafeArea(
+              top: false,
+              child: Column(
+                children: <Widget>[
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (BuildContext context, BoxConstraints constraints) {
+                        final bool landscape =
+                            constraints.maxWidth >= constraints.maxHeight;
+                        // 横屏：封面在左、歌词在右；竖屏：封面→信息→歌词纵向。
+                        if (landscape) {
+                          return _landscapeBody(
+                            track: track,
+                            maxHeight: constraints.maxHeight,
+                          );
+                        }
+                        return _portraitBody(track: track);
+                      },
+                    ),
                   ),
-                ),
-                // 底部控制栏：透明融入背景（样式与音乐卡一致，非额外大块）。
-                _buildControlBar(context, ref, track, isPlaying, mode, actions),
-              ],
+                  // 底部控制栏：透明融入背景（样式与音乐卡一致，非额外大块）。
+                  _buildControlBar(
+                    context,
+                    ref,
+                    track,
+                    isPlaying,
+                    mode,
+                    actions,
+                    isFav: isFav,
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -193,8 +216,9 @@ class NowPlayingPage extends ConsumerWidget {
     Track? track,
     bool isPlaying,
     PlayMode mode,
-    PlaybackActions actions,
-  ) {
+    PlaybackActions actions, {
+    required bool isFav,
+  }) {
     // 底部控制栏：**透明融入背景**（不叠加 bgSurface 大块实色，样式与音乐卡
     // 一致——透出动态背景 + 细描边胶囊分组）。图标统一 rounded 系列。
     return Padding(
@@ -253,6 +277,19 @@ class NowPlayingPage extends ConsumerWidget {
                     final PlayMode next = _npNextMode(mode);
                     actions.setMode(next);
                     showPlaybackToast(context, '播放模式：${_npModeLabel(next)}');
+                  },
+                ),
+                // R32 批3：收藏按钮（与音乐控制栏一致，位于循环模式右边）。
+                PlaybackIconButton(
+                  icon: isFav
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  size: 24,
+                  active: isFav,
+                  tooltip: isFav ? '取消收藏' : '收藏',
+                  onTap: () {
+                    if (track == null) return;
+                    unawaited(toggleFavoriteTrack(ref, track));
                   },
                 ),
               ],
@@ -726,8 +763,9 @@ class _LargeCover extends StatelessWidget {
         ),
       ),
     );
-    // R32 批2：Hero 共享元素——与播放栏折叠态封面同 tag，实现曲线位移过渡。
-    return Hero(tag: NpHeroTags.cover, child: inner);
+    // R32 批3：整卡 Hero 已覆盖封面/标题的位移（外层 body 包 npCard 放大），
+    // 此处不再单独包封面 Hero，避免嵌套 Hero 双飞冲突。
+    return inner;
   }
 }
 
@@ -749,18 +787,15 @@ class _TrackInfo extends StatelessWidget {
       crossAxisAlignment:
           alignLeft ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: <Widget>[
-        Hero(
-          tag: NpHeroTags.title,
-          child: Text(
-            track?.title ?? '未在播放',
-            style: context.appText.title.copyWith(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: align,
+        Text(
+          track?.title ?? '未在播放',
+          style: context.appText.title.copyWith(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: align,
         ),
         const SizedBox(height: AppSpace.xs),
         Text(

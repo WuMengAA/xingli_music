@@ -83,4 +83,9 @@ class NpHeroTags {
   NpHeroTags._();
   static const String cover = 'npCover';
   static const String title = 'npCoverTitle';
+
+  /// 整卡放大过渡 tag：包住播放栏**整张卡片**（[UnifiedPlayer] 紧凑态）与
+  /// 正在播放页**整页主体**，使点开播放页时整卡随封面一起放大（而非仅封面
+  /// 位移、其余硬切）。与封面/标题 Hero 并存，各 tag 独立飞行。
+  static const String card = 'npCard';
 }

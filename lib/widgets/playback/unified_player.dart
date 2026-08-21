@@ -160,13 +160,11 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
       overflow: TextOverflow.ellipsis,
       style: context.appText.trackName,
     );
-    // R32 批2：Hero 共享元素（封面 + 曲名），参与「播放栏 → 正在播放」过渡。
-    final Widget coverWidget = widget.heroTag != null
-        ? Hero(tag: widget.heroTag!, child: cover)
-        : cover;
-    final Widget titleWidget = widget.heroTag != null
-        ? Hero(tag: '${widget.heroTag}${NpHeroTags.title}', child: titleText)
-        : titleText;
+    // R32 批2→批3：Hero 共享元素。批3 起升级为**整卡 Hero**（包住整张卡片，
+    // tag=NpHeroTags.card，见下方 return），封面/标题不再单独包 Hero——
+    // 避免与外层整卡 Hero 嵌套飞行冲突（Flutter 不支持嵌套 Hero 配对）。
+    final Widget coverWidget = cover;
+    final Widget titleWidget = titleText;
     final Widget header = Row(
       children: <Widget>[
         coverWidget,
@@ -218,7 +216,7 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
 
     // R32 批3：底部锚定——卡片底部贴住停靠位，展开（歌词/音量面板）时
     // 整卡向上生长，进度条/控制行/操作行因底部固定**不再向上位移**。
-    return Align(
+    Widget card = Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 560),
@@ -293,6 +291,13 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
         ),
       ),
     );
+    // R32 批3：整卡 Hero 放大过渡——包住整张播放卡片（含封面/标题/控制行），
+    // 与 [NowPlayingPage] 的 body 同 tag，点开整页播放时整卡放大而非仅封面位移。
+    // 仅在由 MusicCard 提供 heroTag（封面 Hero 起点）时启用；游戏内 HUD 不参与。
+    if (widget.heroTag != null) {
+      card = Hero(tag: NpHeroTags.card, child: card);
+    }
+    return card;
   }
 }
 
