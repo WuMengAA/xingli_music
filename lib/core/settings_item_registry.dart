@@ -19,6 +19,7 @@ import '../pages/scene/voxel_sound_editor_page.dart';
 import '../pages/settings/scene_editor_page.dart';
 import '../pages/settings/game_graphics_page.dart';
 import '../pages/settings/server_settings_page.dart';
+import '../pages/settings/voxel_save_manager_page.dart';
 import '../pages/voxel/voxel_main_menu_page.dart';
 import '../providers/voxel/graphics_quality_provider.dart';
 import '../providers/voxel/hud_layout_provider.dart';
@@ -957,11 +958,14 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ref,
       icon: Icons.save_outlined,
       title: '世界存档',
-      subtitle: '经游戏主菜单进入：新建 / 恢复（多备份）/ 导出 / 重命名 / 删除',
-      // R26skel：存档唯一入口 = 游戏主菜单「世界存档」——其他地方不直接
-      // 打开管理器，避免绕过主菜单新建/跳转/恢复存档（叠加存档）。
+      subtitle: '新建 / 恢复（多备份）/ 导出 / 重命名 / 删除',
+      // 直达存档管理器（与「世界」Tab、游戏主菜单的「世界存档」入口一致）：
+      // 直接打开存档列表，避免从游戏设置经游戏主菜单绕一圈再回游戏设置
+      // 形成「游戏设置 → 世界存档 → 主菜单 → 游戏设置」无限套娃，且用户在
+      // 设置页里点完看不到真正的存档列表。管理器是纯列表/新建/恢复页，
+      // 直达不绕过任何主菜单逻辑（恢复仍走 VoxelWorld3DPage 确立存档身份）。
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const VoxelMainMenuPage()),
+        MaterialPageRoute<void>(builder: (_) => const VoxelSaveManagerPage()),
       ),
     ),
   ),

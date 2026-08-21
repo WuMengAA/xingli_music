@@ -354,7 +354,10 @@ abstract final class AppVersion {
   /// 放大过渡（NpHeroTags.card 两端 Hero 配对，点开整页随卡放大）+ 存档列表空
   /// 修复（listManualSaves 跳过备份文件、createBackup 回溯主档 id、旧全局档
   /// voxel_world_save.json 迁移为按 id 检查点）。
-  static const int buildCount = 8;
+  /// cl09（08.22）：修「游戏设置→世界存档」入口错跳游戏主菜单导致的无限套娃
+  /// （改直达 VoxelSaveManagerPage）+ listBackups 过滤深层嵌套备份（仅认单层）
+  /// + 启动一次性清理 cl07 前遗留的 _bak_ 嵌套脏文件。
+  static const int buildCount = 9;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -419,6 +422,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl09',
+    title: '修游戏设置→世界存档入口套娃 + 备份深层嵌套清理',
+    details: <String>[
+      '游戏设置页「世界存档」项原跳游戏主菜单（主菜单又有游戏设置→无限套娃，且看不到真正的存档列表），改为直达 VoxelSaveManagerPage（与「世界」Tab / 游戏主菜单的入口一致）',
+      'listBackups 仅认单层备份（<id>_bak_<ts>），忽略含第二段 _bak_ 的深层嵌套文件，不再把重复快照塞进备份列表',
+      '启动一次性清理 cl07 前遗留的嵌套备份脏文件（文件名含 ≥2 段 _bak_），删除仅清重复、不动主档与单层备份',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl08',

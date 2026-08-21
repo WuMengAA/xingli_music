@@ -25,10 +25,38 @@ Future<Directory> _appDataDir() async {
   await dir.create(recursive: true);
   await _migrateFromDocuments(dir);
   await _migrateGlobalCheckpoint(dir);
+  await _cleanupNestedBackups(dir);
   return dir;
 }
 
 bool _globalMigrated = false;
+
+/// 一次性清理：删除 cl07 前遗留的**嵌套备份文件**（文件名含 ≥2 段 `_bak_`，
+/// 形如 `voxel_save_<id>_bak_<ts>_bak_<ts>…`）。它们是「备份的备份」重复快照，
+/// 既污染 [listBackups] 列表又无任何独立价值；删除只清重复、不动主档与单层备份。
+/// 幂等：用静态标志保证整个进程只跑一次（启动冷路径）。
+bool _nestedBackupsCleaned = false;
+Future<void> _cleanupNestedBackups(Directory target) async {
+  if (_nestedBackupsCleaned) return;
+  _nestedBackupsCleaned = true;
+  try {
+    await for (final FileSystemEntity e in target.list()) {
+      final String n = e.path.split(Platform.pathSeparator).last;
+      if (!n.startsWith(_kManualPrefix) || !n.endsWith(_kManualSuffix)) continue;
+      // 统计 `_bak_` 出现次数：≥2 即深层嵌套（单层备份只有 1 段）。
+      final int count = '_bak_'.allMatches(n).length;
+      if (count >= 2) {
+        try {
+          if (e is File) await e.delete();
+        } catch (_) {
+          // 单文件删除失败不影响其余
+        }
+      }
+    }
+  } catch (_) {
+    // 列举失败静默
+  }
+}
 
 /// 一次性迁移：把旧版**全局自动档** `voxel_world_save.json` 升级为
 /// 按存档 id 隔离的检查点 `voxel_world_save_<id>.json`。
@@ -560,7 +588,14 @@ Future<List<VoxelManualSaveMeta>> listBackups(String id) async {
   await for (final FileSystemEntity e in d.list()) {
     final String n = e.path.split(Platform.pathSeparator).last;
     if (!n.startsWith(pre) || !n.endsWith(_kManualSuffix)) continue;
-    final String ts = n.substring(pre.length, n.length - _kManualSuffix.length);
+    // 仅认「单层备份」：`<id>_bak_<ts>`。cl07 前的旧逻辑会把备份 id 当主档
+    // 继续备份，产生 `_bak_x_bak_y_bak_z…` 深层嵌套（真实目录曾出现 7 层）。
+    // 嵌套文件同样以 `${id}_bak` 为前缀、会被错误列入本存档的备份列表 → 列表
+    // 被污染且「展开备份」里塞满重复快照。这里直接忽略任何含第二段 `_bak_`
+    // 的文件（清理由 [_cleanupNestedBackups] 一次性处理）。
+    final String rest = n.substring(pre.length, n.length - _kManualSuffix.length);
+    if (rest.contains('_bak_')) continue;
+    final String ts = rest;
     try {
       final String raw = await File(e.path).readAsString();
       final dynamic parsed = const JsonDecoder().convert(raw);
