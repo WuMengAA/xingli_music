@@ -7,7 +7,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../core/utils/format.dart';
 import '../../core/utils/palette_extractor.dart';
 import '../../core/utils/app_motion.dart';
 import '../../core/terms/naming_dict.dart';
@@ -15,16 +14,11 @@ import '../../models/track.dart';
 import '../../models/track_stats.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
-import '../../providers/audio/music_quality_provider.dart';
 import '../../providers/stats/track_stats_providers.dart';
-import '../../providers/sources/bilibili_provider.dart';
 import '../../pages/sources/aggregate_search_page.dart';
-import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
-import '../../widgets/playback/playback_controls.dart';
-import '../../widgets/playback/unified_player.dart' show showEqualizerSheet, showSleepTimerSheet, showSpeedSheet;
-import '../../widgets/sources/music_quality_sheet.dart';
+import '../../widgets/playback/unified_player.dart';
 
 /// 整页正在播放（#552：从零重建）。
 ///
@@ -52,16 +46,6 @@ class NowPlayingPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Track? track = ref.watch(nowPlayingProvider);
-    final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
-    final PlayMode mode = ref.watch(playModeProvider);
-    final PlaybackActions actions = ref.read(playbackActionsProvider);
-    // R32 批3：收藏按钮与音乐控制栏对齐——当前曲目是否已收藏。
-    final String favKey = track == null
-        ? ''
-        : trackKeyOf(track.title, track.artist, track.sourceId);
-    final bool isFav = favKey.isEmpty
-        ? false
-        : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
 
     return Scaffold(
       // 背景动态配色：由封面模糊层 + 主题色渐变组成（见 _DynamicBackground），
@@ -122,16 +106,10 @@ class NowPlayingPage extends ConsumerWidget {
                       },
                     ),
                   ),
-                  // 底部控制栏：透明融入背景（样式与音乐卡一致，非额外大块）。
-                  _buildControlBar(
-                    context,
-                    ref,
-                    track,
-                    isPlaying,
-                    mode,
-                    actions,
-                    isFav: isFav,
-                  ),
+                  // 底部控制栏：直接复用音乐控制栏的控件样式（unified_player
+                  // 的 buildTransportRow / ProgressSlider / buildVolumePanel /
+                  // buildBottomActions），整屏与卡完全一致，不另设计。
+                  const _NpControlBar(),
                 ],
               ),
             ),
@@ -210,17 +188,39 @@ class NowPlayingPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildControlBar(
-    BuildContext context,
-    WidgetRef ref,
-    Track? track,
-    bool isPlaying,
-    PlayMode mode,
-    PlaybackActions actions, {
-    required bool isFav,
-  }) {
-    // 底部控制栏：**透明融入背景**（不叠加 bgSurface 大块实色，样式与音乐卡
-    // 一致——透出动态背景 + 细描边胶囊分组）。图标统一 rounded 系列。
+}
+
+/// 全屏播放页底部控制栏。
+///
+/// 直接复用音乐控制栏（[UnifiedPlayer]）的公开控件样式，保证双端视觉一致、
+/// 不另设计：
+/// - [buildTransportRow]：音量开关键 +（全屏态不显示歌词钮）+ 上一首/播放/
+///   下一首/模式/收藏，与紧凑卡完全同源。
+/// - [ProgressSlider]：主题感知进度条（自包含拖拽态）。
+/// - [buildVolumePanel]：展开时显示六大音量分类面板。
+/// - [buildBottomActions]：搜索/音质/白噪音/视听/音效/倍速/睡眠定时。
+class _NpControlBar extends ConsumerStatefulWidget {
+  const _NpControlBar();
+
+  @override
+  ConsumerState<_NpControlBar> createState() => _NpControlBarState();
+}
+
+class _NpControlBarState extends ConsumerState<_NpControlBar> {
+  bool _volOpen = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final WidgetRef ref = this.ref;
+    final bool whiteNoise = ref.watch(whiteNoiseEnabledProvider);
+    final Track? now = ref.watch(nowPlayingProvider);
+    final String favKey = now == null
+        ? ''
+        : trackKeyOf(now.title, now.artist, now.sourceId);
+    final bool isFav = favKey.isEmpty
+        ? false
+        : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpace.lg,
@@ -233,205 +233,43 @@ class NowPlayingPage extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            // R32 批3：音量行上移进度条上方，与音乐控制栏布局一致（除歌词位置）。
-            const _CollapsibleVolumeRow(),
+            // 音量面板（进度条上方，与音乐控制栏一致）。
+            Consumer(
+              builder: (BuildContext c, WidgetRef r, _) =>
+                  buildVolumePanel(r, _volOpen),
+            ),
             const SizedBox(height: AppSpace.xs),
-            const _SeekBarSection(),
-            const SizedBox(height: AppSpace.sm),
-            Row(
-              children: <Widget>[
-                // R32 一.2：图标统一为外部音乐控制栏样式（PlaybackIconButton：
-                // 纯图标 + 主题色，无描边圆底容器），播放键保持居中主按钮。
-                PlaybackIconButton(
-                  icon: Icons.skip_previous_rounded,
-                  size: 24,
-                  tooltip: '上一首',
-                  onTap: () => runPlaybackAction(
-                    context,
-                    () => actions.next(direction: -1),
-                  ),
+            ProgressSlider(
+              onSeek: (double v) => unawaited(
+                ref.read(audioServiceProvider).seek(
+                  Duration(milliseconds: v.round()),
                 ),
-                const SizedBox(width: AppSpace.sm),
-                PlaybackIconButton(
-                  icon: isPlaying
-                      ? Icons.pause_rounded
-                      : Icons.play_arrow_rounded,
-                  size: 40,
-                  tooltip: isPlaying ? '暂停' : '播放',
-                  onTap: () => runPlaybackAction(context, actions.toggle),
-                ),
-                const SizedBox(width: AppSpace.sm),
-                PlaybackIconButton(
-                  icon: Icons.skip_next_rounded,
-                  size: 24,
-                  tooltip: '下一首',
-                  onTap: () => runPlaybackAction(context, () => actions.next()),
-                ),
-                const SizedBox(width: AppSpace.xs),
-                PlaybackIconButton(
-                  icon: _npModeIcon(mode),
-                  size: 24,
-                  tint: true,
-                  tooltip: '播放模式：${_npModeLabel(mode)}',
-                  onTap: () {
-                    final PlayMode next = _npNextMode(mode);
-                    actions.setMode(next);
-                    showPlaybackToast(context, '播放模式：${_npModeLabel(next)}');
-                  },
-                ),
-                // R32 批3：收藏按钮（与音乐控制栏一致，位于循环模式右边）。
-                PlaybackIconButton(
-                  icon: isFav
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  size: 24,
-                  active: isFav,
-                  tooltip: isFav ? '取消收藏' : '收藏',
-                  onTap: () {
-                    if (track == null) return;
-                    unawaited(toggleFavoriteTrack(ref, track));
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpace.sm),
-            // 快捷操作胶囊行（画布 3:348：搜索/音质/白噪音/视听/倍速）。
-            // 全部绑定真实功能：搜索/音质/倍速走弹层或页面，白噪音/视听走
-            // 全局开关（跟随场景/全局生效来源）。队列/下载无后端，不摆设。
-            const _QuickActionsRow(),
-            const SizedBox(height: AppSpace.xs),
-            // 底部工具行（画布 3:131-146：睡眠定时 / 均衡器）。
-            // 画布另有「下载」「队列」按钮，本项目暂无对应后端，不摆设。
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                _ToolChip(
-                  icon: Icons.bedtime_rounded,
-                  label: '睡眠定时',
-                  onTap: () => showSleepTimerSheet(context, ref),
-                ),
-                const SizedBox(width: AppSpace.sm),
-                _ToolChip(
-                  icon: Icons.equalizer_rounded,
-                  label: '均衡器',
-                  onTap: () => unawaited(showEqualizerSheet(context)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 快捷操作胶囊行（画布 3:348：搜索 / 音质 / 白噪音 / 视听 / 倍速）。
-///
-/// 数据与动作全部接真实后端，禁止伪造状态：
-/// - 搜索：push [AggregateSearchPage]
-/// - 音质：弹 [showMusicQualitySheet]
-/// - 白噪音：翻转 [whiteNoiseEnabledProvider]（生效来源跟随场景/全局）
-/// - 视听：翻转 [biliVisualEnabledProvider]（B站视频背景）
-/// - 倍速：弹 [showSpeedSheet]
-class _QuickActionsRow extends ConsumerWidget {
-  const _QuickActionsRow();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bool whiteNoise = ref.watch(whiteNoiseEnabledProvider);
-    final bool visualOn = ref.watch(biliVisualEnabledProvider);
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: AppSpace.xs,
-      runSpacing: AppSpace.xs,
-      children: <Widget>[
-        _ActionChip(
-          icon: Icons.search_rounded,
-          label: '搜索',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => const AggregateSearchPage(),
-            ),
-          ),
-        ),
-        _ActionChip(
-          icon: Icons.high_quality_rounded,
-          label: _qualityLabel(ref),
-          onTap: () => unawaited(showMusicQualitySheet(context)),
-        ),
-        _ActionChip(
-          icon: Icons.spa_rounded,
-          label: '白噪音',
-          active: whiteNoise,
-          onTap: () => ref
-              .read(whiteNoiseEnabledProvider.notifier)
-              .state = !whiteNoise,
-        ),
-        _ActionChip(
-          icon: Icons.movie_filter_rounded,
-          label: '视听',
-          active: visualOn,
-          onTap: () => ref
-              .read(biliVisualEnabledProvider.notifier)
-              .state = !visualOn,
-        ),
-        _ActionChip(
-          icon: Icons.speed_rounded,
-          label: '倍速',
-          onTap: () => unawaited(showSpeedSheet(context, ref)),
-        ),
-      ],
-    );
-  }
-}
-
-/// 单个快捷操作胶囊（画布 qa-* 61×36 r18）。active 高亮强调色。
-class _ActionChip extends StatelessWidget {
-  const _ActionChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.active = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-        decoration: BoxDecoration(
-          color: active ? c.accentSoft : c.bgSurface,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: active ? c.accent : c.border,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              icon,
-              size: 15,
-              color: active ? c.accent : c.iconInactive,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: context.appText.caption.copyWith(
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                color: active ? c.accent : c.textSecondary,
               ),
             ),
+            const SizedBox(height: AppSpace.sm),
+            buildTransportRow(
+              context,
+              ref,
+              fullscreen: true,
+              volOpen: _volOpen,
+              onToggleVol: () => setState(() => _volOpen = !_volOpen),
+              lyricsOpen: false,
+              onToggleLyrics: () {},
+              isFav: isFav,
+              onToggleFav: () {
+                if (now == null) return;
+                unawaited(toggleFavoriteTrack(ref, now));
+              },
+            ),
+            const SizedBox(height: AppSpace.sm),
+            buildBottomActions(
+              context,
+              ref,
+              whiteNoise: whiteNoise,
+              onToggleWhiteNoise: () => ref
+                  .read(whiteNoiseEnabledProvider.notifier)
+                  .state = !whiteNoise,
+            ),
           ],
         ),
       ),
@@ -439,45 +277,6 @@ class _ActionChip extends StatelessWidget {
   }
 }
 
-/// 底部工具胶囊（画布 btn-queue/btn-sleep/btn-download/btn-eq 44×36 r18）。
-/// 只挂有真实后端的能力（睡眠定时 / 均衡器），下载/队列无后端不摆设。
-class _ToolChip extends StatelessWidget {
-  const _ToolChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpace.lg),
-        decoration: BoxDecoration(
-          color: c.bgSurface,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(color: c.border, width: 1),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(icon, size: 15, color: c.iconInactive),
-            const SizedBox(width: 6),
-            Text(label, style: context.appText.caption),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// 背景动态配色层。
 ///
@@ -810,227 +609,3 @@ class _TrackInfo extends StatelessWidget {
   }
 }
 
-/// 进度区：可拖拽 / 点按的进度条 + 当前 / 总时长。
-class _SeekBarSection extends ConsumerStatefulWidget {
-  const _SeekBarSection();
-
-  @override
-  ConsumerState<_SeekBarSection> createState() => _SeekBarSectionState();
-}
-
-class _SeekBarSectionState extends ConsumerState<_SeekBarSection> {
-  double? _dragRatio;
-
-  Future<void> _commit(Duration? duration) async {
-    final double? ratio = _dragRatio;
-    if (ratio == null || duration == null) return;
-    await ref.read(audioServiceProvider).seek(duration * ratio);
-    if (!mounted) return;
-    setState(() => _dragRatio = null);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Duration position =
-        ref.watch(musicPositionProvider).valueOrNull ?? Duration.zero;
-    final Duration? duration = ref.watch(musicDurationProvider).valueOrNull;
-    final bool seekable = duration != null && duration.inMilliseconds > 0;
-    final double ratio = _dragRatio ??
-        (seekable
-            ? (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0)
-            : 0.0);
-    // duration 在 seekable 分支已通过非空判断（flow analysis 提升）。
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            void update(double dx) {
-              if (!seekable || constraints.maxWidth <= 0) return;
-              setState(
-                () => _dragRatio = (dx / constraints.maxWidth).clamp(0.0, 1.0),
-              );
-            }
-
-            return GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTapDown: (TapDownDetails d) => update(d.localPosition.dx),
-              onTapUp: (_) => _commit(duration),
-              onHorizontalDragStart: (DragStartDetails d) =>
-                  update(d.localPosition.dx),
-              onHorizontalDragUpdate: (DragUpdateDetails d) =>
-                  update(d.localPosition.dx),
-              onHorizontalDragEnd: (_) => _commit(duration),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                child: SizedBox(
-                  height: AppSize.heightProgress,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: <Widget>[
-                      ColoredBox(color: context.appColors.progressTrack),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FractionallySizedBox(
-                          widthFactor: ratio,
-                          heightFactor: 1,
-                          child: ColoredBox(color: context.appColors.accent),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: AppSpace.xs),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Text(
-              formatDuration(
-                duration != null
-                    ? Duration(
-                        milliseconds: (ratio * duration.inMilliseconds).round())
-                    : position,
-              ),
-              style: context.appText.caption,
-            ),
-            Text(formatDuration(duration), style: context.appText.caption),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// 播放模式图标按钮（循环顺序与全局一致）。点击切换并轻提示。
-// ════════════════════════════════════════════════════════════════════════
-// 播放模式图标 / 文案 / 切换（R32 一.2：与外部控制栏样式统一后的顶层函数）
-// ════════════════════════════════════════════════════════════════════════
-
-/// 播放模式 → 图标（Material rounded，与外部音乐控制栏同源）。
-IconData _npModeIcon(PlayMode m) => switch (m) {
-      PlayMode.order => Icons.trending_flat_rounded,
-      PlayMode.reverse => Icons.keyboard_backspace_rounded,
-      PlayMode.shuffle => Icons.shuffle_rounded,
-      PlayMode.loop => Icons.repeat_one_rounded,
-    };
-
-/// 播放模式 → 文案。
-String _npModeLabel(PlayMode m) => switch (m) {
-      PlayMode.order => '顺序',
-      PlayMode.reverse => '倒叙',
-      PlayMode.shuffle => '随机',
-      PlayMode.loop => '单曲循环',
-    };
-
-/// 播放模式循环切换（order → reverse → shuffle → loop → order）。
-PlayMode _npNextMode(PlayMode m) => switch (m) {
-      PlayMode.order => PlayMode.reverse,
-      PlayMode.reverse => PlayMode.shuffle,
-      PlayMode.shuffle => PlayMode.loop,
-      PlayMode.loop => PlayMode.order,
-    };
-
-/// 音量行（默认折叠，点标题展开）。
-class _CollapsibleVolumeRow extends ConsumerStatefulWidget {
-  const _CollapsibleVolumeRow();
-
-  @override
-  ConsumerState<_CollapsibleVolumeRow> createState() =>
-      _CollapsibleVolumeRowState();
-}
-
-class _CollapsibleVolumeRowState
-    extends ConsumerState<_CollapsibleVolumeRow> {
-  bool _open = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final double volume = ref.watch(musicVolumeProvider);
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        InkWell(
-          onTap: () => setState(() => _open = !_open),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              children: <Widget>[
-                Icon(
-                  _open ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                  size: AppSize.iconSm,
-                  color: context.appColors.iconInactive,
-                ),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(
-                  child: Text('音量 · ${(volume * 100).round()}%',
-                      style: context.appText.body),
-                ),
-                Icon(
-                  _open
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: AppSize.iconSm,
-                  color: context.appColors.iconInactive,
-                ),
-              ],
-            ),
-          ),
-        ),
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 200),
-          crossFadeState:
-              _open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          firstChild: const SizedBox(height: 0),
-          secondChild: _VolumeRow(volume: volume),
-        ),
-      ],
-    );
-  }
-}
-
-/// 当前音质 / 清晰度标签（音质入口按钮文案）。
-String _qualityLabel(WidgetRef ref) {
-  final MusicQuality mq = ref.watch(musicQualityProvider);
-  final BiliVideoQuality bq = ref.watch(biliVideoQualityProvider);
-  return '音质 ${mq.label} · 清晰度 ${bq.label}';
-}
-
-/// 音量行：图标 + 滑块。拖动实时更新 provider 并接线到真实音频服务。
-class _VolumeRow extends ConsumerWidget {
-  const _VolumeRow({required this.volume});
-
-  final double volume;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      children: <Widget>[
-        Icon(
-          Icons.volume_down_rounded,
-          size: AppSize.iconSm,
-          color: context.appColors.iconInactive,
-        ),
-        Expanded(
-          child: Slider(
-            value: volume,
-            onChanged: (double v) {
-              ref.read(musicVolumeProvider.notifier).state = v;
-              unawaited(ref.read(audioServiceProvider).setMusicVolume(v));
-            },
-          ),
-        ),
-        Icon(
-          Icons.volume_up_rounded,
-          size: AppSize.iconSm,
-          color: context.appColors.iconInactive,
-        ),
-      ],
-    );
-  }
-}

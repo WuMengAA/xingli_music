@@ -357,7 +357,11 @@ abstract final class AppVersion {
   /// cl09（08.22）：修「游戏设置→世界存档」入口错跳游戏主菜单导致的无限套娃
   /// （改直达 VoxelSaveManagerPage）+ listBackups 过滤深层嵌套备份（仅认单层）
   /// + 启动一次性清理 cl07 前遗留的 _bak_ 嵌套脏文件。
-  static const int buildCount = 9;
+  /// cl10（08.22）：全屏播放页底部控制栏不再自绘，直接复用音乐控制栏
+  /// （unified_player）公开控件——buildTransportRow / ProgressSlider /
+  /// buildVolumePanel / buildBottomActions，双端视觉完全一致、不另设计。
+  /// unified_player 对应组件提升为 public 供跨文件复用。
+  static const int buildCount = 10;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -422,6 +426,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl10',
+    title: '全屏播放页控制栏复用音乐控制栏样式',
+    details: <String>[
+      '全屏播放页底部控制栏不再自绘进度条/音量/传输行/快捷操作，改为直接复用音乐控制栏（unified_player）的公开控件：buildTransportRow / ProgressSlider / buildVolumePanel / buildBottomActions',
+      'unified_player 对应组件（buildTransportRow / ProgressSlider / buildVolumePanel / buildBottomActions）提升为 public 供跨文件复用；全屏页删除本地重写的 _SeekBarSection / _CollapsibleVolumeRow / _QuickActionsRow / _ActionChip / _ToolChip / _VolumeRow 及其模式辅助函数',
+      '双端控件视觉完全一致、不另设计；全屏态传 fullscreen:true 让歌词按钮不重复出现（歌词已在整页上方展示）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl09',

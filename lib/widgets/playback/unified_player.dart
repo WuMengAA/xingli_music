@@ -250,16 +250,16 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                           // 音量面板（进度条上方）
                           Consumer(
                             builder: (BuildContext context, WidgetRef ref, _) =>
-                                _buildVolumePanel(ref, _volOpen),
+                                buildVolumePanel(ref, _volOpen),
                           ),
                           const SizedBox(height: 8),
-                          _ProgressSlider(
+                          ProgressSlider(
                             onSeek: (double v) => unawaited(ref
                                 .read(audioServiceProvider)
                                 .seek(Duration(milliseconds: v.round()))),
                           ),
                           const SizedBox(height: 4),
-                          _buildTransportRow(
+                          buildTransportRow(
                             context,
                             ref,
                             fullscreen: false,
@@ -278,7 +278,7 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
                           ),
                           // ⑧：搜索 + 音质入口下沉到音乐卡片底部（全局液态玻璃卡片）；
                           // cl52-B：白噪音 + 视听 + 均衡器也并入底部（音质右边）。
-                          _buildBottomActions(context, ref, whiteNoise: whiteNoise, onToggleWhiteNoise: _toggleWhiteNoise),
+                          buildBottomActions(context, ref, whiteNoise: whiteNoise, onToggleWhiteNoise: _toggleWhiteNoise),
                         ],
                       ),
               ),
@@ -399,7 +399,7 @@ PlayMode _nextMode(PlayMode m) => switch (m) {
 ///
 /// cl52-B：按用户要求重排——歌词按钮在音量右边、上一首左边；收藏移到
 /// 循环模式右边。全屏态不重复放歌词钮（歌词已在 Overlay 内展示）。
-Widget _buildTransportRow(
+Widget buildTransportRow(
   BuildContext context,
   WidgetRef ref, {
   required bool fullscreen,
@@ -513,7 +513,7 @@ Widget _buildTransportRow(
 }
 
 /// 进度条（主题感知色）。
-// cl73：进度条已改为自包含 _ProgressSlider（ConsumerStatefulWidget），
+// cl73：进度条已改为自包含 ProgressSlider（ConsumerStatefulWidget），
 // 内部 watch 播放进度/时长并持有拖动态，不再需要本中转函数。
 
 /// 音量面板（#170：主音量总输出 + 六大声音分类各自独立控制）。
@@ -522,7 +522,7 @@ Widget _buildTransportRow(
 /// 世界空间音效 / 提示音）；每行带一句**小字概念说明**，拖动滑块即播该分类的
 /// 代表性反馈音（[AudioService.playCategoryCue]，内部 220ms 节流）。
 /// 白噪音行额外提供「跟随场景 / 全局播放」切换（#167）。
-Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
+Widget buildVolumePanel(WidgetRef ref, bool volOpen) {
   final double master = ref.watch(masterVolumeProvider);
   final double musicVol = ref.watch(musicVolumeProvider);
   final double scVol = ref.watch(soundscapeVolumeProvider);
@@ -625,7 +625,7 @@ Widget _buildVolumePanel(WidgetRef ref, bool volOpen) {
 ///
 /// cl52-B：白噪音与视听从 header 迁到这里（音质右边），均衡器紧随视听
 /// （图标形式）。header 只保留放大 / 折叠。
-Widget _buildBottomActions(
+Widget buildBottomActions(
   BuildContext context,
   WidgetRef ref, {
   required bool whiteNoise,
@@ -1388,13 +1388,13 @@ class _FullscreenPlaybackOverlayState
           ],
         ),
         const SizedBox(height: 16),
-        _ProgressSlider(
+        ProgressSlider(
           onSeek: (double v) => unawaited(ref
               .read(audioServiceProvider)
               .seek(Duration(milliseconds: v.round()))),
         ),
         const SizedBox(height: 8),
-        _buildTransportRow(
+        buildTransportRow(
           context,
           ref,
           fullscreen: true,
@@ -1414,7 +1414,7 @@ class _FullscreenPlaybackOverlayState
             unawaited(toggleFavoriteTrack(ref, now));
           },
         ),
-        Consumer(builder: (BuildContext context, WidgetRef ref, _) => _buildVolumePanel(ref, _volOpen)),
+        Consumer(builder: (BuildContext context, WidgetRef ref, _) => buildVolumePanel(ref, _volOpen)),
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
@@ -1451,7 +1451,7 @@ class _FullscreenPlaybackOverlayState
         const SizedBox(height: 8),
         // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）；
         // cl52-B：白噪音 + 视听 + 均衡器并入（音质右边），与紧凑卡片一致。
-        _buildBottomActions(
+        buildBottomActions(
           context,
           ref,
           whiteNoise: whiteNoise,
@@ -1468,17 +1468,17 @@ class _FullscreenPlaybackOverlayState
 /// 内部 watch 播放进度/时长、持有拖动态（_seeking/_seekMs），拖动与
 /// 进度 tick 只重建自身，不再连累上层 1219 行播放器整树重建（此前
 /// 拖动每帧 setState 重建整树是卡顿主因）。视觉与交互行为完全不变。
-class _ProgressSlider extends ConsumerStatefulWidget {
-  const _ProgressSlider({required this.onSeek});
+class ProgressSlider extends ConsumerStatefulWidget {
+  const ProgressSlider({super.key, required this.onSeek});
 
   /// 拖动结束回调（毫秒），由上层执行实际 seek。
   final ValueChanged<double> onSeek;
 
   @override
-  ConsumerState<_ProgressSlider> createState() => _ProgressSliderState();
+  ConsumerState<ProgressSlider> createState() => ProgressSliderState();
 }
 
-class _ProgressSliderState extends ConsumerState<_ProgressSlider> {
+class ProgressSliderState extends ConsumerState<ProgressSlider> {
   bool _seeking = false;
   double? _seekMs;
 
