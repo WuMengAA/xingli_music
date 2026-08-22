@@ -105,3 +105,6 @@ _probe.txt
 *.tmp
 *.swp
 coverage/
+
+# 本地记忆/工作态（不入仓）
+.workbuddy/
