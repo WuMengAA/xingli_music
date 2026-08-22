@@ -24,6 +24,10 @@ enum NetMsgType {
   ping, // 心跳
   editSnapshot, // 主机→新成员/重连：编辑层快照（已变方块+发光方块），payload: edits/lights
   requestEditSnapshot, // 客户端请求主机当前编辑层快照（防「welcome 早于 world 视图注册」竞态）
+  // ── 校园点歌（电台·点歌队列子能力）──
+  orderSubmit, // 听众→DJ：提交一首点歌（track + 寄语 + 匿名），payload: id,trackJson,msg,anon
+  orderQueue, // DJ→全体：点歌队列快照（权威队列），payload: items:[...]
+  orderDecision, // DJ→提交者：对某条点歌的审批（approve/reject），payload: id,decision
 }
 
 /// 一条网络消息（JSON 信封：t=类型 f=发送方 to=接收方(可选) p=负载）。

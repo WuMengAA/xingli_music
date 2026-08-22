@@ -49,6 +49,38 @@ class Track {
   /// 本地文件用 setFilePath，网络地址用 setUrl
   bool get isRemote => uri.startsWith('http');
 
+  /// 序列化为 JSON（用于联机点歌等跨端传递）。
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'title': title,
+        'artist': artist,
+        'uri': uri,
+        'source': source.index,
+        'sourceId': sourceId,
+        'isLiveStream': isLiveStream,
+        'coverUrl': coverUrl,
+        'album': album,
+        'duration': duration?.inMilliseconds,
+        'coverPath': coverPath,
+        'extras': extras,
+      };
+
+  /// 从 JSON 反序列化（字段缺省回退，保证旧/部分负载不崩）。
+  factory Track.fromJson(Map<String, dynamic> j) => Track(
+        title: j['title'] as String? ?? '未知曲目',
+        artist: j['artist'] as String? ?? '',
+        uri: j['uri'] as String? ?? '',
+        source: TrackSource.values[(j['source'] as int?) ?? 1],
+        sourceId: j['sourceId'] as String? ?? '',
+        isLiveStream: j['isLiveStream'] as bool? ?? false,
+        coverUrl: j['coverUrl'] as String?,
+        album: j['album'] as String?,
+        duration: (j['duration'] as int?) != null
+            ? Duration(milliseconds: j['duration'] as int)
+            : null,
+        coverPath: j['coverPath'] as String?,
+        extras: j['extras'] as Map<String, dynamic>?,
+      );
+
   Track copyWith({
     String? title,
     String? artist,

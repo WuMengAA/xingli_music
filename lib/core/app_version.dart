@@ -366,7 +366,13 @@ abstract final class AppVersion {
   /// 类型 fall back 到 begin + (end - begin)*t，对 Color 调 `-` 运算符
   /// → NoSuchMethodError: Class 'Color' has no instance method '-'。改为
   /// `ColorTween`（走 Color.lerp）+ `TweenAnimationBuilder<Color?>` 接受 null。
-  static const int buildCount = 11;
+  /// cl12（08.22）：社交模块落地——电台房基础 UI + 校园点歌 MVP（BC 实现）。
+  /// 新增 NetMsgType.orderSubmit/orderQueue/orderDecision（枚举末位追加，不重排
+  /// 保线上兼容）+ Track.toJson/fromJson 序列化 + OrderItem/OrderStatus 点歌模型；
+  /// NetSessionNotifier 加 submitOrder/decideOrder/_broadcastOrderQueue（DJ 端权威队列
+  /// + 定向回执，听众端乐观插入 pending）；新增 lib/pages/social/（电台大厅/电台房/
+  /// 点歌队列三页），探索页功能区加「电台房」入口。OQ-1 v1 默认创建者即 DJ。
+  static const int buildCount = 12;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -431,6 +437,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl12',
+    title: '社交模块落地：电台房基础 UI + 校园点歌 MVP',
+    details: <String>[
+      '电台房基础 UI：创建/加入电台房（relay 中转凭房间号跨公网）、形态矩阵（校园广播台/好友一起听/纯点歌台）、成员列表 + DJ 标识 + 房间码分享',
+      '校园点歌 MVP：新增 orderSubmit/orderQueue/orderDecision 协议 + OrderItem/OrderStatus 模型；DJ 端权威队列 + 定向回执，听众端乐观提交 pending',
+      '点歌队列页：听众搜索选曲 + 寄语 + 匿名提交，DJ 端审批（通过/拒绝）与「推入播放」，状态徽章 pending/approved/playing/played/rejected',
+      '探索页功能区新增「电台房」入口，复用已有 listenState 一起听同步链路（主机为 DJ）',
+      'Track 新增 toJson/fromJson 序列化以支持跨端点歌传递',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl11',

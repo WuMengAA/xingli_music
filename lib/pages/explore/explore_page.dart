@@ -20,6 +20,7 @@ import '../../core/terms/naming_dict.dart';
 import 'consent_gate.dart';
 import 'experiments/companion_page.dart';
 import 'experiments/recommend_page.dart';
+import '../social/station_lobby_page.dart';
 
 /// 探索页（v2 M2 重写，按画布「Screen · 探索」3:238 重建）。
 ///
@@ -57,6 +58,10 @@ class ExplorePage extends ConsumerWidget {
         );
     // 星璃世界走 Shell Tab 切换（IndexedStack 唯一真源）。
     void goWorld() => setShellPage(ref, ShellPage.world);
+    // 电台房：社交模块入口（创建/加入电台 · 点歌 · 一起听）。
+    void goStation() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const StationLobbyPage()),
+        );
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
     return PageScaffold(
@@ -91,6 +96,7 @@ class ExplorePage extends ConsumerWidget {
               onRecommend: goRecommend,
               onCompanion: goCompanion,
               onWorld: goWorld,
+              onStation: goStation,
             ),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel(Terms.lab),
@@ -426,12 +432,14 @@ class _FunctionSection extends StatelessWidget {
     required this.onRecommend,
     required this.onCompanion,
     required this.onWorld,
+    required this.onStation,
   });
 
   final VoidCallback onAggregate;
   final VoidCallback onRecommend;
   final VoidCallback onCompanion;
   final VoidCallback onWorld;
+  final VoidCallback onStation;
 
   @override
   Widget build(BuildContext context) {
@@ -464,6 +472,13 @@ class _FunctionSection extends StatelessWidget {
           subtitle: '3D 体素世界 · 空间音效',
           onTap: onWorld,
           trailing: Icon(Icons.view_in_ar_rounded, size: AppSize.iconSm, color: c.iconInactive),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _FuncRow(
+          title: '电台房',
+          subtitle: '一起听 · 校园点歌 · 共享音乐',
+          onTap: onStation,
+          trailing: Icon(Icons.radio_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
       ],
     );

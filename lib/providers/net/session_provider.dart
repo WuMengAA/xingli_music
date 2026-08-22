@@ -129,6 +129,88 @@ class PeerInfo {
       };
 }
 
+/// 一条点歌请求（校园点歌 · 电台点歌队列子能力）。
+class OrderItem {
+  OrderItem({
+    required this.id,
+    required this.track,
+    required this.fromId,
+    required this.fromName,
+    this.message = '',
+    this.anonymous = false,
+    this.status = OrderStatus.pending,
+    DateTime? at,
+  }) : at = at ?? DateTime.now();
+
+  /// 唯一 id（提交者端生成，UUID 风格）。
+  final String id;
+
+  /// 被点歌曲（复用 Track 模型，序列化为 toJson）。
+  final Track track;
+
+  /// 提交者成员 id（用于定向回执）。
+  final String fromId;
+
+  /// 提交者昵称（匿名时展示「匿名听众」）。
+  final String fromName;
+
+  /// 点歌寄语（可为空）。
+  final String message;
+
+  /// 是否匿名（DJ 端不暴露提交者真实昵称）。
+  final bool anonymous;
+
+  /// 审批状态：pending/approved/playing/played/rejected。
+  final OrderStatus status;
+
+  /// 提交时间。
+  final DateTime at;
+
+  OrderItem copyWith({OrderStatus? status}) => OrderItem(
+        id: id,
+        track: track,
+        fromId: fromId,
+        fromName: fromName,
+        message: message,
+        anonymous: anonymous,
+        status: status ?? this.status,
+        at: at,
+      );
+
+  factory OrderItem.fromJson(Map<String, dynamic> j) => OrderItem(
+        id: j['id'] as String,
+        track: Track.fromJson(j['track'] as Map<String, dynamic>),
+        fromId: j['fromId'] as String? ?? '',
+        fromName: j['fromName'] as String? ?? '听众',
+        message: j['msg'] as String? ?? '',
+        anonymous: j['anon'] as bool? ?? false,
+        status: OrderStatus.values[(j['st'] as int?) ?? 0],
+        at: DateTime.fromMillisecondsSinceEpoch(
+          (j['at'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+
+  Map<String, dynamic> toJson() => <String, dynamic>{
+        'id': id,
+        'track': track.toJson(),
+        'fromId': fromId,
+        'fromName': fromName,
+        'msg': message,
+        'anon': anonymous,
+        'st': status.index,
+        'at': at.millisecondsSinceEpoch,
+      };
+}
+
+/// 点歌审批状态机。
+enum OrderStatus {
+  pending, // 待 DJ 审批
+  approved, // 已通过，排队等待播放
+  playing, // DJ 正在播放此曲
+  played, // 已播放完毕
+  rejected, // 已拒绝
+}
+
 /// 一条聊天消息。
 class ChatLine {
   ChatLine({
@@ -179,6 +261,7 @@ class NetSessionState {
     this.roomCode,
     this.relayUrl,
     this.lastSeenAt,
+    this.orderQueue = const <OrderItem>[],
   });
 
   final NetRole role;
@@ -200,6 +283,9 @@ class NetSessionState {
   /// cl06：最近一次收到远端消息的时间（HUD 显示联机「延迟/当前状态」）。
   final DateTime? lastSeenAt;
 
+  /// 校园点歌队列（DJ 端为权威队列，听众端为镜像）。状态机见 [OrderStatus]。
+  final List<OrderItem> orderQueue;
+
   NetSessionState copyWith({
     NetRole? role,
     ConnStatus? status,
@@ -217,6 +303,7 @@ class NetSessionState {
     String? roomCode,
     String? relayUrl,
     DateTime? lastSeenAt,
+    List<OrderItem>? orderQueue,
   }) =>
       NetSessionState(
         role: role ?? this.role,
@@ -235,6 +322,7 @@ class NetSessionState {
         roomCode: roomCode ?? this.roomCode,
         relayUrl: relayUrl ?? this.relayUrl,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
+        orderQueue: orderQueue ?? this.orderQueue,
       );
 
   PeerInfo? peer(String id) {
@@ -702,6 +790,58 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         );
         break;
 
+      // ── 校园点歌（电台·点歌队列子能力）──
+      case NetMsgType.orderSubmit:
+        // 仅 DJ/host 接收听众提交，写入权威队列并回播快照。
+        if (state.role == NetRole.host) {
+          final OrderItem item = OrderItem.fromJson(
+            msg.payload['item'] as Map<String, dynamic>,
+          );
+          final List<OrderItem> next = <OrderItem>[
+            ...state.orderQueue,
+            item,
+          ];
+          state = state.copyWith(orderQueue: next);
+          _broadcastOrderQueue();
+          // 给提交者单独发一份回执（含状态），使其在自端立即可见 pending。
+          _node?.sendTo(
+            item.fromId,
+            NetMessage(
+              type: NetMsgType.orderQueue,
+              from: state.localId ?? '',
+              payload: <String, dynamic>{
+                'items': <Map<String, dynamic>>[item.toJson()],
+              },
+            ),
+          );
+        }
+        break;
+
+      case NetMsgType.orderQueue:
+        // 听众端：应用 DJ 下发的队列快照（全量覆盖，DJ 为权威）。
+        final List<dynamic>? raw =
+            msg.payload['items'] as List<dynamic>?;
+        if (raw != null) {
+          final List<OrderItem> items = <OrderItem>[
+            for (final dynamic e in raw)
+              OrderItem.fromJson(e as Map<String, dynamic>),
+          ];
+          state = state.copyWith(orderQueue: items);
+        }
+        break;
+
+      case NetMsgType.orderDecision:
+        // 提交者端：DJ 对某条点歌的审批结果。
+        final String id = msg.payload['id'] as String? ?? '';
+        final OrderStatus decision =
+            OrderStatus.values[(msg.payload['decision'] as int?) ?? 0];
+        state = state.copyWith(
+          orderQueue: state.orderQueue
+              .map((it) => it.id == id ? it.copyWith(status: decision) : it)
+              .toList(),
+        );
+        break;
+
       case NetMsgType.ping:
         break;
     }
@@ -797,6 +937,85 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         ChatLine(fromId: state.localId ?? '', name: state.localName, text: text),
       ],
     );
+  }
+
+  // ── 校园点歌（电台·点歌队列子能力）──
+
+  /// 听众端：提交一首点歌。生成唯一 id 后发给 DJ（host），并乐观插入本地
+  /// pending 项（收到 orderQueue 回执后由权威覆盖）。返回本地生成的条目 id。
+  String submitOrder(Track track, {String message = '', bool anonymous = false}) {
+    final String id = _genOrderId();
+    final OrderItem item = OrderItem(
+      id: id,
+      track: track,
+      fromId: state.localId ?? '',
+      fromName: state.localName,
+      message: message,
+      anonymous: anonymous,
+      status: OrderStatus.pending,
+    );
+    // 乐观更新：让提交者立即看到自己的 pending。
+    state = state.copyWith(orderQueue: <OrderItem>[...state.orderQueue, item]);
+    _node?.send(NetMessage(
+      type: NetMsgType.orderSubmit,
+      from: state.localId ?? '',
+      payload: <String, dynamic>{'item': item.toJson()},
+    ));
+    return id;
+  }
+
+  /// DJ 端：广播当前权威队列快照给全体。
+  void _broadcastOrderQueue() {
+    if (state.role != NetRole.host) return;
+    _node?.send(NetMessage(
+      type: NetMsgType.orderQueue,
+      from: state.localId ?? '',
+      payload: <String, dynamic>{
+        'items': <Map<String, dynamic>>[
+          for (final OrderItem it in state.orderQueue) it.toJson(),
+        ],
+      },
+    ));
+  }
+
+  /// DJ 端：审批一条点歌（通过/拒绝）。更新权威队列并通知提交者。
+  void decideOrder(String id, bool approve) {
+    if (state.role != NetRole.host) return;
+    final OrderItem? target = state.orderQueue
+        .where((it) => it.id == id)
+        .firstOrNull;
+    if (target == null) return;
+    final OrderStatus next =
+        approve ? OrderStatus.approved : OrderStatus.rejected;
+    state = state.copyWith(
+      orderQueue: state.orderQueue
+          .map((it) => it.id == id ? it.copyWith(status: next) : it)
+          .toList(),
+    );
+    // 全量回播（保持全体一致）。
+    _broadcastOrderQueue();
+    // 定向回执给提交者，使其在自端立即翻状态。
+    _node?.sendTo(
+      target.fromId,
+      NetMessage(
+        type: NetMsgType.orderDecision,
+        from: state.localId ?? '',
+        payload: <String, dynamic>{
+          'id': id,
+          'decision': next.index,
+        },
+      ),
+    );
+  }
+
+  /// 生成点歌唯一 id（时间戳 + 随机后缀，避免同毫秒碰撞）。
+  String _genOrderId() {
+    final int ms = DateTime.now().millisecondsSinceEpoch;
+    final math.Random r = math.Random();
+    final String suffix = String.fromCharCodes(
+      Iterable<int>.generate(4, (_) => 97 + r.nextInt(26)),
+    );
+    return '$ms-$suffix';
   }
 
   // ── 一起听（主机为 DJ）──
