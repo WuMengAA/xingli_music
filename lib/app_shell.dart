@@ -38,7 +38,6 @@ import 'widgets/shell/scroll_blur.dart';
 import 'widgets/shell/tab_switch_blur.dart';
 import 'widgets/playback/music_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
-import 'widgets/noise_texture.dart';
 import 'widgets/common/app_confirm_dialog.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -293,8 +292,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     ref.listen<int>(shellPageIndexProvider, (int? _, int __) {
       ref.read(pageScrollBlurProvider.notifier).state = 0;
     });
-    // 低端设备优化：省电模式关闭全屏噪点层（最大渲染开销之一）
-    final bool noiseOn = ref.watch(noiseEnabledProvider);
 
     // 悬浮层（播放控件 + dock）脱离文档流后的底部预留：保证下层 5 个 Tab
     // 页面内容不被遮挡，且页面自身布局 / 占位完全不变（仅 AppShell 这一层
@@ -324,23 +321,8 @@ class _AppShellState extends ConsumerState<AppShell> {
       body: LiquidGlassCapture(
         child: Stack(
         children: <Widget>[
-          // ── 玻璃背景层：画布极光渐变（随皮肤主色派生）+ 噪点 ──
-          // 全站统一极光/玻璃背景（画布 BG-aurora），深浅主题 + 11 套皮肤
-          // 下背景氛围自动同步；玻璃组件透出这层极光 + 颗粒的干净质感。
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: context.appColors.auroraGradient,
-                ),
-              ),
-            ),
-          ),
-          if (noiseOn)
-            Positioned.fill(
-              child: IgnorePointer(child: NoiseTexture(seed: 11)),
-            ),
-          // 主内容层
+          // 主内容层（iOS 化：移除极光渐变 + 噪点背景层，Scaffold bgPage
+          // 直接承担 systemBackground 底色，毛玻璃组件自带材质质感）
           SafeArea(
         bottom: false,
         child: Column(

@@ -64,7 +64,7 @@ class PageScaffold extends StatelessWidget {
             child: IconButton(
               visualDensity: VisualDensity.compact,
               icon: Icon(
-                Icons.arrow_back_rounded,
+                Icons.chevron_left,
                 size: AppSize.iconSm,
                 color: context.appColors.textSecondary,
               ),
@@ -74,8 +74,8 @@ class PageScaffold extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            // R16：标题色跟随主题
-            style: context.appText.title.copyWith(
+            // iOS 化：固定 Large Title（31pt / w400），左对齐
+            style: context.appText.largeTitle.copyWith(
               color: context.appColors.textPrimary,
             ),
             maxLines: 1,

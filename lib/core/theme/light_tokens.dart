@@ -24,138 +24,144 @@ import 'package:flutter/material.dart';
 
 /// 色板：**唯一取色入口**。
 ///
+/// 【iOS 化 · cl13】依据 `docs/UI_IOS_DESIGN_TOKENS.md` §1，全面切换到
+/// **Apple iOS 系统色值**（HIG 一致）。浅色用经典 iOS 灰底层级 +
+/// `systemBlue` 强调色；原紫色皮肤体系（`withSkin` 派生）已废弃，
+/// 强调色固定为 `systemBlue #007AFF`。
+///
 /// 分两层：
-/// * **中性色阶** `neutral0` … `neutral400` —— 一条单调递减的「深度」体系；
+/// * **中性色阶** `neutral0` … `neutral400` —— 对齐 iOS 三级系统背景 +
+///   separator / placeholder 等；
 /// * **语义别名** `bgPage` / `textPrimary` … —— 业务代码应优先使用语义名，
 ///   只有语义表未覆盖的边缘场景才直接引用色阶。
 abstract final class AppColors {
-  // ── 中性色阶（Neutral Ladder）· PRD §6.2 ─────────────────
-  /// `#FFFFFF` 页面底色、卡片、迷你播放器胶囊。
+  // ── 中性色阶（对齐 iOS 系统层级）──────────────────────────
+  /// `#FFFFFF` · systemBackground（一级页面底）。
   static const Color neutral0 = Color(0xFFFFFFFF);
 
-  /// `#F5F5F5` 内容容器、控制按钮底（双源验证）。
-  static const Color neutral50 = Color(0xFFF5F5F5);
+  /// `#F2F2F7` · secondarySystemBackground（二级容器 / 列表组底）。
+  static const Color neutral50 = Color(0xFFF2F2F7);
 
-  /// `#EEEEEE` 设置卡片。
-  static const Color neutral100 = Color(0xFFEEEEEE);
+  /// `#E5E5EA` · tertiarySystemBackground / systemGray5（三级容器）。
+  static const Color neutral100 = Color(0xFFE5E5EA);
 
-  /// `#EAEAEA` 设置左分类栏、通用描边。
-  static const Color neutral150 = Color(0xFFEAEAEA);
+  /// `#D1D1D6` · systemGray4（通用描边 / 占位图）。
+  static const Color neutral150 = Color(0xFFD1D1D6);
 
-  /// `#E8E8E8` 搜索栏底（已裁决 Q3）。
-  static const Color neutral200 = Color(0xFFE8E8E8);
+  /// `#C7C7CC` · systemGray3（搜索栏底）。
+  static const Color neutral200 = Color(0xFFC7C7CC);
 
-  /// `#E7E7E7` 设置分类 tile。
-  static const Color neutral250 = Color(0xFFE7E7E7);
+  /// `#AEAEB2` · systemGray2（设置分类 tile）。
+  static const Color neutral250 = Color(0xFFAEAEB2);
 
-  /// `#E6E6E6` Dock 容器底。
-  static const Color neutral300 = Color(0xFFE6E6E6);
+  /// `#8E8E93` · systemGray（Dock 等低频底）。
+  static const Color neutral300 = Color(0xFF8E8E93);
 
-  /// `#D9D9D9` 占位图 / 骨架屏 / 进度条底轨。
-  static const Color neutral400 = Color(0xFFD9D9D9);
+  /// `#3C3C43` · separator 暗化占位（`rgba(60,60,67,0.29)` ≈ #3C3C43）。
+  static const Color neutral400 = Color(0x4D3C3C43);
 
-  // ── 背景 / 表面 ──────────────────────────────────────────
-  /// Scaffold 底色（全部 5 个 Shell 页）。
+  // ── 背景 / 表面（iOS 系统背景层级）───────────────────────
+  /// Scaffold 底色（全部 5 个 Shell 页）= systemBackground。
   static const Color bgPage = neutral0;
 
-  /// 内容容器底色。
+  /// 内容容器底色 = secondarySystemBackground。
   static const Color bgSurface = neutral50;
 
-  /// 二级容器（设置卡片等）。
+  /// 二级容器（设置卡片等）= tertiarySystemBackground。
   static const Color bgSurfaceSunken = neutral100;
 
   /// 设置页左侧竖向分类栏。
-  static const Color bgRail = neutral150;
+  static const Color bgRail = neutral50;
 
   /// 设置分类 tile（未选中）。
-  static const Color bgTile = neutral250;
+  static const Color bgTile = neutral100;
 
-  /// 底部导航药丸容器。
-  static const Color bgDock = neutral300;
+  /// 底部导航 TabBar 容器（iOS 原生毛玻璃，不实底）。
+  static const Color bgDock = neutral50;
 
-  /// 搜索栏输入底（已裁决 Q3 = `#E8E8E8`）。
+  /// 搜索栏输入底 = systemGray3。
   static const Color bgInput = neutral200;
 
-  /// 专辑卡、迷你播放器胶囊。
+  /// 专辑卡、迷你播放器胶囊 = systemBackground（卡片浮于 surface 之上）。
   static const Color bgCard = neutral0;
 
-  /// 迷你播放器控制按钮底。
+  /// 迷你播放器控制按钮底 = secondarySystemBackground。
   static const Color bgControl = neutral50;
 
-  /// 封面占位、骨架屏。
-  static const Color bgPlaceholder = neutral400;
+  /// 封面占位、骨架屏 = systemGray4。
+  static const Color bgPlaceholder = neutral150;
 
-  // ── 品牌 / 强调 ──────────────────────────────────────────
-  /// 主强调色：Tab 选中圆、进度条已播放段、主按钮。
-  static const Color accent = Color(0xFF7C6BFF);
+  // ── 品牌 / 强调（iOS systemBlue · 紫色体系已废弃）─────────
+  /// 主强调色：Tab 选中、进度条已播放段、主按钮 = systemBlue。
+  static const Color accent = Color(0xFF007AFF);
 
-  /// 按下态（`accent` 明度 −8%）。
-  static const Color accentPressed = Color(0xFF6A57F0);
+  /// 按下态（systemBlue 明度 −8%）。
+  static const Color accentPressed = Color(0xFF0062CC);
 
-  /// 浅紫底（`accent` 12% 混白）。
-  static const Color accentSoft = Color(0xFFEAE7FF);
+  /// 浅蓝底（accent 12% 混白）。
+  static const Color accentSoft = Color(0xFFE5F1FF);
 
-  /// 紫色底上的图标 / 文字。
+  /// 强调色底上的图标 / 文字（白）。
   static const Color onAccent = neutral0;
 
-  // ── 文字 ─────────────────────────────────────────────────
-  /// 标题、歌名、主要内容（对 `#FFFFFF` 17.4:1 · AAA）。
-  static const Color textPrimary = Color(0xFF1A1A1A);
+  // ── 文字（iOS label 层级）────────────────────────────────
+  /// 标题、歌名、主要内容 = label `#000000`。
+  static const Color textPrimary = Color(0xFF000000);
 
-  /// 副标题、辅助说明（5.7:1 · AA）。
-  static const Color textSecondary = Color(0xFF666666);
+  /// 副标题、辅助说明 = secondaryLabel `rgba(60,60,67,0.6)`。
+  static const Color textSecondary = Color(0x993C3C43);
 
-  /// 占位文字、歌手名、未选中 Tab 文字、时长（2.8:1，
-  /// **仅限占位与非关键辅助信息**，不得承载必要正文 —— PRD §6.3 注）。
-  static const Color textTertiary = Color(0xFF999999);
+  /// 占位文字、歌手名、未选中 Tab 文字、时长 = tertiaryLabel
+  /// `rgba(60,60,67,0.3)`（**仅限占位与非关键辅助信息**）。
+  static const Color textTertiary = Color(0x4D3C3C43);
 
-  /// 紫色底上的文字。
+  /// 强调色底上的文字（白）。
   static const Color textOnAccent = neutral0;
 
-  /// 选中 Tab 文字、链接。
+  /// 选中 Tab 文字、链接 = systemBlue。
   static const Color textAccent = accent;
 
   // ── 图标 ─────────────────────────────────────────────────
-  /// 未选中 Tab 图标、搜索图标、次要图标。
-  static const Color iconInactive = Color(0xFF999999);
+  /// 未选中 Tab 图标、搜索图标、次要图标 = tertiaryLabel。
+  static const Color iconInactive = Color(0x4D3C3C43);
 
-  /// 选中态图标（非圆底场景）。
+  /// 选中态图标（非圆底场景）= systemBlue。
   static const Color iconActive = accent;
 
-  /// 紫色圆内图标（已裁决 Q2 · 方案 A）。
+  /// 强调色圆内图标 = 白。
   static const Color iconOnAccent = neutral0;
 
-  /// 播放 / 暂停等主操作图标。
-  static const Color iconPrimary = Color(0xFF1A1A1A);
+  /// 播放 / 暂停等主操作图标 = label。
+  static const Color iconPrimary = Color(0xFF000000);
 
-  // ── 描边 / 分割 ──────────────────────────────────────────
-  /// 专辑卡描边、通用 1px 边框。
-  static const Color borderDefault = neutral150;
+  // ── 描边 / 分割（iOS separator）──────────────────────────
+  /// 专辑卡描边、通用 1px 边框 = separator `rgba(60,60,67,0.29)`。
+  static const Color borderDefault = Color(0x4D3C3C43);
 
-  /// Dock 药丸描边（SVG 明确为白色）。
-  static const Color borderDock = neutral0;
+  /// Dock TabBar 自带毛玻璃描边（不依赖实色，保留中性灰兜底层）。
+  static const Color borderDock = Color(0x4D3C3C43);
 
-  /// 列表分割线。
-  static const Color divider = neutral100;
+  /// 列表分割线 = separator。
+  static const Color divider = Color(0x4D3C3C43);
 
   // ── 进度 ─────────────────────────────────────────────────
-  /// 播放进度条未播放段底轨（已播放段用 [accent]）。
-  static const Color progressTrack = neutral400;
+  /// 播放进度条未播放段底轨 = systemGray4。
+  static const Color progressTrack = neutral150;
 
-  // ── 状态（PRD 未列，工程补充；保持浅色体系观感）───────────
-  /// 错误 / 危险操作。
-  static const Color danger = Color(0xFFE05B5B);
+  // ── 状态（iOS 系统状态色 · 浅色）─────────────────────────
+  /// 错误 / 危险操作 = systemRed。
+  static const Color danger = Color(0xFFFF3B30);
 
-  /// 错误提示浅底。
-  static const Color dangerSoft = Color(0xFFFCEAEA);
+  /// 错误提示浅底（systemRed 8% 混白）。
+  static const Color dangerSoft = Color(0xFFFDECEA);
 
-  /// 成功 / 已连接。
-  static const Color success = Color(0xFF3BA776);
+  /// 成功 / 已连接 = systemGreen。
+  static const Color success = Color(0xFF34C759);
 
-  /// 警告 / 需要注意。
-  static const Color warning = Color(0xFFE0A33B);
+  /// 警告 / 需要注意 = systemOrange。
+  static const Color warning = Color(0xFFFF9500);
 
-  /// 全屏遮罩（对话框 / 底部弹层）。
+  /// 全屏遮罩（对话框 / 底部弹层）= 黑 40%。
   static const Color scrim = Color(0x66000000);
 }
 
@@ -164,18 +170,20 @@ abstract final class AppColors {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// 圆角半径与常用 [BorderRadius] 快捷常量。
+///
+/// 【iOS 化 · cl13】分组列表圆角 10pt、卡片 12–16pt、控件胶囊（高/2）。
 abstract final class AppRadius {
-  /// 8dp · 小控件。
-  static const double sm = 8;
+  /// 10dp · 分组列表 / 小控件（iOS 列表组圆角）。
+  static const double sm = 10;
 
-  /// 18dp · 设置分类 tile。
-  static const double md = 18;
+  /// 14dp · 设置分类 tile / 中等卡片。
+  static const double md = 14;
 
-  /// 24dp · 专辑卡、设置卡片。
-  static const double lg = 24;
+  /// 16dp · 专辑卡、设置卡片（iOS 卡片圆角）。
+  static const double lg = 16;
 
-  /// 36dp · 内容容器、迷你播放器胶囊。
-  static const double xl = 36;
+  /// 22dp · 内容容器、迷你播放器胶囊（大圆角表面）。
+  static const double xl = 22;
 
   /// 999dp · 完全圆角（搜索栏、Dock、进度条、控制按钮）。
   static const double pill = 999;
@@ -192,21 +200,23 @@ abstract final class AppRadius {
 // ─────────────────────────────────────────────────────────────────────────
 
 /// 间距刻度。
+///
+/// 【iOS 化 · cl13】8pt 栅格（4 / 8 / 12 / 16 / 20 / 24）。
 abstract final class AppSpace {
   /// 4dp · 设置 tile 间距。
   static const double xs = 4;
 
-  /// 5dp · 迷你播放器与 Dock / 内容容器的间距。
-  static const double sm = 5;
+  /// 8dp · 迷你播放器与 Dock / 内容容器的间距（8pt 栅格）。
+  static const double sm = 8;
 
-  /// 10dp · 专辑卡内文本左边距（PRD §4.2 专辑卡文本行）。
-  static const double cardTextInset = 10;
+  /// 12dp · 专辑卡内文本左边距（8pt 栅格对齐）。
+  static const double cardTextInset = 12;
 
-  /// 14dp · 屏幕外边距。
-  static const double md = 14;
+  /// 16dp · 屏幕外边距（8pt 栅格）。
+  static const double md = 16;
 
-  /// 18dp · 容器内边距。
-  static const double lg = 18;
+  /// 20dp · 容器内边距（8pt 栅格）。
+  static const double lg = 20;
 
   /// 36dp · 曲库列间距。
   static const double xl = 36;
@@ -230,7 +240,8 @@ abstract final class AppSize {
   /// 迷你播放器整组高度（进度条 8 + 胶囊 72 = 80）。
   static const double heightMiniGroup = 80;
 
-  /// Dock 药丸高度。
+  /// Dock / TabBar 高度（iOS 化后由 [AppDock.kTabBarHeight] 接管实际高度，
+  /// 此处保留供 AppShell 悬浮预留计算）。
   static const double heightDock = 76;
 
   /// 播放进度条高度。
@@ -244,9 +255,6 @@ abstract final class AppSize {
 
   /// 小号图标（搜索栏、行内辅助）。
   static const double iconSm = 20;
-
-  /// Tab 选中紫色圆直径（已裁决 Q2 · 方案 A）。
-  static const double tabIndicator = 44;
 
   /// 迷你播放器左胶囊缩略图边长。
   static const double thumb = 48;
@@ -267,9 +275,6 @@ abstract final class AppSize {
 
   /// 最小触控热区（P1-11）。
   static const double touchMin = 44;
-
-  /// Dock 圆角（高 76 → 38 为半高药丸）。
-  static const double dockRadius = heightDock / 2;
 
   /// 屏幕外边距（内容容器 / 迷你播放器 / Dock 共用的水平外边距）。
   ///
@@ -307,10 +312,12 @@ abstract final class AppSize {
 
 /// 阴影。
 ///
-/// 【裁决 A4】两个变体都定义；当前 [card] 指向**忠实还原**版本
-/// [cardFaithful]，待真机与 PDF 比对后可一处切换到 [cardSoft]。
+/// 【iOS 化 cl13 §6.3】iOS 的层级语言是「底色分层 + 1px 描边」，**不用投影**。
+/// 因此卡片阴影统一去化：保留令牌定义以便个别需要浮起的场景（如浮层/Popover）
+/// 仍能取用，但常规卡片（[card]/[cardList]）改为空，纯靠 border + 分层底色区分。
 abstract final class AppShadow {
   /// 忠实还原设计稿滤镜 `filter12_d`（offset 0 / blur 2 / dilate 1 / 黑 25%）。
+  /// 仅保留定义，常规卡片已不再使用。
   static const BoxShadow cardFaithful = BoxShadow(
     color: Color(0x40000000),
     blurRadius: 2,
@@ -319,18 +326,24 @@ abstract final class AppShadow {
   );
 
   /// 工程推荐变体：真机上更接近「微阴影」观感。
+  /// 仅保留定义，常规卡片已不再使用。
   static const BoxShadow cardSoft = BoxShadow(
     color: Color(0x14000000),
     blurRadius: 8,
     offset: Offset(0, 2),
   );
 
-  /// 当前生效的卡片阴影（唯一切换点）。
-  static const BoxShadow card = cardFaithful;
+  /// 当前生效的卡片阴影：iOS 化后为**无阴影**（靠 border + 分层底色）。
+  static const BoxShadow card = BoxShadow(
+    color: Color(0x00000000),
+    blurRadius: 0,
+    spreadRadius: 0,
+    offset: Offset.zero,
+  );
 
-  /// 便捷列表形式，直接喂给 [BoxDecoration.boxShadow]。
-  static const List<BoxShadow> cardList = <BoxShadow>[card];
-  static const List<BoxShadow> softList = <BoxShadow>[cardSoft];
+  /// 便捷列表形式，直接喂给 [BoxDecoration.boxShadow]。iOS 化后为空。
+  static const List<BoxShadow> cardList = <BoxShadow>[];
+  static const List<BoxShadow> softList = <BoxShadow>[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -357,17 +370,30 @@ const List<String> kFontFallback = <String>[
 
 /// 文字样式。字体族跟随系统（iOS = PingFang SC，Android = Noto Sans CJK），
 /// 不引入自定义字体。
+///
+/// 【iOS 化 · cl13】对齐 SF Pro 字号阶梯——Large Title 31/w400、
+/// Body 全局默认 17/w400、Title1–Title3 / Headline / Callout / Subhead /
+/// Footnote / Caption1。全局 Body 由 14pt 放大到 17pt。
 abstract final class AppTextStyles {
-  /// 18 / w600 · 页面与区块标题。
+  /// 31 / w400 · iOS Large Title（页面大标题，固定不折叠）。
+  static const TextStyle largeTitle = TextStyle(
+    fontSize: 31,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textPrimary,
+    height: 1.2,
+    fontFamilyFallback: kFontFallback,
+  );
+
+  /// 17 / w600 · 页面与区块标题（iOS Title3 尺寸，原 18→17）。
   static const TextStyle title = TextStyle(
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.3,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 16 / w600 · 区块小标题。
+  /// 16 / w600 · 区块小标题（iOS Headline）。
   static const TextStyle subtitle = TextStyle(
     fontSize: 16,
     fontWeight: FontWeight.w600,
@@ -376,45 +402,45 @@ abstract final class AppTextStyles {
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 14 / w400 · 正文、设置项。
+  /// 17 / w400 · 正文、设置项（iOS Body，全局默认，原 14→17）。
   static const TextStyle body = TextStyle(
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: FontWeight.w400,
     color: AppColors.textPrimary,
     height: 1.4,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 14 / w400 / 次级色 · 说明性正文。
+  /// 17 / w400 / 次级色 · 说明性正文（iOS Body，次级色）。
   static const TextStyle bodyMuted = TextStyle(
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
     height: 1.4,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 14 / w600 · 迷你播放器歌名、专辑卡曲名。
+  /// 17 / w600 · 迷你播放器歌名、专辑卡曲名（iOS Body · Semibold）。
   static const TextStyle trackName = TextStyle(
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
     height: 1.25,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 12 / w400 · 歌手名。
+  /// 15 / w400 · 歌手名（iOS Callout，次级色）。
   static const TextStyle artist = TextStyle(
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.25,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 11 / w400 · 时长、辅助信息。
+  /// 13 / w400 · 时长、辅助信息（iOS Footnote）。
   static const TextStyle caption = TextStyle(
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.2,
@@ -430,32 +456,32 @@ abstract final class AppTextStyles {
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 9 / w400 · 设置分类 tile 文字（52dp 栏内仅容 2 个汉字）。
+  /// 11 / w400 · 设置分类 tile 文字（iOS Caption1）。
   static const TextStyle tileLabel = TextStyle(
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
     height: 1.15,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 14 / w400 / 占位色 · 搜索栏 hint。
+  /// 17 / w400 / 占位色 · 搜索栏 hint（iOS Body）。
   static const TextStyle hint = TextStyle(
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: FontWeight.w400,
     color: AppColors.textTertiary,
     height: 1.2,
     fontFamilyFallback: kFontFallback,
   );
 
-  /// 14 / w600 · 按钮文字（FilledButton / TextButton / OutlinedButton）。
+  /// 17 / w600 · 按钮文字（FilledButton / TextButton / OutlinedButton）。
   ///
   /// ⚠️ 这里刻意**不带 `color`**：按钮文字色由各按钮主题的
   /// `foregroundColor` 决定（实心按钮 = `onAccent` 白字，
-  /// 文字/描边按钮 = `accent` 紫字）。若在此写死颜色，
+  /// 文字/描边按钮 = `accent` 蓝字）。若在此写死颜色，
   /// 会覆盖掉 `ButtonStyle.foregroundColor`，导致实心按钮出现白底白字。
   static const TextStyle button = TextStyle(
-    fontSize: 14,
+    fontSize: 17,
     fontWeight: FontWeight.w600,
     height: 1.2,
     fontFamilyFallback: kFontFallback,
@@ -487,6 +513,7 @@ abstract final class AppNeutral {
 
 /// 文字样式别名 —— 等价于 [AppTextStyles]。
 abstract final class AppText {
+  static const TextStyle largeTitle = AppTextStyles.largeTitle;
   static const TextStyle title = AppTextStyles.title;
   static const TextStyle subtitle = AppTextStyles.subtitle;
   static const TextStyle body = AppTextStyles.body;

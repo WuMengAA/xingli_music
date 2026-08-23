@@ -14,43 +14,60 @@ import 'light_tokens.dart';
 /// 取色约定（新增代码优先）：
 ///   `context.appColors.bgPage` / `bgSurface` / `textPrimary` / `accent` …
 
-/// 深色模式固定色阶（与 light_theme.dart 的 DarkColors 保持一致）。
+/// 深色模式固定色阶（iOS 深色系统色值）。
 ///
-/// 这里是**独立手调配色板**：所有深色语义色均为作者针对深底逐一定制的
-/// 值，**不**由浅色体系反推/取反得到。切换皮肤时由 [AppThemeColors.withSkin]
-/// 仅重算强调色族，中性色阶与状态色保持本表不变。
+/// 【iOS 化 · cl13】全面对齐 Apple iOS 深色系统层级：systemBackground
+/// `#000000` / secondarySystemBackground `#1C1C1E` / tertiarySystemBackground
+/// `#2C2C2E` / label `#FFFFFF` / secondaryLabel `rgba(235,235,245,0.6)` /
+/// separator `rgba(84,84,88,0.6)` / systemBlue `#0A84FF`。
+///
+/// 这里**不再独立手调紫色皮肤**：强调色固定 systemBlue。切换皮肤时由
+/// [AppThemeColors.withSkin] 仅重算强调色族，中性色阶与状态色保持本表不变。
 abstract final class AppDarkColors {
-  // ── 中性色阶 ──────────────────────────────────
-  static const Color bg = Color(0xFF121218);
-  static const Color surface = Color(0xFF1C1C26);
-  static const Color surfaceHigh = Color(0xFF262634);
-  static const Color text = Color(0xFFF2F2F7);
-  static const Color textMuted = Color(0xFFB8B8C8);
-  static const Color textDim = Color(0xFF8A8A9C);
-  static const Color border = Color(0xFF333345);
+  // ── 中性色阶（iOS 深色系统层级）────────────────
+  /// systemBackground（一级页面底）。
+  static const Color bg = Color(0xFF000000);
 
-  /// 占位图 / 骨架屏 / 进度条底轨。
-  static const Color placeholder = Color(0xFF32323F);
+  /// secondarySystemBackground（二级容器 / 列表组底）。
+  static const Color surface = Color(0xFF1C1C1E);
 
-  /// 深色下的错误浅底。
-  static const Color dangerSoft = Color(0xFF3A2429);
+  /// tertiarySystemBackground（三级容器 / 选中态底）。
+  static const Color surfaceHigh = Color(0xFF2C2C2E);
 
-  // ── 品牌强调色（starlight 皮肤在深底上的手调值）──
-  static const Color accent = Color(0xFF9A8CFF);
-  static const Color accentSoft = Color(0xFF2A2740);
-  static const Color accentPressed = Color(0xFF8878F0);
+  /// label（主文字）。
+  static const Color text = Color(0xFFFFFFFF);
+
+  /// secondaryLabel `rgba(235,235,245,0.6)`。
+  static const Color textMuted = Color(0x99EBEBF5);
+
+  /// tertiaryLabel `rgba(235,235,245,0.3)`。
+  static const Color textDim = Color(0x4DEBEBF5);
+
+  /// separator `rgba(84,84,88,0.6)`（深色下略亮于浅色）。
+  static const Color border = Color(0x9954585C);
+
+  /// 占位图 / 骨架屏 / 进度条底轨 = tertiarySystemBackground。
+  static const Color placeholder = Color(0xFF2C2C2E);
+
+  /// 深色下的错误浅底（systemRed 14% 混黑）。
+  static const Color dangerSoft = Color(0xFF3A1C1E);
+
+  // ── 品牌强调色（iOS systemBlue 深底提亮值）──
+  static const Color accent = Color(0xFF0A84FF);
+  static const Color accentSoft = Color(0xFF0A2A4A);
+  static const Color accentPressed = Color(0xFF0A6FCC);
   static const Color onAccent = Color(0xFFFFFFFF);
 
-  // ── 状态色（深底手调）─────────────────────────
-  static const Color danger = Color(0xFFE06B6B);
-  static const Color success = Color(0xFF4CBF8C);
-  static const Color warning = Color(0xFFE8B657);
+  // ── 状态色（iOS 系统状态色 · 深色）────────────
+  static const Color danger = Color(0xFFFF453A);
+  static const Color success = Color(0xFF30D158);
+  static const Color warning = Color(0xFFFF9F0A);
 
   /// 全屏遮罩 / 进度底轨。
   static const Color scrim = Color(0x99000000);
-  static const Color progressTrack = Color(0xFF3A3A4C);
+  static const Color progressTrack = Color(0xFF3A3A3C);
 
-  /// 完整深色语义调色板（手调，独立于浅色）。
+  /// 完整深色语义调色板（iOS 深色系统色，独立于浅色）。
   ///
   /// [AppThemeColors.dark] 直接复用，避免在工厂里散落内联字面量。
   static const AppThemeColors palette = AppThemeColors(
@@ -395,7 +412,11 @@ class AppTextTheme {
 
   final AppThemeColors c;
 
-  /// 18 / w600 · 页面与区块标题。
+  /// 31 / w400 · iOS Large Title（页面大标题）。
+  TextStyle get largeTitle =>
+      AppTextStyles.largeTitle.copyWith(color: c.textPrimary);
+
+  /// 17 / w600 · 页面与区块标题。
   TextStyle get title => AppTextStyles.title.copyWith(color: c.textPrimary);
 
   /// 16 / w600 · 区块小标题。

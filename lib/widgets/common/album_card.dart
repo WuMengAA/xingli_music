@@ -13,7 +13,8 @@ import 'track_cover.dart';
 /// 曲库卡片视图卡（v2 M3 · P0-M3-2）。
 ///
 /// 几何沿用 v1 AlbumCard 规范：封面 72 左上角 + 3 行文本
-/// （歌名 / 歌手 / 时长），白底 r24 / 1px 描边 / `AppShadow.card`。
+/// （歌名 / 歌手 / 时长），白底 r24 / 1px 描边。
+/// iOS 化 cl13 §6.3：去卡片阴影，纯靠 border + 分层底色区分层级。
 /// cl46：时长下追加全局收录信息（播放次数 / 累计收听时长）。
 class AlbumCard extends ConsumerWidget {
   const AlbumCard({
@@ -41,7 +42,6 @@ class AlbumCard extends ConsumerWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: context.appColors.border),
-              boxShadow: AppShadow.cardList,
             ),
             padding: const EdgeInsets.all(AppSpace.md),
             child: Column(

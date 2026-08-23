@@ -26,6 +26,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme_colors.dart';
+import '../../core/theme/light_tokens.dart';
 import '../../widgets/liquid_glass.dart';
 
 /// 聚合搜索底部弹层。
@@ -112,7 +113,7 @@ class _AggregateSearchSheetState extends State<AggregateSearchSheet> {
   Widget build(BuildContext context) {
     final AppThemeColors colors = context.appColors;
     return LiquidGlass(
-      radius: 24,
+      radius: AppRadius.xl,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: Column(
         mainAxisSize: MainAxisSize.min,
