@@ -91,8 +91,17 @@ class NeteaseSource implements MusicSource {
         extras: <String, dynamic>{
           'songId': song.id,
           'fee': song.fee,
+          if (song.reason != null) 'reason': song.reason!,
         },
       );
+
+  /// 每日推荐（需登录）：约 30 首，每项带推荐理由。
+  Future<List<Track>> recommend() async =>
+      (await api.recommendSongs()).map(toTrack).toList(growable: false);
+
+  /// 私人漫游（需登录）：一批曲目，可循环刷新。
+  Future<List<Track>> roam() async =>
+      (await api.roamSongs()).map(toTrack).toList(growable: false);
 
   /// 占位 uri：不得以 http 开头（§4.3(3)）。
   static String placeholderUri(int songId) => 'netease://song/$songId';

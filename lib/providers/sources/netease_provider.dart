@@ -244,3 +244,23 @@ String neteaseErrorText(Object e) {
 /// 是否登录失效类错误（可引导去登录而非单纯重试）。
 bool neteaseIsAuthFailure(Object e) =>
     e is NeteaseApiException && e.isAuthFailure;
+
+/// 每日推荐。未登录时直接给空列表，不打接口（与搜索同策略）。
+///
+/// 用户手动刷新时 UI 侧 [ref.invalidate] 本 provider 即可。
+final AutoDisposeFutureProvider<List<Track>> neteaseDailyRecommendProvider =
+    FutureProvider.autoDispose<List<Track>>((Ref ref) async {
+  final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
+  if (!auth.isLoggedIn) return const <Track>[];
+  return ref.watch(neteaseSourceProvider).recommend();
+});
+
+/// 私人漫游。未登录时直接给空列表，不打接口。
+///
+/// 漫游是无限流：UI 侧用 [neteaseRoamMoreProvider] 追加批次（保留已加载列表）。
+final AutoDisposeFutureProvider<List<Track>> neteaseRoamProvider =
+    FutureProvider.autoDispose<List<Track>>((Ref ref) async {
+  final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
+  if (!auth.isLoggedIn) return const <Track>[];
+  return ref.watch(neteaseSourceProvider).roam();
+});

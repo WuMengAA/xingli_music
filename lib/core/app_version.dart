@@ -372,7 +372,7 @@ abstract final class AppVersion {
   /// NetSessionNotifier 加 submitOrder/decideOrder/_broadcastOrderQueue（DJ 端权威队列
   /// + 定向回执，听众端乐观插入 pending）；新增 lib/pages/social/（电台大厅/电台房/
   /// 点歌队列三页），探索页功能区加「电台房」入口。OQ-1 v1 默认创建者即 DJ。
-  static const int buildCount = 12;
+  static const int buildCount = 13;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -437,6 +437,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.22',
+    cl: 'alpha_cl13',
+    title: '网易云「每日推荐」+「漫游」落地',
+    details: <String>[
+      '每日推荐：新增 /weapi/v3/discovery/recommend/songs 接口（约 30 首，带推荐理由 reason），SongLite 增加 reason 字段承载推荐语',
+      '漫游：新增 /weapi/v1/radio/get 私人无限推荐流接口，UI 支持循环「加载更多」累加批次',
+      'NeteaseSource 新增 recommend()/roam() 将 SongLite 映射为 Track（复用 toTrack + 占位 uri，播放走既有 StreamResolver 懒解析）',
+      'Provider：neteaseDailyRecommendProvider / neteaseRoamProvider，未登录返回空列表不打接口（与搜索同策略）',
+      '探索页功能区新增「每日推荐」「漫游」两入口，点击进入对应页（未登录显示引导去登录的空态）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl12',

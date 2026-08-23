@@ -54,6 +54,7 @@ class SongLite {
     this.coverUrl,
     this.duration,
     this.fee = 0,
+    this.reason,
   });
 
   final int id;
@@ -67,6 +68,9 @@ class SongLite {
 
   /// 收费标记：0 免费 / 1 会员 / 4 专辑付费 / 8 低音质免费。
   final int fee;
+
+  /// 每日推荐附带的推荐理由（「为你精选」等），无则 null。
+  final String? reason;
 
   /// 兼容 cloudsearch(`ar`/`al`) 与 v3 detail(`ar`/`al`) 两种字段名，
   /// 同时兜底老版 `artists`/`album`。
@@ -82,14 +86,23 @@ class SongLite {
         .whereType<String>()
         .join(' / ');
 
+    // 每日推荐把 reason 放在 song 外层包装（`recommend` 接口的 `data` 项），
+    // 由 recommendSongs 显式传入；这里兜底读 `reason` 字段以防其它接口也带。
+    final String? reason = json['reason'] as String?;
+
+    // 个别接口偶发返回 id 为 null / 非数字（脏数据），安全解析避免整页崩溃。
+    final Object? rawId = json['id'];
+    final int id = rawId is num ? rawId.toInt() : -1;
+
     return SongLite(
-      id: (json['id'] as num).toInt(),
+      id: id,
       name: (json['name'] as String?) ?? '未知曲目',
       artist: names.trim().isEmpty ? '未知艺术家' : names,
       album: album?['name'] as String?,
       coverUrl: (album?['picUrl'] as String?) ?? (json['picUrl'] as String?),
       duration: ms != null && ms > 0 ? Duration(milliseconds: ms) : null,
       fee: (json['fee'] as num?)?.toInt() ?? 0,
+      reason: reason,
     );
   }
 }
@@ -373,6 +386,83 @@ class NeteaseApi {
     }
     _lyricCache[songId] = result;
     return result;
+  }
+
+  /// 每日推荐（需登录）。
+  ///
+  /// 走 `/weapi/v3/discovery/recommend/songs`，返回每天约 30 首「为你推荐」，
+  /// 每项带推荐理由 `reason`（如「根据你的收藏生成」）。接口对登录态敏感，
+  /// 未登录会返回 301，由调用方转成登录引导。
+  Future<List<SongLite>> recommendSongs() async {
+    final Map<String, dynamic> res = await _post(
+      '/weapi/v3/discovery/recommend/songs',
+      <String, dynamic>{'limit': 30},
+    );
+    final List<dynamic> data =
+        (res['data'] as List<dynamic>?) ?? const <dynamic>[];
+    final List<SongLite> parsed = <SongLite>[];
+    for (final dynamic e in data) {
+      // 单条脏数据（结构异常 / 缺字段）跳过，不让它拖垮整页。
+      if (e is! Map<String, dynamic>) continue;
+      final Map<String, dynamic> item = e;
+      final Map<String, dynamic> song =
+          (item['song'] as Map<String, dynamic>?) ?? item;
+      // 推荐理由在包装层，构造时显式塞进 reason。
+      final String? reason = (item['reason'] as String?)?.trim();
+      if (reason != null && reason.isNotEmpty) {
+        song['reason'] = reason;
+      }
+      try {
+        final SongLite s = SongLite.fromJson(song);
+        if (s.id != -1) parsed.add(s);
+      } catch (_) {
+        continue;
+      }
+    }
+    // 接口返回了内容但全部解析失败：视为异常，引导用户重试而非显示空列表。
+    if (data.isNotEmpty && parsed.isEmpty) {
+      throw const NeteaseApiException(-1, '推荐数据解析失败');
+    }
+    return parsed;
+  }
+
+  /// 私人漫游（需登录）。
+  ///
+  /// 走 `/weapi/v1/radio/get`（即「私人 FM / 漫游」），返回一批评次曲目，
+  /// 服务端无明确上限、可循环刷新（[getMoreRoam] 复用同一接口即可）。
+  /// 每一项同样可能带 `reason`（如「这首因为你听过 xxx」）。
+  Future<List<SongLite>> roamSongs() async {
+    final Map<String, dynamic> res = await _post(
+      '/weapi/v1/radio/get',
+      <String, dynamic>{
+        'limit': 20,
+        'lastId': '',
+      },
+    );
+    final List<dynamic> data =
+        (res['data'] as List<dynamic>?) ?? const <dynamic>[];
+    final List<SongLite> parsed = <SongLite>[];
+    for (final dynamic e in data) {
+      // 单条脏数据跳过，避免整页崩溃。
+      if (e is! Map<String, dynamic>) continue;
+      final Map<String, dynamic> item = e;
+      final Map<String, dynamic> song =
+          (item['song'] as Map<String, dynamic>?) ?? item;
+      final String? reason = (item['reason'] as String?)?.trim();
+      if (reason != null && reason.isNotEmpty) {
+        song['reason'] = reason;
+      }
+      try {
+        final SongLite s = SongLite.fromJson(song);
+        if (s.id != -1) parsed.add(s);
+      } catch (_) {
+        continue;
+      }
+    }
+    if (data.isNotEmpty && parsed.isEmpty) {
+      throw const NeteaseApiException(-1, '漫游数据解析失败');
+    }
+    return parsed;
   }
 
   // ── 登录 ──────────────────────────────────────────

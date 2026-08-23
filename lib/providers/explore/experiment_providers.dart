@@ -6,10 +6,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/companion_page.dart';
+import '../../pages/explore/experiments/daily_recommend_page.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/mood_analysis_page.dart';
 import '../../pages/explore/experiments/recommend_page.dart';
+import '../../pages/explore/experiments/roam_page.dart';
 import '../../pages/explore/experiments/sensor_page.dart';
+import '../../pages/social/station_lobby_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
 
@@ -112,6 +115,30 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             icon: Icons.chat_bubble_outline_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const CompanionPage(),
+          ),
+          ExperimentItem(
+            id: 'daily_recommend',
+            name: '每日推荐',
+            description: '网易云为你精选 · 每日更新',
+            icon: Icons.today_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const DailyRecommendPage(),
+          ),
+          ExperimentItem(
+            id: 'roam',
+            name: '私人漫游',
+            description: '网易云个性化无限推荐流',
+            icon: Icons.explore_outlined,
+            status: ExperimentStatus.experimenting,
+            builder: () => const RoamPage(),
+          ),
+          ExperimentItem(
+            id: 'station_lobby',
+            name: '电台房',
+            description: '一起听 · 校园点歌 · 共享音乐',
+            icon: Icons.radio_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const StationLobbyPage(),
           ),
           // 示例：已下线（P0-M2-4 置灰禁入）
           // ExperimentItem(

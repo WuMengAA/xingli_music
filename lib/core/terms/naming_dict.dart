@@ -170,6 +170,12 @@ abstract final class Terms {
   /// 功能区入口：智能推荐
   static const String smartRecommend = '智能推荐';
 
+  /// 功能区入口：网易云每日推荐
+  static const String dailyRecommend = '每日推荐';
+
+  /// 功能区入口：网易云私人漫游
+  static const String roam = '漫游';
+
   /// 功能区入口：AI 陪伴
   static const String aiCompanion = '小璃';
 
