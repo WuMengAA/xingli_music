@@ -37,12 +37,11 @@ class ResponsiveFloatingLayer extends StatelessWidget {
     final double keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final double safeBottom = MediaQuery.paddingOf(context).bottom;
 
-    // 横向自适应：窄屏贴近边缘（缩小边角约束），宽屏/横屏收窄居中。
+    // 横向自适应：底部浮层（播放控件 + Dock）始终满宽贴边，符合 iOS TabBar
+    // 满宽贴底的直觉（cl13 用户裁决「始终满宽」）。窄屏保留少量安全边距。
     final double sideInset =
         (rl.isLandscape || rl.isLarge) ? 0.0 : AppSpace.sm;
-    final double maxWidth = rl.isLandscape
-        ? AppSize.landscapeDockMaxWidth
-        : (rl.isLarge ? 560.0 : double.infinity);
+    const double maxWidth = double.infinity;
 
     return Positioned(
       left: sideInset,

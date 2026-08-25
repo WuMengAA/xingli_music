@@ -19,6 +19,7 @@ import 'package:cross_file/cross_file.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../widgets/voxel/voxel_save.dart';
+import '../../widgets/liquid_glass.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show VoxelWorld3DPage;
@@ -40,6 +41,8 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
       <String, List<VoxelManualSaveMeta>>{};
   final Set<String> _expanded = <String>{};
   bool _loading = true;
+  /// 枚举失败时的错误提示（不再静默显示「暂无存档」误导用户）。
+  String? _listError;
 
   @override
   void initState() {
@@ -48,24 +51,37 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _loading = true);
-    // 全部统一：手动存档 + 仅自动检查点（玩过但未显式保存）的世界，
-    // 保证「存档列表未列出存档」不再发生。
-    final List<VoxelManualSaveMeta> saves = await listAllSaves();
-    final Map<String, List<VoxelManualSaveMeta>> bk =
-        <String, List<VoxelManualSaveMeta>>{};
-    for (final VoxelManualSaveMeta s in saves) {
-      bk[s.id] = await listBackups(s.id);
-    }
-    if (mounted) {
-      setState(() {
-        _saves = saves;
-        _backups.clear();
-        _backups.addAll(bk);
-        // cl03 全局默认折叠：存档备份一律默认收起（可手动展开），列表更清爽。
-        _expanded.clear();
-        _loading = false;
-      });
+    setState(() {
+      _loading = true;
+      _listError = null;
+    });
+    try {
+      // 全部统一：手动存档 + 仅自动检查点（玩过但未显式保存）的世界，
+      // 保证「存档列表未列出存档」不再发生。
+      final List<VoxelManualSaveMeta> saves = await listAllSaves();
+      final Map<String, List<VoxelManualSaveMeta>> bk =
+          <String, List<VoxelManualSaveMeta>>{};
+      for (final VoxelManualSaveMeta s in saves) {
+        bk[s.id] = await listBackups(s.id);
+      }
+      if (mounted) {
+        setState(() {
+          _saves = saves;
+          _backups.clear();
+          _backups.addAll(bk);
+          // cl03 全局默认折叠：存档备份一律默认收起（可手动展开），列表更清爽。
+          _expanded.clear();
+          _loading = false;
+        });
+      }
+    } catch (e, st) {
+      debugPrint('世界存档枚举失败: $e\n$st');
+      if (mounted) {
+        setState(() {
+          _listError = '读取存档失败：$e';
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -604,7 +620,34 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           Expanded(
             child: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _saves.isEmpty
+          : _listError != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpace.lg),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.error_outline,
+                            size: 48, color: context.appColors.textTertiary),
+                        const SizedBox(height: AppSpace.sm),
+                        Text('存档读取出错', style: context.appText.body),
+                        const SizedBox(height: AppSpace.xs),
+                        Text(
+                          _listError!,
+                          style: context.appText.artist,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpace.md),
+                        FilledButton.icon(
+                          onPressed: _refresh,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('重试'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : _saves.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpace.lg),
@@ -749,112 +792,126 @@ class _SaveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final String? bg = save.background;
     final String? thumb = save.thumbnail ?? save.background;
-    return Container(
-      decoration: BoxDecoration(
-        color: bg != null ? Colors.black45 : context.appColors.bgSurface,
-        borderRadius: AppRadius.brLg,
-        image: bg != null
-            ? DecorationImage(
-                image: FileImage(File(bg)),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Colors.black.withValues(alpha: 0.42),
-                  BlendMode.darken,
-                ),
-              )
-            : null,
-      ),
-      padding: const EdgeInsets.all(AppSpace.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              // R26skel：存档缩略图 1:1 128×128，前置显示。
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: SizedBox(
-                  width: 128,
-                  height: 128,
-                  child: thumb != null && File(thumb).existsSync()
-                      ? Image.file(
-                          File(thumb),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _ThumbPlaceholder(),
-                        )
-                      : const _ThumbPlaceholder(),
-                ),
+    // 卡片内容（缩略图 + 信息 + 操作药丸 + 备份列表）。
+    final Widget content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // R26skel：存档缩略图 1:1 128×128，前置显示。
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: SizedBox(
+                width: 128,
+                height: 128,
+                child: thumb != null && File(thumb).existsSync()
+                    ? Image.file(
+                        File(thumb),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _ThumbPlaceholder(),
+                      )
+                    : const _ThumbPlaceholder(),
               ),
-              const SizedBox(width: AppSpace.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(save.name, style: context.appText.body),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${fmt(save.createdAt)} · ${backups.length} 个备份',
-                      style: context.appText.artist,
+            ),
+            const SizedBox(width: AppSpace.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(save.name, style: context.appText.body),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${fmt(save.createdAt)} · ${backups.length} 个备份',
+                    style: context.appText.artist,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    save.lastSavedAt == null
+                        ? '最近保存：—'
+                        : '最近保存：${fmt(save.lastSavedAt!)}',
+                    style: context.appText.artist.copyWith(
+                      color: context.appColors.accent,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      save.lastSavedAt == null
-                          ? '最近保存：—'
-                          : '最近保存：${fmt(save.lastSavedAt!)}',
-                      style: context.appText.artist.copyWith(
-                        color: context.appColors.accent,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              FilledButton.icon(
-                onPressed: onEnter,
-                icon: const Icon(Icons.play_arrow, size: 18),
-                label: const Text('进入'),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpace.sm),
-          Wrap(
-            spacing: AppSpace.xs,
-            runSpacing: AppSpace.xs,
-            children: <Widget>[
-              _Chip(icon: Icons.share_outlined, label: '导出', onTap: onExport),
-              _Chip(icon: Icons.edit_outlined, label: '重命名', onTap: onRename),
-              _Chip(icon: Icons.delete_outline, label: '删除', onTap: onDelete),
-              _Chip(icon: Icons.info_outline, label: '详细', onTap: onDetails),
-              _Chip(icon: Icons.image_outlined, label: '背景', onTap: onSetBackground),
-              _Chip(icon: Icons.crop_square, label: '缩略图', onTap: onSetThumbnail),
-              if (backups.isNotEmpty)
-                _Chip(
-                  icon: expanded
-                      ? Icons.expand_less
-                      : Icons.expand_more,
-                  label: expanded ? '收起备份' : '展开备份',
-                  onTap: onToggle,
-                ),
-            ],
-          ),
-          if (expanded && backups.isNotEmpty) ...<Widget>[
-            const SizedBox(height: AppSpace.sm),
-            const Divider(),
-            const SizedBox(height: AppSpace.xs),
-            Text('备份（可分别恢复）', style: context.appText.artist),
-            const SizedBox(height: AppSpace.xs),
-            for (final VoxelManualSaveMeta b in backups)
-              _BackupTile(
-                backup: b,
-                onEnter: () => onEnterBackup(b.id, b.name),
-                onExport: () => onExportBackup(b.id, b.name),
-                onDelete: () => onDeleteBackup(b.id),
-                onRollback: () => onRollbackBackup(b.id, b.name),
-                fmt: fmt,
+            ),
+            FilledButton.icon(
+              onPressed: onEnter,
+              icon: const Icon(Icons.play_arrow, size: 18),
+              label: const Text('进入'),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Wrap(
+          spacing: AppSpace.xs,
+          runSpacing: AppSpace.xs,
+          children: <Widget>[
+            _Chip(icon: Icons.share_outlined, label: '导出', onTap: onExport),
+            _Chip(icon: Icons.edit_outlined, label: '重命名', onTap: onRename),
+            _Chip(icon: Icons.delete_outline, label: '删除', onTap: onDelete),
+            _Chip(icon: Icons.info_outline, label: '详细', onTap: onDetails),
+            _Chip(icon: Icons.image_outlined, label: '背景', onTap: onSetBackground),
+            _Chip(icon: Icons.crop_square, label: '缩略图', onTap: onSetThumbnail),
+            if (backups.isNotEmpty)
+              _Chip(
+                icon: expanded
+                    ? Icons.expand_less
+                    : Icons.expand_more,
+                label: expanded ? '收起备份' : '展开备份',
+                onTap: onToggle,
               ),
           ],
+        ),
+        if (expanded && backups.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpace.sm),
+          const Divider(),
+          const SizedBox(height: AppSpace.xs),
+          Text('备份（可分别恢复）', style: context.appText.artist),
+          const SizedBox(height: AppSpace.xs),
+          for (final VoxelManualSaveMeta b in backups)
+            _BackupTile(
+              backup: b,
+              onEnter: () => onEnterBackup(b.id, b.name),
+              onExport: () => onExportBackup(b.id, b.name),
+              onDelete: () => onDeleteBackup(b.id),
+              onRollback: () => onRollbackBackup(b.id, b.name),
+              fmt: fmt,
+            ),
         ],
-      ),
+      ],
+    );
+    // iOS 26 Liquid Glass：存档卡片包毛玻璃面板（forceGlass 绕过极简模式，
+    // 仅本界面启用，与 Dock/控制栏一致作为玻璃焦点层）。
+    final Widget inner = bg != null
+        ? Stack(
+            children: <Widget>[
+              // 自定义背景图作为卡片底图（暗化保证文字可读）。
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: Image.file(
+                    File(bg),
+                    fit: BoxFit.cover,
+                    color: Colors.black.withValues(alpha: 0.42),
+                    colorBlendMode: BlendMode.darken,
+                  ),
+                ),
+              ),
+              content,
+            ],
+          )
+        : content;
+    return LiquidGlass(
+      forceGlass: true,
+      style: GlassStyle.frosted,
+      radius: AppRadius.lg,
+      tint: context.appColors.glassTint,
+      borderColor: context.appColors.glassBorder,
+      padding: const EdgeInsets.all(AppSpace.md),
+      child: inner,
     );
   }
 }

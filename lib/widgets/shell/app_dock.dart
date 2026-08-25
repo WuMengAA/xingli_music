@@ -135,28 +135,44 @@ class AppDock extends StatelessWidget {
       style: GlassStyle.frosted,
       // tint/borderColor 跟随 systemBlue 派生的玻璃语义色（去紫）
       tint: context.appColors.glassTint,
-      borderColor: context.appColors.glassBorder,
+      // cl13：iOS TabBar 无四边框 —— 取消 LiquidGlass 的整框 Border.all，
+      // 改为顶部 1px hairline 分隔线（iOS TabBar 特征）。
+      borderColor: Colors.transparent,
       child: SizedBox(
         height: dockH,
-        child: Material(
-          type: MaterialType.transparency,
-          child: Row(
-            // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
-            // 设计坐标 x=0/104/208/312（390dp 基准）。
-            children: <Widget>[
-              for (int i = 0; i < items.length; i++)
-                Expanded(
-                  child: _DockTab(
-                    item: items[i],
-                    selected: selectedIndex == i,
-                    // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
-                    showLabel: rl.dockShowLabels &&
-                        density != UiDensity.compact,
-                    onTap: () => onTabSelected(i),
-                  ),
-                ),
-            ],
-          ),
+        child: Stack(
+          children: <Widget>[
+            // iOS TabBar 顶部 hairline（1px separator，跟随明暗主题）。
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 1,
+                color: context.appColors.divider.withValues(alpha: 0.6),
+              ),
+            ),
+            Material(
+              type: MaterialType.transparency,
+              child: Row(
+                // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
+                // 设计坐标 x=0/104/208/312（390dp 基准）。
+                children: <Widget>[
+                  for (int i = 0; i < items.length; i++)
+                    Expanded(
+                      child: _DockTab(
+                        item: items[i],
+                        selected: selectedIndex == i,
+                        // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
+                        showLabel: rl.dockShowLabels &&
+                            density != UiDensity.compact,
+                        onTap: () => onTabSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -202,7 +218,8 @@ class _DockTab extends ConsumerWidget {
             ),
             // 紧凑屏（手表等）隐藏文字标签，只留图标
             if (showLabel) ...<Widget>[
-              const SizedBox(height: 4),
+              // iOS TabBar 图标与标签间距约 2px。
+              const SizedBox(height: 2),
               AnimatedDefaultTextStyle(
                 duration: tabDur,
                 curve: AppMotion.ease,

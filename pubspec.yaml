@@ -64,6 +64,11 @@ dependencies:
   share_plus: ^12.0.2
   cross_file: ^0.3.5+4
 
+  # ── 液态玻璃 UI 库（iOS 26 Liquid Glass：真折射 shader / 物理果冻动画 /
+  # 自适应画质 / 无障碍内置）。导航层（Dock/TabBar、AppBar、Sheet、Slider）
+  # 与浮动玻璃面板统一走本库，替代自研 LiquidGlass。
+  liquid_glass_widgets: ^0.29.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

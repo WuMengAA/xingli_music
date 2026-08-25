@@ -418,65 +418,68 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
             ),
             if (inRoom)
               Expanded(child: _roomPanel(sess, accent, ink))
-            else ...<Widget>[
-              // 模式切换：创建 / 加入。
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                child: SegmentedButton<bool>(
-                  segments: const <ButtonSegment<bool>>[
-                    ButtonSegment<bool>(value: true, label: Text('创建房间')),
-                    ButtonSegment<bool>(value: false, label: Text('加入房间')),
-                  ],
-                  selected: <bool>{_isHost},
-                  onSelectionChanged: (Set<bool> s) =>
-                      setState(() => _isHost = s.first),
-                  style: SegmentedButton.styleFrom(
-                    selectedForegroundColor: ink,
-                  ),
-                ),
-              ),
-              // 连接方式切换：局域网 / 中转服务器（跨公网）。
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                child: SegmentedButton<bool>(
-                  segments: const <ButtonSegment<bool>>[
-                    ButtonSegment<bool>(value: false, label: Text('局域网')),
-                    ButtonSegment<bool>(value: true, label: Text('中转服务器')),
-                  ],
-                  selected: <bool>{_useRelay},
-                  onSelectionChanged: (Set<bool> s) =>
-                      setState(() => _useRelay = s.first),
-                  style: SegmentedButton.styleFrom(
-                    selectedForegroundColor: ink,
-                  ),
-                ),
-              ),
+            else
               Expanded(
-                child: ListView(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpace.md),
-                  children: <Widget>[
-                    _Field(
-                      label: '昵称',
-                      controller: _nameCtrl,
-                      hint: '玩家',
-                    ),
-                    const SizedBox(height: AppSpace.sm),
-                    if (_isHost) ..._hostFields(accent, ink),
-                    if (!_isHost) ..._joinFields(accent, ink),
-                    if (_error != null) ...<Widget>[
-                      const SizedBox(height: AppSpace.sm),
-                      Text(
-                        _error!,
-                        style: AppTextStyles.body
-                            .copyWith(color: const Color(0xFFFF8A8A)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      // 模式切换：创建 / 加入（SizedBox 撑满宽度，避免窄窗下
+                      // 分段按钮按内容自适应、右半段「加入房间」溢出窗口被裁）。
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<bool>(
+                          segments: const <ButtonSegment<bool>>[
+                            ButtonSegment<bool>(value: true, label: Text('创建房间')),
+                            ButtonSegment<bool>(value: false, label: Text('加入房间')),
+                          ],
+                          selected: <bool>{_isHost},
+                          onSelectionChanged: (Set<bool> s) =>
+                              setState(() => _isHost = s.first),
+                          style: SegmentedButton.styleFrom(
+                            selectedForegroundColor: ink,
+                          ),
+                        ),
                       ),
+                      const SizedBox(height: AppSpace.sm),
+                      // 连接方式切换：局域网 / 中转服务器（跨公网）。
+                      SizedBox(
+                        width: double.infinity,
+                        child: SegmentedButton<bool>(
+                          segments: const <ButtonSegment<bool>>[
+                            ButtonSegment<bool>(value: false, label: Text('局域网')),
+                            ButtonSegment<bool>(value: true, label: Text('中转服务器')),
+                          ],
+                          selected: <bool>{_useRelay},
+                          onSelectionChanged: (Set<bool> s) =>
+                              setState(() => _useRelay = s.first),
+                          style: SegmentedButton.styleFrom(
+                            selectedForegroundColor: ink,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.md),
+                      _Field(
+                        label: '昵称',
+                        controller: _nameCtrl,
+                        hint: '玩家',
+                      ),
+                      const SizedBox(height: AppSpace.sm),
+                      if (_isHost) ..._hostFields(accent, ink),
+                      if (!_isHost) ..._joinFields(accent, ink),
+                      if (_error != null) ...<Widget>[
+                        const SizedBox(height: AppSpace.sm),
+                        Text(
+                          _error!,
+                          style: AppTextStyles.body
+                              .copyWith(color: const Color(0xFFFF8A8A)),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ],
           ],
         ),
       ),

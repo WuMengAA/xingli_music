@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/scene.dart';
 import '../core/motion/motion.dart';
 import '../core/theme/app_theme_colors.dart';
+import '../core/theme/light_tokens.dart';
 import 'app_icon.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
 
@@ -257,26 +258,33 @@ class _SceneCard extends ConsumerWidget {
         // cl46-E：中间场景卡片默认 16:9（与音画比例一致，视觉更稳定）。
         width: cardW,
         height: cardH,
-        // 不透明场景卡片（#581：取消双模糊，仅不透明卡片堆叠）。
-        // 背景为完全不透明的实色渐变；provider 控制「实色浓度」叠加层，
-        // 越高越实、文字对比越稳，不再有半透明/玻璃带来的双模糊重影。
+        // 实底场景卡片（#581：取消双模糊，仅不透明卡片堆叠；cl13 用户裁决
+        // 「做成真的卡片」：hairline 描边定义卡缘 + 去重阴影，改 iOS 层级化
+        // 微投影）。provider 控制「实色浓度」叠加层，默认 1.0 完全实底。
         child: Container(
           decoration: BoxDecoration(
             gradient: gradient,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            // cl13：hairline 描边 —— 卡片边缘有定义，不再像悬浮玻璃片。
+            border: Border.all(
+              color: context.appColors.border.withValues(alpha: 0.6),
+              width: 1,
+            ),
+            // cl13：去重阴影（原黑 28%/blur18/offset(0,8)），改 iOS 微投影，
+            // 与「卡片浮在明亮背景上」的层级语义一致。
             boxShadow: <BoxShadow>[
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.28),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
+                color: Colors.black.withValues(alpha: 0.10),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           child: Container(
-            // 实色浓度叠加层（provider）：0.1 偏渐变、0.9 偏实色。
+            // 实色浓度叠加层（provider）：1.0 完全实底 / 低值渐变透出。
             decoration: BoxDecoration(
               color: context.appColors.bgSurface.withValues(alpha: opacity),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Card(
               // 透明 Card，让外层渐变 + 实色叠加透过。
@@ -284,7 +292,7 @@ class _SceneCard extends ConsumerWidget {
               elevation: 0,
               clipBehavior: Clip.antiAlias,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: InkWell(
                 onTapDown: (_) => onPressStart(),

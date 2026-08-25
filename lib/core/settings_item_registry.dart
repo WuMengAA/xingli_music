@@ -917,7 +917,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
                 child: Slider(
                   value: ref.watch(sceneCardOpacityProvider),
                   min: 0.1,
-                  max: 0.9,
+                  max: 1.0,
                   onChanged: (double v) =>
                       ref.read(sceneCardOpacityProvider.notifier).set(v),
                 ),

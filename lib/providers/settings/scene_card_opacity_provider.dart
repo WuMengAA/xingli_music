@@ -4,24 +4,38 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../storage/storage_providers.dart';
 
 const String kSceneCardOpacity = 'scene_card_opacity';
+const String kSceneCardOpacityMigrated = 'scene_card_opacity_migrated_v1';
 
-/// 场景卡片实色浓度（0.1~0.9，默认 0.7）。
+/// 场景卡片实色浓度（0.1~1.0，默认 1.0 实底）。
 ///
-/// 场景卡片为不透明实底（#581：取消双模糊、仅不透明卡片堆叠），本值控制
-/// 「实色浓度」叠加层的不透明度：越高卡片越实、文字对比越稳；越低渐变越透出。
-/// 用户可在「个性 → 场景 → 场景卡片实色浓度」中自行调节，选择持久化保存。
+/// cl13 用户裁决「场景卡片做成真的卡片」：默认 1.0 = 完全实底（不透明卡），
+/// 文字对比最稳；调低则渐变透出、恢复半透明观感。0.9 上限放开到 1.0 使
+/// 「实底」成为可达状态。
+///
+/// 迁移逻辑：cl13 之前旧版本可能存了 <1.0 的值。只要还没迁移过，自动
+/// 重置为 1.0，保证「真的卡片」首次展示就是实底；迁移后用户仍可自行
+/// 调低。
 final StateNotifierProvider<SceneCardOpacity, double> sceneCardOpacityProvider =
     StateNotifierProvider<SceneCardOpacity, double>(
   (Ref ref) => SceneCardOpacity(ref.read(prefsProvider)),
 );
 
 class SceneCardOpacity extends StateNotifier<double> {
-  SceneCardOpacity(this._prefs)
-      : super((_prefs.getDouble(kSceneCardOpacity) ?? 0.7).clamp(0.1, 0.9));
+  SceneCardOpacity(this._prefs) : super(1.0) {
+    final bool migrated = _prefs.getBool(kSceneCardOpacityMigrated) ?? false;
+    if (!migrated) {
+      // 首次迁移：强制改为实底，并标记迁移完成。
+      _prefs.setDouble(kSceneCardOpacity, 1.0);
+      _prefs.setBool(kSceneCardOpacityMigrated, true);
+      state = 1.0;
+    } else {
+      state = (_prefs.getDouble(kSceneCardOpacity) ?? 1.0).clamp(0.1, 1.0);
+    }
+  }
   final SharedPreferences _prefs;
 
   void set(double v) {
-    final double c = v.clamp(0.1, 0.9);
+    final double c = v.clamp(0.1, 1.0);
     state = c;
     _prefs.setDouble(kSceneCardOpacity, c);
   }
