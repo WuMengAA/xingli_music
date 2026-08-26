@@ -570,6 +570,71 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     _snack('已导入存档');
   }
 
+  /// 构造单个存档卡片（网格单元复用，避免列表/网格两套重复代码）。
+  Widget _buildSaveCard(VoxelManualSaveMeta s) {
+    final List<VoxelManualSaveMeta> bks =
+        _backups[s.id] ?? <VoxelManualSaveMeta>[];
+    final bool expanded = _expanded.contains(s.id);
+    return _SaveCard(
+      save: s,
+      backups: bks,
+      expanded: expanded,
+      onToggle: () => setState(() {
+        if (expanded) {
+          _expanded.remove(s.id);
+        } else {
+          _expanded.add(s.id);
+        }
+      }),
+      onEnter: () => _enterSave(s.id, s.name),
+      onExport: () => _exportSave(s.id, s.name),
+      onDetails: () => _showDetails(s),
+      onSetBackground: () => _pickBackground(s),
+      onSetThumbnail: () => _pickThumbnail(s),
+      onRename: () async {
+        final String? n = await _askName('重命名存档', '新名称', s.name);
+        if (n == null || n.isEmpty || !mounted) return;
+        if (await _hasManualFile(s.id)) {
+          await renameManualSave(s.id, n);
+        } else {
+          final Map<String, dynamic>? data = await readVoxelSaveForId(s.id);
+          if (data != null) {
+            await writeManualSave(data, n);
+            await deleteCheckpointWithBackups(s.id);
+          }
+        }
+        await _refresh();
+        _snack('已重命名为「$n」');
+      },
+      onDelete: () async {
+        final bool ok = await _confirm(
+          '删除存档',
+          '确定删除「${s.name}」及其 ${bks.length} 个备份？此操作不可恢复。',
+        );
+        if (!ok || !mounted) return;
+        if (await _hasManualFile(s.id)) {
+          await deleteSaveWithBackups(s.id);
+        } else {
+          await deleteCheckpointWithBackups(s.id);
+        }
+        _expanded.remove(s.id);
+        await _refresh();
+        _snack('已删除「${s.name}」');
+      },
+      onEnterBackup: _enterBackup,
+      onExportBackup: _exportBackup,
+      onDeleteBackup: (String bakId) async {
+        final List<String> p = bakId.split('|');
+        if (p.length != 2) return;
+        await deleteBackup(p[0], p[1]);
+        await _refresh();
+        _snack('已删除该备份');
+      },
+      onRollbackBackup: _rollbackBackup,
+      fmt: _fmt,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -589,16 +654,16 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
             ),
           ),
           TextButton.icon(
+            onPressed: _newBlankWorld,
+            icon: const Icon(Icons.add_box_outlined, size: 18),
+            label: const Text('新建空白世界'),
+          ),
+          TextButton.icon(
             onPressed: _import,
             icon: const Icon(Icons.file_upload_outlined, size: 18),
             label: const Text('导入'),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _newSave,
-        icon: const Icon(Icons.add),
-        label: const Text('新建存档'),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -618,131 +683,83 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
             ),
           ),
           Expanded(
-            child: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _listError != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpace.lg),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(Icons.error_outline,
-                            size: 48, color: context.appColors.textTertiary),
-                        const SizedBox(height: AppSpace.sm),
-                        Text('存档读取出错', style: context.appText.body),
-                        const SizedBox(height: AppSpace.xs),
-                        Text(
-                          _listError!,
-                          style: context.appText.artist,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: AppSpace.md),
-                        FilledButton.icon(
-                          onPressed: _refresh,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('重试'),
-                        ),
-                      ],
+            child: LayoutBuilder(
+              builder: (BuildContext ctx, BoxConstraints c) {
+                final double maxW = c.maxWidth;
+                if (_loading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (_listError != null) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpace.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.error_outline,
+                              size: 48, color: context.appColors.textTertiary),
+                          const SizedBox(height: AppSpace.sm),
+                          Text('存档读取出错', style: context.appText.body),
+                          const SizedBox(height: AppSpace.xs),
+                          Text(
+                            _listError!,
+                            style: context.appText.artist,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AppSpace.md),
+                          FilledButton.icon(
+                            onPressed: _refresh,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('重试'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              : _saves.isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppSpace.lg),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(Icons.save_outlined,
-                            size: 48, color: context.appColors.textTertiary),
-                        const SizedBox(height: AppSpace.sm),
-                        Text('暂无存档', style: context.appText.body),
-                        const SizedBox(height: AppSpace.xs),
-                        Text(
-                          '点右下「新建存档」把当前世界存为命名存档；'
-                          '或「+ 新建空白世界」开新地图。',
-                          style: context.appText.artist,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                  );
+                }
+                if (_saves.isEmpty) {
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpace.lg),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.save_outlined,
+                              size: 48, color: context.appColors.textTertiary),
+                          const SizedBox(height: AppSpace.sm),
+                          Text('暂无存档', style: context.appText.body),
+                          const SizedBox(height: AppSpace.xs),
+                          Text(
+                            '点上方「新建存档」把当前世界存为命名存档；'
+                            '或右上「新建空白世界」开新地图。',
+                            style: context.appText.artist,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )
-              : ListView.separated(
+                  );
+                }
+                // 卡片网格：宽屏多列、窄屏单列，铺满横向空间，消除大片空白。
+                final int cols = maxW > 980 ? 3 : maxW > 640 ? 2 : 1;
+                final double gap = AppSpace.md;
+                final double cardW = (maxW - gap * (cols - 1)) / cols;
+                return SingleChildScrollView(
                   padding: const EdgeInsets.all(AppSpace.lg),
-                  itemCount: _saves.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpace.md),
-                  itemBuilder: (BuildContext ctx, int i) {
-                    final VoxelManualSaveMeta s = _saves[i];
-                    final List<VoxelManualSaveMeta> bks =
-                        _backups[s.id] ?? <VoxelManualSaveMeta>[];
-                    final bool expanded = _expanded.contains(s.id);
-                    return _SaveCard(
-                      save: s,
-                      backups: bks,
-                      expanded: expanded,
-                      onToggle: () => setState(() {
-                        if (expanded) {
-                          _expanded.remove(s.id);
-                        } else {
-                          _expanded.add(s.id);
-                        }
-                      }),
-                      onEnter: () => _enterSave(s.id, s.name),
-                      onExport: () => _exportSave(s.id, s.name),
-                      onDetails: () => _showDetails(s),
-                      onSetBackground: () => _pickBackground(s),
-                      onSetThumbnail: () => _pickThumbnail(s),
-                      onRename: () async {
-                        final String? n =
-                            await _askName('重命名存档', '新名称', s.name);
-                        if (n == null || n.isEmpty || !mounted) return;
-                        if (await _hasManualFile(s.id)) {
-                          await renameManualSave(s.id, n);
-                        } else {
-                          // cl05：仅有自动检查点 → 提升为手动存档再改名。
-                          final Map<String, dynamic>? data =
-                              await readVoxelSaveForId(s.id);
-                          if (data != null) {
-                            await writeManualSave(data, n);
-                            await deleteCheckpointWithBackups(s.id);
-                          }
-                        }
-                        await _refresh();
-                        _snack('已重命名为「$n」');
-                      },
-                      onDelete: () async {
-                        final bool ok = await _confirm(
-                          '删除存档',
-                          '确定删除「${s.name}」及其 ${bks.length} 个备份？此操作不可恢复。',
-                        );
-                        if (!ok || !mounted) return;
-                        if (await _hasManualFile(s.id)) {
-                          await deleteSaveWithBackups(s.id);
-                        } else {
-                          // cl05：仅有自动检查点的世界走检查点删除。
-                          await deleteCheckpointWithBackups(s.id);
-                        }
-                        _expanded.remove(s.id);
-                        await _refresh();
-                        _snack('已删除「${s.name}」');
-                      },
-                      onEnterBackup: _enterBackup,
-                      onExportBackup: _exportBackup,
-                      onDeleteBackup: (String bakId) async {
-                        final List<String> p = bakId.split('|');
-                        if (p.length != 2) return;
-                        await deleteBackup(p[0], p[1]);
-                        await _refresh();
-                        _snack('已删除该备份');
-                      },
-                      onRollbackBackup: _rollbackBackup,
-                      fmt: _fmt,
-                    );
-                  },
-                ),
+                  child: Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: <Widget>[
+                      for (final VoxelManualSaveMeta s in _saves)
+                        SizedBox(
+                          width: cardW,
+                          child: _buildSaveCard(s),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

@@ -159,10 +159,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1440, 900);
-  // 窗口标题「星璃音乐·星尘初聚」（Unicode 转义，避免源码编码问题；
-  // 代号变更时与 lib/core/app_version.dart 的 codename 同步）。
+  // 窗口标题「星璃音乐」（Unicode 转义，避免源码编码问题；代号不再进标题栏）。
   if (!window.Create(
-        L"\x661F\x748B\x97F3\x4E50\x00B7\x661F\x5C18\x521D\x805A",
+        L"\x661F\x748B\x97F3\x4E50",
         origin,
         size)) {
     return EXIT_FAILURE;
