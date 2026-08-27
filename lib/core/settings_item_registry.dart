@@ -1235,47 +1235,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ),
     ),
   ),
-  'perfPreset': SettingItemDef(
-    title: '画质预设',
-    builder: (context, ref) {
-      final GraphicsQuality q = ref.watch(graphicsQualityProvider);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('画质预设 · 一键套用整套画面参数', style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 4),
-          Text(
-            '当前：${q.label} · 视距 ${ref.watch(viewDistanceChunksProvider)} 区块 · '
-            '渲染 ${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          const SizedBox(height: 8),
-          // cl46：低中高预设 → 卡片预览与选择。
-          LayoutBuilder(
-            builder: (BuildContext c, BoxConstraints bc) {
-              const int cols = 2;
-              final double cardW = (bc.maxWidth - 8) / cols;
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: <Widget>[
-                  for (final GraphicsQuality g in GraphicsQuality.values)
-                    SizedBox(
-                      width: cardW,
-                      child: _QualityPresetCard(
-                        quality: g,
-                        selected: q == g,
-                        onTap: () => _applyQualityPreset(ref, g),
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      );
-    },
-  ),
+  // perfPreset（画质预设）已移除：与「游戏画面 · 高级设置」(gameGraphics) 页内画质档
+  // 重复指向同一批画质 provider，留作去套娃；质量预设改由 gameGraphics 页统一承载。
   'fpsLimit': SettingItemDef(
     title: '帧率限制',
     builder: (context, ref) => Column(

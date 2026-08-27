@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 22;
+  static const int day = 28;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -372,7 +372,7 @@ abstract final class AppVersion {
   /// NetSessionNotifier 加 submitOrder/decideOrder/_broadcastOrderQueue（DJ 端权威队列
   /// + 定向回执，听众端乐观插入 pending）；新增 lib/pages/social/（电台大厅/电台房/
   /// 点歌队列三页），探索页功能区加「电台房」入口。OQ-1 v1 默认创建者即 DJ。
-  static const int buildCount = 13;
+  static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -437,6 +437,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.28',
+    cl: 'alpha_cl01',
+    title: '设置干净化（去套娃）+ 中继服务器开机自启',
+    details: <String>[
+      '设置·游戏画面页去「卡片套卡片」无限嵌套：视距 / 云层区块视距 / 细节层次（LOD）/ 方块描边 提升为顶层卡片，极客项（渲染精度 / 剔除 / 雾 / 水流动）收进「高级」折叠区，用分区标题替代嵌套卡片',
+      '设置·游戏画质组移除冗余「画质预设」项（与游戏画面·高级设置页内画质档重复指向同一批 provider），消除层层套娃',
+      '中继服务器（星璃中转）改为 Windows 计划任务开机自启：注册 XingliRelayAutostart 任务（SYSTEM 账户 / AtStartup / 隐藏），附 install_autostart.ps1 / uninstall_autostart.ps1 / start_relay.bat 管理脚本',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.22',
     cl: 'alpha_cl13',

@@ -2,7 +2,7 @@ name: xingli_music
 description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
 publish_to: 'none'
 
-version: 0.26.8+102
+version: 0.26.8+103
 
 environment:
   sdk: ^3.9.0

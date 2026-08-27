@@ -236,7 +236,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           id: 'game_quality',
           name: '游戏画质',
           items: <SettingItem>[
-            SettingItem(id: 'perfPreset', title: '画质预设（低 / 中 / 高）'),
+            // 画质预设由「游戏画面·高级设置」(gameGraphics) 页内画质档统一承载，
+            // 此处不再单列，避免与 gameGraphics 层层指向同一批画质 provider（去套娃）。
             SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
             SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
             SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
