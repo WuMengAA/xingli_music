@@ -20,7 +20,7 @@ import '../pages/settings/scene_editor_page.dart';
 import '../pages/settings/game_graphics_page.dart';
 import '../pages/settings/server_settings_page.dart';
 import '../pages/settings/voxel_save_manager_page.dart';
-import '../pages/voxel/voxel_main_menu_page.dart';
+import '../pages/world/world_page.dart';
 import '../providers/voxel/graphics_quality_provider.dart';
 import '../providers/voxel/hud_layout_provider.dart';
 import '../providers/voxel/world_audio_provider.dart';
@@ -1231,7 +1231,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       subtitle: '存档自动滚动备份 20 份（游戏主菜单「世界存档」可任选恢复）',
       // R26skel：存档/恢复唯一入口 = 游戏主菜单「世界存档」。
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const VoxelMainMenuPage()),
+        MaterialPageRoute<void>(builder: (_) => const WorldPage()),
       ),
     ),
   ),

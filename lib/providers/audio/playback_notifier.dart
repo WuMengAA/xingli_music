@@ -33,30 +33,34 @@ class PlaybackActions {
   /// 返回需提示给用户的消息（空串表示成功）。
   Future<String> next({int direction = 1}) async {
     final List<Track> library =
-        await ref.read(effectiveMusicLibraryProvider.future);
+        await ref.read(activePlaybackListProvider.future);
     if (library.isEmpty) return '曲库为空，请先在曲库设置添加音乐';
     final Track? current = ref.read(nowPlayingProvider);
-    // cl51-A：默认下一首按播放记录（最近播放在前），可后续手动排序。
-    // cl54-G4：修复「播放顺序无法应用」——FutureProvider 用 .valueOrNull
-    // 首帧为 null 导致永远回退字母序；改为 await future 拿到真实记录顺序。
-    final List<String> order = await ref.read(recordPlayOrderProvider.future);
+    // cl64-3：nextTrackInLibrary 内部按 trackKey 匹配（不依赖 uri，
+    // 流媒体 relink 后 uri 会变），默认按曲库列表顺序续播。
+    // cl64-5：library 为 activePlaybackList（搜索队列 ?? 曲库）。
     final Track? chosen;
-    if (current != null &&
-        library.any((t) => t.uri == current.uri)) {
+    if (current != null) {
       chosen = nextTrackInLibrary(
-          library, current, ref.read(playModeProvider), direction,
-          recordOrder: order);
+          library, current, ref.read(playModeProvider), direction);
     } else {
       chosen = nextTrackInLibrary(
-          library, null, ref.read(playModeProvider), 1,
-          recordOrder: order);
+          library, null, ref.read(playModeProvider), 1);
     }
     if (chosen == null) return '';
     return _play(chosen);
   }
 
-  /// 直接播放指定曲目
-  Future<String> playTrack(Track track) => _play(track);
+  /// 直接播放指定曲目。
+  ///
+  /// [queue]：可选播放上下文列表（如聚合搜索结果）。非 null 时写入
+  /// [playbackQueueProvider]，使后续续播在该列表内循环；为 null 时清空队列
+  /// 回退曲库（cl64-5：搜索列表作播放队列）。
+  Future<String> playTrack(Track track, {List<Track>? queue}) {
+    ref.read(playbackQueueProvider.notifier).state =
+        (queue != null && queue.isNotEmpty) ? queue : null;
+    return _play(track);
+  }
 
   /// 播放曲库第一首（仅当曲库非空）。
   ///

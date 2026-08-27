@@ -17,41 +17,46 @@ import 'net_message.dart';
 /// 默认联机端口（与日志/发现服务区分）。
 const int kNetDefaultPort = 8765;
 
-/// 中转服务器默认地址（自建部署）。部署位置变化时改这里，
-/// 或由用户在客户端「高级设置」中修改一次（会记忆，优先于本默认值）。
-const String kDefaultRelayUrl = 'ws://192.168.1.248:8765/ws';
+/// 中转服务器默认地址（官方自建部署，用户零配置、即开即用）。
+///
+/// 这是 App 联机（电台 / 一起听 / 体素联机）的**唯一**默认中转，客户端
+/// 直连即用，不再暴露「中转地址」手动输入框（见 StationLobbyPage）。
+/// 部署位置变化时改这里即可，一处生效、全端统一。
+const String kDefaultRelayUrl = 'wss://relay.245959623.xyz/ws';
 
 /// 中转服务器连接错误 → 终端用户可读的中文提示。
 ///
 /// dart:io WebSocket.connect 的异常类型不固定（HandshakeException /
 /// WebSocketException / SocketException / TimeoutException），统一按文本
 /// 特征匹配归类；未知错误保留原文以便排查。
+///
+/// 2026-08-27 定规：官方中转，故错误文案不再引导用户手动填地址，只提示
+/// 「检查网络 / 稍后重试」，避免把配置负担甩给终端用户。
 String friendlyRelayError(Object error) {
   final String s = error.toString();
   if (s.contains('WRONG_VERSION_NUMBER') || s.contains('HandshakeException')) {
-    return '中转服务器地址协议填错了：请用 ws:// 开头（不要用 wss://），'
-        '例如 ws://192.168.1.248:8765/ws';
+    return '中转服务协议异常，请稍后重试';
   }
   if (s.contains('Connection refused')) {
-    return '无法连接到中转服务器：请确认服务器已启动，且地址、端口正确';
+    return '无法连接到乐厅，请检查网络后重试';
   }
   if (s.contains('Failed host lookup') ||
       s.contains('Failed to resolve') ||
       s.contains('Host not found')) {
-    return '中转服务器地址无法解析：请检查地址是否填错';
+    return '无法连接到乐厅，请检查网络后重试';
   }
   if (s.contains('not upgraded to websocket')) {
-    return '该地址不是中转服务器：请检查地址是否正确';
+    return '该地址不是乐厅服务，请稍后重试';
   }
   if (s.contains('timed out') || s.contains('TimeoutException')) {
-    return '连接中转服务器超时：请检查网络后重试';
+    return '连接乐厅超时，请检查网络后重试';
   }
   if (s.contains('room full')) return '房间已满，请稍后再试或换一间';
   if (s.contains('room required')) {
     return '房间号无效，请确认房主提供的 6 位房间号';
   }
   // 未知错误不再透传英文原文（2026-08-17 定规：消息框不得出现成片英文）。
-  return '连接出错，请检查网络或中转地址后重试';
+  return '连接出错，请检查网络后重试';
 }
 
 /// 传输层事件（连接 / 断开 / 消息）。

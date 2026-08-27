@@ -18,7 +18,7 @@ import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
-import '../../pages/voxel/voxel_main_menu_page.dart';
+import '../../pages/world/world_page.dart';
 import '../../widgets/common/scene_eval_sheet.dart';
 
 /// 主页 · 场景内容（原场景页合并进主页，R1/R2）
@@ -339,7 +339,7 @@ class HomeSceneContent extends ConsumerWidget {
       }
     }
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const VoxelMainMenuPage()),
+      MaterialPageRoute<void>(builder: (_) => const WorldPage()),
     );
   }
 

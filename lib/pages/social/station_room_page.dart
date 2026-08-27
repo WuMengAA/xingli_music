@@ -9,10 +9,12 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/app_theme_colors.dart';
+import '../../models/track.dart';
+import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
 import 'station_lobby_page.dart';
 import 'order_queue_page.dart';
@@ -33,50 +35,93 @@ class StationRoomPage extends ConsumerWidget {
     final c = context.appColors;
     final NetSessionState s = ref.watch(netSessionProvider);
     final bool isConnected = s.status == ConnStatus.connected;
-    return Scaffold(
-      backgroundColor: c.bgPage,
-      appBar: AppBar(
-        title: Text(mode.label),
+    // 退出清理：无论点「离开」按钮还是系统返回键/手势 pop，都先 leave()
+    // 清空 netSessionProvider._node，否则残留连接导致后续「创建/加入」失败。
+    Future<void> onExit() async {
+      await ref.read(netSessionProvider.notifier).leave();
+    }
+
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop) return;
+        onExit();
+      },
+      child: Scaffold(
         backgroundColor: c.bgPage,
-        foregroundColor: c.textPrimary,
-        elevation: 0,
-        actions: <Widget>[
-          if (mode.acceptOrder)
-            IconButton(
-              icon: const Icon(Icons.playlist_add_check),
-              tooltip: '点歌队列',
-              onPressed: () => Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => OrderQueuePage(mode: mode),
+        appBar: AppBar(
+          title: Text(mode.label),
+          backgroundColor: c.bgPage,
+          foregroundColor: c.textPrimary,
+          elevation: 0,
+          actions: <Widget>[
+            if (mode.acceptOrder)
+              IconButton(
+                icon: const Icon(Icons.playlist_add_check),
+                tooltip: '点歌队列',
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => OrderQueuePage(mode: mode),
+                  ),
                 ),
               ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: '离开',
+              onPressed: () async {
+                await onExit();
+                if (!context.mounted) return;
+                Navigator.of(context).pop();
+              },
             ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: '离开',
-            onPressed: () async {
-              await ref.read(netSessionProvider.notifier).leave();
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            },
+          ],
+        ),
+        body: !isConnected
+            ? _buildStatus(c, s)
+            : ListView(
+                padding: const EdgeInsets.all(16),
+                children: <Widget>[
+                  if (isHost) _buildRoomCode(context, c, s),
+                  _buildDjCard(c, s),
+                  const SizedBox(height: 16),
+                  _buildMembers(c, s),
+                  if (mode.syncListen) ...<Widget>[
+                    const SizedBox(height: 16),
+                    _buildListenHint(ref, c, s),
+                  ],
+                ],
+              ),
+      ),
+    );
+  }
+
+  /// 复制房间号到剪贴板：先确认，再复制，提示「已复制」。
+  Future<void> _copyRoomCode(BuildContext context, String roomCode) async {
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dc) => AlertDialog(
+        title: const Text('复制房间号'),
+        content: Text('将房间号 $roomCode 复制到剪贴板？'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dc).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dc).pop(true),
+            child: const Text('复制'),
           ),
         ],
       ),
-      body: !isConnected
-          ? _buildStatus(c, s)
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: <Widget>[
-                if (isHost) _buildRoomCode(c, s),
-                _buildDjCard(c, s),
-                const SizedBox(height: 16),
-                _buildMembers(c, s),
-                if (mode.syncListen) ...<Widget>[
-                  const SizedBox(height: 16),
-                  _buildListenHint(c, s),
-                ],
-              ],
-            ),
+    );
+    if (ok != true) return;
+    await Clipboard.setData(ClipboardData(text: roomCode));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已复制'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -103,7 +148,8 @@ class StationRoomPage extends ConsumerWidget {
         ),
       );
 
-  Widget _buildRoomCode(AppThemeColors c, NetSessionState s) => Container(
+  Widget _buildRoomCode(BuildContext context, AppThemeColors c, NetSessionState s) =>
+      Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: c.bgCard,
@@ -131,13 +177,9 @@ class StationRoomPage extends ConsumerWidget {
                 FilledButton.icon(
                   onPressed: s.roomCode == null
                       ? null
-                      : () => SharePlus.instance.share(
-                          ShareParams(
-                            text: '来我的星璃电台房听听～ 房间号：${s.roomCode}',
-                          ),
-                        ),
-                  icon: const Icon(Icons.share),
-                  label: const Text('分享'),
+                      : () => _copyRoomCode(context, s.roomCode!),
+                  icon: const Icon(Icons.copy),
+                  label: const Text('复制'),
                 ),
               ],
             ),
@@ -207,27 +249,55 @@ class StationRoomPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildListenHint(AppThemeColors c, NetSessionState s) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: c.bgCard,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(Icons.sync, color: c.textSecondary, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                s.role == NetRole.client
-                    ? '已开启一起听：播放进度跟随 DJ。'
-                    : '一起听已开启：你的播放会同步给所有听众。',
-                style: TextStyle(color: c.textSecondary, fontSize: 12),
-              ),
+  Widget _buildListenHint(WidgetRef ref, AppThemeColors c, NetSessionState s) {
+    final Track? now = ref.watch(nowPlayingProvider);
+    final Duration? pos =
+        ref.watch(musicPositionProvider).valueOrNull;
+    final String fmt = _fmt(pos);
+    final bool isClient = s.role == NetRole.client;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.sync, color: c.accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  isClient ? '与房主同步中' : '你正在播出，同步给全员',
+                  style: TextStyle(color: c.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  now == null
+                      ? '（等待 DJ 开始播放）'
+                      : '${now.title} — ${now.artist}   ·  $fmt',
+                  style: TextStyle(color: c.textPrimary, fontSize: 13),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 毫秒 → `m:ss` 简易格式化（用于跟随态进度展示）。
+  String _fmt(Duration? d) {
+    if (d == null) return '0:00';
+    final int total = d.inSeconds < 0 ? 0 : d.inSeconds;
+    return '${total ~/ 60}:${(total % 60).toString().padLeft(2, '0')}';
+  }
 }
 
 class _MemberTile extends StatelessWidget {

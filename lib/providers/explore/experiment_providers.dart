@@ -6,13 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/companion_page.dart';
-import '../../pages/explore/experiments/daily_recommend_page.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/mood_analysis_page.dart';
+import '../../pages/explore/experiments/netease_recommend_page.dart';
 import '../../pages/explore/experiments/recommend_page.dart';
-import '../../pages/explore/experiments/roam_page.dart';
 import '../../pages/explore/experiments/sensor_page.dart';
-import '../../pages/social/station_lobby_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
 
@@ -117,29 +115,15 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             builder: () => const CompanionPage(),
           ),
           ExperimentItem(
-            id: 'daily_recommend',
-            name: '每日推荐',
-            description: '网易云为你精选 · 每日更新',
-            icon: Icons.today_rounded,
+            id: 'netease_recommend',
+            name: '网易云推荐',
+            description: '每日精选 · 个性化无限漫游',
+            icon: Icons.explore_rounded,
             status: ExperimentStatus.experimenting,
-            builder: () => const DailyRecommendPage(),
+            builder: () => const NeteaseRecommendPage(),
           ),
-          ExperimentItem(
-            id: 'roam',
-            name: '私人漫游',
-            description: '网易云个性化无限推荐流',
-            icon: Icons.explore_outlined,
-            status: ExperimentStatus.experimenting,
-            builder: () => const RoamPage(),
-          ),
-          ExperimentItem(
-            id: 'station_lobby',
-            name: '电台房',
-            description: '一起听 · 校园点歌 · 共享音乐',
-            icon: Icons.radio_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const StationLobbyPage(),
-          ),
+          // 电台房（station_lobby）已从实验区移除，转正为导航/主导航入口
+          // （见 app_shell / 主导航），不再作为实验项展示。
           // 示例：已下线（P0-M2-4 置灰禁入）
           // ExperimentItem(
           //   id: 'old_x',

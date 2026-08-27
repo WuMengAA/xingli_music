@@ -17,6 +17,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/search/search_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../widgets/common/page_scaffold.dart';
@@ -50,7 +51,6 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   String _keyword = '';
   _SrcFilter _filter = _SrcFilter.all;
   StreamSubscription<String>? _playErrorSub;
-  final List<String> _history = <String>[];
   bool _disclaimerShown = false;
 
   @override
@@ -74,9 +74,8 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
 
   void _submit(String raw) {
     final String kw = raw.trim();
-    if (kw.isNotEmpty && !_history.contains(kw)) {
-      _history.insert(0, kw);
-      if (_history.length > 8) _history.removeLast();
+    if (kw.isNotEmpty) {
+      ref.read(searchHistoryProvider.notifier).add(kw);
     }
     setState(() => _keyword = kw);
   }
@@ -131,8 +130,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _play(Track t) async {
-    final String msg = await ref.read(playbackActionsProvider).playTrack(t);
+  /// 点播：把当前结果列表作为播放队列传入，使自动续播在搜索列表内循环
+  /// （cl64-5：搜索列表作播放队列）。
+  Future<void> _play(Track t, [List<Track>? queue]) async {
+    final String msg =
+        await ref.read(playbackActionsProvider).playTrack(t, queue: queue);
     if (msg.isNotEmpty && mounted) appNotify(context, msg);
   }
 
@@ -148,7 +150,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           _buildSourceFilter(),
           const SizedBox(height: AppSpace.sm),
           _buildLoginStrip(),
-          if (_keyword.isEmpty && _history.isNotEmpty) ...<Widget>[
+          if (_keyword.isEmpty) ...<Widget>[
             const SizedBox(height: AppSpace.sm),
             _buildHistory(),
           ],
@@ -212,15 +214,28 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   }
 
   Widget _buildHistory() {
+    final List<String> history = ref.watch(searchHistoryProvider);
+    if (history.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('搜索历史', style: context.appText.artist),
+        Row(
+          children: <Widget>[
+            Text('搜索历史', style: context.appText.artist),
+            const Spacer(),
+            TextButton(
+              onPressed: () =>
+                  ref.read(searchHistoryProvider.notifier).clear(),
+              child: Text('清空', style: context.appText.artist
+                  ?.copyWith(color: context.appColors.iconInactive)),
+            ),
+          ],
+        ),
         const SizedBox(height: AppSpace.xs),
         Wrap(
           spacing: AppSpace.xs,
           runSpacing: AppSpace.xs,
-          children: _history.map((String h) {
+          children: history.map((String h) {
             return ActionChip(
               label: Text(h, style: context.appText.caption),
               visualDensity: VisualDensity.compact,
@@ -302,7 +317,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           return const _HintPanel(
               icon: Icons.music_off_rounded, message: '本地没有匹配的曲目');
         }
-        return _TrackList(tracks: hits, onTap: _play);
+        return _TrackList(tracks: hits, onTap: (t) => _play(t, hits));
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) => const _HintPanel(
@@ -326,7 +341,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       data: (List<Track> tracks) => tracks.isEmpty
           ? const _HintPanel(
               icon: Icons.music_off_rounded, message: '网易云没有找到相关歌曲')
-          : _TrackList(tracks: tracks, onTap: _play, sourceTag: '网易云 · 音乐源'),
+          : _TrackList(tracks: tracks, onTap: (t) => _play(t, tracks), sourceTag: '网易云 · 音乐源'),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final bool authFail = neteaseIsAuthFailure(e);
@@ -358,7 +373,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       data: (List<Track> tracks) => tracks.isEmpty
           ? const _HintPanel(
               icon: Icons.music_off_rounded, message: 'B站没有找到相关视频')
-          : _TrackList(tracks: tracks, onTap: _play, sourceTag: 'B站 · 视频源'),
+          : _TrackList(tracks: tracks, onTap: (t) => _play(t, tracks), sourceTag: 'B站 · 视频源'),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final String msg = bilibiliErrorText(e);
@@ -410,7 +425,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         }
         return _TrackList(
           tracks: all,
-          onTap: _play,
+          onTap: (t) => _play(t, all),
           // 行内按 sourceId 打「源 · 类型」徽标：网易云=音乐源，B站=视频源。
           tagOf: (Track t) => switch (t.sourceId) {
             'netease' => '网易云 · 音乐源',

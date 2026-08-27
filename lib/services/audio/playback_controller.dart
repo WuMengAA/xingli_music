@@ -58,25 +58,29 @@ class PlaybackController {
 /// 抽取自 ControlBar 的切歌逻辑，UI 与系统控件共用同一套选曲规则，
 /// 保证锁屏切歌和界面内切歌行为一致。
 ///
-/// [recordOrder]：按播放记录推导的有序 trackKey 列表（最近播放在前）。
-/// 非空时，顺序 / 倒序模式改按**播放记录顺序**切歌（而不是字母序），
-/// 满足「上下歌切换考虑播放记录、默认下一首按播放记录」。
+/// 默认按**曲库列表顺序**续播（cl64-3：默认顺序改回曲库列表顺序）。
 Track? nextTrackInLibrary(
   List<Track> lib,
   Track? current,
   PlayMode mode,
-  int direction, {
-  List<String>? recordOrder,
-}) {
+  int direction,
+) {
   if (lib.isEmpty) return null;
 
-  final List<Track> sorted = _sortedByRecord(lib, recordOrder);
+  // 默认顺序：曲库列表顺序（保持稳定、可续播）。
+  final List<Track> sorted = List<Track>.from(lib);
 
   if (current == null) {
     return mode == PlayMode.reverse ? sorted.last : sorted.first;
   }
 
-  final int idx = sorted.indexWhere((t) => t.uri == current.uri);
+  // cl64-3：按 trackKey 匹配而非 uri——流媒体经 relinkForPlayback 后
+  // uri 从 netease:// 变 http 直链，与曲库占位 uri 不一致会导致永远命中
+  // idx<0 而回退到第一首。改用 title|artist|sourceId 唯一键匹配。
+  final String curKey =
+      trackKeyOf(current.title, current.artist, current.sourceId);
+  final int idx = sorted.indexWhere(
+      (t) => trackKeyOf(t.title, t.artist, t.sourceId) == curKey);
   if (idx < 0) {
     return mode == PlayMode.reverse ? sorted.last : sorted.first;
   }
@@ -97,25 +101,4 @@ Track? nextTrackInLibrary(
   if (next < 0) return sorted.last;
   if (next >= sorted.length) return sorted.first;
   return sorted[next];
-}
-
-/// 排序：优先按 [recordOrder]（播放记录顺序），未收录的曲目按字母序追加；
-/// 无记录顺序时按字母序（兼容旧行为）。
-List<Track> _sortedByRecord(List<Track> lib, List<String>? recordOrder) {
-  if (recordOrder == null || recordOrder.isEmpty) {
-    return List<Track>.from(lib)
-      ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-  }
-  final Map<String, Track> byKey = <String, Track>{
-    for (final Track t in lib) trackKeyOf(t.title, t.artist, t.sourceId): t,
-  };
-  final List<Track> ordered = <Track>[];
-  for (final String k in recordOrder) {
-    final Track? t = byKey.remove(k);
-    if (t != null) ordered.add(t);
-  }
-  final List<Track> rest = byKey.values.toList()
-    ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-  ordered.addAll(rest);
-  return ordered;
 }

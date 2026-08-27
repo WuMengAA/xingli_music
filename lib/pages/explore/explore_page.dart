@@ -9,6 +9,7 @@ import '../../models/experiment.dart';
 import '../../models/scene.dart';
 import '../../models/track_stats.dart';
 import '../../pages/library/playlist_detail_page.dart';
+import '../../pages/social/station_lobby_page.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
@@ -57,6 +58,10 @@ class ExplorePage extends ConsumerWidget {
         );
     // 星璃世界走 Shell Tab 切换（IndexedStack 唯一真源）。
     void goWorld() => setShellPage(ref, ShellPage.world);
+    // 电台房（转正）：从实验区提升为正式功能入口。
+    void goStation() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const StationLobbyPage()),
+        );
     // 每日推荐 / 漫游 / 电台房 已移入下方「实验室」网格，不再在此单列。
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
@@ -92,6 +97,7 @@ class ExplorePage extends ConsumerWidget {
               onRecommend: goRecommend,
               onCompanion: goCompanion,
               onWorld: goWorld,
+              onStation: goStation,
             ),
             const SizedBox(height: AppSpace.lg),
             _SectionLabel(Terms.lab),
@@ -430,12 +436,14 @@ class _FunctionSection extends StatelessWidget {
     required this.onRecommend,
     required this.onCompanion,
     required this.onWorld,
+    required this.onStation,
   });
 
   final VoidCallback onAggregate;
   final VoidCallback onRecommend;
   final VoidCallback onCompanion;
   final VoidCallback onWorld;
+  final VoidCallback onStation;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +476,13 @@ class _FunctionSection extends StatelessWidget {
           subtitle: '3D 体素世界 · 空间音效',
           onTap: onWorld,
           trailing: Icon(Icons.view_in_ar_rounded, size: AppSize.iconSm, color: c.iconInactive),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        _FuncRow(
+          title: Terms.station,
+          subtitle: '一起听 · 校园点歌 · 共享音乐',
+          onTap: onStation,
+          trailing: Icon(Icons.radio_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
       ],
     );

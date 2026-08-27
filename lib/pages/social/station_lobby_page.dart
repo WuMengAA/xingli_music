@@ -5,11 +5,14 @@
 /// - v1 默认创建者即 DJ（OQ-1 已决）。
 /// - 形态矩阵 [StationMode] 对应 RoomCaps{syncListen, acceptOrder}：
 ///   校园广播台(一起听+点歌) / 好友一起听(一起听) / 纯点歌台(点歌)。
-/// - 跨公网走 relay-server 中转（OQ-2 已决），凭房间号加入。
+/// - 跨公网统一走**官方 relay-server 中转**（OQ-2 已决），凭房间号加入。
+///
+/// 2026-08-27（用户决策：官方自己代理中转，无需用户配置，即开即用）：
+/// - 移除「中转服务器地址」手动输入框 + 「中转服务器 / 局域网」切换；
+/// - 用户只填昵称、选形态，点「创建」/「加入」即开即用；
+/// - 中转地址统一取 [kDefaultRelayUrl]（官方公网），用户不可见、不可改。
 /// ════════════════════════════════════════════════════════════════════════
 library;
-
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,12 +73,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
   final TextEditingController _nameCtrl =
       TextEditingController(text: 'DJ');
   final TextEditingController _roomCtrl = TextEditingController();
-  final TextEditingController _relayCtrl = TextEditingController();
 
-  // 连接模式：false=局域网（IP 直连），true=中转服务器（凭房间号跨公网）。
-  bool _useRelay = true;
-
-  static const String _relayUrlPrefsKey = 'station_relay_url';
   static const String _namePrefsKey = 'station_name';
 
   @override
@@ -86,34 +84,24 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
 
   Future<void> _loadPrefs() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? savedRelay = prefs.getString(_relayUrlPrefsKey);
     final String? savedName = prefs.getString(_namePrefsKey);
     if (!mounted) return;
     setState(() {
-      _relayCtrl.text =
-          (savedRelay == null || savedRelay.isEmpty) ? kDefaultRelayUrl : savedRelay;
       if (savedName != null && savedName.isNotEmpty) {
         _nameCtrl.text = savedName;
       }
     });
   }
 
-  String get _effectiveRelayUrl {
-    final String t = _relayCtrl.text.trim();
-    return t.isEmpty ? kDefaultRelayUrl : t;
-  }
-
   @override
   void dispose() {
     _nameCtrl.dispose();
     _roomCtrl.dispose();
-    _relayCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _go(StationRoomPage page) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_relayUrlPrefsKey, _relayCtrl.text.trim());
     await prefs.setString(_namePrefsKey, _nameCtrl.text.trim());
     if (!mounted) return;
     await Navigator.of(context).push<void>(
@@ -129,7 +117,8 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
     final bool ok = await ref.read(netSessionProvider.notifier).host(
           seed: 0,
           name: _nameCtrl.text.trim().isEmpty ? 'DJ' : _nameCtrl.text.trim(),
-          relayUrl: _useRelay ? _effectiveRelayUrl : null,
+          // 官方中转（即开即用），不再暴露地址输入框。
+          relayUrl: kDefaultRelayUrl,
         );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -157,7 +146,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           '',
           0,
           name: _nameCtrl.text.trim().isEmpty ? '听众' : _nameCtrl.text.trim(),
-          relayUrl: _effectiveRelayUrl,
+          relayUrl: kDefaultRelayUrl,
           room: room,
         );
     if (!mounted) return;
@@ -186,11 +175,11 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
+          _buildHostJoinToggle(c),
+          const SizedBox(height: 16),
           _buildNameField(c),
           const SizedBox(height: 16),
           _buildModeSelector(c),
-          const SizedBox(height: 16),
-          _buildConnToggle(c),
           const SizedBox(height: 16),
           if (_isHost) ..._buildHostPanel(c) else ..._buildJoinPanel(c),
           if (_error != null) ...<Widget>[
@@ -201,6 +190,25 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
       ),
     );
   }
+
+  /// 顶端「创建 / 加入」切换（即开即用：两种动作都无需配置中转）。
+  Widget _buildHostJoinToggle(AppThemeColors c) => Row(
+        children: <Widget>[
+          Expanded(
+            child: SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: true, label: Text('创建电台房')),
+                ButtonSegment<bool>(value: false, label: Text('加入电台房')),
+              ],
+              selected: <bool>{_isHost},
+              onSelectionChanged: (s) => setState(() {
+                _isHost = s.first;
+                _error = null;
+              }),
+            ),
+          ),
+        ],
+      );
 
   Widget _buildNameField(AppThemeColors c) => TextField(
         controller: _nameCtrl,
@@ -231,38 +239,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
         ],
       );
 
-  Widget _buildConnToggle(AppThemeColors c) => Row(
-        children: <Widget>[
-          Expanded(
-            child: SegmentedButton<bool>(
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: true, label: Text('中转服务器')),
-                ButtonSegment<bool>(value: false, label: Text('局域网')),
-              ],
-              selected: <bool>{_useRelay},
-              onSelectionChanged: (s) => setState(() => _useRelay = s.first),
-            ),
-          ),
-        ],
-      );
-
   List<Widget> _buildHostPanel(AppThemeColors c) => <Widget>[
-        if (_useRelay)
-          TextField(
-            controller: _relayCtrl,
-            decoration: InputDecoration(
-              labelText: '中转服务器地址',
-              labelStyle: TextStyle(color: c.textSecondary),
-              filled: true,
-              fillColor: c.bgCard,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            style: TextStyle(color: c.textPrimary),
-          ),
-        const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: _busy ? null : _create,
           icon: const Icon(Icons.radio),
@@ -298,23 +275,6 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           ),
           style: TextStyle(color: c.textPrimary, letterSpacing: 2),
         ),
-        if (_useRelay) ...<Widget>[
-          const SizedBox(height: 12),
-          TextField(
-            controller: _relayCtrl,
-            decoration: InputDecoration(
-              labelText: '中转服务器地址',
-              labelStyle: TextStyle(color: c.textSecondary),
-              filled: true,
-              fillColor: c.bgCard,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            style: TextStyle(color: c.textPrimary),
-          ),
-        ],
         const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: _busy ? null : _join,

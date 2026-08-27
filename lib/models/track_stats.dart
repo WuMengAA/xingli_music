@@ -1,6 +1,10 @@
 /// 播放统计 / 收藏 / 歌单 / 听歌历史 的数据模型（cl46 全局数据层）。
 library;
 
+import 'dart:convert';
+
+import 'track.dart';
+
 /// 单曲播放统计。
 class TrackStats {
   const TrackStats({
@@ -75,6 +79,12 @@ class ListenEntry {
     required this.sourceId,
     required this.playedAt,
     this.durationMs = 0,
+    // cl64-6：补全可重播所需的完整曲目信息（详见 #636）。
+    this.uri,
+    this.coverUrl,
+    this.album,
+    this.songId,
+    this.extras,
   });
 
   final String trackKey;
@@ -84,6 +94,21 @@ class ListenEntry {
   final DateTime playedAt;
   final int durationMs;
 
+  /// 播放地址（流媒体为 `netease://song/<id>` 占位符，可被对应源懒解析）。
+  final String? uri;
+
+  /// 封面地址（远程源）。
+  final String? coverUrl;
+
+  /// 专辑名。
+  final String? album;
+
+  /// 源私有歌曲 id（如网易云 songId），重播 / 解析用。
+  final String? songId;
+
+  /// 源私有字段（序列化 JSON）。
+  final Map<String, dynamic>? extras;
+
   factory ListenEntry.fromRow(Map<String, dynamic> row) => ListenEntry(
         trackKey: row['track_key'] as String,
         title: row['title'] as String,
@@ -91,7 +116,48 @@ class ListenEntry {
         sourceId: row['source_id'] as String? ?? '',
         playedAt: DateTime.fromMillisecondsSinceEpoch(row['played_at'] as int),
         durationMs: row['duration_ms'] as int? ?? 0,
+        uri: row['uri'] as String?,
+        coverUrl: row['cover_url'] as String?,
+        album: row['album'] as String?,
+        songId: row['song_id'] as String?,
+        extras: row['extras'] == null
+            ? null
+            : (row['extras'] as String).isEmpty
+                ? null
+                : _decodeJson(row['extras'] as String),
       );
+
+  /// 重建为可播放的 [Track]（用于「听过的歌」自动入曲库）。
+  ///
+  /// uri 缺失或为空时不重建（无法播放，仅在历史里展示）。
+  Track? toTrack() {
+    final String? u = uri;
+    if (u == null || u.isEmpty) return null;
+    final Map<String, dynamic> merged = <String, dynamic>{
+      if (songId != null) 'songId': songId,
+      ...?extras,
+    };
+    return Track(
+      title: title,
+      artist: artist,
+      uri: u,
+      source: TrackSource.stream,
+      sourceId: sourceId,
+      coverUrl: coverUrl,
+      album: album,
+      duration: durationMs > 0 ? Duration(milliseconds: durationMs) : null,
+      extras: merged.isNotEmpty ? merged : null,
+    );
+  }
+}
+
+Map<String, dynamic> _decodeJson(String s) {
+  try {
+    final Object? v = jsonDecode(s);
+    return v is Map<String, dynamic> ? v : <String, dynamic>{};
+  } catch (_) {
+    return <String, dynamic>{};
+  }
 }
 
 /// 全局收藏的歌曲。

@@ -234,12 +234,19 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         return;
       }
     }
-    final String ip = host?.ip ?? _ipCtrl.text.trim();
-    final int port =
-        host?.port ?? (int.tryParse(_portCtrl.text.trim()) ?? kNetDefaultPort);
-    if (ip.isEmpty) {
-      setState(() => _error = '请输入房主 IP');
-      return;
+    final String ip;
+    final int port;
+    if (_useRelay) {
+      // 中转模式凭房间号加入，无需房主 IP（join 内部按 relayUrl 路由，ip/port 不参与连接）。
+      ip = '';
+      port = kNetDefaultPort;
+    } else {
+      ip = host?.ip ?? _ipCtrl.text.trim();
+      port = host?.port ?? (int.tryParse(_portCtrl.text.trim()) ?? kNetDefaultPort);
+      if (ip.isEmpty) {
+        setState(() => _error = '请输入房主 IP');
+        return;
+      }
     }
     setState(() {
       _busy = true;

@@ -33,6 +33,11 @@ final recentHistoryProvider = FutureProvider<List<ListenEntry>>(
   (Ref ref) => ref.watch(trackStatsDbProvider).recentHistory(limit: 100),
 );
 
+/// 「听过的歌」：按 trackKey 去重后的历史（供自动入曲库）。
+final heardTracksProvider = FutureProvider<List<ListenEntry>>(
+  (Ref ref) => ref.watch(trackStatsDbProvider).heardTracks(),
+);
+
 /// 播放统计 map（trackKey → stats），供卡片批量展示（避免逐卡查库）。
 final statsMapProvider = FutureProvider<Map<String, TrackStats>>(
   (Ref ref) async {
@@ -173,8 +178,27 @@ class PlayStatsTracker {
           _ref.invalidate(totalPlayMsProvider);
         }
       }
-      // 历史无论长短都记录（自动收录数据源）。
-      await db.addHistory(key, t.title, t.artist, t.sourceId, ms);
+      // 历史无论长短都记录（自动收录数据源）。cl64-6：补全可重播字段，
+      // 使「听过的歌」能在曲库里重建为可播放 Track。
+      String? songId;
+      final Object? rawId = t.extras?['songId'];
+      if (rawId is int) {
+        songId = rawId.toString();
+      } else if (rawId is String) {
+        songId = rawId;
+      }
+      await db.addHistory(
+        key,
+        t.title,
+        t.artist,
+        t.sourceId,
+        ms,
+        uri: t.uri,
+        coverUrl: t.coverUrl,
+        album: t.album,
+        songId: songId,
+        extras: t.extras,
+      );
       if (!_disposed) _ref.invalidate(statOfProvider(key));
       // 历史列表（曲库「时光沉底」页）随每次结算刷新。
       if (!_disposed) _ref.invalidate(recentHistoryProvider);

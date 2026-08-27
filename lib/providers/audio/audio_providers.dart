@@ -20,12 +20,14 @@ import '../../services/audio/minecraft_sfx_service.dart';
 import '../../services/audio/playback_controller.dart';
 import '../../services/audio/sources/netease/netease_source.dart';
 import '../../services/audio/sources/bilibili/bilibili_source.dart';
+import '../../services/audio/sources/heard_source.dart';
 import '../../services/log_service.dart';
 import '../../services/music_sources/demo_source.dart';
 import '../../services/music_sources/local_dir_music_source.dart';
 import '../../services/music_sources/local_music_source.dart';
 import '../../services/music_sources/minecraft_music_source.dart';
 import '../../services/music_sources/music_source.dart';
+import '../../services/stats/track_stats_db.dart';
 import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
 import 'local_dir_providers.dart';
@@ -134,11 +136,14 @@ final activeSourcesProvider = Provider<List<MusicSource>>((ref) {
       sources.add(RadioSource(tags: c.tags, sourceId: c.name));
     }
   }
+  final NeteaseSource netease = ref.watch(neteaseSourceProvider);
   // 网易云：enabled 随登录态变化；getTracks() 当前返回空（歌单后续接入），
   // 仅承担「搜索 + 懒解析播放」，加入集合不污染曲库聚合。
-  sources.add(ref.watch(neteaseSourceProvider));
+  sources.add(netease);
   // B站视频源：同网易云——搜索驱动 + 懒解析音频流，未登录 enabled=false。
   sources.add(ref.watch(bilibiliSourceProvider));
+  // 听过的歌自动入曲库：从播放历史重建曲目，复用网易云解析（cl64-5 / #635）。
+  sources.add(HeardSource(netease, TrackStatsDb.instance));
   return sources;
 });
 
@@ -191,6 +196,22 @@ final effectiveMusicLibraryProvider = FutureProvider<List<Track>>((ref) async {
 /// 当前播放曲目
 final nowPlayingProvider = StateProvider<Track?>((ref) => null);
 
+/// 当前播放队列（可选）。
+///
+/// 从某列表（如聚合搜索结果）点播时写入该列表，使自动续播 / 上一首 / 下一首
+/// 在该列表内循环，而非退回整库。为 null 时 [activePlaybackListProvider]
+/// 回退到曲库顺序（cl64-5：搜索列表作播放队列）。
+final playbackQueueProvider = StateProvider<List<Track>?>((ref) => null);
+
+/// 实际参与「选下一首」的曲目集合：有队列用队列，否则曲库列表顺序。
+///
+/// 让搜索结果 / 歌单等上下文内的续播跟随该列表（cl64-5）。
+final activePlaybackListProvider = FutureProvider<List<Track>>((ref) async {
+  final List<Track>? queue = ref.watch(playbackQueueProvider);
+  if (queue != null && queue.isNotEmpty) return queue;
+  return ref.watch(effectiveMusicLibraryProvider.future);
+});
+
 /// 引擎真源（AudioService 加载成功后才更新的当前曲目流）。
 ///
 /// 用于把「选曲即写」与「加载成功才写」两真源合一，消除歌名/曲名对不上的错位。
@@ -236,14 +257,14 @@ final playbackControllerProvider = Provider<PlaybackController>((ref) {
   final PlaybackController ctrl = PlaybackController(ref.watch(audioServiceProvider));
   ctrl.setResolvers(
     skip: (int dir) async {
-      final List<Track> lib = await ref.read(effectiveMusicLibraryProvider.future);
+      final List<Track> lib = await ref.read(activePlaybackListProvider.future);
       final Track? current = ref.read(nowPlayingProvider);
       final PlayMode mode = ref.read(playModeProvider);
       final Track? t = nextTrackInLibrary(lib, current, mode, dir);
       return t;
     },
     first: () async {
-      final List<Track> lib = await ref.read(effectiveMusicLibraryProvider.future);
+      final List<Track> lib = await ref.read(activePlaybackListProvider.future);
       final PlayMode mode = ref.read(playModeProvider);
       final Track? t = nextTrackInLibrary(lib, null, mode, 1);
       return t;

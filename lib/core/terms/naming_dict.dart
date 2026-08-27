@@ -170,12 +170,6 @@ abstract final class Terms {
   /// 功能区入口：智能推荐
   static const String smartRecommend = '智能推荐';
 
-  /// 功能区入口：网易云每日推荐
-  static const String dailyRecommend = '每日推荐';
-
-  /// 功能区入口：网易云私人漫游
-  static const String roam = '漫游';
-
   /// 功能区入口：AI 陪伴
   static const String aiCompanion = '小璃';
 
@@ -304,6 +298,9 @@ abstract final class Terms {
 
   /// 一起听（联机 / 音乐社交）
   static const String listenTogether = '一起听';
+
+  /// 电台房（由一起听统一演进而来，见 PRD_电台核心）——正式功能入口。
+  static const String station = '电台';
 
   /// 读取（存档读取按钮）
   static const String loadGame = '读取';

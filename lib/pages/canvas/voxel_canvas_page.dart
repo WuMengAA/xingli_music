@@ -19,7 +19,7 @@ import '../../widgets/voxel/voxel_spectrum_bar.dart';
 import '../../widgets/noise_texture.dart';
 import '../../widgets/voxel/voxel_canvas_controller.dart';
 import '../../widgets/voxel/voxel_canvas_view.dart';
-import '../../pages/voxel/voxel_main_menu_page.dart';
+import '../../pages/world/world_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/common/share_panel.dart';
@@ -443,7 +443,7 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
     unawaited(
       Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => const VoxelMainMenuPage(),
+          builder: (_) => const WorldPage(),
         ),
       ),
     );

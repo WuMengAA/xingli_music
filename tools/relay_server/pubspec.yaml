@@ -1,0 +1,7 @@
+name: relay_server
+description: 星璃音乐·官方中转服务器（独立 Dart 包，站点自包含单文件 exe）
+publish_to: 'none'
+version: 1.0.0
+
+environment:
+  sdk: ^3.9.0

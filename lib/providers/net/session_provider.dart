@@ -400,7 +400,13 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     String? relayUrl,
     String? room,
   }) async {
-    if (_node != null) return false;
+    // 兜底：若残留连接节点（如房间页被系统返回直接 pop、leave 尚未完成），
+    // 先清理再继续，避免被 `_node != null` 卡死导致无法建新房 / 重进。
+    if (_node != null) {
+      await _node!.close().catchError((_) {});
+      _node = null;
+      _djListeners = false;
+    }
     try {
       state = state.copyWith(
         status: ConnStatus.connecting,
@@ -464,7 +470,12 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     String? relayUrl,
     String? room,
   }) async {
-    if (_node != null) return false;
+    // 兜底：与 host() 同理，残留节点先清理再重进/加入。
+    if (_node != null) {
+      await _node!.close().catchError((_) {});
+      _node = null;
+      _djListeners = false;
+    }
     _joined = Completer<void>();
     try {
       state = state.copyWith(

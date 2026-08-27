@@ -8,6 +8,7 @@
 /// - `track_aliases`：自动归类的别名映射（相似曲目归并到主键）
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -28,7 +29,7 @@ class TrackStatsDb {
     final String path = p.join(dir.path, 'music_stats.db');
     _db = await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _create,
       onUpgrade: _upgrade,
     );
@@ -46,6 +47,14 @@ class TrackStatsDb {
           updated_at INTEGER NOT NULL DEFAULT 0
         )
       ''');
+    }
+    // v2 → v3：listen_history 补全可重播字段（uri/cover/album/songId/extras）。
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE listen_history ADD COLUMN uri TEXT');
+      await db.execute('ALTER TABLE listen_history ADD COLUMN cover_url TEXT');
+      await db.execute('ALTER TABLE listen_history ADD COLUMN album TEXT');
+      await db.execute('ALTER TABLE listen_history ADD COLUMN song_id TEXT');
+      await db.execute('ALTER TABLE listen_history ADD COLUMN extras TEXT');
     }
   }
 
@@ -212,8 +221,13 @@ class TrackStatsDb {
     String title,
     String artist,
     String sourceId,
-    int ms,
-  ) async {
+    int ms, {
+    String? uri,
+    String? coverUrl,
+    String? album,
+    String? songId,
+    Map<String, dynamic>? extras,
+  }) async {
     final Database db = await database;
     await db.insert('listen_history', <String, Object?>{
       'track_key': trackKey,
@@ -222,7 +236,27 @@ class TrackStatsDb {
       'source_id': sourceId,
       'played_at': DateTime.now().millisecondsSinceEpoch,
       'duration_ms': ms < 0 ? 0 : ms,
+      'uri': uri,
+      'cover_url': coverUrl,
+      'album': album,
+      'song_id': songId,
+      'extras': extras == null ? null : jsonEncode(extras),
     });
+  }
+
+  /// 「听过的歌」：按 track_key 去重（取最近一次播放），供自动入曲库。
+  Future<List<ListenEntry>> heardTracks({int limit = 1000}) async {
+    final Database db = await database;
+    final List<Map<String, dynamic>> rows = await db.rawQuery('''
+      SELECT t1.* FROM listen_history t1
+      WHERE t1.played_at = (
+        SELECT MAX(t2.played_at) FROM listen_history t2
+        WHERE t2.track_key = t1.track_key
+      )
+      ORDER BY t1.played_at DESC
+      LIMIT ?
+    ''', <Object>[limit]);
+    return rows.map(ListenEntry.fromRow).toList();
   }
 
   Future<List<ListenEntry>> recentHistory({int limit = 200}) async {
