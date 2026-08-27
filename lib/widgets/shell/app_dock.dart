@@ -132,7 +132,12 @@ class AppDock extends StatelessWidget {
       forceGlass: true,
       // 整条直角条（iOS TabBar 无圆角药丸）
       radius: 0,
-      style: GlassStyle.frosted,
+      // 液态玻璃：折射 + 色散（premium 真折射路径，本就是 Dock 栏的设计意图）。
+      // 此前误接成 frosted，导致 dock 只是毛玻璃而非液态玻璃。
+      style: GlassStyle.liquid,
+      // 折射/色散强度（默认 refraction=5 太弱几乎不可见，这里给足液态质感）。
+      refraction: 16,
+      dispersion: 2.6,
       // tint/borderColor 跟随 systemBlue 派生的玻璃语义色（去紫）
       tint: context.appColors.glassTint,
       // cl13：iOS TabBar 无四边框 —— 取消 LiquidGlass 的整框 Border.all，

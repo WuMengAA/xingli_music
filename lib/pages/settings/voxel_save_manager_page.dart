@@ -284,6 +284,8 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         ),
       ),
     );
+    // 从世界页返回后刷新列表（新建的存档需出现在管理页，修复「新建后不显示」）。
+    if (mounted) await _refresh();
   }
 
   /// R26r15：备份=快照「当前正在运行的世界」（自动存档），**不切换**世界——
@@ -365,6 +367,9 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         saveId: saveId,
       )),
     );
+    // 从世界页返回存档管理页后刷新列表（修复「新建/进入后新存档不出现」：
+    // 本页 State 在 push 期间一直存活，initState 不会重跑，需手动重载）。
+    if (mounted) await _refresh();
   }
 
   Future<void> _enterSave(String id, String name) async {
