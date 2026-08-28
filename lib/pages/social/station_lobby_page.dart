@@ -33,9 +33,9 @@ enum StationMode {
   ),
   friendListen(
     label: '好友一起听',
-    desc: '仅同步收听，无点歌',
+    desc: '一起听 + 可点歌',
     syncListen: true,
-    acceptOrder: false,
+    acceptOrder: true,
   ),
   orderOnly(
     label: '纯点歌台',

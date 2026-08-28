@@ -2,13 +2,16 @@ name: xingli_music
 description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
 publish_to: 'none'
 
-version: 0.26.8+103
+version: 0.26.8+111
 
 environment:
   sdk: ^3.9.0
 
 dependencies:
   flutter:
+    sdk: flutter
+  # cl07 i18n：官方本地化（gen-l10n）
+  flutter_localizations:
     sdk: flutter
 
   # ── 状态管理 ────────────────────────────────────────────────
@@ -78,6 +81,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # cl07 i18n：启用 gen-l10n（ARB → AppLocalizations）
+  generate: true
 
   # 液态玻璃 FragmentShader（折射 + 色散）
   shaders:

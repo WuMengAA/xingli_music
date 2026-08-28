@@ -56,6 +56,19 @@ class AlbumCard extends ConsumerWidget {
                       track.coverUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      // cl07：背景氛围图加载完成渐显（不硬跳）。
+                      frameBuilder: (BuildContext c, Widget child, int? frame,
+                          bool wasSync) {
+                        if (wasSync) return child;
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween<double>(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOut,
+                          builder: (BuildContext context, double v, Widget? ch) =>
+                              Opacity(opacity: v, child: ch),
+                          child: child,
+                        );
+                      },
                     ),
                   ),
                 // 半透明主题色遮罩：保证文字可读 + 染色调和。

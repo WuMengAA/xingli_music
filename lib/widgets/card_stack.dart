@@ -6,6 +6,7 @@ import '../core/motion/motion.dart';
 import '../core/theme/app_theme_colors.dart';
 import '../core/theme/light_tokens.dart';
 import 'app_icon.dart';
+import 'liquid_glass.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
 
 /// 场景卡片（主视觉单元）
@@ -80,7 +81,16 @@ class _SceneCardStackState extends State<SceneCardStack> {
         switchInCurve: Motion.gentle,
         switchOutCurve: Motion.calm,
         transitionBuilder: (child, animation) {
-          return FadeTransition(opacity: animation, child: child);
+          // cl03b：切场景带横向方向感——新卡从右 6% 滑入归位、旧卡向左滑出，
+          // 与横滑手势的方向直觉一致；纯 Fade 太「软」，6% 位移不喧宾夺主。
+          final Animation<Offset> slide = Tween<Offset>(
+            begin: const Offset(0.06, 0),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
         },
         child: _SceneCard(
           key: ValueKey(current.id),
@@ -258,65 +268,64 @@ class _SceneCard extends ConsumerWidget {
         // cl46-E：中间场景卡片默认 16:9（与音画比例一致，视觉更稳定）。
         width: cardW,
         height: cardH,
-        // 实底场景卡片（#581：取消双模糊，仅不透明卡片堆叠；cl13 用户裁决
-        // 「做成真的卡片」：hairline 描边定义卡缘 + 去重阴影，改 iOS 层级化
-        // 微投影）。provider 控制「实色浓度」叠加层，默认 1.0 完全实底。
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            // cl13：hairline 描边 —— 卡片边缘有定义，不再像悬浮玻璃片。
-            border: Border.all(
-              color: context.appColors.border.withValues(alpha: 0.6),
-              width: 1,
-            ),
-            // cl13：去重阴影（原黑 28%/blur18/offset(0,8)），改 iOS 微投影，
-            // 与「卡片浮在明亮背景上」的层级语义一致。
-            boxShadow: <BoxShadow>[
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
+        // cl06：默认磨砂玻璃 + 配色可叠加（用户需求）——场景渐变在下、
+        // 磨砂玻璃（frosted）在上模糊它、实色浓度（provider）叠加，
+        // 内容清晰浮于顶层。恢复「玻璃片」质感，不再纯实底。
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              // 配色叠加层：场景渐变（配色可叠加，磨砂会模糊它）。
+              DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
+              // 实色浓度叠加层（provider）：1.0 接近实底 / 低值让磨砂透出。
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.appColors.bgSurface.withValues(alpha: opacity),
+                ),
               ),
-            ],
-          ),
-          child: Container(
-            // 实色浓度叠加层（provider）：1.0 完全实底 / 低值渐变透出。
-            decoration: BoxDecoration(
-              color: context.appColors.bgSurface.withValues(alpha: opacity),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Card(
-              // 透明 Card，让外层渐变 + 实色叠加透过。
-              color: Colors.transparent,
-              elevation: 0,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+              // 磨砂玻璃底（模糊上两层渐变，出玻璃质感）。
+              LiquidGlass(
+                style: GlassStyle.frosted,
+                forceGlass: true,
+                radius: 0,
+                tint: const Color(0x0AFFFFFF),
+                borderColor: const Color(0x26FFFFFF),
+                child: const SizedBox.expand(),
               ),
-              child: InkWell(
-                onTapDown: (_) => onPressStart(),
-                onTapUp: (_) => onPressEnd(),
-                onTapCancel: onPressEnd,
-                onLongPress: onLongPress,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                  // 纯场景展示卡：播放控制/歌词全部收敛到全局底部播放器，
-                  // 本卡只呈现场景信息（cl03 全局唯一底部播放器）。
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: 320,
-                        maxWidth: 460,
+              // 内容（透明 Card + InkWell + metadata，清晰浮于玻璃上）。
+              Card(
+                color: Colors.transparent,
+                elevation: 0,
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
+                child: InkWell(
+                  onTapDown: (_) => onPressStart(),
+                  onTapUp: (_) => onPressEnd(),
+                  onTapCancel: onPressEnd,
+                  onLongPress: onLongPress,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    // 纯场景展示卡：播放控制/歌词全部收敛到全局底部播放器，
+                    // 本卡只呈现场景信息（cl03 全局唯一底部播放器）。
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: 320,
+                          maxWidth: 460,
+                        ),
+                        child: metadata,
                       ),
-                      child: metadata,
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

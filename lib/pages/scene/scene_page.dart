@@ -12,6 +12,7 @@ import '../../providers/session/session_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/voxel/world_audio_provider.dart';
+import '../../core/motion/motion.dart';
 import '../../widgets/card_stack.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
@@ -39,6 +40,8 @@ class HomeSceneContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final List<Scene> scenes = ref.watch(sceneOrderProvider);
     final int activeIndex = ref.watch(currentSceneIndexProvider);
+    // 批3 #580 · D/E：主页微动效时长跟随性能档（motionScale）。
+    final double scale = ref.watch(motionScaleProvider);
     final Scene active = ref.watch(activeSceneProvider);
     final VoxelSceneCapture? capture = active.voxelCapture;
     // H2：右上角「游戏背景」开关 + 长按实时渲染。
@@ -145,7 +148,7 @@ class HomeSceneContent extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        '晚上好，听点什么？',
+                        _timeGreeting(DateTime.now()),
                         style: context.appText.caption.copyWith(
                           fontSize: 13,
                           color: c.textSecondary,
@@ -190,12 +193,16 @@ class HomeSceneContent extends ConsumerWidget {
                                 left: 0,
                                 right: 0,
                                 child: Center(
-                                  child: Container(
+                                  child: AnimatedContainer(
+                                    duration: Duration(milliseconds: (400 * scale).round()),
+                                    curve: Motion.gentle,
                                     width: 200,
                                     height: 200,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: c.accent.withValues(alpha: 0.16),
+                                      // 跟随当前场景主色（切场景时色渐变，不硬跳）。
+                                      color: (active?.visual.accent ?? c.accent)
+                                          .withValues(alpha: 0.16),
                                     ),
                                   ),
                                 ),
@@ -239,7 +246,9 @@ class HomeSceneContent extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       for (int i = 0; i < scenes.length; i++)
-                        Container(
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: (220 * scale).round()),
+                          curve: Motion.gentle,
                           margin: const EdgeInsets.symmetric(horizontal: 3),
                           width: i == activeIndex ? 10 : 6,
                           height: i == activeIndex ? 10 : 6,
@@ -507,4 +516,14 @@ class _SceneIconButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 主页问候语按时段动态（批3 #580 · E）。
+String _timeGreeting(DateTime now) {
+  final int h = now.hour;
+  if (h >= 5 && h < 11) return '早安，新的一天听点什么？';
+  if (h >= 11 && h < 14) return '午安，听点什么？';
+  if (h >= 14 && h < 18) return '下午好，听点什么？';
+  if (h >= 18 && h < 23) return '晚上好，听点什么？';
+  return '夜深了，听点什么？';
 }

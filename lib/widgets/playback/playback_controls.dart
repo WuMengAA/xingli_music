@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/motion/motion.dart';
 import '../../core/theme/app_theme_colors.dart';
+import '../../providers/settings/performance_providers.dart';
 import '../app_icon.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -18,9 +21,11 @@ import '../app_icon.dart';
 ///  - 颜色：默认 `context.appColors.iconPrimary`（明暗自适应）；`active` 时
 ///    改用品牌紫 `accent`；均可通过 [color] 显式覆盖。
 ///  - 可选圆形 tint 背景（[tint]），用于场景页的小圆钮组。
+///  - 按压反馈：按下即时缩放 1.0→0.92（[Motion.gentle]，时长乘 [motionScaleProvider]），
+///    释放回弹；纯 [AnimatedScale] + [GestureDetector]，不引入新动画原语。
 ///
 /// 取色约定：业务代码统一调用，不要再手写 `Color(0x...)`.
-class PlaybackIconButton extends StatelessWidget {
+class PlaybackIconButton extends ConsumerStatefulWidget {
   const PlaybackIconButton({
     super.key,
     this.svgName,
@@ -68,36 +73,62 @@ class PlaybackIconButton extends StatelessWidget {
   final bool fit;
 
   @override
+  ConsumerState<PlaybackIconButton> createState() => _PlaybackIconButtonState();
+}
+
+class _PlaybackIconButtonState extends ConsumerState<PlaybackIconButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    final Color resolved = color ??
-        (active ? context.appColors.accent : context.appColors.iconPrimary);
+    final double scale = ref.watch(motionScaleProvider);
+    final Color resolved = widget.color ??
+        (widget.active ? context.appColors.accent : context.appColors.iconPrimary);
 
-    Widget iconChild = svgName != null
-        ? AppIcon(svgName!, size: size, color: resolved)
-        : Icon(icon, size: size, color: resolved);
+    Widget iconChild = widget.svgName != null
+        ? AppIcon(widget.svgName!, size: widget.size, color: resolved)
+        : Icon(widget.icon, size: widget.size, color: resolved);
 
-    if (fit) {
+    if (widget.fit) {
       iconChild = FittedBox(fit: BoxFit.scaleDown, child: iconChild);
     }
 
+    // 圆形 tint 背景（激活态高亮）。
     Widget btn = InkWell(
-      onTap: disabled ? null : onTap,
+      onTap: widget.disabled ? null : widget.onTap,
       customBorder: const CircleBorder(),
       child: Center(child: iconChild),
     );
 
-    if (tint) {
-      final Color bg = active
-          ? (tintColor ?? context.appColors.accentSoft)
-          : (tintColor ?? context.appColors.iconInactive.withValues(alpha: 0.14));
+    if (widget.tint) {
+      final Color bg = widget.active
+          ? (widget.tintColor ?? context.appColors.accentSoft)
+          : (widget.tintColor ?? context.appColors.iconInactive.withValues(alpha: 0.14));
       btn = Container(
         decoration: BoxDecoration(shape: BoxShape.circle, color: bg),
         child: btn,
       );
     }
 
-    if (tooltip != null) {
-      btn = Tooltip(message: tooltip!, child: btn);
+    // 按压缩放反馈：按下 1.0→0.92，释放回弹；时长跟随性能档 motionScale。
+    btn = AnimatedScale(
+      scale: _pressed ? 0.92 : 1.0,
+      duration: Duration(milliseconds: (150 * scale).round()),
+      curve: Motion.gentle,
+      child: btn,
+    );
+
+    // 仅捕获按下/抬起态驱动缩放；tap 仍交给 InkWell（保留水波纹）。
+    btn = GestureDetector(
+      onTapDown: widget.disabled ? null : (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      behavior: HitTestBehavior.translucent,
+      child: btn,
+    );
+
+    if (widget.tooltip != null) {
+      btn = Tooltip(message: widget.tooltip!, child: btn);
     }
     return btn;
   }

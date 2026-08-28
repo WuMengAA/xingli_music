@@ -94,6 +94,17 @@ tools/relay_server/*.exe
 tools/relay_server/.dart_tool/
 
 # ─────────────────────────────────────────────
+# 中继服务器：运行时敏感数据与调试产物（绝不入库）
+# ─────────────────────────────────────────────
+# 服务端签名密钥：启动自动生成，relay_server.dart:333 注明「绝不随代码分发」
+tools/relay_server/*.secret
+# 注册用户数据：运行时生成，含账号信息
+tools/relay_server/users/
+# 本地自测产物（curl 输出等）
+tools/relay_server/*.txt
+tools/relay_server/*.err
+
+# ─────────────────────────────────────────────
 # 发布产物目录（本地留档用，不入库）
 # ─────────────────────────────────────────────
 release/

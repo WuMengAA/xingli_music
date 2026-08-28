@@ -170,8 +170,21 @@ class NetNode {
     return node;
   }
 
-  static Future<NetNode> connect(String host, int port) async {
-    final WebSocket ws = await WebSocket.connect('ws://$host:$port/ws');
+  static Future<NetNode> connect(
+    String host,
+    int port, {
+    bool secure = false,
+    bool allowInsecure = false,
+  }) async {
+    final String scheme = secure ? 'wss' : 'ws';
+    final String url = '$scheme://$host:$port/ws';
+    final WebSocket ws = allowInsecure
+        ? await HttpOverrides.runZoned(
+            () => WebSocket.connect(url),
+            createHttpClient: (_) =>
+                HttpClient()..badCertificateCallback = (_, __, ___) => true,
+          )
+        : await WebSocket.connect(url);
     final NetNode node = NetNode._(
       isHost: false,
       localId: _genId(),
@@ -201,8 +214,15 @@ class NetNode {
     String room,
     String name, {
     required bool isHostGame,
+    bool allowInsecure = false,
   }) async {
-    final WebSocket ws = await WebSocket.connect(relayUrl);
+    final WebSocket ws = allowInsecure
+        ? await HttpOverrides.runZoned(
+            () => WebSocket.connect(relayUrl),
+            createHttpClient: (_) =>
+                HttpClient()..badCertificateCallback = (_, __, ___) => true,
+          )
+        : await WebSocket.connect(relayUrl);
     final NetNode node = NetNode._(
       isHost: false,
       localId: '',

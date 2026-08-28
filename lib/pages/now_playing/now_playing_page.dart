@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
@@ -134,7 +135,11 @@ class NowPlayingPage extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              Center(child: _LargeCover(track: track, size: coverSize)),
+              Center(
+                child: _BreathingCover(
+                  child: _LargeCover(track: track, size: coverSize),
+                ),
+              ),
               const SizedBox(height: AppSpace.lg),
               _TrackInfo(track: track),
               const SizedBox(height: AppSpace.lg),
@@ -162,7 +167,11 @@ class NowPlayingPage extends ConsumerWidget {
           // 左：封面
           SizedBox(
             width: coverSize + AppSpace.sm,
-            child: Center(child: _LargeCover(track: track, size: coverSize)),
+            child: Center(
+              child: _BreathingCover(
+                child: _LargeCover(track: track, size: coverSize),
+              ),
+            ),
           ),
           const SizedBox(width: AppSpace.lg),
           // 右：信息 + 歌词（歌词撑满剩余高度）
@@ -565,7 +574,68 @@ class _LargeCover extends StatelessWidget {
     );
     // R32 批3：整卡 Hero 已覆盖封面/标题的位移（外层 body 包 npCard 放大），
     // 此处不再单独包封面 Hero，避免嵌套 Hero 双飞冲突。
-    return inner;
+    // cl04：封面浮起阴影（iOS 唱片感 + WinUI shadow 层级）。
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 40,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: inner,
+    );
+  }
+}
+
+/// 全屏封面呼吸动效（cl04）：播放时封面极轻微呼吸（±1.5%，6s 正弦），
+/// 暂停即平滑归位——「有温度的活感」，不喧宾夺主。
+class _BreathingCover extends ConsumerStatefulWidget {
+  const _BreathingCover({required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<_BreathingCover> createState() => _BreathingCoverState();
+}
+
+class _BreathingCoverState extends ConsumerState<_BreathingCover>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  );
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool playing = ref.watch(isPlayingProvider).valueOrNull ?? false;
+    if (playing) {
+      _ctrl.repeat();
+    } else {
+      _ctrl.animateTo(
+        0,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    }
+    return AnimatedBuilder(
+      animation: _ctrl,
+      child: widget.child,
+      builder: (BuildContext context, Widget? child) {
+        // 正弦呼吸 ±1.5%，整周期回落到 1.0。
+        final double s = 1 + 0.015 * math.sin(_ctrl.value * math.pi * 2);
+        return Transform.scale(scale: s, child: child);
+      },
+    );
   }
 }
 

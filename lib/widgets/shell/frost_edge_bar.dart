@@ -128,3 +128,75 @@ class DockTopFeather extends ConsumerWidget {
     return IgnorePointer(child: blurred);
   }
 }
+
+/// 底部 Dock 融合磨砂边（批3 #580 · A+B 合并）。
+///
+/// 合并原 [FrostEdgeBar(top: false)]（滚动驱动磨砂）与 [DockTopFeather]
+/// （常驻羽化）为**单个** [BackdropFilter]：
+///  - 未滚动：常驻极淡羽化（等同原 [DockTopFeather]，blur*0.6 + 0.85 可见度），
+///    Dock 与内容之间无硬边；
+///  - 滚动：模糊强度线性增强到满强度（等同原 [FrostEdgeBar]），内容滑入 Dock 自然羽化；
+///  - 外缘 [ShaderMask] 羽化朝向 Dock（上缘透明 → 下缘实）。
+/// 省去原「底边磨砂 + 顶部羽化」两层重叠模糊采样，切 Tab / 滑动时底部只做一次全宽高斯模糊。
+/// 因 [IndexedStack] 全页保活（C11/P0-B10），此层只钉在 Dock 上方、不参与页面重建。
+class DockBlendEdge extends ConsumerWidget {
+  const DockBlendEdge({super.key});
+
+  /// 常驻模糊强度基准（等同原 [DockTopFeather] 的 blur*0.6）。
+  static const double _featherBlur = 0.6;
+
+  /// 常驻可见度基准（贴近原 [DockTopFeather] 满可见，避免 Dock 硬边）。
+  static const double _featherOpacity = 0.85;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final double progress = ref.watch(pageScrollBlurProvider);
+    final PerformanceMode perf = ref.watch(performanceModeProvider);
+    final double blur = ref.watch(glassBlurProvider);
+    final bool blurOn = perf != PerformanceMode.performance && blur > 0;
+    final AppThemeColors c = context.appColors;
+
+    // 模糊强度：常驻基准 → 滚动满强度（原两层的强度区间完全覆盖）。
+    final double effBlur = _featherBlur + (1 - _featherBlur) * progress;
+    final double sigma = blur * effBlur;
+    // 可见度：常驻基准 → 滚动满（停在顶/底时仍保留 Dock 羽化，不刺眼）。
+    final double opacity = _featherOpacity + (1 - _featherOpacity) * progress;
+
+    final Widget base = Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            c.glassTint.withValues(alpha: 0),
+            c.glassTint,
+          ],
+        ),
+      ),
+    );
+    final Widget blurred = blurOn
+        ? ClipRect(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+              child: base,
+            ),
+          )
+        : base;
+
+    // 外缘羽化：上缘透明 → 下缘实，羽化方向朝向 Dock。
+    final Widget feathered = ShaderMask(
+      shaderCallback: (Rect rect) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: <Color>[Color(0x00000000), Color(0xFF000000)],
+      ).createShader(rect),
+      blendMode: BlendMode.dstIn,
+      child: blurred,
+    );
+
+    return Opacity(
+      opacity: opacity,
+      child: IgnorePointer(child: feathered),
+    );
+  }
+}

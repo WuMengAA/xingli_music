@@ -20,6 +20,7 @@ import 'providers/audio/equalizer_providers.dart';
 import 'providers/scene/scene_providers.dart';
 import 'providers/settings/notification_providers.dart';
 import 'providers/settings/ota_download_provider.dart';
+import 'providers/settings/offline_providers.dart';
 import 'providers/settings/performance_providers.dart';
 import 'providers/settings/settings_persistence_providers.dart';
 import 'providers/settings/settings_layout_provider.dart';
@@ -82,7 +83,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderStateMixin {
   /// 软键盘弹出时，内容区至少保留的高度（低于此值不再继续压缩，
   /// 否则 `Padding` 会把 `IndexedStack` 约束成负高度）。
   static const double _minContentHeight = 120;
@@ -99,9 +100,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     SettingsPage(), //   4 · 设置
   ];
 
+  /// 切 Tab 的「上浮淡入」过渡（批3 #580 · B）。
+  /// 仅驱动内容层渲染变换，不重建 IndexedStack（_pages 为 const，保活滚动位置）。
+  late final AnimationController _tabAnim;
+
   @override
   void initState() {
     super.initState();
+    _tabAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
     // 冷启动播放当前场景的环境音景。
     //
     // 该副作用原先寄生在 CanvasPage.initState —— 重构后 CanvasPage 变成
@@ -119,15 +125,24 @@ class _AppShellState extends ConsumerState<AppShell> {
       unawaited(_maybeAskReOobe(context));
       // 2026-08-17 渠道化：重启后检测渠道切换标记 → OOBE·升级阶段引导。
       unawaited(_maybeAskChannelGuide(context));
-      // 2026-08-17 渠道化：每次启动拉取当前渠道最新更新日志并缓存本地。
-      unawaited(OtaService.instance
-          .refreshCachedNotes(channel: ref.read(settingsRepositoryProvider).updateChannel));
-      // cl74：启动自动检查 OTA（仅已完成为 true 的老用户；首次走 OOBE 不弹）。
-      // 有新版本弹全局提示，用户可前往 设置 → 关于 → 版本更新 处理。
-      if (ref.read(oobeDoneProvider)) {
-        unawaited(_autoCheckOta(context));
+      // cl08：离线模式（不依靠官方服务器）→ 跳过 OTA 更新日志拉取与检查。
+      if (!ref.read(offlineModeProvider)) {
+        // 2026-08-17 渠道化：每次启动拉取当前渠道最新更新日志并缓存本地。
+        unawaited(OtaService.instance
+            .refreshCachedNotes(channel: ref.read(settingsRepositoryProvider).updateChannel));
+        // cl74：启动自动检查 OTA（仅已完成为 true 的老用户；首次走 OOBE 不弹）。
+        // 有新版本弹全局提示，用户可前往 设置 → 关于 → 版本更新 处理。
+        if (ref.read(oobeDoneProvider)) {
+          unawaited(_autoCheckOta(context));
+        }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _tabAnim.dispose();
+    super.dispose();
   }
 
   /// F4：版本升级检测——仅当「已完成 OOBE 且记录过上次构建号」且
@@ -210,6 +225,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// cl74：启动自动检查 OTA（initState 的 post-frame 回调里调用一次）。
   /// 有新版本仅弹全局提示，不自动下载/安装；失败静默（不阻塞启动）。
   Future<void> _autoCheckOta(BuildContext context) async {
+    // cl08：离线模式 → 不检查官方更新。
+    if (ref.read(offlineModeProvider)) return;
     try {
       final UpdateChannel ch =
           ref.read(settingsRepositoryProvider).updateChannel;
@@ -287,10 +304,15 @@ class _AppShellState extends ConsumerState<AppShell> {
     );
 
     final int pageIndex = ref.watch(shellPageIndexProvider);
+    final double scale = ref.watch(motionScaleProvider);
     final int? selectedTab = ref.watch(selectedTabIndexProvider);
+    // 批3 #580 · B：切 Tab 过渡时长跟随性能档（motionScale）。
+    _tabAnim.duration = Duration(milliseconds: (280 * scale).round());
     // 批3 #580 · A：切 Tab 时复位滚动磨砂进度（新页尚未滚动，条边保持隐藏）。
     ref.listen<int>(shellPageIndexProvider, (int? _, int __) {
       ref.read(pageScrollBlurProvider.notifier).state = 0;
+      // 批3 #580 · B：切 Tab 触发内容「上浮淡入」过渡（不重建页面，滚动位置保活）。
+      _tabAnim.forward(from: 0);
     });
 
     // 悬浮层（播放控件 + dock）脱离文档流后的底部预留：保证下层 5 个 Tab
@@ -360,10 +382,25 @@ class _AppShellState extends ConsumerState<AppShell> {
                             // R32 一.1：移除内容区底部圆角裁切（cl53-E 原为
                             // 与玻璃表面衔接，原生极简下玻璃表面已无，圆角仅是
                             // 多余的边角约束）；5 页统一无圆角直通。
-                            child: IndexedStack(
-                              index: pageIndex,
-                              children: _pages,
-                            ),
+                child: AnimatedBuilder(
+                  animation: _tabAnim,
+                  builder: (BuildContext context, Widget? _) {
+                    // 批3 #580 · B：切 Tab 时内容上浮 10px + 淡入 0.82→1.0。
+                    // IndexedStack 每帧以最新 pageIndex 重建，但 _pages 为 const，
+                    // 子页 element 按位置 + 类型复用，滚动位置不丢（不破坏 C11）。
+                    final double v = _tabAnim.value;
+                    return Transform.translate(
+                      offset: Offset(0, (1 - v) * 10),
+                      child: Opacity(
+                        opacity: 0.82 + 0.18 * v,
+                        child: IndexedStack(
+                          index: pageIndex,
+                          children: _pages,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                           ),
                         ),
                       ],
@@ -391,24 +428,14 @@ class _AppShellState extends ConsumerState<AppShell> {
               ),
             ),
           ),
-          // ── 批3 #580 · A 底部磨砂边（滑动模糊过渡 · 底 / 上下方模糊）──
-          // 浮于内容下缘（Dock 上方），随活动页滚动淡入；停在底部时自动隐藏。
+          // ── 批3 #580 · A+B 底部 Dock 融合磨砂边（滚动磨砂 + 常驻羽化，单 BackdropFilter）──
+          // 合并原底部 FrostEdgeBar(top:false) 与 DockTopFeather，省去两层重叠模糊采样。
           Positioned(
             left: 0,
             right: 0,
             bottom: floatingReserve,
             height: 22,
-            child: const FrostEdgeBar(top: false),
-          ),
-          // ── 批3 #580 · B Dock 顶部常驻羽化模糊带 ──
-          // 不依赖滚动，始终以极淡强度浮于 Dock 正上方，使内容滑入 Dock 时
-          // 自然羽化（上下方模糊的「下」侧），Dock 与内容之间无硬边。
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: floatingReserve,
-            height: 18,
-            child: const DockTopFeather(),
+            child: const DockBlendEdge(),
           ),
           // ── 批3 #580 · C 切 Tab 进出场磨砂脉冲 ──
           // 绘于 Dock / 浮层之下，切换页面时对内容区做一次短暂整屏磨砂脉冲，

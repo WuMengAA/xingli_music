@@ -179,6 +179,13 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           ],
         ),
         SettingGroup(
+          id: 'audio_engine',
+          name: '播放方式',
+          items: <SettingItem>[
+            SettingItem(id: 'musicEngine', title: '播放引擎', kind: SettingKind.chips),
+          ],
+        ),
+        SettingGroup(
           id: 'audio_mine',
           name: '我的音乐',
           items: <SettingItem>[
@@ -204,62 +211,6 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'biliQuality', title: 'B站清晰度', kind: SettingKind.chips),
             // cl76：视频背景（B站）开关——长按播放器「视频背景」可设模糊/同步/变速。
             SettingItem(id: 'biliVisual', title: '视频背景（B站）', kind: SettingKind.toggle),
-          ],
-        ),
-        SettingGroup(
-          id: 'audio_engine',
-          name: '播放方式',
-          items: <SettingItem>[
-            SettingItem(id: 'musicEngine', title: '播放引擎', kind: SettingKind.chips),
-          ],
-        ),
-      ],
-    ),
-    // cl46：凡游戏画面、机制统统迁入「游戏」分类。
-    SettingCollection(
-      id: 'game',
-      name: '游戏',
-      groups: <SettingGroup>[
-        SettingGroup(
-          id: 'game_quick',
-          name: '游戏设置',
-          items: <SettingItem>[
-            SettingItem(id: 'whiteNoise', title: '白噪音', kind: SettingKind.toggle),
-            SettingItem(id: 'worldAudio', title: '世界音效', kind: SettingKind.toggle),
-            SettingItem(id: 'hudEdit', title: '布局编辑', kind: SettingKind.toggle),
-            // R26skel-b3：游戏 UI 大小（HUD 摇杆/动作键缩放）。
-            SettingItem(id: 'hudScale', title: '游戏 UI 大小', kind: SettingKind.slider),
-          ],
-        ),
-        // 画质：低中高预设（卡片预览选择）+ 分辨率 + 帧率 + 阴影。
-        SettingGroup(
-          id: 'game_quality',
-          name: '游戏画质',
-          items: <SettingItem>[
-            // 画质预设由「游戏画面·高级设置」(gameGraphics) 页内画质档统一承载，
-            // 此处不再单列，避免与 gameGraphics 层层指向同一批画质 provider（去套娃）。
-            SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
-            SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
-            SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
-            // B1：将主设置页「性能与质量」里的图形后端与特效收敛进游戏设置，
-            // 避免与主设置页重复，统一经「游戏设置」入口管理。
-            SettingItem(id: 'engineBackend', title: '图形后端（Windows）'),
-            SettingItem(id: 'fxNoise', title: '噪点纹理'),
-            SettingItem(id: 'fxBlur', title: '玻璃模糊'),
-            SettingItem(id: 'fxBg', title: '背景动画'),
-            SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）'),
-          ],
-        ),
-        // 机制：存档机制 / 世界机制 / 自定义世界机制。
-        SettingGroup(
-          id: 'game_mechanics',
-          name: '机制',
-          items: <SettingItem>[
-            SettingItem(id: 'autoBackup', title: '后台自动备份'),
-            SettingItem(id: 'backupInterval', title: '备份间隔', kind: SettingKind.chips),
-            SettingItem(id: 'worldSave', title: '世界存档'),
-            SettingItem(id: 'worldSfx', title: '世界音效设置'),
-            SettingItem(id: 'worldGen', title: '自定义世界机制'),
           ],
         ),
       ],
@@ -315,6 +266,55 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'fxBlur', title: '玻璃模糊', kind: SettingKind.toggle),
             SettingItem(id: 'fxBg', title: '背景动画', kind: SettingKind.toggle),
             SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）', kind: SettingKind.toggle),
+          ],
+        ),
+      ],
+    ),
+    // cl46：凡游戏画面、机制统统迁入「游戏」分类。
+    SettingCollection(
+      id: 'game',
+      name: '游戏',
+      groups: <SettingGroup>[
+        SettingGroup(
+          id: 'game_quick',
+          name: '游戏设置',
+          items: <SettingItem>[
+            SettingItem(id: 'whiteNoise', title: '白噪音', kind: SettingKind.toggle),
+            SettingItem(id: 'worldAudio', title: '世界音效', kind: SettingKind.toggle),
+            SettingItem(id: 'hudEdit', title: '布局编辑', kind: SettingKind.toggle),
+            // R26skel-b3：游戏 UI 大小（HUD 摇杆/动作键缩放）。
+            SettingItem(id: 'hudScale', title: '游戏 UI 大小', kind: SettingKind.slider),
+          ],
+        ),
+        // 画质：低中高预设（卡片预览选择）+ 分辨率 + 帧率 + 阴影。
+        SettingGroup(
+          id: 'game_quality',
+          name: '游戏画质',
+          items: <SettingItem>[
+            // 画质预设由「游戏画面·高级设置」(gameGraphics) 页内画质档统一承载，
+            // 此处不再单列，避免与 gameGraphics 层层指向同一批画质 provider（去套娃）。
+            SettingItem(id: 'renderResolution', title: '分辨率', kind: SettingKind.chips),
+            SettingItem(id: 'fpsLimit', title: '帧率', kind: SettingKind.chips),
+            SettingItem(id: 'gameGraphics', title: '游戏画面 · 高级设置'),
+            // B1：将主设置页「性能与质量」里的图形后端与特效收敛进游戏设置，
+            // 避免与主设置页重复，统一经「游戏设置」入口管理。
+            SettingItem(id: 'engineBackend', title: '图形后端（Windows）'),
+            SettingItem(id: 'fxNoise', title: '噪点纹理'),
+            SettingItem(id: 'fxBlur', title: '玻璃模糊'),
+            SettingItem(id: 'fxBg', title: '背景动画'),
+            SettingItem(id: 'fxLiquid', title: '液态玻璃（折射）'),
+          ],
+        ),
+        // 机制：存档机制 / 世界机制 / 自定义世界机制。
+        SettingGroup(
+          id: 'game_mechanics',
+          name: '机制',
+          items: <SettingItem>[
+            SettingItem(id: 'autoBackup', title: '后台自动备份'),
+            SettingItem(id: 'backupInterval', title: '备份间隔', kind: SettingKind.chips),
+            SettingItem(id: 'worldSave', title: '世界存档'),
+            SettingItem(id: 'worldSfx', title: '世界音效设置'),
+            SettingItem(id: 'worldGen', title: '自定义世界机制'),
           ],
         ),
       ],

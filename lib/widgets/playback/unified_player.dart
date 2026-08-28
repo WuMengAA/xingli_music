@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../l10n/app_localizations.dart';
 
 import '../../core/layout/responsive_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
@@ -24,6 +25,7 @@ import '../../core/utils/app_motion.dart';
 import '../sources/music_quality_sheet.dart';
 import 'bili_visual_options_sheet.dart';
 import 'equalizer_panel.dart';
+import '../../providers/settings/performance_providers.dart';
 import 'playback_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
@@ -411,6 +413,7 @@ Widget buildTransportRow(
   required VoidCallback onToggleFav,
 }) {
   final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
+  final double scale = ref.watch(motionScaleProvider);
   // cl03：缓冲/加载中 → 播放键位置显示「等待加载」转圈（不跳位、默认折叠不打扰）。
   final bool buffering =
       ref.watch(playbackStateProvider).valueOrNull == PlaybackState.loading;
@@ -418,6 +421,13 @@ Widget buildTransportRow(
   final bool muted = ref.watch(musicMutedProvider);
   final double playSize = fullscreen ? 40 : 32;
   final double sideSize = fullscreen ? 28 : 24;
+
+  final Future<void> Function() onToggle = () async {
+    final String msg = await ref.read(playbackActionsProvider).toggle();
+    if (msg.isNotEmpty && context.mounted) {
+      showPlaybackToast(context, msg);
+    }
+  };
 
   return PlaybackTransportRow(
     spacing: fullscreen ? 12 : 6,
@@ -469,17 +479,22 @@ Widget buildTransportRow(
           ),
         )
       else
-        PlaybackIconButton(
-          svgName: isPlaying ? AppIcons.pause : AppIcons.play,
-          size: playSize,
-          tooltip: isPlaying ? '暂停' : '播放',
-          onTap: () async {
-            final String msg =
-                await ref.read(playbackActionsProvider).toggle();
-            if (msg.isNotEmpty && context.mounted) {
-              showPlaybackToast(context, msg);
-            }
-          },
+        AnimatedCrossFade(
+          duration: Duration(milliseconds: (220 * scale).round()),
+          crossFadeState:
+              isPlaying ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+          firstChild: PlaybackIconButton(
+            svgName: AppIcons.pause,
+            size: playSize,
+            tooltip: AppLocalizations.of(context).pause,
+            onTap: onToggle,
+          ),
+          secondChild: PlaybackIconButton(
+            svgName: AppIcons.play,
+            size: playSize,
+            tooltip: AppLocalizations.of(context).play,
+            onTap: onToggle,
+          ),
         ),
       PlaybackIconButton(
         svgName: AppIcons.next,

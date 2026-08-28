@@ -53,20 +53,16 @@ class NowPlayingRoute extends PageRouteBuilder<Widget> {
               parent: animation,
               curve: AppMotion.pageCurve,
             );
-            final Animation<Offset> slide = Tween<Offset>(
-              begin: const Offset(0, 0.12),
-              end: Offset.zero,
-            ).chain(CurveTween(curve: AppMotion.pageCurve)).animate(curved);
-            final Animation<double> scale =
-                Tween<double>(begin: 0.94, end: 1.0).animate(curved);
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(
-                position: slide,
-                child: ScaleTransition(
-                  scale: scale,
-                  child: child,
-                ),
+            // cl06：整卡「四边扩散」放大（用户需求）——卡片四边按比例向外
+            // 扩到全屏（scale 0.8→1.0）+ 圆角从卡片圆角过渡到 0 + 页面自带
+            // 模糊背景随扩散渐显。去掉旧的「上展 + 微缩放」。
+            final double v = curved.value;
+            return ClipRRect(
+              borderRadius: BorderRadius.circular((1 - v) * 28),
+              child: Transform.scale(
+                scale: 0.8 + v * 0.2,
+                alignment: Alignment.center,
+                child: FadeTransition(opacity: curved, child: child),
               ),
             );
           },

@@ -27,10 +27,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cross_file/cross_file.dart';
 
+import '../../core/utils/app_motion.dart';
 import '../../models/companion_action.dart';
 import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
 import '../../pages/canvas/photo_gallery_page.dart';
+import '../../pages/now_playing/now_playing_page.dart';
 import '../../pages/canvas/voxel_canvas_page.dart';
 import '../../pages/settings/settings_page.dart';
 import '../../providers/settings/settings_layout_provider.dart';
@@ -4355,6 +4357,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                 child: UnifiedPlayer(
                   initialCollapsed: true,
                   lyricsSlot: const LyricsView(),
+                  // cl06：统一整卡 Hero 放大进全屏播放页（与底部音乐卡一致），
+                  // 不再走内部 Overlay 展开。
+                  heroTag: NpHeroTags.card,
+                  onOpenNowPlaying: () {
+                    Navigator.of(context).push(
+                      NowPlayingRoute(page: const NowPlayingPage()),
+                    );
+                  },
                 ),
               ),
             ),

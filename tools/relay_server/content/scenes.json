@@ -1,0 +1,10 @@
+{
+  "scenes": [
+    { "id": "rainy-library", "name": "雨夜书房", "soundscape": "雨声 · 白噪音 · 轻音乐", "visual": { "accent": "#4A6CFF", "glyph": "🌧️" } },
+    { "id": "aurora-meadow", "name": "极光草原", "soundscape": "氛围电子 · 环境音", "visual": { "accent": "#9B7BFF", "glyph": "🌌" } },
+    { "id": "deep-sea", "name": "深海漫游", "soundscape": "器乐 · 后摇 · 沉浸", "visual": { "accent": "#2B2D6B", "glyph": "🐋" } },
+    { "id": "forest-dawn", "name": "森林晨光", "soundscape": "鸟鸣 · 民谣 · 原声", "visual": { "accent": "#5B8C5A", "glyph": "🌲" } },
+    { "id": "star-drift", "name": "星际漂流", "soundscape": "合成器 · 太空氛围", "visual": { "accent": "#1A103C", "glyph": "🪐" } },
+    { "id": "campfire", "name": "篝火营地", "soundscape": "民谣 · 手风琴 · 温暖", "visual": { "accent": "#D9A441", "glyph": "🔥" } }
+  ]
+}

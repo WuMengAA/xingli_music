@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../l10n/app_localizations.dart';
 
 import '../../core/app_version.dart';
 import '../../core/terms/naming_dict.dart';
@@ -10,13 +11,20 @@ import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
+import '../../pages/settings/template_gallery_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/settings/settings_persistence_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/netease_provider.dart';
+import '../../providers/auth/user_provider.dart';
+import '../../providers/content/content_providers.dart';
+import '../../providers/security/cert_policy_provider.dart';
+import '../../providers/settings/offline_providers.dart';
 import '../../providers/theme/theme_providers.dart';
+import '../../providers/ui/locale_provider.dart';
+import '../../providers/ui/template_provider.dart';
 import '../../repositories/settings_repository.dart';
 import '../../services/audio/audio_service.dart';
 import '../../services/ota_service.dart';
@@ -30,6 +38,7 @@ import '../../widgets/settings/log_upload_sheet.dart';
 import '../../widgets/settings/version_update_sheet.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../scene/custom_scene_list_page.dart';
+import 'auth_page.dart';
 import 'scene_editor_page.dart';
 import 'server_settings_page.dart';
 import 'voxel_game_settings_page.dart';
@@ -112,41 +121,54 @@ class _GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
+    // cl06：分组卡统一卡片化（bgSurface + 描边 + 圆角，与曲库/探索卡片一致），
+    // 设置页从「透明浮层」升级为分层卡片。
     return Padding(
       padding: const EdgeInsets.all(AppSpace.md),
-      child: Material(
-        // SwitchListTile / InkWell 需要最近 Material 祖先，否则 ink 不可见。
-        type: MaterialType.transparency,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            // 大分类头：强调色圆底图标 + 标题，视觉上区分各大类。
-            Row(
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.bgSurface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: c.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          // SwitchListTile / InkWell 需要最近 Material 祖先，否则 ink 不可见。
+          type: MaterialType.transparency,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpace.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: c.accentSoft,
-                    borderRadius: AppRadius.brMd,
-                  ),
-                  child: Icon(icon, size: 17, color: c.accent),
-                ),
-                const SizedBox(width: AppSpace.sm),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: context.appText.subtitle.copyWith(
-                      color: c.textPrimary,
-                      fontWeight: FontWeight.w600,
+                // 大分类头：强调色圆底图标 + 标题，视觉上区分各大类。
+                Row(
+                  children: <Widget>[
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: c.accentSoft,
+                        borderRadius: AppRadius.brMd,
+                      ),
+                      child: Icon(icon, size: 18, color: c.accent),
                     ),
-                  ),
+                    const SizedBox(width: AppSpace.sm),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: context.appText.subtitle.copyWith(
+                          color: c.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: AppSpace.md),
+                content,
               ],
             ),
-            const SizedBox(height: AppSpace.md),
-            content,
-          ],
+          ),
         ),
       ),
     );
@@ -343,6 +365,62 @@ class _VisualContent extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpace.lg),
 
+        // ═══ cl07：语言（i18n）═══
+        Text(
+          AppLocalizations.of(context).language,
+          style: context.appText.body,
+        ),
+        const SizedBox(height: AppSpace.xs),
+        Wrap(
+          spacing: AppSpace.xs,
+          children: <Widget>[
+            for (final Locale loc in const <Locale>[Locale('zh'), Locale('en')])
+              ChoiceChip(
+                label: Text(loc.languageCode == 'zh' ? '简体中文' : 'English'),
+                selected: ref.watch(localeProvider).languageCode ==
+                    loc.languageCode,
+                onSelected: (_) {
+                  ref.read(localeProvider.notifier).set(loc);
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Text(
+          '切换界面语言，即时生效。',
+          style: context.appText.artist,
+        ),
+        const SizedBox(height: AppSpace.lg),
+
+        // ═══ cl08：界面模板（全站标准模板库）═══
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            Icons.dashboard_customize_outlined,
+            color: context.appColors.accent,
+          ),
+          title: Text('界面模板', style: context.appText.body),
+          subtitle: Text(
+            '全站标准 · ${ref.watch(templateProvider).label}',
+            style: context.appText.caption,
+          ),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            color: context.appColors.iconInactive,
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const TemplateGalleryPage(),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Text(
+          '模板只定布局样式，文字与图片内容由数据层填充，可随时更换。',
+          style: context.appText.artist,
+        ),
+        const SizedBox(height: AppSpace.lg),
+
         Text('界面密度', style: context.appText.body),
         const SizedBox(height: AppSpace.xs),
         Wrap(
@@ -493,6 +571,78 @@ class _AboutContent extends ConsumerWidget {
           '星璃音乐（Stelarith）是一个随音乐与心情变化的沉浸式个人音乐空间：'
           '场景无限滑动、画面随曲目流转。开源、本地优先、持续迭代。',
           style: context.appText.bodyMuted,
+        ),
+        const SizedBox(height: AppSpace.lg),
+        // cl08：离线模式（不依靠官方服务器）。
+        SwitchListTile(
+          value: ref.watch(offlineModeProvider),
+          onChanged: (bool v) =>
+              ref.read(offlineModeProvider.notifier).set(v),
+          title: const Text('离线模式'),
+          subtitle: const Text('不检查更新 · 不连官方中转 · 不上传日志，完全本地运行'),
+          activeThumbColor: context.appColors.accent,
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: AppSpace.lg),
+        // cl08：内容服务地址（后端内容联动）。
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            Icons.dns_outlined,
+            color: context.appColors.accent,
+          ),
+          title: Text('内容服务地址', style: context.appText.body),
+          subtitle: Text(
+            ref.watch(contentBaseUrlProvider),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.appText.caption,
+          ),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            color: context.appColors.iconInactive,
+          ),
+          onTap: () => _editContentUrl(context, ref),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Text(
+          '场景 / 推荐 / 公告由后端动态下发，App 与 ClassIsland 小组件共用。',
+          style: context.appText.artist,
+        ),
+        const SizedBox(height: AppSpace.lg),
+        // cl10：账号（用户系统）。
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(
+            Icons.account_circle_outlined,
+            color: context.appColors.accent,
+          ),
+          title: Text('账号', style: context.appText.body),
+          subtitle: Text(
+            ref.watch(authProvider).isAuthed
+                ? '已登录：${ref.watch(authProvider).user?.username ?? ''}'
+                : '登录后可跨设备同步偏好与收藏',
+            style: context.appText.caption,
+          ),
+          trailing: Icon(
+            Icons.chevron_right_rounded,
+            color: context.appColors.iconInactive,
+          ),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AuthPage()),
+          ),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        // cl10：连接安全策略（加密连接）。
+        SwitchListTile(
+          value: ref.watch(certPolicyProvider) == CertPolicy.lenient,
+          onChanged: (bool v) => ref.read(certPolicyProvider.notifier).set(
+            v ? CertPolicy.lenient : CertPolicy.strict,
+          ),
+          title: const Text('连接安全：宽松模式'),
+          subtitle: const Text('自托管局域网接受自签名证书（仅加密不认证）'),
+          activeThumbColor: context.appColors.accent,
+          contentPadding: EdgeInsets.zero,
         ),
         const SizedBox(height: AppSpace.lg),
         const _InfoRow(label: '应用名称', value: SettingsPage.appName),
@@ -916,6 +1066,40 @@ class _NeteaseSourceTile extends ConsumerWidget {
         ),
       ),
     );
+  }
+}
+
+/// cl08：编辑内容服务地址（弹窗输入，保存即生效）。
+Future<void> _editContentUrl(BuildContext context, WidgetRef ref) async {
+  final TextEditingController ctrl = TextEditingController(
+    text: ref.read(contentBaseUrlProvider),
+  );
+  final String? result = await showDialog<String>(
+    context: context,
+    builder: (BuildContext ctx) => AlertDialog(
+      title: const Text('内容服务地址'),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        keyboardType: TextInputType.url,
+        decoration: const InputDecoration(
+          hintText: kDefaultContentBaseUrl,
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('取消'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, ctrl.text),
+          child: const Text('保存'),
+        ),
+      ],
+    ),
+  );
+  if (result != null && result.trim().isNotEmpty) {
+    ref.read(contentBaseUrlProvider.notifier).set(result.trim());
   }
 }
 

@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
 
 import 'app_shell.dart';
 import 'core/theme/app_theme_colors.dart';
@@ -19,6 +21,7 @@ import 'providers/settings/notification_providers.dart';
 import 'providers/audio/auto_play_providers.dart';
 import 'providers/stats/track_stats_providers.dart';
 import 'providers/theme/theme_providers.dart';
+import 'providers/ui/locale_provider.dart';
 import 'services/audio/audio_handler.dart';
 import 'services/audio/audio_service.dart';
 import 'services/log_service.dart';
@@ -148,9 +151,18 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       // 代价：Windows 屏幕阅读器读不到控件；Android 不受影响（条件包裹）。
       excluding: !kIsWeb && Platform.isWindows,
       child: MaterialApp(
-      title: '星璃 · 无限音乐空间',
+      onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
       navigatorKey: _navKey,
+      // cl07 i18n：语言 provider 驱动（中文/英文），即时生效 + 持久化。
+      locale: ref.watch(localeProvider),
+      supportedLocales: const <Locale>[Locale('zh'), Locale('en')],
+      localizationsDelegates: const <LocalizationsDelegate<dynamic>>[
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       // R22：全局 UI 大小 → 全局 MediaQuery 缩放（布局尺寸 + 文字 + 四边
       // 安全区一起按系数缩放，腾出有效空间；基于逻辑像素，DPI 自适应）。
       builder: (BuildContext context, Widget? child) {
@@ -199,6 +211,9 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       ),
       darkTheme: buildDarkTheme(skinPrimary),
       themeMode: themeMode,
+      // cl07：主题/皮肤/明暗切换平滑过渡（不再硬跳）。
+      themeAnimationDuration: const Duration(milliseconds: 400),
+      themeAnimationCurve: Curves.easeOutCubic,
       home: const AppShell(),
       ),
     );

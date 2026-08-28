@@ -64,6 +64,9 @@ ThemeData buildAppTheme(Color primary, {Brightness brightness = Brightness.dark}
     brightness: brightness,
     colorScheme: scheme,
     scaffoldBackgroundColor: StelarithColors.deepSpacePurple,
+    // cl04：去 Material 水波纹 → 原生按压感（CanvasPage 沉浸孤岛一致）。
+    splashFactory: NoSplash.splashFactory,
+    highlightColor: Colors.white.withValues(alpha: 0.08),
 
     // ── 文字：统一由主题驱动 ─────────────────────────
     textTheme: TextTheme(

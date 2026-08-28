@@ -20,6 +20,8 @@ import '../../providers/audio/audio_providers.dart';
 import '../../services/net/lan_discovery.dart';
 import '../../services/net/net_message.dart';
 import '../../services/net/net_node.dart';
+import '../security/cert_policy_provider.dart';
+import '../settings/offline_providers.dart';
 
 // ── 角色 / 连接状态 ─────────────────────────────────────
 
@@ -419,10 +421,19 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         roomCode: room,
       );
       if (relayUrl != null) {
+        // cl08：离线模式（不依靠官方服务器）→ 禁用官方中转联机。
+        if (ref.read(offlineModeProvider)) {
+          throw Exception('离线模式已开启，暂不可联机');
+        }
         // 中转模式：连中转服务器并登记房间，由服务器做星型扇出（跨 NAT）。
         final String roomCode = (room ?? _genRoom()).toUpperCase();
-        _node =
-            await NetNode.relay(relayUrl, roomCode, name, isHostGame: true);
+        _node = await NetNode.relay(
+          relayUrl,
+          roomCode,
+          name,
+          isHostGame: true,
+          allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
+        );
         await _node!.ready.timeout(const Duration(seconds: 6));
         // cl79：服务器 ctl:error（如 room full）经 [NetNode.relayError] 透传。
         final String? relayErr = _node!.relayError;
@@ -488,6 +499,10 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         roomCode: room,
       );
       if (relayUrl != null) {
+        // cl08：离线模式（不依靠官方服务器）→ 禁用官方中转联机。
+        if (ref.read(offlineModeProvider)) {
+          throw Exception('离线模式已开启，暂不可联机');
+        }
         // 中转模式：凭房间号加入，无需房主 IP。
         if (room == null || room.isEmpty) {
           throw Exception('房间号不能为空');
@@ -497,6 +512,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           room.toUpperCase(),
           name,
           isHostGame: false,
+          allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
         );
         await _node!.ready.timeout(const Duration(seconds: 6));
         // cl79：服务器 ctl:error（room required / room full）经 relayError 透传。
@@ -512,7 +528,11 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         await _joined!.future.timeout(const Duration(seconds: 6));
         return true;
       }
-      _node = await NetNode.connect(ip, port);
+      _node = await NetNode.connect(
+        ip,
+        port,
+        allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
+      );
       state = state.copyWith(
         role: NetRole.client,
         status: ConnStatus.connected,
@@ -1130,7 +1150,11 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       return;
     }
     try {
-      _node = await NetNode.connect(ip, port);
+      _node = await NetNode.connect(
+        ip,
+        port,
+        allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
+      );
       state = state.copyWith(localId: _node!.localId);
       _subscribe();
       _sendHello();

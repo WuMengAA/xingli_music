@@ -14,6 +14,8 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
+import '../../providers/sources/netease_provider.dart';
+import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
 import 'station_lobby_page.dart';
 
@@ -320,73 +322,159 @@ class _EmptyHint extends StatelessWidget {
       );
 }
 
-/// 简易选曲弹层：从本地曲库搜索过滤。
-class _TrackPicker extends ConsumerWidget {
+/// 选曲弹层：本地曲库 / 在线（网易云 + 哔哩哔哩）双标签搜索。
+///
+/// - 本地：复用 [musicLibraryProvider]（含「听过的歌自动入曲库」）。
+/// - 在线：未登录时提示先登录；已登录则并行搜两源，给听众真正的点歌渠道。
+/// 顶部「取消」可明确退出选曲（同时底部抽屉仍可下拉关闭）。
+class _TrackPicker extends ConsumerStatefulWidget {
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TrackPicker> createState() => _TrackPickerState();
+}
+
+class _TrackPickerState extends ConsumerState<_TrackPicker> {
+  final TextEditingController _q = TextEditingController();
+  bool _online = false;
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.appColors;
-    final TextEditingController q = TextEditingController();
-    final AsyncValue<List<Track>> lib = ref.watch(musicLibraryProvider);
-    return StatefulBuilder(
-      builder: (context, setState) => Container(
-        padding: const EdgeInsets.all(16),
-        height: 480,
-        child: Column(
-          children: <Widget>[
-            TextField(
-              controller: q,
-              autofocus: true,
-              decoration: InputDecoration(
-                hintText: '搜索曲名 / 歌手',
-                hintStyle: TextStyle(color: c.textSecondary),
-                prefixIcon: Icon(Icons.search, color: c.textSecondary),
-                filled: true,
-                fillColor: c.bgPage,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      height: 520,
+      child: Column(
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              SegmentedButton<bool>(
+                segments: const <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(value: false, label: Text('本地')),
+                  ButtonSegment<bool>(value: true, label: Text('在线')),
+                ],
+                selected: <bool>{_online},
+                onSelectionChanged: (Set<bool> s) =>
+                    setState(() => _online = s.first),
               ),
-              style: TextStyle(color: c.textPrimary),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: lib.when(
-                data: (tracks) {
-                  final String k = q.text.trim().toLowerCase();
-                  final List<Track> filtered = k.isEmpty
-                      ? tracks
-                      : tracks
-                          .where((t) =>
-                              (t.title.toLowerCase().contains(k)) ||
-                              (t.artist.toLowerCase().contains(k)))
-                          .toList();
-                  if (filtered.isEmpty) {
-                    return Center(
-                        child: Text('无匹配', style: TextStyle(color: c.textSecondary)));
-                  }
-                  return ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (_, i) {
-                      final Track t = filtered[i];
-                      return ListTile(
-                        title: Text(t.title, style: TextStyle(color: c.textPrimary)),
-                        subtitle: Text(t.artist,
-                            style: TextStyle(color: c.textSecondary, fontSize: 12)),
-                        onTap: () => Navigator.of(context).pop(t),
-                      );
-                    },
-                  );
-                },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                    child: Text('读取曲库失败', style: TextStyle(color: c.danger))),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('取消'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _q,
+            autofocus: true,
+            decoration: InputDecoration(
+              hintText: _online ? '搜索网易云 / 哔哩哔哩' : '搜索曲名 / 歌手',
+              hintStyle: TextStyle(color: c.textSecondary),
+              prefixIcon: Icon(Icons.search, color: c.textSecondary),
+              filled: true,
+              fillColor: c.bgPage,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
               ),
             ),
-          ],
-        ),
+            style: TextStyle(color: c.textPrimary),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          Expanded(child: _online ? _buildOnline(c) : _buildLocal(c)),
+        ],
       ),
+    );
+  }
+
+  Widget _buildLocal(AppThemeColors c) {
+    final AsyncValue<List<Track>> lib = ref.watch(musicLibraryProvider);
+    return lib.when(
+      data: (List<Track> tracks) {
+        final String k = _q.text.trim().toLowerCase();
+        final List<Track> filtered = k.isEmpty
+            ? tracks
+            : tracks
+                .where((Track t) =>
+                    (t.title.toLowerCase().contains(k)) ||
+                    (t.artist.toLowerCase().contains(k)))
+                .toList();
+        if (filtered.isEmpty) {
+          return Center(
+              child: Text('无匹配', style: TextStyle(color: c.textSecondary)));
+        }
+        return ListView.builder(
+          itemCount: filtered.length,
+          itemBuilder: (_, int i) {
+            final Track t = filtered[i];
+            return ListTile(
+              title: Text(t.title, style: TextStyle(color: c.textPrimary)),
+              subtitle: Text(t.artist,
+                  style: TextStyle(color: c.textSecondary, fontSize: 12)),
+              onTap: () => Navigator.of(context).pop(t),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (Object e, _) => Center(
+          child: Text('读取曲库失败', style: TextStyle(color: c.danger))),
+    );
+  }
+
+  Widget _buildOnline(AppThemeColors c) {
+    final String kw = _q.text.trim();
+    if (kw.isEmpty) {
+      return Center(
+          child: Text('输入关键词搜索在线曲库',
+              style: TextStyle(color: c.textSecondary)));
+    }
+    final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
+    final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
+    if (!ne && !bi) {
+      return Center(
+          child: Text('点歌需先登录网易云 / 哔哩哔哩',
+              style: TextStyle(color: c.textSecondary)));
+    }
+    final AsyncValue<List<Track>> neRes = ne
+        ? ref.watch(neteaseSearchProvider(kw))
+        : const AsyncValue<List<Track>>.data(<Track>[]);
+    final AsyncValue<List<Track>> biRes = bi
+        ? ref.watch(bilibiliSearchProvider(kw))
+        : const AsyncValue<List<Track>>.data(<Track>[]);
+    final List<Track> neHits = neRes.valueOrNull ?? const <Track>[];
+    final List<Track> biHits = biRes.valueOrNull ?? const <Track>[];
+    if (neHits.isEmpty && biHits.isEmpty) {
+      final bool loading = neRes.isLoading || biRes.isLoading;
+      if (loading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return Center(
+          child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)));
+    }
+    final List<Track> all = <Track>[...neHits, ...biHits];
+    return ListView.builder(
+      itemCount: all.length,
+      itemBuilder: (_, int i) {
+        final Track t = all[i];
+        final String src = t.sourceId == 'netease'
+            ? '网易云'
+            : t.sourceId == 'bilibili'
+                ? 'B站'
+                : '本地';
+        return ListTile(
+          title: Text(t.title, style: TextStyle(color: c.textPrimary)),
+          subtitle: Text('$src · ${t.artist}',
+              style: TextStyle(color: c.textSecondary, fontSize: 12)),
+          onTap: () => Navigator.of(context).pop(t),
+        );
+      },
     );
   }
 }

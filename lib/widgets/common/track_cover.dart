@@ -53,6 +53,12 @@ class TrackCover extends StatelessWidget {
           height: size,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _placeholder(context),
+          // cl07：封面加载完成渐显（不硬跳）。
+          frameBuilder: (BuildContext c, Widget child, int? frame,
+              bool wasSync) {
+            if (wasSync) return child;
+            return _fadeIn(child);
+          },
         );
       }
       final String? url = t.coverUrl;
@@ -65,7 +71,8 @@ class TrackCover extends StatelessWidget {
           errorBuilder: (_, __, ___) => _placeholder(context),
           loadingBuilder: (BuildContext context, Widget child,
               ImageChunkEvent? progress) {
-            if (progress == null) return child;
+            // cl07：加载完成 → 平滑渐显，替代「占位块 → 图」硬跳。
+            if (progress == null) return _fadeIn(child);
             return _placeholder(context);
           },
         );
@@ -73,6 +80,16 @@ class TrackCover extends StatelessWidget {
     }
     return _placeholder(context);
   }
+
+  /// cl07：封面加载完成平滑渐显（180ms，避免占位块→图硬跳）。
+  Widget _fadeIn(Widget child) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(begin: 0, end: 1),
+    duration: const Duration(milliseconds: 180),
+    curve: Curves.easeOut,
+    builder: (BuildContext context, double v, Widget? c) =>
+        Opacity(opacity: v, child: c),
+    child: child,
+  );
 
   Widget _placeholder(BuildContext context) {
     return ColoredBox(

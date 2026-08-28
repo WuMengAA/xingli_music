@@ -298,17 +298,30 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      showCheckmark: false,
-      selectedColor: c.accentSoft,
-      backgroundColor: c.bgSurface,
-      labelStyle: (selected ? context.appText.button : context.appText.caption)
-          .copyWith(color: selected ? c.accent : c.textSecondary),
-      visualDensity: VisualDensity.compact,
-      labelPadding: const EdgeInsets.symmetric(horizontal: 14),
+    // cl04：去 Material ChoiceChip → iOS 分段胶囊 / WinUI SegmentedControl 原生质感。
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? c.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: selected ? c.accent : c.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: (selected ? context.appText.button : context.appText.caption)
+                .copyWith(color: selected ? c.onAccent : c.textSecondary),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -350,37 +363,48 @@ class _TrackRowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: InkWell(
+    // cl04：iOS 分组卡 + Fluent Card 质感——浅色卡片底 + 1px 描边分层。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: onTap,
-        child: Row(
-          children: <Widget>[
-            _RowCover(track: track),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.appText.trackName),
-                  const SizedBox(height: 4),
-                  Text(
-                    track.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.appText.caption,
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            child: Row(
+              children: <Widget>[
+                _RowCover(track: track),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appText.trackName),
+                      const SizedBox(height: 4),
+                      Text(
+                        track.artist,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.caption,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Icon(Icons.play_circle_rounded,
+                    size: 22, color: c.accent),
+              ],
             ),
-            Icon(Icons.play_circle_outline_rounded,
-                size: 22, color: c.accent),
-          ],
+          ),
         ),
       ),
     );
@@ -435,47 +459,64 @@ class _RankRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
     final bool top = rank <= 3;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: InkWell(
+    // cl04：前三名奖牌金 / 银 / 铜（iOS 风格分层色）。
+    final Color rankColor = switch (rank) {
+      1 => const Color(0xFFD9A441),
+      2 => const Color(0xFFB8BEC9),
+      3 => const Color(0xFFC97B4E),
+      _ => c.textTertiary,
+    };
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: onTap,
-        child: Row(
-          children: <Widget>[
-            SizedBox(
-              width: 28,
-              child: Text(
-                '$rank',
-                textAlign: TextAlign.center,
-                style: context.appText.title.copyWith(
-                  color: top ? c.accent : c.textTertiary,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(stats.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.appText.trackName),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${stats.artist} · 播 ${stats.playCount} 次 · ${stats.totalLabel}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.appText.caption,
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: <Widget>[
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    '$rank',
+                    textAlign: TextAlign.center,
+                    style: context.appText.title.copyWith(
+                      color: rankColor,
+                      fontSize: 18,
+                    ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(stats.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appText.trackName),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${stats.artist} · 播 ${stats.playCount} 次 · ${stats.totalLabel}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                if (top)
+                  Icon(Icons.emoji_events_rounded, size: 18, color: rankColor),
+              ],
             ),
-            if (top)
-              Icon(Icons.emoji_events_rounded, size: 18, color: c.accent),
-          ],
+          ),
         ),
       ),
     );

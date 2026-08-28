@@ -21,6 +21,10 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 
 // ── 协议（内联自 xingli_music lib/services/net/net_message.dart）────────────
 // 中继服务器仅需转发信封，无需感知每种消息类型，故只保留类型索引与编解码。
@@ -227,14 +231,334 @@ Object? tryJsonDecode(String s) {
   }
 }
 
-Future<void> _listen(int port) async {
-  final HttpServer server = await HttpServer.bind(
-    InternetAddress.anyIPv4,
-    port,
-  );
-  stdout.writeln('[relay] 监听 ws://0.0.0.0:$port/ws  （Ctrl+C 退出）');
+// ═══ cl08：REST 内容 API（App 与 ClassIsland 组件联动）═══════════════
+
+/// 内容文件目录（相对启动目录，JSON 可热编辑即时生效）。
+const String _kContentDir = 'content';
+
+Future<Map<String, dynamic>?> _loadContent(String key) async {
+  try {
+    final File f = File('$_kContentDir/$key.json');
+    if (!f.existsSync()) return null;
+    final Object? v = jsonDecode(await f.readAsString());
+    return v is Map<String, dynamic> ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 随机返回一条内容（场景或歌单），供 ClassIsland 组件 / App 轮换展示。
+Future<Map<String, dynamic>?> _randomContent() async {
+  final Map<String, dynamic>? scenes = await _loadContent('scenes');
+  final Map<String, dynamic>? playlists = await _loadContent('playlists');
+  final List<dynamic> pool = <dynamic>[
+    ...(scenes?['scenes'] as List<dynamic>? ?? const <dynamic>[]),
+    ...(playlists?['playlists'] as List<dynamic>? ?? const <dynamic>[]),
+  ];
+  if (pool.isEmpty) return null;
+  final Object? pick = pool[_random.nextInt(pool.length)];
+  if (pick is! Map<String, dynamic>) return null;
+  return <String, dynamic>{
+    'type': pick.containsKey('visual') ? 'scene' : 'playlist',
+    'title': pick['name'] ?? '',
+    'subtitle': pick['soundscape'] ?? pick['desc'] ?? '',
+    'accent': (pick['visual'] as Map<String, dynamic>?)?['accent'] ?? '#9B7BFF',
+  };
+}
+
+final Random _random = Random();
+
+Future<void> _handleApi(HttpRequest req) async {
+  final String path = req.uri.path;
+  final String method = req.method;
+  Map<String, dynamic>? payload;
+  int status = 200;
+  switch (path) {
+    case '/api/health':
+      payload = <String, dynamic>{
+        'ok': true,
+        'service': 'xingli-relay',
+        'version': 'cl10',
+        'tls': _tlsEnabled,
+        'ts': DateTime.now().toIso8601String(),
+      };
+    case '/api/content/scenes':
+      payload = await _loadContent('scenes');
+      if (payload == null) status = 404;
+    case '/api/content/playlists':
+      payload = await _loadContent('playlists');
+      if (payload == null) status = 404;
+    case '/api/content/notices':
+      payload = await _loadContent('notices');
+      if (payload == null) status = 404;
+    case '/api/content/random':
+      payload = await _randomContent();
+      if (payload == null) status = 404;
+    case '/api/auth/register':
+      if (method != 'POST') {
+        status = 405;
+        payload = <String, dynamic>{'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authRegister(req);
+      if (payload['ok'] != true) status = 400;
+    case '/api/auth/login':
+      if (method != 'POST') {
+        status = 405;
+        payload = <String, dynamic>{'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authLogin(req);
+      if (payload['ok'] != true) status = 401;
+    case '/api/auth/me':
+      payload = await _authMe(req);
+      if (payload['ok'] != true) status = 401;
+    case '/api/auth/logout':
+      payload = await _authLogout(req);
+    default:
+      status = 404;
+      payload = <String, dynamic>{'error': 'not found'};
+  }
+  try {
+    req.response
+      ..statusCode = status
+      ..headers.contentType = ContentType.json
+      ..write(jsonEncode(payload));
+    await req.response.close();
+  } catch (_) {}
+}
+
+// ═══ cl10：用户系统（注册/登录/token）+ 可选 TLS ═════════════════════
+
+/// 服务端签名密钥（启动生成并持久化到 relay_server.secret，绝不随代码分发）。
+String? _serverSecret;
+
+/// 是否以 TLS 模式监听（health 接口上报）。
+bool _tlsEnabled = false;
+
+/// 用户数据目录（每用户一个 JSON：salt/verifier 不存明文密码）。
+const String _kUsersDir = 'users';
+const int _kTokenTtlDays = 30;
+const int _kPbkdf2Iterations = 30000;
+
+/// 读/生成服务端密钥。失败返回 null（main 据此退出）。
+Future<String?> _loadServerSecret() async {
+  const String f = 'relay_server.secret';
+  try {
+    final File file = File(f);
+    if (await file.exists()) {
+      final String s = (await file.readAsString()).trim();
+      if (s.isNotEmpty) return s;
+    }
+    final String gen = _randomBytes(32)
+        .map((int b) => b.toRadixString(16).padLeft(2, '0'))
+        .join();
+    await file.writeAsString(gen);
+    return gen;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 随机字节（密钥/盐用）。
+Uint8List _randomBytes(int n) {
+  final Uint8List b = Uint8List(n);
+  for (int i = 0; i < n; i++) b[i] = _random.nextInt(256);
+  return b;
+}
+
+/// 密码派生：PBKDF2-HMAC-SHA256，输出 base64（单 block，与 SecureBox 同思路）。
+String _pbkdf2(String password, String salt,
+    {int iterations = _kPbkdf2Iterations}) {
+  final Hmac prf = Hmac(sha256, utf8.encode(password));
+  List<int> u = prf.convert(<int>[...utf8.encode(salt), 0, 0, 0, 1]).bytes;
+  final List<int> t = List<int>.from(u);
+  for (int i = 1; i < iterations; i++) {
+    u = prf.convert(u).bytes;
+    for (int j = 0; j < t.length; j++) t[j] ^= u[j];
+  }
+  return base64Encode(Uint8List.fromList(t));
+}
+
+/// base64url（去填充）。
+String _b64url(String s) => base64Url.encode(utf8.encode(s)).replaceAll('=', '');
+
+String _b64urlDecode(String s) => utf8.decode(base64Url.decode(
+      s + List<String>.filled((4 - s.length % 4) % 4, '=').join(),
+    ));
+
+/// 签发 HMAC token（类 JWT 三段式，HS256）。
+String _signToken(String uid) {
+  final String h =
+      _b64url(jsonEncode(<String, dynamic>{'alg': 'HS256', 'typ': 'JWT'}));
+  final String p = _b64url(jsonEncode(<String, dynamic>{
+    'uid': uid,
+    'exp': DateTime.now()
+        .add(const Duration(days: _kTokenTtlDays))
+        .millisecondsSinceEpoch,
+  }));
+  final String sig = base64Url
+      .encode(Hmac(sha256, utf8.encode(_serverSecret!))
+          .convert(utf8.encode('$h.$p'))
+          .bytes)
+      .replaceAll('=', '');
+  return '$h.$p.$sig';
+}
+
+/// 校验 token，返回 payload（含 uid/exp）或 null（伪造/过期）。
+Map<String, dynamic>? _verifyToken(String token) {
+  final List<String> parts = token.split('.');
+  if (parts.length != 3) return null;
+  final String expect = base64Url
+      .encode(Hmac(sha256, utf8.encode(_serverSecret!))
+          .convert(utf8.encode('${parts[0]}.${parts[1]}'))
+          .bytes)
+      .replaceAll('=', '');
+  if (expect != parts[2]) return null;
+  try {
+    final Map<String, dynamic> payload =
+        jsonDecode(_b64urlDecode(parts[1])) as Map<String, dynamic>;
+    if ((payload['exp'] as int? ?? 0) < DateTime.now().millisecondsSinceEpoch) {
+      return null;
+    }
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 读 POST 的 JSON body（失败返回 null）。
+Future<Map<String, dynamic>?> _readJsonBody(HttpRequest req) async {
+  try {
+    final String body = await utf8.decoder.bind(req).join();
+    if (body.isEmpty) return null;
+    final Object? v = jsonDecode(body);
+    return v is Map<String, dynamic> ? v : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 从 Authorization 头取 Bearer token。
+String? _bearer(HttpRequest req) {
+  final String? auth = req.headers.value('authorization');
+  if (auth == null) return null;
+  final RegExpMatch? m =
+      RegExp(r'^Bearer\s+(.+)$', caseSensitive: false).firstMatch(auth);
+  return m?.group(1);
+}
+
+/// 用户公开档案（剔除 salt/verifier）。
+Map<String, dynamic> _publicUser(Map<String, dynamic> rec) =>
+    <String, dynamic>{
+      'username': rec['username'],
+      'prefs': rec['prefs'] ?? <String, dynamic>{},
+      'favorites': rec['favorites'] ?? <dynamic>[],
+      'createdAt': rec['createdAt'],
+    };
+
+Future<Map<String, dynamic>> _authRegister(HttpRequest req) async {
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  final String username = (body['username'] as String? ?? '').trim();
+  final String password = (body['password'] as String? ?? '');
+  if (username.length < 3 || username.length > 24) {
+    return <String, dynamic>{'error': '用户名需 3-24 字符'};
+  }
+  if (!RegExp(r'^[a-zA-Z0-9_\-]+$').hasMatch(username)) {
+    return <String, dynamic>{'error': '用户名仅限字母数字 _ -'};
+  }
+  if (password.length < 6) return <String, dynamic>{'error': '密码至少 6 位'};
+  final File f = File('$_kUsersDir/$username.json');
+  if (await f.exists()) return <String, dynamic>{'error': '用户名已存在'};
+  final String salt = base64Encode(_randomBytes(16));
+  final Map<String, dynamic> rec = <String, dynamic>{
+    'username': username,
+    'salt': salt,
+    'verifier': _pbkdf2(password, salt),
+    'prefs': <String, dynamic>{},
+    'favorites': <dynamic>[],
+    'createdAt': DateTime.now().toIso8601String(),
+  };
+  try {
+    await Directory(_kUsersDir).create(recursive: true);
+    await f.writeAsString(jsonEncode(rec));
+  } catch (_) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+  return <String, dynamic>{
+    'ok': true,
+    'token': _signToken(username),
+    'user': _publicUser(rec),
+  };
+}
+
+Future<Map<String, dynamic>> _authLogin(HttpRequest req) async {
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  final String username = (body['username'] as String? ?? '').trim();
+  final String password = (body['password'] as String? ?? '');
+  final File f = File('$_kUsersDir/$username.json');
+  if (!await f.exists()) return <String, dynamic>{'error': '用户名或密码错误'};
+  Map<String, dynamic> rec;
+  try {
+    rec = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+  } catch (_) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+  final String expect = _pbkdf2(password, rec['salt'] as String? ?? '');
+  if (expect != rec['verifier']) {
+    return <String, dynamic>{'error': '用户名或密码错误'};
+  }
+  return <String, dynamic>{
+    'ok': true,
+    'token': _signToken(username),
+    'user': _publicUser(rec),
+  };
+}
+
+Future<Map<String, dynamic>> _authMe(HttpRequest req) async {
+  final String? token = _bearer(req);
+  if (token == null) return <String, dynamic>{'error': 'unauthorized'};
+  final Map<String, dynamic>? payload = _verifyToken(token);
+  if (payload == null) return <String, dynamic>{'error': 'unauthorized'};
+  final File f = File('$_kUsersDir/${payload['uid']}.json');
+  if (!await f.exists()) return <String, dynamic>{'error': 'unauthorized'};
+  try {
+    final Map<String, dynamic> rec =
+        jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+    return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
+  } catch (_) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+}
+
+Future<Map<String, dynamic>> _authLogout(HttpRequest req) async {
+  // 无状态 token：客户端丢弃即登出；此处预留吊销位点。
+  return <String, dynamic>{'ok': true};
+}
+
+Future<void> _listen(int port, {String? certPath, String? keyPath}) async {
+  final HttpServer server;
+  if (certPath != null && keyPath != null) {
+    final SecurityContext ctx = SecurityContext()
+      ..useCertificateChain(certPath)
+      ..usePrivateKey(keyPath);
+    server = await HttpServer.bindSecure(InternetAddress.anyIPv4, port, ctx);
+    _tlsEnabled = true;
+    stdout.writeln('[relay] 监听 https://0.0.0.0:$port/ws  + /api/*  (TLS)');
+  } else {
+    server = await HttpServer.bind(InternetAddress.anyIPv4, port);
+    stdout.writeln('[relay] 监听 ws://0.0.0.0:$port/ws  + /api/*  （明文，Ctrl+C 退出）');
+  }
 
   server.listen((HttpRequest req) async {
+    // cl08：REST 内容 API —— 星璃音乐 App 与 ClassIsland 组件共用。
+    // cl10：放行所有方法的 /api/*（含 POST 认证端点）。
+    if (req.uri.path.startsWith('/api/')) {
+      await _handleApi(req);
+      return;
+    }
     if (req.uri.path != '/ws' && req.uri.path != '/') {
       try {
         await req.response.close();
@@ -271,11 +595,22 @@ Future<void> _listen(int port) async {
 
 Future<void> main(List<String> args) async {
   int port = 8092;
-  for (int i = 0; i < args.length - 1; i++) {
-    if (args[i] == '--port') {
+  String? cert, key;
+  for (int i = 0; i < args.length; i++) {
+    if (args[i] == '--port' && i + 1 < args.length) {
       final int? p = int.tryParse(args[i + 1]);
       if (p != null && p > 0) port = p;
+    } else if (args[i] == '--cert' && i + 1 < args.length) {
+      cert = args[++i];
+    } else if (args[i] == '--key' && i + 1 < args.length) {
+      key = args[++i];
     }
   }
-  await _listen(port);
+  final String? secret = await _loadServerSecret();
+  if (secret == null) {
+    stderr.writeln('[relay] 无法初始化服务端密钥，退出');
+    return;
+  }
+  _serverSecret = secret;
+  await _listen(port, certPath: cert, keyPath: key);
 }

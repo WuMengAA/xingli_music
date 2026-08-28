@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../core/layout/responsive_layout.dart';
-import '../../core/terms/naming_dict.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
@@ -32,31 +32,32 @@ class DockItem {
 ///
 /// 注意 `ShellPage` 是 `abstract final class` 的 int 常量集合，**不是 Dart enum**，
 /// 因此没有 `.values`，两边顺序只能靠本注释与 code review 约束。
-const List<DockItem> kDockItems = <DockItem>[
+/// cl07：标签文案由 l10n 提供（i18n，跟随当前语言）。
+List<DockItem> buildDockItems(AppLocalizations l10n) => <DockItem>[
   DockItem(
     icon: Icons.home_outlined,
     selectedIcon: Icons.home,
-    label: Terms.tabHome,
+    label: l10n.tabHome,
   ),
   DockItem(
     icon: Icons.library_music_outlined,
     selectedIcon: Icons.library_music,
-    label: Terms.tabLibrary,
+    label: l10n.tabLibrary,
   ),
   DockItem(
     icon: Icons.public_outlined,
     selectedIcon: Icons.public,
-    label: Terms.tabWorld,
+    label: l10n.tabWorld,
   ),
   DockItem(
     icon: Icons.explore_outlined,
     selectedIcon: Icons.explore,
-    label: Terms.tabExplore,
+    label: l10n.tabExplore,
   ),
   DockItem(
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
-    label: Terms.tabSettings,
+    label: l10n.tabSettings,
   ),
 ];
 
@@ -83,7 +84,7 @@ class AppDock extends StatelessWidget {
     super.key,
     required this.selectedIndex,
     required this.onTabSelected,
-    this.items = kDockItems,
+    this.items,
     this.density = UiDensity.standard,
   });
 
@@ -110,8 +111,8 @@ class AppDock extends StatelessWidget {
   /// Tab 点击回调
   final ValueChanged<int> onTabSelected;
 
-  /// Tab 定义（默认 [kDockItems]，注入点仅为可测试性保留）
-  final List<DockItem> items;
+  /// Tab 定义（默认 null → 按当前语言用 [buildDockItems] 构建；注入点仅为可测试性保留）
+  final List<DockItem>? items;
 
   /// iOS TabBar 标准高度（紧凑态按比例收缩）。
   static const double kTabBarHeight = 50;
@@ -124,6 +125,9 @@ class AppDock extends StatelessWidget {
     final ResponsiveLayout rl = ResponsiveLayout.of(context);
     final double dockH =
         kTabBarHeight * (density == UiDensity.compact ? 0.8 : 1.0);
+    // cl07：标签按当前语言构建（未注入 items 时）。
+    final List<DockItem> dockItems =
+        items ?? buildDockItems(AppLocalizations.of(context));
     // 玻璃焦点：Dock 为「极简基底 + 玻璃焦点」中的唯二玻璃之一。
     // iOS TabBar 用整条 thick 毛玻璃（radius=0 直角条，顶部随浮层自然衔接），
     // 模糊强度跟随全局性能模式（省电=0 直通无玻璃，均衡/流畅恢复玻璃）。
@@ -132,14 +136,10 @@ class AppDock extends StatelessWidget {
       forceGlass: true,
       // 整条直角条（iOS TabBar 无圆角药丸）
       radius: 0,
-      // 液态玻璃：折射 + 色散（premium 真折射路径，本就是 Dock 栏的设计意图）。
-      // 此前误接成 frosted，导致 dock 只是毛玻璃而非液态玻璃。
-      style: GlassStyle.liquid,
-      // 折射/色散强度（默认 refraction=5 太弱几乎不可见，这里给足液态质感）。
-      refraction: 16,
-      dispersion: 2.6,
-      // tint/borderColor 跟随 systemBlue 派生的玻璃语义色（去紫）
-      tint: context.appColors.glassTint,
+      // cl06：导航栏对齐下方音乐卡片的磨砂玻璃样式（用户需求）——
+      // frosted + 极淡白 tint，与 UnifiedPlayer 的 _frostedPanel 一致。
+      style: GlassStyle.frosted,
+      tint: const Color(0x0AFFFFFF),
       // cl13：iOS TabBar 无四边框 —— 取消 LiquidGlass 的整框 Border.all，
       // 改为顶部 1px hairline 分隔线（iOS TabBar 特征）。
       borderColor: Colors.transparent,
@@ -163,10 +163,10 @@ class AppDock extends StatelessWidget {
                 // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
                 // 设计坐标 x=0/104/208/312（390dp 基准）。
                 children: <Widget>[
-                  for (int i = 0; i < items.length; i++)
+                  for (int i = 0; i < dockItems.length; i++)
                     Expanded(
                       child: _DockTab(
-                        item: items[i],
+                        item: dockItems[i],
                         selected: selectedIndex == i,
                         // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
                         showLabel: rl.dockShowLabels &&

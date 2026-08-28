@@ -64,6 +64,7 @@ class FadeForwardsPageTransitionsBuilder extends PageTransitionsBuilder {
 
 
 /// 全局唯一浅色主题实例（一次性构建，不随任何 Provider 变化）。
+/// cl07：视觉语言统一 Material（水波纹 / M3 密度与排版 / 卡片圆角 12）。
 final ThemeData kLightTheme = buildLightTheme();
 
 /// 显式浅色 `ColorScheme`（P0-A2：禁止 `fromSeed`）。
@@ -109,20 +110,23 @@ const ColorScheme kLightColorScheme = ColorScheme(
 /// 所有官方控件（`Card` / `IconButton` / `Slider` / `SnackBar` / `ListTile` …）
 /// 都从这里取色，避免业务代码散落 `Color(0x...)` 字面量（约定 C1）。
 ThemeData buildLightTheme() {
+  // cl07：视觉语言统一 Material——水波纹 / M3 密度 / 卡片圆角 12。
+  const double cardRadius = 12;
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
     colorScheme: kLightColorScheme,
     // cl53-F3：统一页面过渡动效（浅色主题）。
     pageTransitionsTheme: kAppPageTransitions,
-    // R16：全局语义色（浅色值）
+    // R16：全局语义色（浅色值）。
     extensions: const <ThemeExtension<dynamic>>[AppThemeColors.light],
     scaffoldBackgroundColor: AppColors.bgPage,
     canvasColor: AppColors.bgPage,
     dividerColor: AppColors.divider,
+    // cl07：Material 水波纹反馈（视觉语言统一 Material）。
     splashFactory: InkRipple.splashFactory,
+    highlightColor: Colors.transparent,
     visualDensity: VisualDensity.standard,
-
     // ── 文字 ─────────────────────────────────────────────
     textTheme: const TextTheme(
       headlineSmall: AppTextStyles.title,
@@ -169,13 +173,14 @@ ThemeData buildLightTheme() {
     ),
 
     // ── 卡片 ─────────────────────────────────────────────
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       color: AppColors.bgCard,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
+      // cl07：Material 卡片圆角 12。
       shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.brLg,
+        borderRadius: BorderRadius.circular(cardRadius),
         side: BorderSide(color: AppColors.borderDefault),
       ),
     ),
@@ -188,13 +193,14 @@ ThemeData buildLightTheme() {
     ),
 
     // ── 列表项 ───────────────────────────────────────────
-    listTileTheme: const ListTileThemeData(
+    listTileTheme: ListTileThemeData(
       iconColor: AppColors.iconPrimary,
       textColor: AppColors.textPrimary,
       titleTextStyle: AppTextStyles.body,
       subtitleTextStyle: AppTextStyles.artist,
       shape: RoundedRectangleBorder(borderRadius: AppRadius.brMd),
-      contentPadding: EdgeInsets.symmetric(horizontal: AppSpace.lg),
+      // cl07：Material 列表行内边距（横 16 / 竖 8）。
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     ),
 
     // ── 输入框（搜索栏、设置表单）──────────────────────────
@@ -423,6 +429,8 @@ ThemeData buildDarkTheme(Color primary) {
     brightness: Brightness.dark,
     surface: DarkColors.surface,
   );
+  // cl07：视觉语言统一 Material——水波纹 / M3 密度 / 卡片圆角 12。
+  const double cardRadius = 12;
 
   return ThemeData(
     useMaterial3: true,
@@ -437,7 +445,9 @@ ThemeData buildDarkTheme(Color primary) {
     scaffoldBackgroundColor: DarkColors.bg,
     canvasColor: DarkColors.bg,
     dividerColor: DarkColors.border,
+    // cl07：Material 水波纹反馈（深色）。
     splashFactory: InkRipple.splashFactory,
+    highlightColor: Colors.transparent,
     visualDensity: VisualDensity.standard,
 
     textTheme: TextTheme(
@@ -502,8 +512,9 @@ ThemeData buildDarkTheme(Color primary) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
+      // cl07：Material 卡片圆角 12。
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(cardRadius),
         side: BorderSide(color: DarkColors.border),
       ),
     ),
@@ -515,8 +526,9 @@ ThemeData buildDarkTheme(Color primary) {
       textColor: DarkColors.text,
       titleTextStyle: const TextStyle(color: DarkColors.text, fontSize: 14),
       subtitleTextStyle: const TextStyle(color: DarkColors.textMuted, fontSize: 12),
+      // cl07：Material 列表行内边距（横 16 / 竖 8）。
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18),
     ),
 
     inputDecorationTheme: InputDecorationTheme(

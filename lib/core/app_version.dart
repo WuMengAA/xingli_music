@@ -79,7 +79,7 @@ abstract final class AppVersion {
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
-  static const UpdateChannel channel = UpdateChannel.alpha;
+  static const UpdateChannel channel = UpdateChannel.beta;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -372,7 +372,38 @@ abstract final class AppVersion {
   /// NetSessionNotifier 加 submitOrder/decideOrder/_broadcastOrderQueue（DJ 端权威队列
   /// + 定向回执，听众端乐观插入 pending）；新增 lib/pages/social/（电台大厅/电台房/
   /// 点歌队列三页），探索页功能区加「电台房」入口。OQ-1 v1 默认创建者即 DJ。
-  static const int buildCount = 1;
+  /// cl03（08.28）：界面显示与动画优化——①底部 Dock 融合磨砂边（FrostEdgeBar
+  /// 底边 + DockTopFeather 合并为单 BackdropFilter，省一层重叠模糊采样）；②Tab
+  /// 切换内容上浮淡入过渡（保活 IndexedStack，滚动位置不丢）；③播放控钮按压缩放
+  /// 反馈 + 播放/暂停态 AnimatedCrossFade 切换；④主页场景卡光晕跟随场景主色渐变、
+  /// 轮播圆点 AnimatedContainer 平滑过渡、问候语按时段动态。
+  /// cl04（08.28）：UI 风格体系——①曲库/探索卡片化分层（iOS 分组卡 + Fluent
+  /// Card 质感）+ 排行前三金银铜；②全屏播放页封面浮起阴影 + 播放呼吸动效；③去
+  /// Material 水波纹（NoSplash + 原生按压高光）；④三套界面风格可切换（Material /
+  /// iOS / WinUI：水波纹、转场、高光、密度、排版、布局、结构七维差异化），设置 →
+  /// 外观 → 界面风格。
+  /// cl05（08.28）：OOBE 首次引导 7 页极简重构（品牌 / 权限+合同 / 界面风格 /
+  /// 流派 / 星璃世界 / 体验开关 / 沉浸加载）+ 每页文案随机池 + 光效与图形动态
+  /// 背景（AuroraBackground：光斑 + 圆环 + 光线，非粒子）。
+  /// cl06（08.28）：①导航栏对齐音乐卡片磨砂玻璃（Dock frosted）；②场景卡片默认
+  /// 磨砂玻璃 + 配色可叠加；③播放器整卡「四边扩散」放大（scale 0.8→1 + 圆角
+  /// 28→0），voxel HUD 统一 Hero 进全屏；④设置布局重排（音频→个性→游戏→通知
+  /// →实验→关于、播放方式提前）+ 分组卡卡片化。
+  /// cl07（08.28）：①视觉语言统一 Material——移除 iOS/WinUI 三套风格切换
+  /// （删 OOBE 风格页 / 设置入口 / UiStyle 系统，全局水波纹 + M3 排版 + 卡片
+  /// 圆角 12）；②平滑过渡——封面图加载渐显（TrackCover/AlbumCard）+ 主题/
+  /// 皮肤切换 400ms 过渡；③i18n——gen-l10n 基建（中/英 ARB）+ 设置语言入口
+  /// （持久化），首版迁移 Dock 标签 / 播放控制 / OOBE 品牌页文案。
+  /// cl08（08.28）：①修 Android 版本号（build.gradle versionCode 改由 pubspec
+  /// 自动同步 + versionName 对齐 display）；②模板系统——标准页面模板库（液态
+  /// 玻璃 / M3 卡片 / 杂志编辑三套）+ 组件示例 + 模板工坊页（设置→界面模板），
+  /// 模板与内容解耦（文字/图片仅填充层）；③离线模式——不依靠官方服务器
+  /// （不检查 OTA / 不连官方中转 / 不上传日志），设置→关于→离线模式开关。
+  /// cl09（08.28）：后端内容联动——relay_server 扩展 REST 内容 API（/api/health、
+  /// /api/content/scenes·playlists·notices·random，内容 JSON 热编辑）；App 端
+  /// content_service + provider + 探索页公告条 + 设置「内容服务地址」；同步到
+  /// ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件拉取显示）。
+  static const int buildCount = 9;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -437,6 +468,31 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.28',
+    cl: 'beta_cl09',
+    title: '08.28 批量更新（cl03–cl09）：界面动效 / UI 体系 / OOBE / i18n / 模板 / 离线 / 后端内容联动',
+    details: <String>[
+      'cl03 界面动效：底部 Dock 融合磨砂边（FrostEdgeBar 底边 + DockTopFeather 合并为单 BackdropFilter，省一层重叠模糊采样）；Tab 切换内容上浮淡入（保活 IndexedStack，滚动位置不丢）；播放控钮按压缩放反馈 + 播放/暂停态 AnimatedCrossFade；主页场景卡光晕跟随场景主色渐变、轮播圆点平滑过渡、问候语按时段动态',
+      'cl04 UI 体系：曲库 / 探索卡片化分层（iOS 分组卡 + Fluent Card 质感）+ 排行前三金银铜；全屏播放页封面浮起阴影 + 播放呼吸动效；去 Material 水波纹（NoSplash + 原生按压高光）；三套界面风格可切换',
+      'cl05 OOBE：首次引导 7 页极简重构（品牌 / 权限+合同 / 界面风格 / 流派 / 星璃世界 / 体验开关 / 沉浸加载）+ 每页文案随机池 + 光效与图形动态背景（AuroraBackground：光斑 + 圆环 + 光线）',
+      'cl06 视觉：导航栏对齐音乐卡片磨砂玻璃；场景卡默认磨砂玻璃 + 配色可叠加；播放器整卡「四边扩散」放大（scale 0.8→1、圆角 28→0），voxel HUD 统一 Hero 进全屏；设置布局重排（音频→个性→游戏→通知→实验→关于，播放方式提前）',
+      'cl07 统一与 i18n：视觉语言统一 Material（移除 iOS/WinUI 三套风格切换，全局水波纹 + M3 排版 + 卡片圆角 12）；封面图加载渐显（TrackCover / AlbumCard）；主题 / 皮肤切换 400ms 过渡；i18n gen-l10n 基建（中 / 英 ARB）+ 设置语言入口（持久化）',
+      'cl08 模板与离线：Android 版本号修复（versionCode 改由 pubspec 自动同步、versionName 对齐）；模板系统（液态玻璃 / M3 卡片 / 杂志编辑三套 + 组件示例 + 模板工坊页，模板与内容解耦）；离线模式（不检查 OTA / 不连官方中转 / 不上传日志），设置→关于→离线模式开关',
+      'cl09 后端内容联动：relay_server 扩展 REST 内容 API（/api/health、/api/content/scenes·playlists·notices·random，内容 JSON 热编辑）；App 端 content_service + provider + 探索页公告条 + 设置「内容服务地址」；同步到 ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件）',
+      '含 cl02 一起听点歌修复（好友房可点歌 + 在线选曲渠道 + 选曲可取消），详见下一条',
+    ],
+  ),
+  ChangelogEntry(
+    version: '0.26.8.28',
+    cl: 'alpha_cl02',
+    title: '一起听点歌修复：好友房可点歌 + 在线选曲渠道 + 明确退出',
+    details: <String>[
+      '「好友一起听」房改为支持点歌（acceptOrder 由 false 改 true），一起听房也出现「点歌队列」入口',
+      '点歌选曲弹层新增「在线」标签：并行搜网易云 / 哔哩哔哩（未登录提示先登录），给听众真正的点歌渠道，不再只能从本地曲库挑',
+      '选曲弹层顶部新增「取消」按钮，可明确退出选曲（底部抽屉仍可下拉关闭）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.28',
     cl: 'alpha_cl01',

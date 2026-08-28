@@ -393,7 +393,8 @@ extension AppThemeColorsContext on BuildContext {
   AppThemeColors get appColors =>
       Theme.of(this).extension<AppThemeColors>() ?? AppThemeColors.light;
 
-  /// 便捷取字：`context.appText.title`（在 [AppTextStyles] 基础上换成主题色）。
+  /// 便捷取字：`context.appText.title`（在 [AppTextStyles] 基础上换成主题色，
+  /// 并按 Material 排版系数微调（cl07：视觉语言统一 Material，排版固定）。
   AppTextTheme get appText => AppTextTheme(appColors);
 }
 
@@ -412,49 +413,66 @@ class AppTextTheme {
 
   final AppThemeColors c;
 
+  /// Material 排版系数（cl07：视觉语言统一 Material——接近 M3 的略紧凑 + 正字距）。
+  static const _TypeScale _s = _TypeScale(0.94, 0.2, 1.02);
+
+  /// 在 [AppTextStyles] 基础上应用风格系数 + 主题色。
+  TextStyle _apply(TextStyle base, Color? color) {
+    final double? h =
+        base.height == null ? null : base.height! * _s.heightFactor;
+    return base.copyWith(
+      color: color,
+      fontSize: (base.fontSize! * _s.fontSizeFactor).roundToDouble(),
+      letterSpacing: _s.letterSpacing,
+      height: h,
+    );
+  }
+
   /// 31 / w400 · iOS Large Title（页面大标题）。
-  TextStyle get largeTitle =>
-      AppTextStyles.largeTitle.copyWith(color: c.textPrimary);
+  TextStyle get largeTitle => _apply(AppTextStyles.largeTitle, c.textPrimary);
 
   /// 17 / w600 · 页面与区块标题。
-  TextStyle get title => AppTextStyles.title.copyWith(color: c.textPrimary);
+  TextStyle get title => _apply(AppTextStyles.title, c.textPrimary);
 
   /// 16 / w600 · 区块小标题。
-  TextStyle get subtitle =>
-      AppTextStyles.subtitle.copyWith(color: c.textPrimary);
+  TextStyle get subtitle => _apply(AppTextStyles.subtitle, c.textPrimary);
 
-  /// 14 / w400 · 正文、设置项。
-  TextStyle get body => AppTextStyles.body.copyWith(color: c.textPrimary);
+  /// 17 / w400 · 正文、设置项。
+  TextStyle get body => _apply(AppTextStyles.body, c.textPrimary);
 
-  /// 14 / w400 / 次级色 · 说明性正文。
-  TextStyle get bodyMuted =>
-      AppTextStyles.bodyMuted.copyWith(color: c.textSecondary);
+  /// 17 / w400 / 次级色 · 说明性正文。
+  TextStyle get bodyMuted => _apply(AppTextStyles.bodyMuted, c.textSecondary);
 
-  /// 14 / w600 · 迷你播放器歌名、专辑卡曲名。
-  TextStyle get trackName =>
-      AppTextStyles.trackName.copyWith(color: c.textPrimary);
+  /// 17 / w600 · 迷你播放器歌名、专辑卡曲名。
+  TextStyle get trackName => _apply(AppTextStyles.trackName, c.textPrimary);
 
-  /// 12 / w400 · 歌手名。
-  TextStyle get artist => AppTextStyles.artist.copyWith(color: c.textTertiary);
+  /// 15 / w400 · 歌手名。
+  TextStyle get artist => _apply(AppTextStyles.artist, c.textTertiary);
 
-  /// 11 / w400 · 时长、辅助信息。
-  TextStyle get caption =>
-      AppTextStyles.caption.copyWith(color: c.textTertiary);
+  /// 13 / w400 · 时长、辅助信息。
+  TextStyle get caption => _apply(AppTextStyles.caption, c.textTertiary);
 
   /// 10 / w500 · Dock Tab 文字标签。
-  TextStyle get tabLabel =>
-      AppTextStyles.tabLabel.copyWith(color: c.iconInactive);
+  TextStyle get tabLabel => _apply(AppTextStyles.tabLabel, c.iconInactive);
 
-  /// 9 / w400 · 设置分类 tile 文字。
-  TextStyle get tileLabel =>
-      AppTextStyles.tileLabel.copyWith(color: c.textSecondary);
+  /// 11 / w400 · 设置分类 tile 文字。
+  TextStyle get tileLabel => _apply(AppTextStyles.tileLabel, c.textSecondary);
 
-  /// 14 / w400 / 占位色 · 搜索栏 hint。
-  TextStyle get hint => AppTextStyles.hint.copyWith(color: c.textTertiary);
+  /// 17 / w400 / 占位色 · 搜索栏 hint。
+  TextStyle get hint => _apply(AppTextStyles.hint, c.textTertiary);
 
-  /// 14 / w600 · 按钮文字。
+  /// 17 / w600 · 按钮文字。
   ///
   /// 刻意**不带 color**（同 [AppTextStyles.button]）：由各按钮主题的
   /// `foregroundColor` 决定，否则实心按钮会白底白字。
-  TextStyle get button => AppTextStyles.button;
+  TextStyle get button => _apply(AppTextStyles.button, null);
+}
+
+/// Material 排版系数（cl07：视觉语言统一 Material，单一系数表）。
+class _TypeScale {
+  const _TypeScale(this.fontSizeFactor, this.letterSpacing, this.heightFactor);
+
+  final double fontSizeFactor;
+  final double letterSpacing;
+  final double heightFactor;
 }

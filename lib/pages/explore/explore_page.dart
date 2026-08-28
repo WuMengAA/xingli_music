@@ -10,9 +10,11 @@ import '../../models/scene.dart';
 import '../../models/track_stats.dart';
 import '../../pages/library/playlist_detail_page.dart';
 import '../../pages/social/station_lobby_page.dart';
+import '../../providers/content/content_providers.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
+import '../../services/content/content_service.dart';
 import '../../providers/shell/shell_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
@@ -73,6 +75,8 @@ class ExplorePage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            // cl08：官方公告条（后端内容联动，relay_server 动态下发）。
+            const _RemoteNoticeBar(),
             _SearchBar(onTap: openSearch),
             const SizedBox(height: AppSpace.md),
             // 精选大卡：读真实活跃场景（activeSceneProvider），点击回到主页场景卡。
@@ -138,18 +142,29 @@ class _SearchBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-        child: Row(
-          children: <Widget>[
-            Icon(Icons.search_rounded, size: 18, color: c.iconInactive),
-            const SizedBox(width: AppSpace.sm),
-            Expanded(
-              child: Text(Terms.exploreSearchHint, style: context.appText.hint),
+    // cl04：iOS 分组卡 + Fluent Card 质感底，与页面内容分层。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.search_rounded, size: 18, color: c.iconInactive),
+                const SizedBox(width: AppSpace.sm),
+                Expanded(
+                  child: Text(Terms.exploreSearchHint, style: context.appText.hint),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -166,41 +181,45 @@ class _FeaturedCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppThemeColors c = context.appColors;
     final Scene scene = ref.watch(activeSceneProvider);
-    return GestureDetector(
-      onTap: () => setShellPage(ref, ShellPage.home),
-      child: Container(
-        height: 160,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[c.accent, c.accentSoft],
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => setShellPage(ref, ShellPage.home),
+        child: Container(
+          height: 160,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: <Color>[c.accent, c.accentSoft],
+            ),
+            borderRadius: BorderRadius.circular(20),
           ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Spacer(),
-            Text(
-              scene.name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ).copyWith(color: c.onAccent),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              scene.soundscape.isNotEmpty
-                  ? '${scene.soundscape} · 点击进入'
-                  : '点击进入主页场景',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-              ).copyWith(color: c.onAccent.withValues(alpha: 0.85)),
-            ),
-          ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Spacer(),
+              Text(
+                scene.name,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ).copyWith(color: c.onAccent),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                scene.soundscape.isNotEmpty
+                    ? '${scene.soundscape} · 点击进入'
+                    : '点击进入主页场景',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                ).copyWith(color: c.onAccent.withValues(alpha: 0.85)),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -247,44 +266,57 @@ class _SceneCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Container(
-              width: double.infinity,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: scene.visual.gradientColors,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  scene.visual.glyph,
-                  style: TextStyle(
-                    fontSize: 28,
-                    color: scene.visual.accent.withValues(alpha: 0.9),
+    final AppThemeColors c = context.appColors;
+    // cl04：场景卡卡片化分层（bgSurface + 描边），按压走 InkWell 水波纹。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: double.infinity,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: scene.visual.gradientColors,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      scene.visual.glyph,
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: scene.visual.accent.withValues(alpha: 0.9),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                Text(scene.name, style: context.appText.subtitle),
+                const SizedBox(height: 2),
+                Text(
+                  scene.soundscape.isNotEmpty ? scene.soundscape : scene.mood,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.appText.artist,
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            Text(scene.name, style: context.appText.subtitle),
-            const SizedBox(height: 2),
-            Text(
-              scene.soundscape.isNotEmpty ? scene.soundscape : scene.mood,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: context.appText.artist,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -362,39 +394,51 @@ class _PlaylistRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: <Widget>[
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: c.bgPlaceholder,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.queue_music_rounded,
-                  size: 24, color: c.iconInactive),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(playlist.name, style: context.appText.trackName),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${playlist.trackCount} 首',
-                    style: context.appText.artist,
+    // cl04：歌单行卡片化分层（iOS 分组卡 + Fluent Card 质感）。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: c.bgPlaceholder,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                ],
-              ),
+                  child: Icon(Icons.queue_music_rounded,
+                      size: 24, color: c.iconInactive),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(playlist.name, style: context.appText.trackName),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${playlist.trackCount} 首',
+                        style: context.appText.artist,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: AppSize.iconSm, color: c.iconInactive),
+              ],
             ),
-            Icon(Icons.chevron_right_rounded,
-                size: AppSize.iconSm, color: c.iconInactive),
-          ],
+          ),
         ),
       ),
     );
@@ -422,6 +466,61 @@ class _NoticeBar extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// 官方公告条（cl08：后端内容联动）。
+///
+/// 从 relay_server `/api/content/notices` 拉取最新公告展示；
+/// 离线 / 后端不可达时自动隐藏（不打断本地使用）。
+class _RemoteNoticeBar extends ConsumerWidget {
+  const _RemoteNoticeBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppThemeColors c = context.appColors;
+    final AsyncValue<List<RemoteNotice>> notices =
+        ref.watch(remoteNoticesProvider);
+    return notices.maybeWhen(
+      data: (List<RemoteNotice> list) {
+        if (list.isEmpty) return const SizedBox.shrink();
+        final RemoteNotice n = list.first;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpace.md),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: c.accentSoft.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: c.accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.campaign_rounded, size: 18, color: c.accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(n.title, style: context.appText.trackName),
+                      const SizedBox(height: 2),
+                      Text(
+                        n.body,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.caption,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
@@ -506,39 +605,51 @@ class _FuncRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.only(
-            left: 20, right: 16, top: 10, bottom: 10),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: c.textPrimary,
-                    ),
+    // cl04：功能行卡片化分层（iOS Settings 分组卡 + Fluent Card 质感）。
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.only(
+                left: 20, right: 16, top: 10, bottom: 10),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: c.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: c.textTertiary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: c.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                trailing,
+              ],
             ),
-            trailing,
-          ],
+          ),
         ),
       ),
     );
@@ -585,32 +696,44 @@ class _ExpCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
     final bool retired = item.status == ExperimentStatus.retired;
 
     return Opacity(
       opacity: retired ? 0.5 : 1.0,
-      child: GestureDetector(
-        onTap: retired
-            ? null
-            : () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => item.builder()),
-                ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(item.name, style: context.appText.subtitle),
-              const SizedBox(height: 6),
-              Expanded(
-                child: Text(
-                  item.description,
-                  style: context.appText.artist,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.bgSurface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: c.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: retired
+                ? null
+                : () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => item.builder()),
+                    ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(item.name, style: context.appText.subtitle),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: Text(
+                      item.description,
+                      style: context.appText.artist,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
