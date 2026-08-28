@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/capability.dart';
 import '../../models/track.dart';
+import '../sources/bilibili_provider.dart';
 import '../sources/netease_provider.dart';
 import 'capability_providers.dart';
 
@@ -10,7 +11,30 @@ import 'capability_providers.dart';
 // 单独成文件，是为了让 `capability_providers.dart` 保持「只声明、不接线」：
 // 它不认识任何音源，音源层也不认识它。两边在这一层汇合，避免循环依赖。
 
-/// 按能力 id 取该能力产出的曲目。
+/// 一次能力查询：能力 id + 可选的搜索词。
+///
+/// 作为 family 的 key，**必须实现 == / hashCode**：否则默认的引用相等等价于
+/// 每次 rebuild 都是新 key，会导致输入每个字都重新发请求、且缓存永不命中。
+class CapabilityQuery {
+  const CapabilityQuery(this.id, {this.keyword = ''});
+
+  final String id;
+
+  /// 搜索类能力的关键词；非搜索能力忽略。
+  final String keyword;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CapabilityQuery && other.id == id && other.keyword == keyword;
+
+  @override
+  int get hashCode => Object.hash(id, keyword);
+
+  @override
+  String toString() => 'CapabilityQuery($id, $keyword)';
+}
+
+/// 按能力取它产出的曲目。
 ///
 /// 三条约定，UI 依赖它们：
 ///
@@ -20,21 +44,30 @@ import 'capability_providers.dart';
 ///    走到 default 分支返回空即可，不会因为不认识而崩。
 /// 3. **按需执行**（autoDispose + family）：只有被 watch 的能力才真正跑，
 ///    关掉的能力零网络开销、零内存占用。
-final AutoDisposeFutureProviderFamily<List<Track>, String>
+final AutoDisposeFutureProviderFamily<List<Track>, CapabilityQuery>
     capabilityTracksProvider =
-    FutureProvider.autoDispose.family<List<Track>, String>(
-        (Ref ref, String capabilityId) async {
+    FutureProvider.autoDispose.family<List<Track>, CapabilityQuery>(
+        (Ref ref, CapabilityQuery query) async {
   final Capability? cap =
-      _findCapability(ref.watch(capabilitiesProvider), capabilityId);
+      _findCapability(ref.watch(capabilitiesProvider), query.id);
 
   // 清单里没有 / 被用户关掉 / 服务端只登记未实现 —— 三者都不该发起请求。
   if (cap == null || !cap.enabled || cap.isPlanned) return const <Track>[];
 
-  // 客户端执行的能力：端上已有完整实现（weapi 加解密 + 登录态都在本地），
+  final String keyword = query.keyword.trim();
+
+  // 客户端执行的能力：端上已有完整实现（网易云 weapi、B站 WBI 都在本地完成），
   // 凭据不出设备，与 credentialOwner = client 的约定一致。
-  switch (capabilityId) {
+  switch (query.id) {
     case 'netease.recommend':
       return ref.watch(neteaseDailyRecommendProvider.future);
+    case 'netease.search':
+      // 空词直接返回，别为了一个空字符串去打接口。
+      if (keyword.isEmpty) return const <Track>[];
+      return ref.watch(neteaseSearchProvider(keyword).future);
+    case 'bilibili.search':
+      if (keyword.isEmpty) return const <Track>[];
+      return ref.watch(bilibiliSearchProvider(keyword).future);
     default:
       return const <Track>[];
   }
@@ -42,14 +75,17 @@ final AutoDisposeFutureProviderFamily<List<Track>, String>
 
 /// 该能力是否因「未登录」而拿不到内容。
 ///
-/// 每日推荐这类接口未登录就是空的，UI 若只看空列表会显示一片空白，用户无从
-/// 判断是「没内容」还是「要登录」。这里把原因单独暴露出去，UI 据此引导登录。
+/// 每日推荐、网易云搜索这类接口未登录就是空的，UI 若只看空列表会显示一片
+/// 空白，用户无从判断是「搜不到」还是「要先登录」。这里把原因单独暴露出去，
+/// UI 据此引导登录。
 ///
 /// 服务端下发的能力不参与判定——它们不需要本地登录态，一律 false。
+/// B站搜索同样为 false：实测未登录也能返回数据（2026-08-29 验证）。
 final ProviderFamily<bool, String> capabilityBlockedByAuthProvider =
     Provider.family<bool, String>((Ref ref, String capabilityId) {
   return switch (capabilityId) {
-    'netease.recommend' => !ref.watch(neteaseAuthProvider).isLoggedIn,
+    'netease.recommend' || 'netease.search' =>
+      !ref.watch(neteaseAuthProvider).isLoggedIn,
     _ => false,
   };
 });

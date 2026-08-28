@@ -331,10 +331,14 @@ Future<Map<String, dynamic>> _capabilities() async {
       endpoint: '/api/content/random',
     ),
     // ── 客户端执行：凭据留设备，服务端只登记、不代理 ─────────────────
-    // 这类能力刻意**不带 endpoint**——实现的不是服务端路由，而是客户端本地
-    // 已有的网易云链路（weapi 加解密在端上完成）。若改由服务端代理，用户的
-    // 登录 cookie 就必须出网，与「服务端不持账号资产」相悖。服务端这里只做
-    // 一件事：声明该能力可用，由客户端自行选配与执行。
+    // 这类能力刻意**不带 endpoint**——实现不在服务端，而在客户端本地已有的
+    // 音源链路（网易云的 weapi 加解密、B站的 WBI 签名，都在端上完成）。
+    // 若改由服务端代理，用户的登录 cookie 就必须出网，与「服务端不持账号
+    // 资产」相悖。服务端这里只做一件事：声明该能力可用，由客户端自行选配
+    // 与执行。
+    // 判定依据是「客户端是否真的具备实现」而非「服务端能否实现」——
+    // 2026-08-29 核对：netease.search/recommend、bilibili.search 客户端
+    // 8 月即已落地，此前误标为 planned，属于清单与事实不符。
     _cap(
       'netease.recommend',
       'netease',
@@ -344,19 +348,29 @@ Future<Map<String, dynamic>> _capabilities() async {
       requiresCredential: true,
       credentialOwner: 'client',
     ),
-    // ── 规划中：需用户自登录，凭据留客户端 ──────────────────────────
-    // 尚未在任何一侧落地：客户端 netease_source 的歌单链路明确标注「后续以
-    // PagedMusicSource 补充」（getTracks 当前刻意返回空），服务端也未实现，
-    // 故保持 planned——UI 应展示为「未启用」而非隐藏，让用户知道有这条路。
     _cap(
       'netease.search',
       'netease',
       'search',
       '网易云 · 搜索',
-      enabled: false,
+      enabled: true,
       requiresCredential: true,
       credentialOwner: 'client',
     ),
+    _cap(
+      'bilibili.search',
+      'bilibili',
+      'search',
+      'B站 · 搜索',
+      // 实测（2026-08-29）：B站 WBI 搜索**不登录也能返回数据**（code=0、
+      // 20 条结果、无需 cookie），故不标 requiresCredential。这与网易云不同
+      // ——网易云的搜索/推荐未登录一律拿不到内容。
+      enabled: true,
+    ),
+    // ── 规划中：需用户自登录，凭据留客户端 ──────────────────────────
+    // 尚未在任何一侧落地：客户端 netease_source 的歌单链路明确标注「后续以
+    // PagedMusicSource 补充」（getTracks 当前刻意返回空），服务端也未实现，
+    // 故保持 planned——UI 应展示为「未启用」而非隐藏，让用户知道有这条路。
     _cap(
       'netease.playlist',
       'netease',
@@ -366,20 +380,13 @@ Future<Map<String, dynamic>> _capabilities() async {
       requiresCredential: true,
       credentialOwner: 'client',
     ),
-    _cap(
-      'bilibili.search',
-      'bilibili',
-      'search',
-      'B站 · 搜索',
-      enabled: false,
-    ),
   ];
 
   return <String, dynamic>{
     'ok': true,
     'server': <String, dynamic>{
       'service': 'xingli-relay',
-      'version': 'cl11',
+      'version': 'cl12',
       'mode': 'official',
       'tls': _tlsEnabled,
       'ts': DateTime.now().toIso8601String(),
@@ -419,7 +426,7 @@ Future<void> _handleApi(HttpRequest req) async {
       payload = <String, dynamic>{
         'ok': true,
         'service': 'xingli-relay',
-        'version': 'cl11',
+        'version': 'cl12',
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };

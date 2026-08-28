@@ -14,9 +14,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../models/capability.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
+import '../../providers/content/capability_providers.dart';
 import '../../providers/search/search_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
@@ -35,6 +37,33 @@ enum _SrcFilter {
   const _SrcFilter(this.label);
 
   final String label;
+}
+
+/// 筛选器对应的能力 id；「全部」不绑定单一能力。
+///
+/// 本地曲库对应 `local.library`（本地固有能力，enabled 恒为 true），
+/// 两个在线源对应各自的搜索能力。
+String? _capabilityOfFilter(_SrcFilter f) => switch (f) {
+      _SrcFilter.all => null,
+      _SrcFilter.local => 'local.library',
+      _SrcFilter.netease => 'netease.search',
+      _SrcFilter.bilibili => 'bilibili.search',
+    };
+
+/// 该筛选器对应的能力是否可用（受设置页「内容来源」里开关的约束）。
+///
+/// 判定顺序与探索页一致——服务端不可用时不能把本机能力藏起来：
+/// 1. 用户显式关掉 → 不可用。选配存在本地，不依赖服务端可达性。
+/// 2. 能力清单里有 → 以清单的 enabled / 是否 planned 为准。
+/// 3. 清单里没有（离线且无缓存）→ 放行。
+bool _filterAllows(WidgetRef ref, _SrcFilter f) {
+  final String? id = _capabilityOfFilter(f);
+  if (id == null) return true;
+  if (ref.watch(capabilitySelectionProvider).contains(id)) return false;
+  for (final Capability c in ref.watch(capabilitiesProvider)) {
+    if (c.id == id) return c.enabled && !c.isPlanned;
+  }
+  return true;
 }
 
 /// 聚合搜索页。
@@ -161,20 +190,25 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     );
   }
 
-  /// 源筛选 chips：全部 / 本地 / 网易云 / 哔哩哔哩。
+  /// 源筛选 chips：全部 / 本地 / 网易云 / 哔哩哔哩（被关掉的能力不出现在列表里）。
   Widget _buildSourceFilter() {
+    final List<_SrcFilter> visible = _SrcFilter.values
+        .where((_SrcFilter f) => _filterAllows(ref, f))
+        .toList(growable: false);
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: <Widget>[
-          for (final _SrcFilter f in _SrcFilter.values) ...<Widget>[
+          // 用下标而非 values.last 判断间距：过滤后最后一个可见项不再是
+          // values.last，照旧写法会在末尾多留一个空隙。
+          for (int i = 0; i < visible.length; i++) ...<Widget>[
             ChoiceChip(
-              label: Text(f.label, style: context.appText.caption),
-              selected: _filter == f,
+              label: Text(visible[i].label, style: context.appText.caption),
+              selected: _filter == visible[i],
               visualDensity: VisualDensity.compact,
-              onSelected: (_) => setState(() => _filter = f),
+              onSelected: (_) => setState(() => _filter = visible[i]),
             ),
-            if (f != _SrcFilter.values.last) const SizedBox(width: 6),
+            if (i != visible.length - 1) const SizedBox(width: 6),
           ],
         ],
       ),
@@ -182,18 +216,22 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   }
 
   /// 登录状态条（网易云 / B站，未登录显示登录按钮）。
+  ///
+  /// 已关掉的能力不再提示登录——用户明确说了不要这个来源，再催他登录是自相矛盾。
   Widget _buildLoginStrip() {
     final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
     final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
-    final bool need = _filter == _SrcFilter.netease && !ne ||
-        _filter == _SrcFilter.bilibili && !bi ||
-        _filter == _SrcFilter.all && (!ne || !bi);
+    final bool neOn = _filterAllows(ref, _SrcFilter.netease);
+    final bool biOn = _filterAllows(ref, _SrcFilter.bilibili);
+    final bool need = (_filter == _SrcFilter.netease && neOn && !ne) ||
+        (_filter == _SrcFilter.bilibili && biOn && !bi) ||
+        (_filter == _SrcFilter.all && ((neOn && !ne) || (biOn && !bi)));
     if (!need) return const SizedBox.shrink();
     return Wrap(
       spacing: 8,
       runSpacing: 4,
       children: <Widget>[
-        if (!ne)
+        if (neOn && !ne)
           ActionChip(
             avatar: Icon(Icons.music_note_rounded,
                 size: 14, color: context.appColors.accent),
@@ -201,7 +239,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
             visualDensity: VisualDensity.compact,
             onPressed: _openNeteaseLogin,
           ),
-        if (!bi)
+        if (biOn && !bi)
           ActionChip(
             avatar: Icon(Icons.video_library_outlined,
                 size: 14, color: context.appColors.accent),
@@ -294,6 +332,9 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         message: '输入关键词，搜索本地 / 网易云 / 哔哩哔哩并在线播放',
       );
     }
+    // 当前筛选对应的能力被关掉了（很可能刚在设置页改过）：退回「全部」，
+    // 而不是继续渲染一个用户已经明确关掉的来源。
+    if (!_filterAllows(ref, _filter)) return _buildAll();
     return switch (_filter) {
       _SrcFilter.local => _buildLocal(),
       _SrcFilter.netease => _buildNetease(),
@@ -391,6 +432,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   Widget _buildAll() {
     final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
     final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
+    // 能力开关：在设置页「内容来源」里关掉的来源，既不出结果也不发请求。
+    // 登录态与开关是两件事——未登录是「暂时用不了」，关掉是「我不要它」。
+    final bool neOn = _filterAllows(ref, _SrcFilter.netease);
+    final bool biOn = _filterAllows(ref, _SrcFilter.bilibili);
+    final bool localOn = _filterAllows(ref, _SrcFilter.local);
     final AsyncValue<List<Track>> lib = ref.watch(musicLibraryProvider);
     final String kw = _keyword.toLowerCase();
     final List<Track> localHits = lib.valueOrNull
@@ -399,11 +445,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
                 t.artist.toLowerCase().contains(kw))
             .toList() ??
         const <Track>[];
-    // 远程源并行搜索（未登录的源跳过）。
-    final Future<List<Track>> neF = ne
+    // 远程源并行搜索（未登录、或被关掉的源跳过）。
+    final Future<List<Track>> neF = ne && neOn
         ? ref.watch(neteaseSearchProvider(_keyword).future).catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
-    final Future<List<Track>> biF = bi
+    final Future<List<Track>> biF = bi && biOn
         ? ref.watch(bilibiliSearchProvider(_keyword).future).catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
 
@@ -415,9 +461,9 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         final List<Track> biHits =
             snap.data != null && snap.data!.length > 1 ? snap.data![1] : const <Track>[];
         final List<Track> all = <Track>[
-          for (final Track t in localHits) t,
-          for (final Track t in neHits) t,
-          for (final Track t in biHits) t,
+          if (localOn) ...localHits,
+          ...neHits,
+          ...biHits,
         ];
         if (all.isEmpty) {
           return const _HintPanel(
