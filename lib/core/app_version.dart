@@ -402,8 +402,15 @@ abstract final class AppVersion {
   /// cl09（08.28）：后端内容联动——relay_server 扩展 REST 内容 API（/api/health、
   /// /api/content/scenes·playlists·notices·random，内容 JSON 热编辑）；App 端
   /// content_service + provider + 探索页公告条 + 设置「内容服务地址」；同步到
-  /// ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件拉取显示）。
-  static const int buildCount = 9;
+/// ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件拉取显示）。
+/// cl10（08.28）：能力中心地基——架构定调「服务端全量支持、客户端自行选配」。
+/// relay_server 新增 /api/capabilities 能力清单（id/source/kind/title/endpoint/
+/// requiresCredential/credentialOwner/enabled/status，内容类 enabled 按 content
+/// JSON 存在性动态判定）；凭据默认 credentialOwner=client（留客户端、服务端无
+/// 状态适配不落盘，服务端不持账号资产）；App 端新建能力层（模型 + 主备逐个降级
+/// 拉取 + 本地缓存 + 选配持久化 + 与本地固有能力合并）；新增备用地址列表做多实
+/// 例兜底。本版为地基层，尚未接入 UI。
+static const int buildCount = 10;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -468,6 +475,20 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.28',
+    cl: 'beta_cl10',
+    title: '能力中心地基：服务端 /api/capabilities + 客户端能力选配层',
+    details: <String>[
+      '架构定调「服务端全量支持、客户端自行选配」：服务端是能力中心，客户端不内置任何音源逻辑，只按清单渲染入口——新增音源 = 服务端登记 + 实现路由，客户端零发版',
+      '服务端新增 GET /api/capabilities：声明 abilities（id / source / kind / title / endpoint / requiresCredential / credentialOwner / enabled / status）。内容类能力的 enabled 按 content/*.json 是否实际存在动态判定，运营增删 JSON 即刻生效',
+      '凭据归属 credentialOwner 默认 client：凭据留客户端加密存储随请求带上，服务端只做无状态协议适配、不落盘不记日志——服务端不持账号资产',
+      '客户端新增能力层：models/capability.dart（Capability / CapabilityManifest / CapabilityKind / CredentialOwner，未知取值落 unknown 而非抛错）、services/content/capability_service.dart（主备逐个降级拉取）、providers/content/capability_providers.dart（清单 + 本地缓存 + 选配持久化 + 与本地固有能力合并）',
+      '借鉴 Piped 多实例兜底：新增备用地址列表 content_backup_urls，主地址失败自动换下一个，全失败回退本地缓存，能力层任何故障都不影响播放主流程',
+      '选配采用「只记关掉的」：服务端后续新增能力默认出现在客户端，用户再自行裁剪；本地固有能力（本地曲库 / 本地目录 / Subsonic / 公开电台）不经服务端，enabled 按实际配置判定',
+      '本次为地基层，尚未接入 UI（下一步：内容拉取按能力开关门控，UI 按能力渲染入口）',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.28',
     cl: 'beta_cl09',

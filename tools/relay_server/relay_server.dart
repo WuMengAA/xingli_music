@@ -247,6 +247,139 @@ Future<Map<String, dynamic>?> _loadContent(String key) async {
   }
 }
 
+// ═══ cl11：能力清单（服务端全量声明，客户端按清单选配）══════════════════
+//
+// 设计约定：服务端是「能力中心」，客户端不内置任何音源逻辑，只按本清单
+// 渲染入口。新增一个音源 = 在此登记 + 实现路由，**客户端零发版**。
+//
+// 凭据归属 `credentialOwner`：
+// - `client`：凭据留客户端加密存储，随请求带上；服务端只做无状态协议适配，
+//   用完即弃、不落盘、不记日志（服务端不持账号资产，是本项目的安全边界）。
+// - `server`：服务端代持（仅自托管场景可选）。
+// - `none`：公开能力，无需凭据。
+
+/// 能力已实现可对外服务。
+const String kCapStatusReady = 'ready';
+
+/// 服务端已认知该能力但尚未实现，客户端应展示为「未启用」而非隐藏。
+const String kCapStatusPlanned = 'planned';
+
+/// 构造单条能力声明。[kind] 与客户端 `CapabilityKind` 取值对齐：
+/// search / playlist / recommend / curated / radio / local。
+Map<String, dynamic> _cap(
+  String id,
+  String source,
+  String kind,
+  String title, {
+  required bool enabled,
+  String? endpoint,
+  bool requiresCredential = false,
+  String credentialOwner = 'none',
+}) =>
+    <String, dynamic>{
+      'id': id,
+      'source': source,
+      'kind': kind,
+      'title': title,
+      if (endpoint != null) 'endpoint': endpoint,
+      'requiresCredential': requiresCredential,
+      'credentialOwner': credentialOwner,
+      'enabled': enabled,
+      'status': enabled ? kCapStatusReady : kCapStatusPlanned,
+    };
+
+/// 组装能力清单。
+///
+/// 内容类能力的 `enabled` 按内容文件是否实际存在判定——运营在 `content/`
+/// 里增删 JSON 即刻生效，不必改代码。
+Future<Map<String, dynamic>> _capabilities() async {
+  final bool hasScenes = File('$_kContentDir/scenes.json').existsSync();
+  final bool hasPlaylists = File('$_kContentDir/playlists.json').existsSync();
+  final bool hasNotices = File('$_kContentDir/notices.json').existsSync();
+
+  final List<Map<String, dynamic>> caps = <Map<String, dynamic>>[
+    _cap(
+      'content.scenes',
+      'content',
+      'curated',
+      '场景包',
+      enabled: hasScenes,
+      endpoint: '/api/content/scenes',
+    ),
+    _cap(
+      'content.playlists',
+      'content',
+      'curated',
+      '精选歌单',
+      enabled: hasPlaylists,
+      endpoint: '/api/content/playlists',
+    ),
+    _cap(
+      'content.notices',
+      'content',
+      'curated',
+      '公告',
+      enabled: hasNotices,
+      endpoint: '/api/content/notices',
+    ),
+    _cap(
+      'content.random',
+      'content',
+      'curated',
+      '随机推荐',
+      enabled: hasScenes || hasPlaylists,
+      endpoint: '/api/content/random',
+    ),
+    // ── 规划中：需用户自登录，凭据留客户端 ──────────────────────────
+    _cap(
+      'netease.search',
+      'netease',
+      'search',
+      '网易云 · 搜索',
+      enabled: false,
+      requiresCredential: true,
+      credentialOwner: 'client',
+    ),
+    _cap(
+      'netease.playlist',
+      'netease',
+      'playlist',
+      '网易云 · 我的歌单',
+      enabled: false,
+      requiresCredential: true,
+      credentialOwner: 'client',
+    ),
+    _cap(
+      'netease.recommend',
+      'netease',
+      'recommend',
+      '网易云 · 每日推荐',
+      enabled: false,
+      requiresCredential: true,
+      credentialOwner: 'client',
+    ),
+    _cap(
+      'bilibili.search',
+      'bilibili',
+      'search',
+      'B站 · 搜索',
+      enabled: false,
+    ),
+  ];
+
+  return <String, dynamic>{
+    'ok': true,
+    'server': <String, dynamic>{
+      'service': 'xingli-relay',
+      'version': 'cl11',
+      'mode': 'official',
+      'tls': _tlsEnabled,
+      'ts': DateTime.now().toIso8601String(),
+    },
+    'capabilities': caps,
+  };
+}
+
 /// 随机返回一条内容（场景或歌单），供 ClassIsland 组件 / App 轮换展示。
 Future<Map<String, dynamic>?> _randomContent() async {
   final Map<String, dynamic>? scenes = await _loadContent('scenes');
@@ -282,6 +415,8 @@ Future<void> _handleApi(HttpRequest req) async {
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };
+    case '/api/capabilities':
+      payload = await _capabilities();
     case '/api/content/scenes':
       payload = await _loadContent('scenes');
       if (payload == null) status = 404;

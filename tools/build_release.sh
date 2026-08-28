@@ -60,12 +60,18 @@ mkdir -p "$RELEASE_DIR"
 #   三架构，与 build.gradle 的 splits{abi} 冲突（AGP 报错），官方 flag 规避，
 #   不动 build.gradle（MEMORY 2026-08-17）。
 echo "==> 构建 Android release APK（1-3 分钟）"
+# ⚠️ 先清掉上一次的拆分包（只删 APK，不动 build/ 下的预置 media_kit jar ——
+#    绝不 flutter clean）。否则构建真失败时，下方「按产物存在性判定」会把
+#    上一次的旧包当成当前版本拷出去，产出「版本号是新、二进制是旧」的错标包。
+#    2026-08-29 实测踩中：cl10 包与 cl09 sha256 完全相同，属绝不可分发的产物。
+rm -f build/app/outputs/flutter-apk/*-release.apk
 set +e
 "$FLUTTER" build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
 BUILD_EXIT=$?
 set -e
 # ⚠️ splits.abi 已知现象：构建成功但 flutter 收尾误报 "failed to produce an
 # .apk file"（因产的是拆分 APK）。不能按退出码判失败，按产物存在性判。
+# 配合上方 rm：此刻存在的 APK 必然是本次构建的产物，不可能是旧包。
 if [ "$BUILD_EXIT" -ne 0 ] && ! ls build/app/outputs/flutter-apk/*-release.apk >/dev/null 2>&1; then
   echo "!! APK 构建失败（exit=$BUILD_EXIT，且无 release.apk 产物）" >&2
   exit 1
@@ -73,14 +79,22 @@ fi
 echo "    （flutter 可能误报 failed to produce，拆分包实际已产出，见 flutter-apk/）"
 
 FLD="build/app/outputs/flutter-apk"
+APK_COUNT=0
 for pair in "app-arm64-v8a-release.apk:arm64" "app-armeabi-v7a-release.apk:arm32"; do
   src="${pair%%:*}"; tag="${pair##*:}"
   if [ -f "$FLD/$src" ]; then
     cp "$FLD/$src" "$RELEASE_DIR/$BASE.$tag.apk"
     ( cd "$RELEASE_DIR" && sha256sum "$BASE.$tag.apk" > "$BASE.$tag.apk.sha256" )
     echo "    拆分包：$BASE.$tag.apk"
+    APK_COUNT=$((APK_COUNT + 1))
   fi
 done
+# 一个都没产出的情况下必须显式失败——不能静默跳过，否则 release/ 里会留下
+# 空版本号或上一次的残留，让人误以为出包成功。
+if [ "$APK_COUNT" -eq 0 ]; then
+  echo "!! APK 构建失败：未产出任何拆分包（release/ 未更新）" >&2
+  exit 1
+fi
 
 # ── 2. Windows release + 便携 zip（仅 --win 时）──────────────
 if [ "$BUILD_WIN" = "1" ]; then
