@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/experiment.dart';
+import '../../models/capability.dart';
 import '../../models/scene.dart';
 import '../../models/track_stats.dart';
 import '../../pages/library/playlist_detail_page.dart';
 import '../../pages/social/station_lobby_page.dart';
+import '../../providers/content/capability_providers.dart';
 import '../../providers/content/content_providers.dart';
 import '../../providers/explore/experiment_providers.dart';
 import '../../providers/scene/scene_providers.dart';
@@ -656,7 +658,7 @@ class _FuncRow extends StatelessWidget {
   }
 }
 
-/// 实验区（数据驱动 `experimentsProvider`，按同意状态逐项过滤）。
+/// 实验区（数据驱动 `experimentsProvider`，按同意状态 + 能力开关逐项过滤）。
 ///
 /// 未同意 → 全屏 [ConsentGate]；已同意 → 165×110 卡片网格（双列）。
 class _ExperimentSection extends ConsumerWidget {
@@ -667,7 +669,8 @@ class _ExperimentSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final List<ExperimentItem> experiments = ref.watch(experimentsProvider);
     final List<ExperimentItem> visible = experiments
-        .where((ExperimentItem e) => consent.isEnabled(e))
+        .where((ExperimentItem e) =>
+            consent.isEnabled(e) && _capabilityAllows(ref, e.id))
         .toList();
 
     if (!consent.agreed) {
@@ -687,6 +690,31 @@ class _ExperimentSection extends ConsumerWidget {
       children: visible.map((ExperimentItem e) => _ExpCard(item: e)).toList(),
     );
   }
+}
+
+/// 实验 id → 能力 id。未列入的实验保持原状，不受能力开关约束。
+const Map<String, String> _experimentCapabilityIds = <String, String>{
+  'netease_recommend': 'netease.recommend',
+};
+
+/// 该实验对应的能力是否允许展示。
+///
+/// 判定顺序刻意这样排，是为了服务端不可用时不让本机功能凭空消失：
+/// 1. 用户显式关掉 → 一定隐藏。选配存在本地，不依赖服务端可达性。
+/// 2. 清单里有这一项 → 以清单的 enabled / 是否 planned 为准。
+/// 3. 清单里没有（离线且无缓存）→ **放行**。网易云推荐是客户端能力，
+///    实现在端上，不该因为连不上服务端就把本机功能藏起来。
+bool _capabilityAllows(WidgetRef ref, String experimentId) {
+  final String? capabilityId = _experimentCapabilityIds[experimentId];
+  if (capabilityId == null) return true;
+
+  if (ref.watch(capabilitySelectionProvider).contains(capabilityId)) {
+    return false;
+  }
+  for (final Capability c in ref.watch(capabilitiesProvider)) {
+    if (c.id == capabilityId) return c.enabled && !c.isPlanned;
+  }
+  return true;
 }
 
 /// 单张实验卡（165×110，圆角 16）：标题 + 描述。点击进入对应实验页。

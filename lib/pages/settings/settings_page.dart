@@ -11,6 +11,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
+import '../../pages/settings/content_sources_page.dart';
 import '../../pages/settings/template_gallery_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
@@ -268,6 +269,19 @@ class _AudioContent extends ConsumerWidget {
         const SizedBox(height: AppSpace.sm),
         // R26r28：#279 设置整合 —— 网易云登录态直接在设置页管理。
         const _NeteaseSourceTile(),
+        const SizedBox(height: AppSpace.sm),
+        // cl11：内容来源。与上方「音源」分工——音源管*怎么连上*（地址/目录/账号），
+        // 这里管*连上之后要什么*（按服务端能力清单裁剪，关掉即停止请求）。
+        _EntryRow(
+          icon: Icons.tune_rounded,
+          title: '内容来源',
+          subtitle: '按官方清单选择要哪些内容 · 关掉即停止请求',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const ContentSourcesPage(),
+            ),
+          ),
+        ),
         const SizedBox(height: AppSpace.lg),
 
         // ── 播放方式（R26c：从「画面 → 性能与质量」移入「音频」区）──

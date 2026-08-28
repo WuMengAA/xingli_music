@@ -330,7 +330,24 @@ Future<Map<String, dynamic>> _capabilities() async {
       enabled: hasScenes || hasPlaylists,
       endpoint: '/api/content/random',
     ),
+    // ── 客户端执行：凭据留设备，服务端只登记、不代理 ─────────────────
+    // 这类能力刻意**不带 endpoint**——实现的不是服务端路由，而是客户端本地
+    // 已有的网易云链路（weapi 加解密在端上完成）。若改由服务端代理，用户的
+    // 登录 cookie 就必须出网，与「服务端不持账号资产」相悖。服务端这里只做
+    // 一件事：声明该能力可用，由客户端自行选配与执行。
+    _cap(
+      'netease.recommend',
+      'netease',
+      'recommend',
+      '网易云 · 每日推荐',
+      enabled: true,
+      requiresCredential: true,
+      credentialOwner: 'client',
+    ),
     // ── 规划中：需用户自登录，凭据留客户端 ──────────────────────────
+    // 尚未在任何一侧落地：客户端 netease_source 的歌单链路明确标注「后续以
+    // PagedMusicSource 补充」（getTracks 当前刻意返回空），服务端也未实现，
+    // 故保持 planned——UI 应展示为「未启用」而非隐藏，让用户知道有这条路。
     _cap(
       'netease.search',
       'netease',
@@ -345,15 +362,6 @@ Future<Map<String, dynamic>> _capabilities() async {
       'netease',
       'playlist',
       '网易云 · 我的歌单',
-      enabled: false,
-      requiresCredential: true,
-      credentialOwner: 'client',
-    ),
-    _cap(
-      'netease.recommend',
-      'netease',
-      'recommend',
-      '网易云 · 每日推荐',
       enabled: false,
       requiresCredential: true,
       credentialOwner: 'client',
@@ -411,7 +419,7 @@ Future<void> _handleApi(HttpRequest req) async {
       payload = <String, dynamic>{
         'ok': true,
         'service': 'xingli-relay',
-        'version': 'cl10',
+        'version': 'cl11',
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };

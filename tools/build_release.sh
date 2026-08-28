@@ -60,39 +60,41 @@ mkdir -p "$RELEASE_DIR"
 #   三架构，与 build.gradle 的 splits{abi} 冲突（AGP 报错），官方 flag 规避，
 #   不动 build.gradle（MEMORY 2026-08-17）。
 echo "==> 构建 Android release APK（1-3 分钟）"
-# ⚠️ 先清掉上一次的拆分包（只删 APK，不动 build/ 下的预置 media_kit jar ——
-#    绝不 flutter clean）。否则构建真失败时，下方「按产物存在性判定」会把
-#    上一次的旧包当成当前版本拷出去，产出「版本号是新、二进制是旧」的错标包。
-#    2026-08-29 实测踩中：cl10 包与 cl09 sha256 完全相同，属绝不可分发的产物。
-rm -f build/app/outputs/flutter-apk/*-release.apk
+mkdir -p build/app/outputs/flutter-apk
+# ⚠️ 新鲜度基准：记录构建开始的时刻，构建后只认比它更新的 APK。
+#    这是为了堵死「构建真失败 → 脚本把上一次的旧包当成新版本拷出去」的错标
+#    产物（2026-08-29 实测踩中：cl10 包与 cl09 sha256 完全相同）。
+#    刻意用时间戳比对而**不删旧包**：build/ 下的预置 media_kit jar 绝不能动
+#    （绝不 flutter clean），批量删除又易误伤，比对 mtime 是无副作用的做法。
+_STAMP="build/app/outputs/flutter-apk/.pre_build_stamp"
+touch "$_STAMP"
 set +e
 "$FLUTTER" build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
 BUILD_EXIT=$?
 set -e
-# ⚠️ splits.abi 已知现象：构建成功但 flutter 收尾误报 "failed to produce an
-# .apk file"（因产的是拆分 APK）。不能按退出码判失败，按产物存在性判。
-# 配合上方 rm：此刻存在的 APK 必然是本次构建的产物，不可能是旧包。
-if [ "$BUILD_EXIT" -ne 0 ] && ! ls build/app/outputs/flutter-apk/*-release.apk >/dev/null 2>&1; then
-  echo "!! APK 构建失败（exit=$BUILD_EXIT，且无 release.apk 产物）" >&2
-  exit 1
-fi
 echo "    （flutter 可能误报 failed to produce，拆分包实际已产出，见 flutter-apk/）"
 
 FLD="build/app/outputs/flutter-apk"
 APK_COUNT=0
 for pair in "app-arm64-v8a-release.apk:arm64" "app-armeabi-v7a-release.apk:arm32"; do
   src="${pair%%:*}"; tag="${pair##*:}"
-  if [ -f "$FLD/$src" ]; then
+  # 只看本次构建的产物：-nt 比对 mtime，旧包（无论存在多久）都不会被采纳。
+  if [ -f "$FLD/$src" ] && [ "$FLD/$src" -nt "$_STAMP" ]; then
     cp "$FLD/$src" "$RELEASE_DIR/$BASE.$tag.apk"
     ( cd "$RELEASE_DIR" && sha256sum "$BASE.$tag.apk" > "$BASE.$tag.apk.sha256" )
     echo "    拆分包：$BASE.$tag.apk"
     APK_COUNT=$((APK_COUNT + 1))
+  else
+    echo "    ！$src 不是本次产物，已跳过（不复用旧包）" >&2
   fi
 done
 # 一个都没产出的情况下必须显式失败——不能静默跳过，否则 release/ 里会留下
-# 空版本号或上一次的残留，让人误以为出包成功。
+# 上一次的残留，让人误以为出包成功。
+# ⚠️ splits.abi 已知现象：构建成功但 flutter 收尾误报 "failed to produce an
+# .apk file"。所以这里不按退出码、而按「有没有新鲜产物」判定。
 if [ "$APK_COUNT" -eq 0 ]; then
-  echo "!! APK 构建失败：未产出任何拆分包（release/ 未更新）" >&2
+  echo "!! APK 构建失败（exit=$BUILD_EXIT）：本次未产出任何新的拆分包" >&2
+  echo "   release/ 未更新 —— 旧包不会冠以新版本号被拷出" >&2
   exit 1
 fi
 
