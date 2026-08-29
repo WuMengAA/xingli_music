@@ -37,7 +37,10 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          # 钉死 3.44.8：本地发版环境即此版本，已验证可正常出包。
+          # 旧用 channel: stable 会拉到 3.47，其要求的 Gradle/AGP/Kotlin 组合
+          # 与本项目不兼容（run 33243903566 的 build 步骤 failure），导致自动发版挂掉。
+          flutter-version: "3.44.8"
           cache: true
 
       - name: Enable Flutter
@@ -47,12 +50,12 @@ jobs:
         run: flutter pub get
 
       - name: Build APK (release, with per-ABI splits, no universal)
-        # --android-skip-build-dependency-validation：CI 的 Flutter stable(3.47)
-        # 要求 Gradle ≥ 8.14，而项目 wrapper 为 8.10.2（本机旧 Flutter 可构建）。
-        # 项目侧暂不升 gradle（避免影响本机），CI 用官方 bypass 开关跳过依赖校验。
-        # android/app/build.gradle 已配 splits { abi { universalApk false } }，
-        # 一次构建产出 arm64/armeabi 拆分包（不产 universal 整包）。
-        run: flutter build apk --release --no-tree-shake-icons --android-skip-build-dependency-validation
+        # 与本地发版命令完全一致：flutter 3.44.8 + -P disable-abi-filtering=true。
+        # -P disable-abi-filtering=true：绕过 Flutter 3.44.8 与 splits.abi 的冲突，
+        # 改由 android/app/build.gradle 的 splits{ abi { universalApk false } }
+        # 产出 arm64-v8a / armeabi-v7a 两个拆分包（不产 universal 整包）。
+        # 已验证：本机 3.44.8 执行此命令 ~1m42s 成功产出两拆分包。
+        run: flutter build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
 
       - name: Prepare artifacts (per-ABI splits only)
         working-directory: build/app/outputs/flutter-apk
