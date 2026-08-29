@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 28;
+  static const int day = 29;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -421,7 +421,7 @@ abstract final class AppVersion {
 /// requiresCredential（与网易云区分）。解析层支持搜索词，接入 netease.search /
 /// bilibili.search；聚合搜索页的来源筛选与结果按能力开关过滤，关掉的来源不再
 /// 发请求、也不再催登录。netease.playlist 维持 planned（歌单链路确未落地）。
-static const int buildCount = 12;
+static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
