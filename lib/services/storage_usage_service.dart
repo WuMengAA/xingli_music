@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import '../core/paths.dart';
 
 /// 单个目录/文件占用。
 class StorageUsageEntry {
@@ -54,7 +55,7 @@ Future<int> _dirSize(Directory dir) async {
 /// - 支持目录：日志 / 音频分析缓存等
 /// - 临时目录：临时文件
 Future<StorageUsage> collectStorageUsage() async {
-  final Directory docs = await getApplicationDocumentsDirectory();
+  final Directory docs = await appDataDir();
   final Directory support = await getApplicationSupportDirectory();
   final Directory temp = await getTemporaryDirectory();
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme_colors.dart';
@@ -187,7 +188,7 @@ class LyricsCache {
 final FutureProvider<LyricsCache> lyricsCacheProvider =
     FutureProvider<LyricsCache>((Ref ref) async {
   try {
-    final Directory docs = await getApplicationDocumentsDirectory();
+    final Directory docs = await appDataDir();
     return LyricsCache(docs);
   } catch (_) {
     return LyricsCache(Directory.systemTemp);
@@ -771,19 +772,17 @@ class _LyricsScrollerState extends ConsumerState<_LyricsScroller> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  Text(
+                  SelectableText(
                     widget.lines[i].$2,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                   ),
                   if (trans.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(
+                      child: SelectableText(
                         trans,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 11,

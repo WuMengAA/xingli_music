@@ -19,6 +19,7 @@ import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../core/paths.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter/services.dart';
@@ -388,7 +389,7 @@ class OtaService {
     final String shaUrl =
         'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$shaAsset';
 
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     final String apkPath = p.join(dir.path, 'ota_${tag}_$asset');
 
     // 1) 下载 sha256 期望值（对应架构拆分包）。

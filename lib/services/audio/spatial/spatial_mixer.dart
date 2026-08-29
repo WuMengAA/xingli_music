@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:path_provider/path_provider.dart';
+import '../../../core/paths.dart';
 
 import '../../log_service.dart';
 import 'spatial_models.dart';
@@ -136,7 +137,7 @@ class SpatialPlayer {
     if (track.audioPath != null && await File(track.audioPath!).exists()) {
       return track.audioPath!;
     }
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     final String synthId = track.synthesisId ?? track.id;
     final File f = File('${dir.path}/spatial_${sound.id}_${track.id}_$synthId.wav');
     if (await f.exists()) return f.path;

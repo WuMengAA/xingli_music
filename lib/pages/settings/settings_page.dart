@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -732,9 +733,15 @@ class _AboutContent extends ConsumerWidget {
     );
   }
 
-  /// cl59：复制 GitHub 仓库地址。
-  void _copyRepo(BuildContext context) {
-    appNotify(context, '已复制仓库地址：github.com/WuMengAA/xingli_music');
+  /// cl59：复制 GitHub 仓库地址到系统剪贴板。
+  /// 0.26.8.29 修复：此前只弹「已复制」提示却不真写入剪贴板。
+  Future<void> _copyRepo(BuildContext context) async {
+    await Clipboard.setData(
+      const ClipboardData(text: 'https://github.com/WuMengAA/xingli_music'),
+    );
+    if (context.mounted) {
+      appNotify(context, '已复制仓库地址：github.com/WuMengAA/xingli_music');
+    }
   }
 
   /// cl04：更新渠道切换（Beta 稳定 / Alpha 尝鲜；写渠道 + 待重启标记）。

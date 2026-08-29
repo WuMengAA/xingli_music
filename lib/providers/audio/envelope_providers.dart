@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 
 import '../../models/track.dart';
 import 'audio_providers.dart';
@@ -30,7 +31,7 @@ final currentTrackLocalPathProvider = Provider<String?>((ref) {
 final currentEnvelopeProvider = FutureProvider<MusicEnvelope?>((ref) async {
   final String? path = ref.watch(currentTrackLocalPathProvider);
   if (path == null || !File(path).existsSync()) return null;
-  final Directory docs = await getApplicationDocumentsDirectory();
+  final Directory docs = await appDataDir();
   final EnvelopeCache cache = EnvelopeCache(docs);
   try {
     return await cache.getOrAnalyze(path);

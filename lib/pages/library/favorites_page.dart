@@ -12,6 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
@@ -494,7 +495,7 @@ Future<String?> _pickBgImage() async {
   final String? src = result?.files.single.path;
   if (src == null) return null;
   try {
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     final Directory bgDir = Directory('${dir.path}/playlist_bg');
     if (!bgDir.existsSync()) bgDir.createSync(recursive: true);
     final String name =

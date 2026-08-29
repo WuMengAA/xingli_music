@@ -21,20 +21,29 @@ import 'music_backend.dart';
 
 /// 基于 media_kit（libmpv）的实现。
 class MediaKitBackend implements MusicBackend {
-  MediaKitBackend() {
-    // 构造容错：初始化失败不抛（播放时才会失败并报错）。
-    try {
-      MediaKit.ensureInitialized();
-    } catch (e) {
-      _initError = 'MediaKit.ensureInitialized: $e';
-    }
-    _stateCtrl = StreamController<MusicEngineState>.broadcast();
-    _positionCtrl = StreamController<Duration?>.broadcast();
-    _durationCtrl = StreamController<Duration?>.broadcast();
+  MediaKitBackend()
+      : _stateCtrl = StreamController<MusicEngineState>.broadcast(),
+        _positionCtrl = StreamController<Duration?>.broadcast(),
+        _durationCtrl = StreamController<Duration?>.broadcast() {
+    // 稳定性（0.26.8.29）：构造发生在 audioServiceProvider 求值 = UI 首帧，
+    // 同步 MediaKit.ensureInitialized() 会阻塞首帧加载 libmpv → 冷启动卡死。
+    // 改为事件循环下一轮执行：首帧先画出，libmpv 在后续轮次加载（短暂卡一下，
+    // 但 app 已可见）。失败仍容错（仅播放时报错，被 AudioService 兜住）。
+    _initFuture = Future<void>(() {
+      try {
+        MediaKit.ensureInitialized();
+      } catch (e) {
+        _initError = 'MediaKit.ensureInitialized: $e';
+      }
+    });
   }
 
   /// media_kit 初始化错误（非空 = 引擎不可用，open 时抛中文异常）。
   String? _initError;
+
+  /// libmpv 加载 Future（构造时启动，首帧之后在事件循环下一轮执行，
+  /// 避免冷启动阻塞首帧；[ _ensurePlayer] 会 await 它）。
+  Future<void>? _initFuture;
 
   Player? _player;
   bool _streamsReady = false;
@@ -58,7 +67,10 @@ class MediaKitBackend implements MusicBackend {
     throw StateError(_initError ?? 'media_kit 播放引擎不可用');
   }
 
-  Player _ensurePlayer() {
+  Future<Player> _ensurePlayer() async {
+    if (_initError != null) _throwInitError();
+    // 确保 libmpv 已在首帧之后加载完成（冷启动不阻塞第一帧）。
+    await _initFuture;
     if (_initError != null) _throwInitError();
     final Player? existing = _player;
     if (existing != null) return existing;
@@ -204,7 +216,7 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Future<void> openUri(Uri uri, {Map<String, String>? headers}) async {
-    final Player p = _ensurePlayer();
+    final Player p = await _ensurePlayer();
     try {
       await p.open(Media(uri.toString(), httpHeaders: headers));
     } catch (e) {
@@ -218,7 +230,7 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Future<void> openUrl(String url, {Map<String, String>? headers}) async {
-    final Player p = _ensurePlayer();
+    final Player p = await _ensurePlayer();
     try {
       await p.open(Media(url, httpHeaders: headers));
     } catch (e) {
@@ -231,7 +243,7 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Future<void> openPath(String path) async {
-    final Player p = _ensurePlayer();
+    final Player p = await _ensurePlayer();
     // libmpv 需要标准 URI：裸路径（尤其 Windows 反斜杠路径）转 file:///。
     // 否则文件打不开 → 播放器无输出（R23c 双端无声的头号嫌疑）。
     final String uri = path.startsWith('file://') ||
@@ -256,7 +268,7 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Future<void> play() async {
-    final Player p = _ensurePlayer();
+    final Player p = await _ensurePlayer();
     await p.play();
     // 诊断：播放 1 秒后记录引擎真实状态（无声排查用）。
     unawaited(() async {
@@ -297,7 +309,7 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Future<void> setSpeed(double rate) async {
-    final Player p = _ensurePlayer();
+    final Player p = await _ensurePlayer();
     await p.setRate(rate);
   }
 

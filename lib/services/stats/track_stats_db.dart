@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../../models/track_stats.dart';
@@ -25,7 +26,7 @@ class TrackStatsDb {
 
   Future<Database> get database async {
     if (_db != null) return _db!;
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     final String path = p.join(dir.path, 'music_stats.db');
     _db = await openDatabase(
       path,

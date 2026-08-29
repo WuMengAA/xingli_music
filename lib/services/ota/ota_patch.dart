@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 
 /// 取当前安装包路径的原生通道（MainActivity 注册）。
 const String kAppInfoChannel = 'com.stelarith.xingli_music/app_info';
@@ -35,7 +36,7 @@ class OtaPatchBase {
   }
 
   static Future<String> _basePath() async {
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     return p.join(dir.path, 'ota_base.apk');
   }
 

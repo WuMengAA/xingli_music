@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 
 /// 场景音景生成器：程序化合成氛围声（雨/森林/壁炉/海浪…）
 ///
@@ -181,7 +182,7 @@ class SoundscapeGenerator {
   }
 
   static Future<File> _fileFor(String sceneId) async {
-    final Directory dir = await getApplicationDocumentsDirectory();
+    final Directory dir = await appDataDir();
     return File('${dir.path}/soundscape_v${version}_$sceneId.wav');
   }
 

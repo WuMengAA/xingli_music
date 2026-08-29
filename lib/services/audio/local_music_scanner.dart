@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import '../../core/paths.dart';
 
 import '../../models/track.dart';
 import '../log_service.dart';
@@ -192,7 +193,7 @@ class LocalMusicScanner {
   }
 
   static Future<Directory> _coverDir() async {
-    final Directory appDir = await getApplicationDocumentsDirectory();
+    final Directory appDir = await appDataDir();
     final Directory d = Directory(p.join(appDir.path, _coverSubdir));
     if (!await d.exists()) await d.create(recursive: true);
     return d;

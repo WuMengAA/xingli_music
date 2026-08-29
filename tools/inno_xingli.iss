@@ -34,6 +34,12 @@ Name: "chinesesimplified"; MessagesFile: "compiler:Default.isl"
 [Files]
 Source: "{#MySrc}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; 应用私有数据目录：放数据库/封面/歌词/音效（不再塞进用户"文档"）。
+; PrivilegesRequired=lowest → 标准用户装到 Program Files，需显式放行写权限，
+; 否则 app 运行时写 {app}\data 会被系统拒（appDataDir() 会降级到 AppData）。
+[Dirs]
+Name: "{app}\data"; Permissions: users-modify
+
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\xingli_music.exe"; WorkingDir: "{app}"
 Name: "{group}\{#MyAppName} 卸载"; Filename: "{uninstallexe}"
