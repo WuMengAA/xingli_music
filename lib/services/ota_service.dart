@@ -18,7 +18,6 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../core/paths.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -216,6 +215,14 @@ class OtaService {
     }
   }
 
+  /// 该 Release 是否含「当前平台可安装」的包：安卓只看 APK，Windows 只看 exe/zip。
+  /// 防止安卓端把只含 Windows 资产的版本当成可更新版本（历史坑：OTA 判为电脑版）。
+  static bool matchesCurrentPlatform(OtaTagInfo info) {
+    if (Platform.isAndroid) return info.androidAbis.isNotEmpty;
+    if (Platform.isWindows) return info.hasWindows;
+    return false;
+  }
+
   /// 检查 GitHub Releases 是否有新版本（仅当前渠道）。
   ///
   /// 新旧判断（2026-08-17 渠道化定版）：tag 需为新格式
@@ -248,6 +255,7 @@ class OtaService {
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
         _applyReleaseAssets(info, r);
+        if (!matchesCurrentPlatform(info)) continue;
         if (best == null ||
             info.dateKey > best.dateKey ||
             (info.dateKey == best.dateKey && info.build > best.build)) {
@@ -306,6 +314,7 @@ class OtaService {
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
         _applyReleaseAssets(info, r);
+        if (!matchesCurrentPlatform(info)) continue;
         if (best == null ||
             info.dateKey > best.dateKey ||
             (info.dateKey == best.dateKey && info.build > best.build)) {
@@ -355,6 +364,7 @@ class OtaService {
         final OtaTagInfo? info = parseOtaTag(tag);
         if (info == null || info.channel != channel) continue;
         _applyReleaseAssets(info, r);
+        if (!matchesCurrentPlatform(info)) continue;
         out.add(info..notes = (r['body'] as String?) ?? '');
       }
       out.sort((OtaTagInfo a, OtaTagInfo b) {

@@ -8,7 +8,9 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,9 +19,13 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/ota_download_provider.dart';
 import '../../providers/settings/settings_persistence_providers.dart';
+import '../../services/open_url.dart';
 import '../../services/ota_service.dart';
 import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
+
+const String kOtaReleasesPageUrl =
+    'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases';
 
 /// 打开版本日志面板（自动获取最新日志：changelog 倒序，首条即最新）。
 Future<void> showVersionLogSheet(BuildContext context) {
@@ -70,36 +76,40 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors colors = context.appColors;
-    final UpdateChannel ch =
-        ref.read(settingsRepositoryProvider).updateChannel;
+    final UpdateChannel ch = ref.read(settingsRepositoryProvider).updateChannel;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.md,
-          AppSpace.md,
-          AppSpace.md,
-          AppSpace.lg,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text('更新日志（${ch.label}）',
-                      style: context.appText.subtitle),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpace.xs),
-            Flexible(
-              child: FutureBuilder<String?>(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  Expanded(
+                    child: Text(
+                      '更新日志（${ch.label}）',
+                      style: context.appText.subtitle,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: '关闭',
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpace.xs),
+              FutureBuilder<String?>(
                 future: _notesFuture,
                 builder: (BuildContext c, AsyncSnapshot<String?> snap) {
                   final String? notes = snap.data;
@@ -122,8 +132,9 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
                     future: _tagFuture,
                     builder: (BuildContext c2, AsyncSnapshot<String?> tagSnap) {
                       final String? tag = tagSnap.data;
-                      return ListView(
-                        shrinkWrap: true,
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           if (tag != null && tag.isNotEmpty)
                             Container(
@@ -133,13 +144,15 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
                               ),
                               decoration: BoxDecoration(
                                 color: colors.accentSoft,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.pill),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.pill,
+                                ),
                               ),
                               child: Text(
                                 '最新 $tag',
-                                style: context.appText.caption
-                                    .copyWith(color: colors.accent),
+                                style: context.appText.caption.copyWith(
+                                  color: colors.accent,
+                                ),
                               ),
                             ),
                           const SizedBox(height: AppSpace.sm),
@@ -161,8 +174,8 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
                   );
                 },
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -198,15 +211,12 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   /// 按本机架构选对应拆分包下载 →（后台）哈希校验 → 提示。
   Future<void> _check() async {
     setState(() => _checking = true);
-    final UpdateChannel ch =
-        ref.read(settingsRepositoryProvider).updateChannel;
+    final UpdateChannel ch = ref.read(settingsRepositoryProvider).updateChannel;
     // 并发：检测架构 + 拉取本渠道版本列表。
-    final List<dynamic> res = await Future.wait<dynamic>(
-      <Future<dynamic>>[
-        OtaService.detectDeviceAbi(),
-        OtaService.instance.listChannelReleases(ch),
-      ],
-    );
+    final List<dynamic> res = await Future.wait<dynamic>(<Future<dynamic>>[
+      OtaService.detectDeviceAbi(),
+      OtaService.instance.listChannelReleases(ch),
+    ]);
     if (!mounted) return;
     _abi = res[0] as DeviceAbi;
     _versions = res[1] as List<OtaTagInfo>;
@@ -304,27 +314,37 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                         children: <Widget>[
                           Text(
                             v.tag,
-                            style: context.appText.body
-                                .copyWith(fontWeight: FontWeight.w600),
+                            style: context.appText.body.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(width: 6),
                           if (newer)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: colors.accent,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.pill),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.pill,
+                                ),
                               ),
-                              child: Text('可更新',
-                                  style: context.appText.caption
-                                      .copyWith(color: colors.onAccent)),
+                              child: Text(
+                                '可更新',
+                                style: context.appText.caption.copyWith(
+                                  color: colors.onAccent,
+                                ),
+                              ),
                             )
                           else
-                            Text('当前 / 旧版',
-                                style: context.appText.caption
-                                    .copyWith(color: colors.textSecondary)),
+                            Text(
+                              '当前 / 旧版',
+                              style: context.appText.caption.copyWith(
+                                color: colors.textSecondary,
+                              ),
+                            ),
                         ],
                       ),
                       if (v.notes.isNotEmpty) ...<Widget>[
@@ -338,9 +358,12 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                       ],
                       if (v.hotfix != null) ...<Widget>[
                         const SizedBox(height: 2),
-                        Text('含 hotfix${v.hotfix} 补丁',
-                            style: context.appText.caption
-                                .copyWith(color: colors.textSecondary)),
+                        Text(
+                          '含 hotfix${v.hotfix} 补丁',
+                          style: context.appText.caption.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
                       ],
                       if (v.androidAbis.isNotEmpty || v.hasWindows) ...<Widget>[
                         const SizedBox(height: 4),
@@ -375,8 +398,9 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
       chips.add(_platChip('安卓·arm32', colors.accent));
     }
     if (v.hasWindows) {
-      final String wa =
-          v.windowsArches.isNotEmpty ? v.windowsArches.join('/') : 'x64';
+      final String wa = v.windowsArches.isNotEmpty
+          ? v.windowsArches.join('/')
+          : 'x64';
       chips.add(_platChip('Windows·$wa', const Color(0xFF5B8DEF)));
     }
     if (chips.isEmpty) return const SizedBox.shrink();
@@ -403,8 +427,15 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     }
   }
 
+  /// 自动下载安装仅安卓支持；电脑端改为跳转 Releases 下载页。
+  bool get _isAndroid => !kIsWeb && Platform.isAndroid;
+
   /// 主按钮动作：检查 → 下载选中版本 → 安装 / 重试。
   void _onPrimary(OtaDownloadState dl) {
+    if (!_isAndroid) {
+      OpenUrl.launch(context, kOtaReleasesPageUrl);
+      return;
+    }
     if (dl.isDone) {
       _install(dl.apkPath);
       return;
@@ -425,123 +456,39 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     final AppThemeColors colors = context.appColors;
     // cl61：订阅全局下载状态（后台下载，本页只负责展示）。
     final OtaDownloadState dl = ref.watch(otaDownloadProvider);
-    final String abiLabel =
-        _abi == DeviceAbi.arm32 ? 'arm32 (armeabi-v7a)' : 'arm64 (arm64-v8a)';
+    final String abiLabel = _abi == DeviceAbi.arm32
+        ? 'arm32 (armeabi-v7a)'
+        : 'arm64 (arm64-v8a)';
     final OtaTagInfo? sel = _selectedVersion;
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpace.md,
-          AppSpace.md,
-          AppSpace.md,
-          AppSpace.lg,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text('版本更新', style: context.appText.subtitle),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpace.sm),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpace.md),
-              decoration: BoxDecoration(
-                color: colors.bgCard,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.md,
+            AppSpace.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
                 children: <Widget>[
-                  Text('当前版本', style: context.appText.bodyMuted),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppVersion.display,
-                    style: context.appText.subtitle
-                        .copyWith(color: colors.accent),
+                  Expanded(
+                    child: Text('版本更新', style: context.appText.subtitle),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '更新渠道：${ref.read(settingsRepositoryProvider).updateChannel.label}',
-                    style: context.appText.artist,
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: '关闭',
+                    onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: AppSpace.md),
-            // ── 本机架构指示（OTA 自动选对应拆分包）──
-            if (_checked) ...<Widget>[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpace.md),
-                decoration: BoxDecoration(
-                  color: colors.bgCard,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
-                    Icon(Icons.memory, size: 18, color: colors.textTertiary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '安卓适配：$abiLabel，自动匹配安装包（OTA 仅安卓）',
-                        style: context.appText.body,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: colors.accentSoft,
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.pill),
-                      ),
-                      child: Text('自动选包',
-                          style: context.appText.caption
-                              .copyWith(color: colors.accent)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpace.md),
-            ],
-            // ── 多版本选择列表（默认最新，可改选历史版本）──
-            if (_checked && _versions.isNotEmpty) ...<Widget>[
-              Text('选择版本（默认最新）', style: context.appText.subtitle),
               const SizedBox(height: AppSpace.sm),
-              ..._versions.asMap().entries.map(
-                    (MapEntry<int, OtaTagInfo> e) =>
-                        _buildVersionTile(e.key, e.value),
-                  ),
-              const SizedBox(height: AppSpace.md),
-            ] else if (_checked) ...<Widget>[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpace.md),
-                decoration: BoxDecoration(
-                  color: colors.bgCard,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Text(
-                  '当前渠道暂无可下载版本',
-                  style: context.appText.bodyMuted,
-                ),
-              ),
-              const SizedBox(height: AppSpace.md),
-            ],
-            // ── 下载进度 / 网速 / 后台提示（cl61）──
-            if (dl.isDownloading) ...<Widget>[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpace.md),
@@ -552,180 +499,281 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            '正在下载 ${dl.tag} …',
-                            style: context.appText.body,
-                          ),
-                        ),
-                        Text(
-                          '${(dl.fraction * 100).toStringAsFixed(1)}%',
-                          style: context.appText.subtitle
-                              .copyWith(color: colors.accent),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpace.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: dl.fraction,
-                        minHeight: 6,
-                        backgroundColor: colors.accentSoft,
-                        valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpace.sm),
-                    Row(
-                      children: <Widget>[
-                        Text(
-                          '${_fmtBytes(dl.receivedBytes)} / '
-                          '${_fmtBytes(dl.totalBytes)}',
-                          style: context.appText.caption,
-                        ),
-                        const Spacer(),
-                        Text(
-                          _fmtSpeed(dl.speedBytesPerSec),
-                          style: context.appText.caption
-                              .copyWith(color: colors.textSecondary),
-                        ),
-                      ],
-                    ),
+                    Text('当前版本', style: context.appText.bodyMuted),
                     const SizedBox(height: 4),
-                    Row(
-                      children: <Widget>[
-                        // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
-                        Icon(
-                          Icons.cloud_download_outlined,
-                          size: 14,
-                          color: colors.textTertiary,
+                    Text(
+                      AppVersion.display,
+                      style: context.appText.subtitle.copyWith(
+                        color: colors.accent,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '更新渠道：${ref.read(settingsRepositoryProvider).updateChannel.label}',
+                      style: context.appText.artist,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+              // ── 本机架构指示（OTA 自动选对应拆分包）──
+              if (_checked) ...<Widget>[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: BoxDecoration(
+                    color: colors.bgCard,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
+                      Icon(Icons.memory, size: 18, color: colors.textTertiary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _isAndroid
+                              ? '安卓适配：$abiLabel，自动匹配安装包（OTA 仅安卓）'
+                              : '电脑版：本页只列出 Windows 版本，自动下载安装仅支持安卓'
+                                '（请点下方按钮前往下载页）',
+                          style: context.appText.body,
                         ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '后台下载中，可关闭本页，完成后通知你',
-                            style: context.appText.artist,
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accentSoft,
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                        ),
+                        child: Text(
+                          _isAndroid ? '自动选包' : '手动下载',
+                          style: context.appText.caption.copyWith(
+                            color: colors.accent,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpace.md),
-            ],
-            if (dl.isDone) ...<Widget>[
-              Container(
+                const SizedBox(height: AppSpace.md),
+              ],
+              // ── 多版本选择列表（默认最新，可改选历史版本）──
+              if (_checked && _versions.isNotEmpty) ...<Widget>[
+                Text('选择版本（默认最新）', style: context.appText.subtitle),
+                const SizedBox(height: AppSpace.sm),
+                ..._versions.asMap().entries.map(
+                  (MapEntry<int, OtaTagInfo> e) =>
+                      _buildVersionTile(e.key, e.value),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ] else if (_checked) ...<Widget>[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: BoxDecoration(
+                    color: colors.bgCard,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Text('当前渠道暂无可下载版本', style: context.appText.bodyMuted),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
+              // ── 下载进度 / 网速 / 后台提示（cl61）──
+              if (dl.isDownloading) ...<Widget>[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: BoxDecoration(
+                    color: colors.bgCard,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: Text(
+                              '正在下载 ${dl.tag} …',
+                              style: context.appText.body,
+                            ),
+                          ),
+                          Text(
+                            '${(dl.fraction * 100).toStringAsFixed(1)}%',
+                            style: context.appText.subtitle.copyWith(
+                              color: colors.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpace.sm),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: dl.fraction,
+                          minHeight: 6,
+                          backgroundColor: colors.accentSoft,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            colors.accent,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpace.sm),
+                      Row(
+                        children: <Widget>[
+                          Text(
+                            '${_fmtBytes(dl.receivedBytes)} / '
+                            '${_fmtBytes(dl.totalBytes)}',
+                            style: context.appText.caption,
+                          ),
+                          const Spacer(),
+                          Text(
+                            _fmtSpeed(dl.speedBytesPerSec),
+                            style: context.appText.caption.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: <Widget>[
+                          // R32 一.5：去固定灰蓝，改语义色（深浅主题自适应）。
+                          Icon(
+                            Icons.cloud_download_outlined,
+                            size: 14,
+                            color: colors.textTertiary,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '后台下载中，可关闭本页，完成后通知你',
+                              style: context.appText.artist,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
+              if (dl.isDone) ...<Widget>[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: BoxDecoration(
+                    color: colors.accentSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    children: <Widget>[
+                      // R32 一.5：去固定 iOS 绿，改 success 语义色。
+                      Icon(Icons.check_circle, color: colors.success, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${dl.tag} 已下载并通过 SHA-256 校验，可安装更新',
+                          style: context.appText.body,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
+              if (dl.isError) ...<Widget>[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpace.md),
+                  decoration: BoxDecoration(
+                    color: colors.accentSoft,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      // R32 一.5：去固定 iOS 红，改 danger 语义色。
+                      Icon(Icons.error_outline, color: colors.danger, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          dl.error ?? '更新失败',
+                          style: context.appText.bodyMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpace.md),
+              ],
+              SizedBox(
                 width: double.infinity,
-                padding: const EdgeInsets.all(AppSpace.md),
-                decoration: BoxDecoration(
-                  color: colors.accentSoft,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    // R32 一.5：去固定 iOS 绿，改 success 语义色。
-                    Icon(Icons.check_circle,
-                        color: colors.success, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${dl.tag} 已下载并通过 SHA-256 校验，可安装更新',
-                        style: context.appText.body,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpace.md),
-            ],
-            if (dl.isError) ...<Widget>[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpace.md),
-                decoration: BoxDecoration(
-                  color: colors.accentSoft,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    // R32 一.5：去固定 iOS 红，改 danger 语义色。
-                    Icon(Icons.error_outline,
-                        color: colors.danger, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        dl.error ?? '更新失败',
-                        style: context.appText.bodyMuted,
-                      ),
-                    ),
-                  ],
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  icon: (_checking || _installing || dl.isDownloading)
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          dl.isDone
+                              ? Icons.install_mobile_rounded
+                              : Icons.system_update_alt_rounded,
+                          size: 18,
+                        ),
+                  label: Text(
+                    !_isAndroid
+                        ? '前往下载页（Windows）'
+                        : (dl.isDone
+                              ? (_installing ? '安装中…' : '安装更新')
+                              : (dl.isDownloading
+                                    ? '下载中…'
+                                    : (_checking
+                                          ? '检查中…'
+                                          : (_checked
+                                                ? (dl.isError
+                                                      ? '重试下载'
+                                                      : (sel != null
+                                                            ? '下载 ${sel.tag}'
+                                                            : '检查更新'))
+                                                : '检查更新')))),
+                  ),
+                  onPressed: (_checking || dl.isDownloading || _installing)
+                      ? null
+                      : () => _onPrimary(dl),
                 ),
               ),
-              const SizedBox(height: AppSpace.md),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+              if (dl.isDone) ...<Widget>[
+                const SizedBox(height: AppSpace.xs),
+                Center(
+                  child: TextButton(
+                    onPressed: () =>
+                        ref.read(otaDownloadProvider.notifier).reset(),
+                    child: const Text('选择其他版本'),
+                  ),
                 ),
-                icon: (_checking || _installing || dl.isDownloading)
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : Icon(
-                        dl.isDone
-                            ? Icons.install_mobile_rounded
-                            : Icons.system_update_alt_rounded,
-                        size: 18,
-                      ),
-                label: Text(
-                  dl.isDone
-                      ? (_installing ? '安装中…' : '安装更新')
-                      : (dl.isDownloading
-                          ? '下载中…'
-                          : (_checking
-                              ? '检查中…'
-                              : (_checked
-                                  ? (dl.isError
-                                      ? '重试下载'
-                                      : (sel != null
-                                          ? '下载 ${sel.tag}'
-                                          : '检查更新'))
-                                  : '检查更新'))),
-                ),
-                onPressed: (_checking || dl.isDownloading || _installing)
-                    ? null
-                    : () => _onPrimary(dl),
-              ),
-            ),
-            if (dl.isDone) ...<Widget>[
+              ],
               const SizedBox(height: AppSpace.xs),
-              Center(
-                child: TextButton(
-                  onPressed: () =>
-                      ref.read(otaDownloadProvider.notifier).reset(),
-                  child: const Text('选择其他版本'),
-                ),
+              Text(
+                '连接 GitHub Releases 自动获取安装包；安卓按本机架构（arm64/arm32）'
+                '自动选对应拆分包，下载后校验 SHA-256 哈希，通过才提示安装；'
+                '支持后台下载（可关闭本页，完成后通知你）。'
+                'Windows 版（标记 Windows·x64）请从官网下载。',
+                style: context.appText.artist,
               ),
             ],
-            const SizedBox(height: AppSpace.xs),
-            Text(
-              '连接 GitHub Releases 自动获取安装包；安卓按本机架构（arm64/arm32）'
-              '自动选对应拆分包，下载后校验 SHA-256 哈希，通过才提示安装；'
-              '支持后台下载（可关闭本页，完成后通知你）。'
-              'Windows 版（标记 Windows·x64）请从官网下载。',
-              style: context.appText.artist,
-            ),
-          ],
+          ),
         ),
       ),
     );

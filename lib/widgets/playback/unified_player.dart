@@ -328,7 +328,11 @@ Widget _frostedPanel(
   if (transparent) {
     return LiquidGlass(
       radius: radius,
-      style: GlassStyle.frosted,
+      // 液态玻璃（真折射）：接入 AndroidLiquidGlass 质感——边缘折射 + 色散 +
+      // 环境光边，玻璃焦点处呈现真实折射而非纯模糊。
+      style: GlassStyle.liquid,
+      refraction: 8,
+      dispersion: 1.6,
       // R32 白名单：播放控制栏为唯二玻璃焦点之一（极简基底 + 玻璃焦点）。
       forceGlass: true,
       // blur 跟随全局性能模式（省电=0 关闭模糊）

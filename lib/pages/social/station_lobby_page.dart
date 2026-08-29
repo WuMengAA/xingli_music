@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme_colors.dart';
+import '../../providers/auth/user_provider.dart';
 import '../../providers/net/session_provider.dart';
 import '../../services/net/net_node.dart';
 import 'station_room_page.dart';
@@ -76,6 +77,22 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
 
   static const String _namePrefsKey = 'station_name';
 
+  /// 登录账号名（登录后统一用账号名，未登录为空）。
+  String get _accountName {
+    final AuthState a = ref.read(authProvider);
+    if (!a.isAuthed) return '';
+    final String n = (a.user?.username ?? '').trim();
+    return n;
+  }
+
+  /// 电台内展示名：登录后优先用账号名（统一），未登录用昵称框填写值。
+  String get _displayName {
+    final String acc = _accountName;
+    if (acc.isNotEmpty) return acc;
+    final String typed = _nameCtrl.text.trim();
+    return typed.isEmpty ? (_isHost ? 'DJ' : '听众') : typed;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +100,11 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
   }
 
   Future<void> _loadPrefs() async {
+    // 已登录：直接以账号名作为电台名（统一），无需再读旧昵称。
+    if (_accountName.isNotEmpty) {
+      if (mounted) setState(() => _nameCtrl.text = _accountName);
+      return;
+    }
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? savedName = prefs.getString(_namePrefsKey);
     if (!mounted) return;
@@ -101,8 +123,12 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
   }
 
   Future<void> _go(StationRoomPage page) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_namePrefsKey, _nameCtrl.text.trim());
+    // 已登录不写昵称覆盖（账号名为准）；仅游客保存手填昵称。
+    if (_accountName.isEmpty) {
+      final SharedPreferences prefs =
+          await SharedPreferences.getInstance();
+      await prefs.setString(_namePrefsKey, _nameCtrl.text.trim());
+    }
     if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => page),
@@ -116,7 +142,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
     });
     final bool ok = await ref.read(netSessionProvider.notifier).host(
           seed: 0,
-          name: _nameCtrl.text.trim().isEmpty ? 'DJ' : _nameCtrl.text.trim(),
+          name: _displayName,
           // 官方中转（即开即用），不再暴露地址输入框。
           relayUrl: kDefaultRelayUrl,
         );
@@ -145,7 +171,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
     final bool ok = await ref.read(netSessionProvider.notifier).join(
           '',
           0,
-          name: _nameCtrl.text.trim().isEmpty ? '听众' : _nameCtrl.text.trim(),
+          name: _displayName,
           relayUrl: kDefaultRelayUrl,
           room: room,
         );
@@ -210,20 +236,39 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
         ],
       );
 
-  Widget _buildNameField(AppThemeColors c) => TextField(
-        controller: _nameCtrl,
-        decoration: InputDecoration(
-          labelText: '你的昵称',
-          labelStyle: TextStyle(color: c.textSecondary),
-          filled: true,
-          fillColor: c.bgCard,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+  Widget _buildNameField(AppThemeColors c) {
+    final bool locked = _accountName.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        TextField(
+          controller: _nameCtrl,
+          enabled: !locked,
+          decoration: InputDecoration(
+            labelText: locked ? '电台昵称（登录账号名）' : '你的昵称',
+            labelStyle: TextStyle(color: c.textSecondary),
+            filled: true,
+            fillColor: c.bgCard,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: locked
+                ? Icon(Icons.person, color: c.accent)
+                : null,
           ),
+          style: TextStyle(color: c.textPrimary),
         ),
-        style: TextStyle(color: c.textPrimary),
-      );
+        if (locked) ...<Widget>[
+          const SizedBox(height: 6),
+          Text(
+            '已登录，电台内统一使用账号名「$_accountName」',
+            style: TextStyle(color: c.accent, fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
 
   Widget _buildModeSelector(AppThemeColors c) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -87,7 +87,6 @@ Widget _entry(
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
       title: Text(title, style: Theme.of(context).textTheme.bodyMedium),
-      subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
       trailing: const Icon(Icons.chevron_right_rounded, size: 18),
       onTap: onTap,
     ),
@@ -284,7 +283,6 @@ Widget _toggle(
     contentPadding: EdgeInsets.zero,
     dense: true,
     title: Text(title, style: Theme.of(context).textTheme.bodyMedium),
-    subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
     value: value,
     onChanged: onChanged,
   );
