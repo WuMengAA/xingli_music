@@ -421,6 +421,10 @@ Future<void> _handleApi(HttpRequest req) async {
   final String method = req.method;
   Map<String, dynamic>? payload;
   int status = 200;
+  if (path == '/api/admin' || path.startsWith('/api/admin/')) {
+    await _handleAdmin(req);
+    return;
+  }
   switch (path) {
     case '/api/health':
       payload = <String, dynamic>{
@@ -709,6 +713,10 @@ Future<void> _listen(int port, {String? certPath, String? keyPath}) async {
       await _handleApi(req);
       return;
     }
+    if (req.uri.path == '/admin' || req.uri.path.startsWith('/admin/')) {
+      await _serveAdmin(req);
+      return;
+    }
     if (req.uri.path != '/ws' && req.uri.path != '/') {
       try {
         await req.response.close();
@@ -763,4 +771,150 @@ Future<void> main(List<String> args) async {
   }
   _serverSecret = secret;
   await _listen(port, certPath: cert, keyPath: key);
+}
+
+// ═══ 后台管理（admin）：复用启动 secret 鉴权，直接增删改 content/*.json ═══
+
+/// admin 端点鉴权：Bearer 头 == 启动密钥即放行（密钥轮转后后台凭据同步变更）。
+bool _isAdmin(HttpRequest req) => _bearer(req) == _serverSecret;
+
+/// 允许的运营内容类型白名单。
+const List<String> _kAdminTypes = <String>['notices', 'playlists', 'scenes'];
+
+/// 写 content：先落 .tmp 再 rename，避免半写损坏（原子替换）。
+Future<void> _saveContent(String type, List<dynamic> items) async {
+  final File f = File('$_kContentDir/$type.json');
+  final File tmp = File('$_kContentDir/$type.json.tmp');
+  await tmp.writeAsString(
+    JsonEncoder.withIndent('  ').convert(<String, dynamic>{type: items}),
+  );
+  await tmp.rename(f.path);
+}
+
+/// JSON 响应快捷封装。
+Future<void> _json(HttpRequest req, Map<String, dynamic> data,
+    {int status = 200}) async {
+  try {
+    req.response
+      ..statusCode = status
+      ..headers.contentType = ContentType.json
+      ..write(jsonEncode(data));
+    await req.response.close();
+  } catch (_) {}
+}
+
+/// admin REST：/api/admin/content/<type>[/<id>]，方法 GET/POST/PUT/DELETE。
+Future<void> _handleAdmin(HttpRequest req) async {
+  final String path = req.uri.path;
+  final String method = req.method;
+  final bool authed = _isAdmin(req);
+
+  // 探活/元信息（无需鉴权，供前端判断是否已登录）。
+  if (path == '/api/admin') {
+    await _json(req, <String, dynamic>{
+      'ok': true,
+      'ui': '/admin',
+      'authed': authed,
+      'types': _kAdminTypes,
+    });
+    return;
+  }
+  if (!authed) {
+    await _json(req, <String, dynamic>{'error': 'unauthorized'}, status: 401);
+    return;
+  }
+
+  final RegExpMatch? m =
+      RegExp(r'^/api/admin/content/([a-z]+)(?:/([^/]+))?$').firstMatch(path);
+  if (m == null) {
+    await _json(req, <String, dynamic>{'error': 'bad path'}, status: 404);
+    return;
+  }
+  final String type = m.group(1)!;
+  final String? id = m.group(2);
+  if (!_kAdminTypes.contains(type)) {
+    await _json(req, <String, dynamic>{'error': 'unknown type'}, status: 400);
+    return;
+  }
+
+  if (method == 'GET' && id == null) {
+    final Map<String, dynamic>? data = await _loadContent(type);
+    await _json(req, data ?? <String, dynamic>{type: <dynamic>[]});
+    return;
+  }
+  if (method == 'POST' && id == null) {
+    final Map<String, dynamic>? body = await _readJsonBody(req);
+    if (body == null) {
+      await _json(req, <String, dynamic>{'error': 'invalid body'}, status: 400);
+      return;
+    }
+    final Map<String, dynamic> cur =
+        await _loadContent(type) ?? <String, dynamic>{type: <dynamic>[]};
+    final List<dynamic> list =
+        List<dynamic>.from(cur[type] as List? ?? <dynamic>[]);
+    final Map<String, dynamic> item = <String, dynamic>{...body};
+    item['id'] ??= _genId();
+    list.add(item);
+    await _saveContent(type, list);
+    await _json(req, <String, dynamic>{'ok': true, 'id': item['id']});
+    return;
+  }
+  if ((method == 'PUT' || method == 'PATCH') && id != null) {
+    final Map<String, dynamic>? body = await _readJsonBody(req);
+    if (body == null) {
+      await _json(req, <String, dynamic>{'error': 'invalid body'}, status: 400);
+      return;
+    }
+    final Map<String, dynamic> cur =
+        await _loadContent(type) ?? <String, dynamic>{type: <dynamic>[]};
+    final List<dynamic> list =
+        List<dynamic>.from(cur[type] as List? ?? <dynamic>[]);
+    final int idx = list.indexWhere((e) => e is Map && e['id'] == id);
+    if (idx < 0) {
+      await _json(req, <String, dynamic>{'error': 'not found'}, status: 404);
+      return;
+    }
+    list[idx] = <String, dynamic>{...list[idx] as Map, ...body, 'id': id};
+    await _saveContent(type, list);
+    await _json(req, <String, dynamic>{'ok': true});
+    return;
+  }
+  if (method == 'DELETE' && id != null) {
+    final Map<String, dynamic> cur =
+        await _loadContent(type) ?? <String, dynamic>{type: <dynamic>[]};
+    final List<dynamic> list =
+        List<dynamic>.from(cur[type] as List? ?? <dynamic>[]);
+    final int before = list.length;
+    list.removeWhere((e) => e is Map && e['id'] == id);
+    if (list.length == before) {
+      await _json(req, <String, dynamic>{'error': 'not found'}, status: 404);
+      return;
+    }
+    await _saveContent(type, list);
+    await _json(req,
+        <String, dynamic>{'ok': true, 'removed': before - list.length});
+    return;
+  }
+  await _json(req, <String, dynamic>{'error': 'method not allowed'},
+      status: 405);
+}
+
+/// serve 后台管理单页（admin/index.html，随 exe 同目录）。
+Future<void> _serveAdmin(HttpRequest req) async {
+  final File f = File('admin/index.html');
+  if (!await f.exists()) {
+    try {
+      req.response.statusCode = 404;
+      await req.response.close();
+    } catch (_) {}
+    return;
+  }
+  try {
+    final String html = await f.readAsString();
+    req.response
+      ..statusCode = 200
+      ..headers.contentType = ContentType.parse('text/html; charset=utf-8')
+      ..write(html);
+    await req.response.close();
+  } catch (_) {}
 }

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>星璃音乐 · 运营后台</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --fg: #e8eaf0; --muted: #9aa3b2; --accent: #7c5cff; --accent2: #4A6CFF;
+    --ok: #36c275; --danger: #ff5c6c; --warn: #ffb74d;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f5f8; --panel:#ffffff; --panel2:#f0f1f5; --line:#e2e4ea;
+      --fg:#1a1d24; --muted:#5b6472; --accent:#6a45ff; --accent2:#3a5bff; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--fg);
+    line-height: 1.5; min-height: 100vh; }
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: .3px; }
+  header h1 small { color: var(--muted); font-weight: 400; margin-left: 8px; font-size: 12px; }
+  .who { font-size: 12px; color: var(--muted); display: flex; gap: 10px; align-items: center; }
+  .btn { border: 1px solid var(--line); background: var(--panel2); color: var(--fg);
+    padding: 7px 13px; border-radius: 9px; cursor: pointer; font-size: 13px;
+    transition: .15s; font-family: inherit; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { color: var(--danger); border-color: transparent; background: transparent; }
+  .btn.danger:hover { background: rgba(255,92,108,.12); }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+  main { max-width: 940px; margin: 0 auto; padding: 20px 22px 60px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel); cursor: pointer; font-size: 13px; color: var(--muted);
+    transition: .15s; }
+  .tab.active { color: var(--fg); border-color: var(--accent); background: var(--panel2); }
+  .toolbar { display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 14px; }
+  .toolbar .count { color: var(--muted); font-size: 12px; }
+  .list { display: grid; gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 13px 15px; display: flex; align-items: center; gap: 13px; }
+  .card .glyph { width: 38px; height: 38px; border-radius: 9px; display: grid;
+    place-items: center; font-size: 19px; flex-shrink: 0; }
+  .card .body { flex: 1; min-width: 0; }
+  .card .title { font-weight: 600; font-size: 14px; }
+  .card .sub { color: var(--muted); font-size: 12px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .card .id { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
+  .card .ops { display: flex; gap: 6px; flex-shrink: 0; }
+  .empty { text-align: center; color: var(--muted); padding: 50px 20px;
+    border: 1px dashed var(--line); border-radius: 12px; }
+  /* login overlay */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); backdrop-filter:
+    blur(4px); display: grid; place-items: center; z-index: 20; }
+  .login { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 26px; width: min(360px, 90vw); }
+  .login h2 { font-size: 16px; margin-bottom: 6px; }
+  .login p { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .login input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid
+    var(--line); background: var(--panel2); color: var(--fg); font-size: 14px;
+    font-family: inherit; margin-bottom: 12px; }
+  .login .err { color: var(--danger); font-size: 12px; margin-bottom: 10px; min-height: 16px; }
+  /* modal */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: grid;
+    place-items: center; z-index: 15; padding: 20px; }
+  .sheet { background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px; width: min(480px, 95vw); max-height: 88vh; overflow: auto; }
+  .sheet h3 { font-size: 15px; margin-bottom: 16px; }
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field textarea { width: 100%; padding: 9px 11px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--fg);
+    font-size: 13px; font-family: inherit; }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .field .req { color: var(--danger); }
+  .sheet .actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 8px; }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--panel2); border: 1px solid var(--line); padding: 10px 18px;
+    border-radius: 11px; font-size: 13px; z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,.3);
+    opacity: 0; transition: .25s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .toast.err { border-color: var(--danger); color: var(--danger); }
+  .toast.ok { border-color: var(--ok); }
+  .swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<header>
+  <h1>星璃音乐 · 运营后台<small>relay admin</small></h1>
+  <div class="who" id="who" style="display:none">
+    <span id="whoText"></span>
+    <button class="btn sm" id="logoutBtn">退出</button>
+  </div>
+</header>
+
+<main id="main" style="display:none">
+  <div class="tabs" id="tabs"></div>
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+    <button class="btn primary" id="addBtn">＋ 新建</button>
+  </div>
+  <div class="list" id="list"></div>
+</main>
+
+<div class="overlay" id="loginOverlay">
+  <div class="login">
+    <h2>后台登录</h2>
+    <p>输入 relay 启动密钥（relay_server.secret 内容）作为管理员令牌。</p>
+    <div class="err" id="loginErr"></div>
+    <input id="secretInput" type="password" placeholder="服务端密钥（Bearer token）"
+      autocomplete="off" />
+    <button class="btn primary" style="width:100%" id="loginBtn">进入后台</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/admin';
+let SECRET = localStorage.getItem('xingli_admin_secret') || '';
+let CUR = 'notices';
+let DATA = [];
+
+// 字段 schema：scenes 的 visual.* 为嵌套字段，渲染/提交时处理
+const SCHEMA = {
+  notices: [
+    { key: 'title', label: '标题', type: 'text', required: true },
+    { key: 'body', label: '正文', type: 'textarea', required: true },
+    { key: 'ts', label: '日期 (YYYY-MM-DD)', type: 'text' },
+  ],
+  playlists: [
+    { key: 'name', label: '名称', type: 'text', required: true },
+    { key: 'desc', label: '描述', type: 'text' },
+    { key: 'tracks', label: '曲目数', type: 'number' },
+  ],
+  scenes: [
+    { key: 'name', label: '名称', type: 'text', required: true },
+    { key: 'soundscape', label: '声音景观', type: 'text' },
+    { key: 'visual.accent', label: '主题色 (#RRGGBB)', type: 'color' },
+    { key: 'visual.glyph', label: '图标 (emoji)', type: 'text' },
+  ],
+};
+const TYPES = [
+  { k: 'notices', label: '公告' },
+  { k: 'playlists', label: '歌单' },
+  { k: 'scenes', label: '场景' },
+];
+
+function getPath(o, p) { return p.split('.').reduce((a, c) => (a == null ? a : a[c]), o); }
+function setPath(o, p, v) {
+  const parts = p.split('.'); let cur = o;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (typeof cur[parts[i]] !== 'object' || cur[parts[i]] == null) cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = v;
+}
+function authHeaders(extra) {
+  return Object.assign({ 'Authorization': 'Bearer ' + SECRET,
+    'Content-Type': 'application/json' }, extra || {});
+}
+function toast(msg, kind) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show' + (kind ? ' ' + kind : '');
+  setTimeout(() => { t.className = 'toast'; }, 2200);
+}
+async function api(path, opts) {
+  const res = await fetch(API + path, Object.assign({ headers: authHeaders() }, opts));
+  let body = null; try { body = await res.json(); } catch (e) {}
+  if (res.status === 401) { SECRET = ''; localStorage.removeItem('xingli_admin_secret');
+    showLogin(true); throw new Error('unauthorized'); }
+  return { res, body };
+}
+
+function renderTabs() {
+  const el = document.getElementById('tabs');
+  el.innerHTML = '';
+  TYPES.forEach(t => {
+    const d = document.createElement('div');
+    d.className = 'tab' + (t.k === CUR ? ' active' : '');
+    d.textContent = t.label;
+    d.onclick = () => { CUR = t.k; load(); };
+    el.appendChild(d);
+  });
+}
+function primaryText(it) {
+  if (CUR === 'notices') return it.title || '(无标题)';
+  return it.name || '(未命名)';
+}
+function subText(it) {
+  if (CUR === 'notices') return (it.body || '').slice(0, 60);
+  if (CUR === 'playlists') return (it.desc || '') + (it.tracks != null ? ' · ' + it.tracks + ' 曲' : '');
+  return it.soundscape || '';
+}
+function renderList() {
+  const el = document.getElementById('list');
+  document.getElementById('count').textContent = '共 ' + DATA.length + ' 条';
+  el.innerHTML = '';
+  if (!DATA.length) {
+    el.innerHTML = '<div class="empty">暂无内容，点右上角「新建」添加第一条 ' +
+      (TYPES.find(t => t.k === CUR).label) + '。</div>';
+    return;
+  }
+  DATA.forEach(it => {
+    const card = document.createElement('div'); card.className = 'card';
+    let glyph = '';
+    if (CUR === 'scenes') {
+      const accent = getPath(it, 'visual.accent') || '#2B2D6B';
+      const g = getPath(it, 'visual.glyph') || '🌐';
+      glyph = '<div class="glyph" style="background:' + accent + '22">' + g + '</div>';
+    } else {
+      glyph = '<div class="glyph" style="background:var(--accent)22">📄</div>';
+    }
+    card.innerHTML = glyph +
+      '<div class="body"><div class="title">' + esc(primaryText(it)) + '</div>' +
+      '<div class="sub">' + esc(subText(it)) + '</div>' +
+      '<div class="id">' + esc(it.id || '') + '</div></div>';
+    const ops = document.createElement('div'); ops.className = 'ops';
+    const edit = document.createElement('button'); edit.className = 'btn sm';
+    edit.textContent = '编辑'; edit.onclick = () => openSheet(it);
+    const del = document.createElement('button'); del.className = 'btn sm danger';
+    del.textContent = '删除'; del.onclick = () => removeItem(it.id);
+    ops.appendChild(edit); ops.appendChild(del);
+    card.appendChild(ops);
+    el.appendChild(card);
+  });
+}
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+function openSheet(item) {
+  const isEdit = !!item;
+  const overlay = document.createElement('div'); overlay.className = 'modal';
+  const fields = SCHEMA[CUR].map(f => {
+    let val = isEdit ? getPath(item, f.key) : (f.type === 'color' ? '#7c5cff' : '');
+    if (f.type === 'number' && val != null) val = val;
+    const req = f.required ? '<span class="req">*</span>' : '';
+    const ctrl = f.type === 'textarea'
+      ? '<textarea data-k="' + f.key + '">' + esc(val || '') + '</textarea>'
+      : '<input data-k="' + f.key + '" type="' + (f.type === 'number' ? 'number' : 'text') +
+        '" value="' + esc(val || '') + '" />';
+    return '<div class="field"><label>' + f.label + ' ' + req + '</label>' + ctrl + '</div>';
+  }).join('');
+  overlay.innerHTML = '<div class="sheet"><h3>' + (isEdit ? '编辑' : '新建') +
+    (TYPES.find(t => t.k === CUR).label) + '</h3>' + fields +
+    '<div class="actions"><button class="btn" data-x>取消</button>' +
+    '<button class="btn primary" data-s>' + (isEdit ? '保存' : '创建') + '</button></div></div>';
+  document.body.appendChild(overlay);
+  overlay.querySelector('[data-x]').onclick = () => overlay.remove();
+  overlay.querySelector('[data-s]').onclick = async () => {
+    const obj = {};
+    let ok = true;
+    SCHEMA[CUR].forEach(f => {
+      const node = overlay.querySelector('[data-k="' + f.key + '"]');
+      let v = node.value;
+      if (f.type === 'number') v = v === '' ? null : Number(v);
+      if (f.required && !v) ok = false;
+      setPath(obj, f.key, v);
+    });
+    if (!ok) { toast('请填写必填项', 'err'); return; }
+    try {
+      if (isEdit) {
+        await api('/content/' + CUR + '/' + item.id, { method: 'PUT',
+          body: JSON.stringify(obj) });
+        toast('已保存', 'ok');
+      } else {
+        await api('/content/' + CUR, { method: 'POST', body: JSON.stringify(obj) });
+        toast('已创建', 'ok');
+      }
+      overlay.remove(); load();
+    } catch (e) { /* toast 由 api 处理 */ }
+  };
+}
+async function removeItem(id) {
+  if (!confirm('确定删除这条内容？此操作不可撤销。')) return;
+  try { await api('/content/' + CUR + '/' + id, { method: 'DELETE' });
+    toast('已删除', 'ok'); load(); } catch (e) {}
+}
+async function load() {
+  renderTabs();
+  try {
+    const { body } = await api('/content/' + CUR);
+    DATA = (body && body[CUR]) || [];
+    renderList();
+  } catch (e) {}
+}
+function showLogin(force) {
+  const overlay = document.getElementById('loginOverlay');
+  if (SECRET && !force) { enterAdmin(); return; }
+  overlay.style.display = 'grid';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('who').style.display = 'none';
+}
+function enterAdmin() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('main').style.display = 'block';
+  document.getElementById('who').style.display = 'flex';
+  document.getElementById('whoText').textContent = '已登录 · ' + SECRET.slice(0, 6) + '…';
+  load();
+}
+document.getElementById('loginBtn').onclick = async () => {
+  const v = document.getElementById('secretInput').value.trim();
+  if (!v) { document.getElementById('loginErr').textContent = '请输入密钥'; return; }
+  // 探活校验：带密钥请求 /api/admin，authed 应为 true
+  try {
+    const res = await fetch(API, { headers: { 'Authorization': 'Bearer ' + v } });
+    const body = await res.json().catch(() => null);
+    if (res.ok && body && body.authed) {
+      SECRET = v; localStorage.setItem('xingli_admin_secret', v); enterAdmin();
+    } else {
+      document.getElementById('loginErr').textContent = '密钥无效或无后台权限';
+    }
+  } catch (e) { document.getElementById('loginErr').textContent = '连接失败'; }
+};
+document.getElementById('secretInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+document.getElementById('logoutBtn').onclick = () => {
+  SECRET = ''; localStorage.removeItem('xingli_admin_secret'); showLogin(true);
+};
+document.getElementById('addBtn').onclick = () => openSheet(null);
+
+showLogin(false);
+</script>
+</body>
+</html>
