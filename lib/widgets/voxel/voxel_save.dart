@@ -13,7 +13,6 @@ import 'dart:convert' show JsonDecoder, JsonEncoder;
 import 'dart:io' show Directory, File, FileSystemEntity, Platform;
 
 import 'package:path_provider/path_provider.dart';
-import '../../core/paths.dart';
 
 import 'voxel_world.dart';
 
@@ -113,7 +112,10 @@ Future<void> _migrateFromDocuments(Directory target) async {
   if (_migratedFromDocuments) return;
   _migratedFromDocuments = true;
   try {
-    final Directory old = await appDataDir();
+    // 老版本存档写在「文档」目录（getApplicationDocumentsDirectory，
+    // 即 Windows 的 C:\Users\<user>\Documents）；此处是迁移源，不能用
+    // appDataDir()（安装目录 data / support 目录），否则旧档永远搬不进来。
+    final Directory old = await getApplicationDocumentsDirectory();
     if (!await old.exists()) return;
     // 自动存档 + 手动存档 + 备份：voxel_world_save.json / voxel_save_*
     await for (final FileSystemEntity e in old.list()) {
