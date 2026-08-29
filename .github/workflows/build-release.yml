@@ -54,7 +54,21 @@ jobs:
         # -P disable-abi-filtering=true：绕过 Flutter 3.44.8 与 splits.abi 的冲突，
         # 改由 android/app/build.gradle 的 splits{ abi { universalApk false } }
         # 产出 arm64-v8a / armeabi-v7a 两个拆分包（不产 universal 整包）。
-        run: flutter build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
+        # ⚠️ 已知误报（feat 分支 run 33250903375 已验证修复）：splits 开启后没有统一
+        # app-release.apk，flutter 收尾会误报 "failed to produce an .apk file" 并退出 1，
+        # 但两个拆分包已真实产出。CI 构建步骤吸收该误报——构建后若两个拆分包存在即
+        # 视为成功(exit 0)，缺失才判真失败(exit 1)，与本地 build_release.sh 逻辑一致。
+        run: |
+          set +e
+          flutter build apk --release --no-tree-shake-icons -P disable-abi-filtering=true
+          echo "flutter build exit=$?"
+          ls -la build/app/outputs/flutter-apk/ 2>/dev/null || true
+          if [ -f build/app/outputs/flutter-apk/app-arm64-v8a-release.apk ] && [ -f build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk ]; then
+            echo "split APKs produced OK — absorbing known false 'failed to produce' error"
+            exit 0
+          fi
+          echo "split APKs MISSING — real build failure"
+          exit 1
 
       - name: Prepare artifacts (per-ABI splits only)
         working-directory: build/app/outputs/flutter-apk
