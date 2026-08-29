@@ -23,8 +23,15 @@ import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/aggregate_search_sheet.dart';
 import '../../core/terms/naming_dict.dart';
 import 'consent_gate.dart';
+import 'experiments/cast_page.dart';
 import 'experiments/companion_page.dart';
+import 'experiments/cue_sheet_page.dart';
+import 'experiments/local_semantic_random_page.dart';
+import 'experiments/net_library_page.dart';
+import 'experiments/netease_playlist_page.dart';
+import 'experiments/netease_recommend_page.dart';
 import 'experiments/recommend_page.dart';
+import 'experiments/scraper_page.dart';
 
 /// 探索页（v2 M2 重写，按画布「Screen · 探索」3:238 重建）。
 ///
@@ -80,6 +87,9 @@ class ExplorePage extends ConsumerWidget {
             // cl08：官方公告条（后端内容联动，relay_server 动态下发）。
             const _RemoteNoticeBar(),
             _SearchBar(onTap: openSearch),
+            // #693：实用功能横排（T 系列醒目入口，公告条/搜索框下方）。
+            const SizedBox(height: AppSpace.sm),
+            const _UtilityStrip(),
             const SizedBox(height: AppSpace.md),
             // 精选大卡：读真实活跃场景（activeSceneProvider），点击回到主页场景卡。
             const _FeaturedCard(),
@@ -695,6 +705,129 @@ class _ExpCard extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// #693：探索页顶部实用功能横排入口。
+///
+/// 公告条 / 搜索栏下方一排「实用功能」胶囊卡（T 系列：每日推荐、网易云歌单、
+/// 语义随机、投屏、网络音乐库、CUE 分轨、刮削器），横向滚动。点击直达页面，
+/// 与实验区完整清单并存（这里只做高频实用的快捷入口）。
+class _UtilityStrip extends StatelessWidget {
+  const _UtilityStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    void push(Widget page) => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => page),
+        );
+
+    return SizedBox(
+      height: 84,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          _UtilityItem(
+            icon: Icons.auto_awesome_rounded,
+            label: '每日推荐',
+            iconColor: c.accent,
+            onTap: () => push(const NeteaseRecommendPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.queue_music_rounded,
+            label: '网易云歌单',
+            iconColor: c.accent,
+            onTap: () => push(const NeteasePlaylistPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.shuffle_rounded,
+            label: '语义随机',
+            iconColor: c.accent,
+            onTap: () => push(const LocalSemanticRandomPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.cast_rounded,
+            label: '投屏',
+            iconColor: c.accent,
+            onTap: () => push(const CastPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.cloud_rounded,
+            label: '网络音乐库',
+            iconColor: c.accent,
+            onTap: () => push(const NetLibraryPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.album_rounded,
+            label: 'CUE 分轨',
+            iconColor: c.accent,
+            onTap: () => push(const CueSheetPage()),
+          ),
+          _UtilityItem(
+            icon: Icons.manage_search_rounded,
+            label: '刮削器',
+            iconColor: c.accent,
+            onTap: () => push(const ScraperPage()),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 单个功能胶囊：圆底图标 + 小字标签。
+class _UtilityItem extends StatelessWidget {
+  const _UtilityItem({
+    required this.icon,
+    required this.label,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Padding(
+      padding: const EdgeInsets.only(right: AppSpace.sm),
+      child: GestureDetector(
+        onTap: onTap,
+        child: SizedBox(
+          width: 64,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: c.bgSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(color: c.border),
+                ),
+                child: Icon(icon, size: 22, color: iconColor),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: c.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),

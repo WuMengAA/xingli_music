@@ -103,6 +103,13 @@ class NeteaseSource implements MusicSource {
   Future<List<Track>> roam() async =>
       (await api.roamSongs()).map(toTrack).toList(growable: false);
 
+  /// 当前登录用户的歌单列表（需登录）。
+  Future<List<NeteasePlaylist>> playlists() => api.userPlaylists();
+
+  /// 歌单内曲目（需登录）。
+  Future<List<Track>> playlistTracks(int playlistId) async =>
+      (await api.playlistSongs(playlistId)).map(toTrack).toList(growable: false);
+
   /// 占位 uri：不得以 http 开头（§4.3(3)）。
   static String placeholderUri(int songId) => 'netease://song/$songId';
 

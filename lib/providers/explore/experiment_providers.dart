@@ -5,11 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/experiment.dart';
+import '../../pages/explore/experiments/cast_page.dart';
 import '../../pages/explore/experiments/companion_page.dart';
+import '../../pages/explore/experiments/cue_sheet_page.dart';
 import '../../pages/explore/experiments/equalizer_page.dart';
+import '../../pages/explore/experiments/local_semantic_random_page.dart';
 import '../../pages/explore/experiments/mood_analysis_page.dart';
+import '../../pages/explore/experiments/net_library_page.dart';
+import '../../pages/explore/experiments/netease_playlist_page.dart';
 import '../../pages/explore/experiments/netease_recommend_page.dart';
 import '../../pages/explore/experiments/recommend_page.dart';
+import '../../pages/explore/experiments/scraper_page.dart';
 import '../../pages/explore/experiments/sensor_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
@@ -83,6 +89,14 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             builder: () => const RecommendPage(),
           ),
           ExperimentItem(
+            id: 'local_random',
+            name: '语义随机',
+            description: '本地随机 · 按场景语义词库、离线可换一批',
+            icon: Icons.shuffle_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const LocalSemanticRandomPage(),
+          ),
+          ExperimentItem(
             id: 'equalizer',
             name: '音效均衡器',
             description: '低中高频三档 + 4 组预设',
@@ -121,6 +135,46 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             icon: Icons.explore_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const NeteaseRecommendPage(),
+          ),
+          ExperimentItem(
+            id: 'netease_playlist',
+            name: '网易云歌单',
+            description: '我的歌单 · 收藏曲目',
+            icon: Icons.queue_music_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const NeteasePlaylistPage(),
+          ),
+          ExperimentItem(
+            id: 'cast_stream',
+            name: '投屏',
+            description: '局域网投屏 · 浏览器/VLC/电视盒直接播放',
+            icon: Icons.cast_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const CastPage(),
+          ),
+          ExperimentItem(
+            id: 'cue_sheet',
+            name: 'CUE 分轨',
+            description: '解析整轨 CUE · 逐轨自动 seek 播放',
+            icon: Icons.album_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const CueSheetPage(),
+          ),
+          ExperimentItem(
+            id: 'net_library',
+            name: '网络音乐库',
+            description: 'WebDAV 曲库 · 远程目录浏览在线播放',
+            icon: Icons.cloud_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const NetLibraryPage(),
+          ),
+          ExperimentItem(
+            id: 'scraper',
+            name: '刮削器',
+            description: 'MusicBrainz 元数据查询 · 补全错名文件',
+            icon: Icons.manage_search_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const ScraperPage(),
           ),
           // 电台房（station_lobby）已从实验区移除，转正为导航/主导航入口
           // （见 app_shell / 主导航），不再作为实验项展示。

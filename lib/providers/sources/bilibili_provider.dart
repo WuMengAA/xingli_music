@@ -215,13 +215,27 @@ class BilibiliAuthNotifier extends StateNotifier<BilibiliAuthState> {
       e.isAuthFailure ? 'B站登录态无效，请重新登录' : 'B站接口调用失败（${e.code}）';
 }
 
-/// B站搜索结果（未登录返回空）。
+/// B站搜索结果（免登录可用；登录只影响播放清晰度上限）。
+///
+/// T7：搜索接口公开（WBI 签名），未登录也能搜。登录态额外影响音质提示：
+/// 未登录 → 标清（360P/480P），登录 → 高清（720P 起）。UI 行内读
+/// `track.extras['qualityHint']` 展示。
 final AutoDisposeFutureProviderFamily<List<Track>, String>
     bilibiliSearchProvider = FutureProvider.autoDispose
         .family<List<Track>, String>((Ref ref, String keyword) async {
   final BilibiliAuthState auth = ref.watch(bilibiliAuthProvider);
   if (keyword.trim().isEmpty) return const <Track>[];
-  return ref.watch(bilibiliSourceProvider).search(keyword.trim());
+  final List<Track> tracks =
+      await ref.watch(bilibiliSourceProvider).search(keyword.trim());
+  if (tracks.isEmpty) return tracks;
+  // 音质提示（按登录态）：未登录=标清，登录=高清。仅追加 extras，不动 uri。
+  final String hint = auth.isLoggedIn ? '高清' : '标清';
+  return tracks
+      .map((Track t) => t.copyWith(extras: <String, dynamic>{
+            ...?t.extras,
+            'qualityHint': hint,
+          }))
+      .toList(growable: false);
 });
 
 /// 把搜索/接口异常转成用户可读文案。

@@ -149,16 +149,6 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     if (ok == true && mounted) appNotify(context, '已登录哔哩哔哩');
   }
 
-  Future<void> _logoutNetease() async {
-    await ref.read(neteaseAuthProvider.notifier).logout();
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _logoutBilibili() async {
-    await ref.read(bilibiliAuthProvider.notifier).logout();
-    if (mounted) setState(() {});
-  }
-
   /// 点播：把当前结果列表作为播放队列传入，使自动续播在搜索列表内循环
   /// （cl64-5：搜索列表作播放队列）。
   Future<void> _play(Track t, [List<Track>? queue]) async {
@@ -399,15 +389,8 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   }
 
   Widget _buildBilibili() {
-    final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
-    if (!bi) {
-      return _HintPanel(
-        icon: Icons.lock_outline_rounded,
-        message: '未登录哔哩哔哩，登录后可搜索视频源',
-        actionLabel: '登录',
-        onAction: _openBilibiliLogin,
-      );
-    }
+    // T7：B站搜索免登录。搜索接口本就公开（WBI 签名），未登录也能搜；
+    // 登录只影响播放时的清晰度上限（未登录=标清，登录后=高清/超清）。
     final AsyncValue<List<Track>> result =
         ref.watch(bilibiliSearchProvider(_keyword));
     return result.when(
@@ -428,12 +411,12 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     );
   }
 
-  /// 全部：本地 + 网易云（已登录）+ B站（已登录）合并展示。
+  /// 全部：本地 + 网易云（已登录）+ B站（免登录）合并展示。
   Widget _buildAll() {
     final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
-    final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
     // 能力开关：在设置页「内容来源」里关掉的来源，既不出结果也不发请求。
     // 登录态与开关是两件事——未登录是「暂时用不了」，关掉是「我不要它」。
+    // T7：B站搜索免登录，未登录也出结果；登录只影响播放清晰度。
     final bool neOn = _filterAllows(ref, _SrcFilter.netease);
     final bool biOn = _filterAllows(ref, _SrcFilter.bilibili);
     final bool localOn = _filterAllows(ref, _SrcFilter.local);
@@ -445,11 +428,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
                 t.artist.toLowerCase().contains(kw))
             .toList() ??
         const <Track>[];
-    // 远程源并行搜索（未登录、或被关掉的源跳过）。
+    // 远程源并行搜索（网易云需登录；被关掉的源跳过）。
     final Future<List<Track>> neF = ne && neOn
         ? ref.watch(neteaseSearchProvider(_keyword).future).catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
-    final Future<List<Track>> biF = bi && biOn
+    final Future<List<Track>> biF = biOn
         ? ref.watch(bilibiliSearchProvider(_keyword).future).catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
 
@@ -634,6 +617,24 @@ class _TrackTile extends StatelessWidget {
                   child: Text(tag!,
                       style: context.appText.artist
                           ?.copyWith(color: context.appColors.accent)),
+                ),
+              ],
+              // T7：B站结果行音质提示（未登录=标清 / 登录=高清）。
+              if (track.sourceId == 'bilibili' &&
+                  track.extras?['qualityHint'] != null) ...<Widget>[
+                const SizedBox(width: AppSpace.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: context.appColors.bgPlaceholder,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    track.extras!['qualityHint']! as String,
+                    style: context.appText.artist
+                        ?.copyWith(color: context.appColors.textSecondary),
+                  ),
                 ),
               ],
               const SizedBox(width: AppSpace.sm),

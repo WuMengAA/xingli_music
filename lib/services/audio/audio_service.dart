@@ -542,6 +542,14 @@ class AudioService {
       if (_disposed) return;
       _currentTrack = track;
       _trackCtrl.add(_currentTrack);
+      // T12 CUE 分轨：加载后从 INDEX 01 起点开始播（seek 到 cueStartMs）。
+      final int cueStart = track.cueStartMs ?? 0;
+      if (cueStart > 0) {
+        await _safe(
+          () => _activeBackend.seek(Duration(milliseconds: cueStart)),
+          tag: 'cueSeek',
+        );
+      }
       LogService.instance.i('audio', '加载成功: ${track.title}');
     } catch (e) {
       // 注意：异常文本本身常内嵌完整 uri（just_audio 会把 source 塞进

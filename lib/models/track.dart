@@ -32,6 +32,13 @@ class Track {
   /// 数据源私有字段（如本地源的 android 媒体库 id、albumId），供懒加载封面等使用
   final Map<String, dynamic>? extras;
 
+  /// CUE 分轨起点（毫秒）。非空表示本曲是整轨文件的其中一个音轨，
+  /// 播放时应先 seek 到此处（T12 分轨）。
+  final int? cueStartMs;
+
+  /// CUE 分轨终点（毫秒）。null 表示播放到整轨末尾。
+  final int? cueEndMs;
+
   const Track({
     required this.title,
     required this.artist,
@@ -44,6 +51,8 @@ class Track {
     this.duration,
     this.coverPath,
     this.extras,
+    this.cueStartMs,
+    this.cueEndMs,
   });
 
   /// 本地文件用 setFilePath，网络地址用 setUrl
@@ -62,6 +71,8 @@ class Track {
         'duration': duration?.inMilliseconds,
         'coverPath': coverPath,
         'extras': extras,
+        'cueStartMs': cueStartMs,
+        'cueEndMs': cueEndMs,
       };
 
   /// 从 JSON 反序列化（字段缺省回退，保证旧/部分负载不崩）。
@@ -79,6 +90,8 @@ class Track {
             : null,
         coverPath: j['coverPath'] as String?,
         extras: j['extras'] as Map<String, dynamic>?,
+        cueStartMs: j['cueStartMs'] as int?,
+        cueEndMs: j['cueEndMs'] as int?,
       );
 
   Track copyWith({
@@ -93,6 +106,8 @@ class Track {
     Duration? duration,
     String? coverPath,
     Map<String, dynamic>? extras,
+    int? cueStartMs,
+    int? cueEndMs,
   }) =>
       Track(
         title: title ?? this.title,
@@ -106,5 +121,7 @@ class Track {
         duration: duration ?? this.duration,
         coverPath: coverPath ?? this.coverPath,
         extras: extras ?? this.extras,
+        cueStartMs: cueStartMs ?? this.cueStartMs,
+        cueEndMs: cueEndMs ?? this.cueEndMs,
       );
 }

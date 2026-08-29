@@ -107,6 +107,38 @@ class SongLite {
   }
 }
 
+/// 网易云歌单摘要（用户歌单列表项）。
+class NeteasePlaylist {
+  const NeteasePlaylist({
+    required this.id,
+    required this.name,
+    this.coverUrl,
+    this.trackCount = 0,
+    this.creator,
+    this.description,
+  });
+
+  final int id;
+  final String name;
+  final String? coverUrl;
+  final int trackCount;
+  final String? creator;
+  final String? description;
+
+  static NeteasePlaylist fromJson(Map<String, dynamic> json) {
+    final Map<String, dynamic>? creator =
+        json['creator'] as Map<String, dynamic>?;
+    return NeteasePlaylist(
+      id: (json['id'] as num?)?.toInt() ?? -1,
+      name: (json['name'] as String?) ?? '未知歌单',
+      coverUrl: json['coverImgUrl'] as String?,
+      trackCount: (json['trackCount'] as num?)?.toInt() ?? 0,
+      creator: creator?['nickname'] as String?,
+      description: json['description'] as String?,
+    );
+  }
+}
+
 /// 播放地址接口返回的单条结果。
 class SongUrl {
   const SongUrl({
@@ -463,6 +495,59 @@ class NeteaseApi {
       throw const NeteaseApiException(-1, '漫游数据解析失败');
     }
     return parsed;
+  }
+
+  /// 当前登录用户的歌单列表（需登录）。
+  ///
+  /// 走 `/weapi/user/playlist`，返回用户创建 + 收藏的歌单摘要。接口对登录态
+  /// 敏感，未登录返回 301，由调用方转成登录引导。
+  Future<List<NeteasePlaylist>> userPlaylists({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final NeteaseAccount acc = await account();
+    final Map<String, dynamic> res = await _post(
+      '/weapi/user/playlist',
+      <String, dynamic>{
+        'uid': acc.uid,
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    final List<dynamic> data =
+        (res['playlist'] as List<dynamic>?) ?? const <dynamic>[];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(NeteasePlaylist.fromJson)
+        .where((NeteasePlaylist p) => p.id != -1)
+        .toList(growable: false);
+  }
+
+  /// 歌单详情（需登录）。
+  ///
+  /// 走 `/weapi/v3/playlist/detail`，返回歌单内歌曲（首个分页，通常含全部
+  /// 或前 ~1000 首）。[limit] 控制单次返回条数。
+  Future<List<SongLite>> playlistSongs(
+    int playlistId, {
+    int limit = 1000,
+    int offset = 0,
+  }) async {
+    final Map<String, dynamic> res = await _post(
+      '/weapi/v3/playlist/detail',
+      <String, dynamic>{
+        'id': playlistId,
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    final List<dynamic> data =
+        ((res['playlist'] as Map<String, dynamic>?)?['tracks'] as List<dynamic>?) ??
+            const <dynamic>[];
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(SongLite.fromJson)
+        .where((SongLite s) => s.id != -1)
+        .toList(growable: false);
   }
 
   // ── 登录 ──────────────────────────────────────────

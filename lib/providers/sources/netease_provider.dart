@@ -264,3 +264,23 @@ final AutoDisposeFutureProvider<List<Track>> neteaseRoamProvider =
   if (!auth.isLoggedIn) return const <Track>[];
   return ref.watch(neteaseSourceProvider).roam();
 });
+
+/// 当前登录用户的歌单列表。未登录时直接给空列表。
+final AutoDisposeFutureProvider<List<NeteasePlaylist>> neteasePlaylistsProvider =
+    FutureProvider.autoDispose<List<NeteasePlaylist>>((Ref ref) async {
+  final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
+  if (!auth.isLoggedIn) return const <NeteasePlaylist>[];
+  return ref.watch(neteaseSourceProvider).playlists();
+});
+
+/// 单个网易云歌单内的曲目（按歌单 id 取）。未登录时给空列表。
+///
+/// 返回类型与 [NeteaseTrackListPage.firstProvider] 兼容（family 实例也是
+/// `AutoDisposeFutureProvider<List<Track>>`），可直接复用曲目列表薄壳。
+final AutoDisposeFutureProviderFamily<List<Track>, int>
+    neteasePlaylistTracksProvider = FutureProvider.autoDispose
+        .family<List<Track>, int>((Ref ref, int playlistId) async {
+  final NeteaseAuthState auth = ref.watch(neteaseAuthProvider);
+  if (!auth.isLoggedIn) return const <Track>[];
+  return ref.watch(neteaseSourceProvider).playlistTracks(playlistId);
+});

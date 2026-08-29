@@ -14,6 +14,7 @@ import '../../providers/scene/scene_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
+import '../../providers/network/webdav_providers.dart';
 import '../../services/audio/audio_service.dart';
 import 'audio_scheme.dart';
 import '../../services/audio/minecraft_sfx_service.dart';
@@ -144,6 +145,8 @@ final activeSourcesProvider = Provider<List<MusicSource>>((ref) {
   sources.add(ref.watch(bilibiliSourceProvider));
   // 听过的歌自动入曲库：从播放历史重建曲目，复用网易云解析（cl64-5 / #635）。
   sources.add(HeardSource(netease, TrackStatsDb.instance));
+  // WebDAV 网络音乐库（T12）：每配置一个源，承担占位 uri → 真实流地址 + Basic 头。
+  sources.addAll(ref.watch(webdavSourcesProvider));
   return sources;
 });
 
