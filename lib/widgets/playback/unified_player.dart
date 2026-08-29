@@ -1605,7 +1605,6 @@ class _VolRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String title = category?.label ?? label ?? '';
-    final String hint = category?.concept ?? concept ?? '';
     final AppThemeColors colors = context.appColors;
 
     return Column(
@@ -1622,18 +1621,6 @@ class _VolRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            // 概念小字：解释这类声音是什么，避免用户凭名字猜
-            Expanded(
-              child: Text(
-                hint,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 11,
-                ),
-              ),
-            ),
             if (trailing != null) trailing!,
           ],
         ),

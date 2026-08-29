@@ -21,13 +21,6 @@ class TemplateGalleryPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: <Widget>[
-          Text(
-            '选择一套标准模板，作为以后所有页面的默认样式。'
-            '模板只定义布局与样式，文字和图片内容由单独的数据层填充——'
-            '换模板不换内容。',
-            style: context.appText.bodyMuted,
-          ),
-          const SizedBox(height: 16),
           for (final UiTemplate t in UiTemplate.values) ...<Widget>[
             _TemplateCard(
               template: t,
@@ -52,11 +45,6 @@ class TemplateGalleryPage extends ConsumerWidget {
           Text(
             '组件示例 · ${current.label}',
             style: context.appText.subtitle,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '以下组件将随所选模板统一（圆角 / 填充 / 列表风格）。',
-            style: context.appText.caption,
           ),
           const SizedBox(height: 12),
           ComponentSamples(template: current),
@@ -114,22 +102,12 @@ class _TemplateCard extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      template.label,
-                      style: context.appText.subtitle.copyWith(
-                        color: c.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      template.subtitle,
-                      style: context.appText.caption,
-                    ),
-                  ],
+                child: Text(
+                  template.label,
+                  style: context.appText.subtitle.copyWith(
+                    color: c.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               if (selected)

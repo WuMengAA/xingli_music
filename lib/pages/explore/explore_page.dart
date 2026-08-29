@@ -94,8 +94,6 @@ class ExplorePage extends ConsumerWidget {
             // 热门歌单区：读真实歌单（playlistsProvider），点击进入歌单详情。
             const _PlaylistRowSection(),
             const SizedBox(height: AppSpace.lg),
-            _NoticeBar(),
-            const SizedBox(height: AppSpace.lg),
             _SectionLabel(Terms.features),
             const SizedBox(height: AppSpace.md),
             _FunctionSection(
@@ -210,16 +208,6 @@ class _FeaturedCard extends ConsumerWidget {
                   fontWeight: FontWeight.w700,
                 ).copyWith(color: c.onAccent),
               ),
-              const SizedBox(height: 4),
-              Text(
-                scene.soundscape.isNotEmpty
-                    ? '${scene.soundscape} · 点击进入'
-                    : '点击进入主页场景',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w400,
-                ).copyWith(color: c.onAccent.withValues(alpha: 0.85)),
-              ),
             ],
           ),
         ),
@@ -309,13 +297,6 @@ class _SceneCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(scene.name, style: context.appText.subtitle),
-                const SizedBox(height: 2),
-                Text(
-                  scene.soundscape.isNotEmpty ? scene.soundscape : scene.mood,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.appText.artist,
-                ),
               ],
             ),
           ),
@@ -442,31 +423,6 @@ class _PlaylistRow extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 实验场所说明条（345×48，圆角 12）。画布为浅紫提示条。
-class _NoticeBar extends StatelessWidget {
-  const _NoticeBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final AppThemeColors c = context.appColors;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: <Widget>[
-          Icon(Icons.science_rounded, size: 18, color: c.accent),
-          const SizedBox(width: AppSpace.sm),
-          Expanded(
-            child: Text(
-              '实验场所 · 功能可能不稳定，数据本地处理不上传',
-              style: context.appText.caption,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -625,27 +581,13 @@ class _FuncRow extends StatelessWidget {
             child: Row(
               children: <Widget>[
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: c.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: c.textTertiary,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: c.textPrimary,
+                    ),
                   ),
                 ),
                 trailing,
@@ -750,15 +692,6 @@ class _ExpCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(item.name, style: context.appText.subtitle),
-                  const SizedBox(height: 6),
-                  Expanded(
-                    child: Text(
-                      item.description,
-                      style: context.appText.artist,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
                 ],
               ),
             ),

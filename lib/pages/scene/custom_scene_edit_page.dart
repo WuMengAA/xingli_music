@@ -303,14 +303,6 @@ class _BgmPicker extends ConsumerWidget {
                     selected: bgmTitle == t.title,
                     onSelected: (_) => onSelected(t),
                   ),
-                if (tracks.length > 20)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpace.xs),
-                    child: Text(
-                      '（仅展示前 20 首，完整曲库见曲库页）',
-                      style: context.appText.caption,
-                    ),
-                  ),
               ],
             );
           },

@@ -160,8 +160,6 @@ class _SensorCard extends StatelessWidget {
               children: <Widget>[
                 Text(title, style: context.appText.body),
                 Text(value, style: context.appText.subtitle),
-                const SizedBox(height: 2),
-                Text(subtitle, style: context.appText.artist),
               ],
             ),
           ),

@@ -20,8 +20,6 @@ class CompanionPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final CompanionSession session = ref.watch(companionStateProvider);
-
     return Scaffold(
       backgroundColor: context.appColors.bgPage,
       body: SafeArea(
@@ -36,23 +34,10 @@ class CompanionPage extends ConsumerWidget {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              // 说明区
-              Text(
-                CompanionPersona.tagline,
-                style: context.appText.subtitle,
-              ),
-              const SizedBox(height: AppSpace.xs),
               Text(
                 CompanionPersona.privacyNote,
                 style: context.appText.caption,
               ),
-              if (session.firstContactMade) ...<Widget>[
-                const SizedBox(height: AppSpace.xs),
-                Text(
-                  CompanionPersona.awakeNote,
-                  style: context.appText.caption,
-                ),
-              ],
               const SizedBox(height: AppSpace.md),
 
               // 文字气泡

@@ -74,10 +74,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         children: <Widget>[
           ListTile(
             leading: Icon(lenient ? Icons.lock_open : Icons.lock_outline),
-            title: const Text('连接安全'),
-            subtitle: Text(lenient
-                ? '宽松：接受自签名证书（自托管局域网）'
-                : '严格：校验证书链（默认，官方中转）'),
+            title: Text(lenient ? '连接安全：宽松' : '连接安全：严格'),
           ),
           const Divider(),
           if (auth.isAuthed) ...<Widget>[
@@ -119,10 +116,6 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               ),
             ],
             const SizedBox(height: 12),
-            const Text(
-              '登录后可跨设备同步偏好与收藏；不登录也能正常使用（游客）。',
-              style: TextStyle(color: Colors.grey),
-            ),
           ],
         ],
       ),

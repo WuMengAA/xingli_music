@@ -50,11 +50,6 @@ class CustomSceneListPage extends ConsumerWidget {
                 _GroupHeader('内置'),
                 for (final Scene s in builtIn) _SceneTile(scene: s),
               ],
-              const SizedBox(height: AppSpace.lg),
-              Text(
-                '提示：自定义场景可导出 / 导入场景包（复用场景编辑器导出能力）。',
-                style: context.appText.caption,
-              ),
             ],
           ),
         ),

@@ -298,7 +298,6 @@ class HomeSceneContent extends ConsumerWidget {
                 leading: Icon(Icons.camera_alt_outlined,
                     color: context.appColors.accent),
                 title: Text('拍到的场景', style: context.appText.body),
-                subtitle: Text('选一个场景，或去拍新的，然后进入游戏', style: context.appText.artist),
               ),
               const Divider(height: 1),
               Flexible(
@@ -310,7 +309,6 @@ class HomeSceneContent extends ConsumerWidget {
                       leading: Icon(Icons.add_a_photo_outlined,
                           color: context.appColors.iconPrimary),
                       title: Text('去拍新场景', style: context.appText.body),
-                      subtitle: Text('进入游戏，在 3D 世界取景', style: context.appText.artist),
                       onTap: () => Navigator.of(sheetContext).pop(),
                     ),
                     for (final Scene s in captured)

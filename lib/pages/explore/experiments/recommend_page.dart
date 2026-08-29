@@ -41,11 +41,6 @@ class RecommendPage extends ConsumerWidget {
                 '当前场景：${scene.name}（${scene.mood}）',
                 style: context.appText.bodyMuted,
               ),
-              const SizedBox(height: AppSpace.xs),
-              Text(
-                '启发式：偏好 valence/energy 与场景接近的曲目',
-                style: context.appText.caption,
-              ),
               const SizedBox(height: AppSpace.md),
               Expanded(
                 child: library.when(

@@ -47,11 +47,6 @@ class GameGraphicsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpace.lg),
         children: <Widget>[
-          Text(
-            '与游戏内设置共享，改动即时生效、重启保留。'
-            '低画质已足够：无贴图、无光影，纯色平铺 + 雾 + 远景 LOD。',
-            style: context.appText.artist,
-          ),
           const SizedBox(height: AppSpace.lg),
 
           // ═══ 画质档（四档预设）═══
@@ -70,17 +65,6 @@ class GameGraphicsPage extends ConsumerWidget {
                         onSelected: (_) => applyGraphicsQuality(ref, g),
                       ),
                   ],
-                ),
-                const SizedBox(height: AppSpace.sm),
-                Text(
-                  q == GraphicsQuality.auto
-                      ? '自动：按真实帧率调节（目标 ≥30fps），不足则逐档下调'
-                          '主视距区块（4→2）；默认开启，≤60fps。'
-                      : '${q.label}：视距 ${q.viewDistanceChunks} 区块 + '
-                          'LOD ${q.lodMaxChunks} 区块，共 '
-                          '${q.viewDistanceChunks + q.lodMaxChunks} 区块 · '
-                          '${q.fpsCap}fps。',
-                  style: context.appText.artist,
                 ),
               ],
             ),
@@ -105,11 +89,6 @@ class GameGraphicsPage extends ConsumerWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpace.sm),
-                Text(
-                  '省电档预设 24fps、其余 60fps；低端机建议 24。',
-                  style: context.appText.artist,
-                ),
               ],
             ),
           ),
@@ -123,7 +102,6 @@ class GameGraphicsPage extends ConsumerWidget {
               value: vd,
               min: 2,
               max: 4,
-              hint: '区块（1 区块 = 16 格）。上限 4，远景由 LOD 延伸',
               onChanged: (int v) =>
                   ref.read(viewDistanceChunksProvider.notifier).state = v,
             ),
@@ -137,7 +115,6 @@ class GameGraphicsPage extends ConsumerWidget {
               value: ref.watch(cloudViewDistanceProvider),
               min: 1,
               max: 8,
-              hint: '区块（1 区块 = 16 格）。云场覆盖半径，越大云铺越远、云胞越多',
               onChanged: (int v) =>
                   ref.read(cloudViewDistanceProvider.notifier).state = v,
             ),
@@ -153,7 +130,6 @@ class GameGraphicsPage extends ConsumerWidget {
                   value: lodStart,
                   min: 0,
                   max: 6,
-                  hint: '距相机多少区块外开始降精度（0 = 全程满精度）',
                   onChanged: (int v) =>
                       ref.read(lodStartChunksProvider.notifier).state = v,
                 ),
@@ -163,7 +139,6 @@ class GameGraphicsPage extends ConsumerWidget {
                   value: lodStep,
                   min: 1,
                   max: 4,
-                  hint: '每 N 区块降一级精度（步长 ×2）',
                   onChanged: (int v) =>
                       ref.read(lodStepChunksProvider.notifier).state = v,
                 ),
@@ -173,8 +148,6 @@ class GameGraphicsPage extends ConsumerWidget {
                   value: lodMax,
                   min: 2,
                   max: 64,
-                  hint: '区块（1 区块 = 16 格）。可超视距，远景大方块看得更远'
-                      '（地平线档 64）',
                   onChanged: (int v) =>
                       ref.read(lodMaxChunksProvider.notifier).state = v,
                 ),
@@ -199,8 +172,8 @@ class GameGraphicsPage extends ConsumerWidget {
                   children: <Widget>[
                     Expanded(
                       child: Text(
-                        'LOD 视锥剔除（关闭远景后半球，省面）',
-                        style: context.appText.artist,
+                        'LOD 视锥剔除',
+                        style: context.appText.body,
                       ),
                     ),
                     Switch(
@@ -222,9 +195,8 @@ class GameGraphicsPage extends ConsumerWidget {
               children: <Widget>[
                 Expanded(
                   child: Text(
-                    '玩家 5 格内实描边 + 5~12 格极淡渐隐；'
-                    '关闭后不描边（更省面数、画面更干净）',
-                    style: context.appText.artist,
+                    '描边',
+                    style: context.appText.body,
                   ),
                 ),
                 Switch(
@@ -356,11 +328,6 @@ class GameGraphicsPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpace.lg),
-          Text(
-            '说明：画质预设一键套用（视距 / LOD / 帧率随档位）；'
-            '常用参数已提升到顶层，极客项收进「高级」折叠区。',
-            style: context.appText.bodyMuted,
-          ),
         ],
       ),
     );
@@ -413,7 +380,6 @@ class _Stepper extends StatelessWidget {
     required this.value,
     required this.min,
     required this.max,
-    required this.hint,
     required this.onChanged,
   });
 
@@ -421,7 +387,6 @@ class _Stepper extends StatelessWidget {
   final int value;
   final int min;
   final int max;
-  final String hint;
   final ValueChanged<int> onChanged;
 
   @override
@@ -455,7 +420,6 @@ class _Stepper extends StatelessWidget {
             ),
           ],
         ),
-        Text(hint, style: context.appText.artist),
       ],
     );
   }
@@ -482,14 +446,7 @@ class _ToggleRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(title, style: context.appText.body),
-              const SizedBox(height: 2),
-              Text(subtitle, style: context.appText.artist),
-            ],
-          ),
+          child: Text(title, style: context.appText.body),
         ),
         Switch(value: value, onChanged: onChanged),
       ],
