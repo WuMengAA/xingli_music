@@ -149,6 +149,7 @@ const TYPES = [
   { k: 'notices', label: '公告' },
   { k: 'playlists', label: '歌单' },
   { k: 'scenes', label: '场景' },
+  { k: 'logs', label: '操作日志' },
 ];
 
 function getPath(o, p) { return p.split('.').reduce((a, c) => (a == null ? a : a[c]), o); }
@@ -198,6 +199,7 @@ function subText(it) {
   return it.soundscape || '';
 }
 function renderList() {
+  if (CUR === 'logs') { renderLogs(); return; }
   const el = document.getElementById('list');
   document.getElementById('count').textContent = '共 ' + DATA.length + ' 条';
   el.innerHTML = '';
@@ -227,6 +229,24 @@ function renderList() {
     del.textContent = '删除'; del.onclick = () => removeItem(it.id);
     ops.appendChild(edit); ops.appendChild(del);
     card.appendChild(ops);
+    el.appendChild(card);
+  });
+}
+function renderLogs() {
+  const el = document.getElementById('list');
+  document.getElementById('count').textContent = '共 ' + DATA.length + ' 条';
+  el.innerHTML = '';
+  if (!DATA.length) { el.innerHTML = '<div class="empty">暂无操作记录。</div>'; return; }
+  const label = { create: '新建', update: '修改', delete: '删除' };
+  const color = { create: 'var(--ok)', update: 'var(--accent2)', delete: 'var(--danger)' };
+  DATA.forEach(r => {
+    const a = r.action || '';
+    const card = document.createElement('div'); card.className = 'card';
+    const glyph = a === 'delete' ? '🗑' : a === 'create' ? '＋' : '✎';
+    card.innerHTML = '<div class="glyph" style="background:' + (color[a] || 'var(--panel2)') + '22">' + glyph + '</div>' +
+      '<div class="body"><div class="title"><span style="color:' + (color[a] || 'var(--fg)') + '">' +
+      (label[a] || a) + '</span> · ' + esc(r.type || '') + (r.id ? ' #' + esc(r.id) : '') + '</div>' +
+      '<div class="sub">' + esc(r.ip || '') + ' · ' + esc((r.ts || '').replace('T', ' ').replace('Z', '').slice(0, 19)) + '</div></div>';
     el.appendChild(card);
   });
 }
@@ -283,9 +303,15 @@ async function removeItem(id) {
 }
 async function load() {
   renderTabs();
+  document.getElementById('addBtn').style.display = CUR === 'logs' ? 'none' : '';
   try {
-    const { body } = await api('/content/' + CUR);
-    DATA = (body && body[CUR]) || [];
+    if (CUR === 'logs') {
+      const { body } = await api('/log');
+      DATA = (body && body.logs) || [];
+    } else {
+      const { body } = await api('/content/' + CUR);
+      DATA = (body && body[CUR]) || [];
+    }
     renderList();
   } catch (e) {}
 }

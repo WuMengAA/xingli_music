@@ -823,6 +823,21 @@ Future<void> _handleAdmin(HttpRequest req) async {
     await _json(req, <String, dynamic>{'error': 'unauthorized'}, status: 401);
     return;
   }
+  if (path == '/api/admin/log') {
+    final List<dynamic> logs = <dynamic>[];
+    try {
+      final File f = File(_kAuditLog);
+      if (await f.exists()) {
+        final List<String> lines = await f.readAsLines();
+        for (int i = lines.length - 1; i >= 0 && logs.length < 100; i--) {
+          final Object? v = jsonDecode(lines[i]);
+          if (v is Map<String, dynamic>) logs.add(v);
+        }
+      }
+    } catch (_) {}
+    await _json(req, <String, dynamic>{'logs': logs});
+    return;
+  }
 
   final RegExpMatch? m =
       RegExp(r'^/api/admin/content/([a-z]+)(?:/([^/]+))?$').firstMatch(path);
@@ -856,6 +871,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
     item['id'] ??= _genId();
     list.add(item);
     await _saveContent(type, list);
+    await _logAdmin('create', type, item['id'] as String?, _clientIp(req));
     await _json(req, <String, dynamic>{'ok': true, 'id': item['id']});
     return;
   }
@@ -876,6 +892,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
     }
     list[idx] = <String, dynamic>{...list[idx] as Map, ...body, 'id': id};
     await _saveContent(type, list);
+    await _logAdmin('update', type, id, _clientIp(req));
     await _json(req, <String, dynamic>{'ok': true});
     return;
   }
@@ -891,6 +908,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
       return;
     }
     await _saveContent(type, list);
+    await _logAdmin('delete', type, id, _clientIp(req));
     await _json(req,
         <String, dynamic>{'ok': true, 'removed': before - list.length});
     return;
@@ -915,6 +933,34 @@ Future<void> _serveAdmin(HttpRequest req) async {
       ..statusCode = 200
       ..headers.contentType = ContentType.parse('text/html; charset=utf-8')
       ..write(html);
-    await req.response.close();
+      await req.response.close();
+    } catch (_) {}
+}
+
+/// 审计日志（JSONL，追加写）：记录后台写操作，供运营追溯。
+const String _kAuditLog = 'admin/audit.jsonl';
+
+/// 记录一条审计日志（ts/action/type/id/ip）。
+Future<void> _logAdmin(
+    String action, String type, String? id, String ip) async {
+  try {
+    final File f = File(_kAuditLog);
+    final Map<String, dynamic> rec = <String, dynamic>{
+      'ts': DateTime.now().toUtc().toIso8601String(),
+      'action': action,
+      'type': type,
+      'id': id,
+      'ip': ip,
+    };
+    await f.writeAsString(jsonEncode(rec) + '\n', mode: FileMode.append);
   } catch (_) {}
+}
+
+/// 取客户端 IP（审计用）。
+String _clientIp(HttpRequest req) {
+  try {
+    return req.connectionInfo?.remoteAddress.address ?? 'unknown';
+  } catch (_) {
+    return 'unknown';
+  }
 }

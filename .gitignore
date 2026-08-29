@@ -105,6 +105,8 @@ tools/relay_server/users/
 # 本地自测产物（curl 输出等）
 tools/relay_server/*.txt
 tools/relay_server/*.err
+# 后台审计日志（追加写，无需进 git）
+tools/relay_server/admin/audit.jsonl
 
 # ─────────────────────────────────────────────
 # 发布产物目录（本地留档用，不入库）
