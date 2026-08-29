@@ -732,6 +732,9 @@ class _UtilityStrip extends StatelessWidget {
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
+        // 前端改进：7 个入口图标不再全用主色（一眼难辨），
+        // 按功能语义分配差异化颜色 + 淡色底（accent/success/warning/dangerSoft/iconPrimary），
+        // 在不引入新设计体系的前提下提高扫视区分度。
         children: <Widget>[
           _UtilityItem(
             icon: Icons.auto_awesome_rounded,
@@ -742,37 +745,37 @@ class _UtilityStrip extends StatelessWidget {
           _UtilityItem(
             icon: Icons.queue_music_rounded,
             label: '网易云歌单',
-            iconColor: c.accent,
+            iconColor: c.success,
             onTap: () => push(const NeteasePlaylistPage()),
           ),
           _UtilityItem(
             icon: Icons.shuffle_rounded,
             label: '语义随机',
-            iconColor: c.accent,
+            iconColor: c.warning,
             onTap: () => push(const LocalSemanticRandomPage()),
           ),
           _UtilityItem(
             icon: Icons.cast_rounded,
             label: '投屏',
-            iconColor: c.accent,
+            iconColor: c.accentSoft,
             onTap: () => push(const CastPage()),
           ),
           _UtilityItem(
             icon: Icons.cloud_rounded,
             label: '网络音乐库',
-            iconColor: c.accent,
+            iconColor: c.iconPrimary,
             onTap: () => push(const NetLibraryPage()),
           ),
           _UtilityItem(
             icon: Icons.album_rounded,
             label: 'CUE 分轨',
-            iconColor: c.accent,
+            iconColor: c.dangerSoft,
             onTap: () => push(const CueSheetPage()),
           ),
           _UtilityItem(
             icon: Icons.manage_search_rounded,
             label: '刮削器',
-            iconColor: c.accent,
+            iconColor: c.success,
             onTap: () => push(const ScraperPage()),
           ),
         ],
@@ -811,9 +814,13 @@ class _UtilityItem extends StatelessWidget {
                 width: 46,
                 height: 46,
                 decoration: BoxDecoration(
-                  color: c.bgSurface,
+                  // 圆底 = 语义色的 10% 淡色 tint（浅/深主题通用），
+                  // 让每个入口的「色相差异」可一眼感知，而非只能盯着小图标。
+                  color: iconColor.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: c.border),
+                  border: Border.all(
+                    color: iconColor.withValues(alpha: 0.28),
+                  ),
                 ),
                 child: Icon(icon, size: 22, color: iconColor),
               ),
