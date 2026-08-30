@@ -49,6 +49,14 @@ String otaApkAssetForAbi(DeviceAbi abi) =>
 String otaShaAssetForAbi(DeviceAbi abi) =>
     '${otaApkAssetForAbi(abi)}.sha256';
 
+/// Windows 电脑版更新包资产名（cl77：电脑版 OTA 定版命名约定，与安卓
+/// `app-<abi>-release.apk` 同哲学：固定名，不随 tag 变）。
+/// 发布侧由 tools/publish_windows_ota.ps1 打同名字符串包上传。
+String otaWindowsAssetName() => 'xingli_music_windows_x64.zip';
+
+/// Windows 电脑版对应 sha256 资产名。
+String otaWindowsShaAssetName() => '${otaWindowsAssetName()}.sha256';
+
 /// 一次更新检查的结果。
 class OtaCheckResult {
   const OtaCheckResult({
@@ -379,21 +387,23 @@ class OtaService {
     }
   }
 
-  /// 下载 Release 中「适配本机架构」的拆分包并校验 SHA-256。
+  /// 下载 Release 中「适配本机平台/架构」的资产并校验 SHA-256。
   ///
-  /// [abi] 不传则自动检测设备架构；据此选 `app-arm64-v8a-release.apk`
-  /// 或 `app-armeabi-v7a-release.apk`（不再有 universal 整包）。
+  /// - 安卓：按设备架构选 `app-arm64-v8a-release.apk` /
+  ///   `app-armeabi-v7a-release.apk` 拆分包（[abi] 不传自动检测）；
+  /// - Windows 电脑版：下载固定名 `xingli_music_windows_x64.zip`
+  ///   （cl77 电脑版 OTA；发布侧用 tools/publish_windows_ota.ps1 打包同名上传）。
   /// [onProgress] 在下载期间持续回调进度（字节 / 网速），供 UI 展示；
   /// 下载不依赖调用方生命周期（调用方销毁后 Future 继续跑，即「挂后台」）。
-  /// 返回安装包路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。
+  /// 返回下载文件路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。
   Future<String> downloadAndVerify(
     String tag, {
     DeviceAbi? abi,
     void Function(OtaProgress progress)? onProgress,
   }) async {
-    abi ??= await detectDeviceAbi();
-    final String asset = otaApkAssetForAbi(abi);
-    final String shaAsset = otaShaAssetForAbi(abi);
+    final bool windows = Platform.isWindows;
+    final String asset = windows ? otaWindowsAssetName() : otaApkAssetForAbi(abi ?? await detectDeviceAbi());
+    final String shaAsset = windows ? otaWindowsShaAssetName() : otaShaAssetForAbi(abi ?? await detectDeviceAbi());
     final String url =
         'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$asset';
     final String shaUrl =
@@ -402,10 +412,10 @@ class OtaService {
     final Directory dir = await appDataDir();
     final String apkPath = p.join(dir.path, 'ota_${tag}_$asset');
 
-    // 1) 下载 sha256 期望值（对应架构拆分包）。
+    // 1) 下载 sha256 期望值（对应资产）。
     final String expected = await _fetchSha256(shaUrl);
 
-    // 2) 拆分包下载（流式，回调进度）。
+    // 2) 资产下载（流式，回调进度）。
     await _download(url, apkPath, onProgress: onProgress);
 
     // 3) 校验。

@@ -21,7 +21,7 @@ class OtaDownloadState {
     this.receivedBytes = 0,
     this.totalBytes = 0,
     this.speedBytesPerSec = 0,
-    this.apkPath = '',
+    this.filePath = '',
     this.error,
   });
 
@@ -39,8 +39,9 @@ class OtaDownloadState {
   /// 实时网速（字节/秒，EMA 平滑）。
   final double speedBytesPerSec;
 
-  /// 校验通过后的安装包路径（phase == done 时有效）。
-  final String apkPath;
+  /// 校验通过后的更新包路径（phase == done 时有效；
+  /// 安卓为 .apk，Windows 电脑版为 .zip）。
+  final String filePath;
 
   /// 错误消息（phase == error 时有效）。
   final String? error;
@@ -56,7 +57,7 @@ class OtaDownloadState {
     int? receivedBytes,
     int? totalBytes,
     double? speedBytesPerSec,
-    String? apkPath,
+    String? filePath,
     String? error,
   }) {
     return OtaDownloadState(
@@ -66,7 +67,7 @@ class OtaDownloadState {
       receivedBytes: receivedBytes ?? this.receivedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
       speedBytesPerSec: speedBytesPerSec ?? this.speedBytesPerSec,
-      apkPath: apkPath ?? this.apkPath,
+      filePath: filePath ?? this.filePath,
       error: error ?? this.error,
     );
   }
@@ -87,7 +88,7 @@ class OtaDownloadNotifier extends StateNotifier<OtaDownloadState> {
     if (state.isDownloading) return;
     state = OtaDownloadState(phase: OtaPhase.downloading, tag: tag);
     try {
-      final String apkPath = await OtaService.instance.downloadAndVerify(
+      final String filePath = await OtaService.instance.downloadAndVerify(
         tag,
         abi: abi,
         onProgress: (OtaProgress p) {
@@ -102,7 +103,7 @@ class OtaDownloadNotifier extends StateNotifier<OtaDownloadState> {
         },
       );
       if (mounted) {
-        state = state.copyWith(phase: OtaPhase.done, apkPath: apkPath);
+        state = state.copyWith(phase: OtaPhase.done, filePath: filePath);
       }
     } on OtaException catch (e) {
       if (mounted) {

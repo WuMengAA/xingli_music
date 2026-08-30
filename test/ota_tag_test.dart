@@ -87,4 +87,20 @@ void main() {
       expect(AppVersion.channel.label, contains('Beta'));
     });
   });
+
+  group('电脑版 OTA 资产命名约定（cl77）', () {
+    test('Windows 更新包固定名（不随 tag 变）', () {
+      expect(otaWindowsAssetName(), 'xingli_music_windows_x64.zip');
+      expect(otaWindowsShaAssetName(), 'xingli_music_windows_x64.zip.sha256');
+    });
+
+    test('安卓拆分包命名不受影响（arm64 / arm32）', () {
+      expect(otaApkAssetForAbi(DeviceAbi.arm64),
+          'app-arm64-v8a-release.apk');
+      expect(otaApkAssetForAbi(DeviceAbi.arm32),
+          'app-armeabi-v7a-release.apk');
+      expect(otaShaAssetForAbi(DeviceAbi.arm64),
+          'app-arm64-v8a-release.apk.sha256');
+    });
+  });
 }

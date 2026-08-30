@@ -19,13 +19,9 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/ota_download_provider.dart';
 import '../../providers/settings/settings_persistence_providers.dart';
-import '../../services/open_url.dart';
 import '../../services/ota_service.dart';
 import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
-
-const String kOtaReleasesPageUrl =
-    'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases';
 
 /// 打开版本日志面板（自动获取最新日志：changelog 倒序，首条即最新）。
 Future<void> showVersionLogSheet(BuildContext context) {
@@ -212,14 +208,14 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   Future<void> _check() async {
     setState(() => _checking = true);
     final UpdateChannel ch = ref.read(settingsRepositoryProvider).updateChannel;
-    // 并发：检测架构 + 拉取本渠道版本列表。
+    // 并发：拉取本渠道版本列表；安卓额外检测本机架构（选拆分包）。
     final List<dynamic> res = await Future.wait<dynamic>(<Future<dynamic>>[
-      OtaService.detectDeviceAbi(),
+      if (_isAndroid) OtaService.detectDeviceAbi(),
       OtaService.instance.listChannelReleases(ch),
     ]);
     if (!mounted) return;
-    _abi = res[0] as DeviceAbi;
-    _versions = res[1] as List<OtaTagInfo>;
+    if (_isAndroid) _abi = res[0] as DeviceAbi;
+    _versions = res[_isAndroid ? 1 : 0] as List<OtaTagInfo>;
     _selected = 0;
     setState(() {
       _checking = false;
@@ -241,12 +237,13 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
   OtaTagInfo? get _selectedVersion =>
       _versions.isNotEmpty ? _versions[_selected] : null;
 
-  /// 下载完成后调系统安装器安装（cl74：此前整条安装链路缺失，下载完无入口）。
-  Future<void> _install(String apkPath) async {
+  /// 下载完成后安装（cl74 / cl77：安卓 = 系统安装器；Windows = 解压替换自启。
+  /// 分发在 OtaInstall.install 内部，这里只管调）。
+  Future<void> _install(String filePath) async {
     if (_installing) return;
     setState(() => _installing = true);
     try {
-      await OtaInstall.install(apkPath);
+      await OtaInstall.install(filePath);
     } on OtaException catch (e) {
       if (mounted) appNotify(context, e.message);
     } catch (e) {
@@ -265,7 +262,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
         content: Text(
           '${v.tag}（当前 ${AppVersion.display}）\n\n'
           '${v.notes.isNotEmpty ? v.notes : '前往更新以获取最新体验。'}'
-          '${v.hasWindows ? '\n\n（含 Windows 版，请从官网下载）' : ''}',
+          '${v.hasWindows ? '\n\n（含 Windows 版，下载后自动替换并重启）' : ''}',
           style: const TextStyle(fontSize: 13),
         ),
         actions: <Widget>[
@@ -427,17 +424,13 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     }
   }
 
-  /// 自动下载安装仅安卓支持；电脑端改为跳转 Releases 下载页。
+  /// 自动下载安装安卓 / Windows 电脑版均支持（cl77 电脑版 OTA）。
   bool get _isAndroid => !kIsWeb && Platform.isAndroid;
 
   /// 主按钮动作：检查 → 下载选中版本 → 安装 / 重试。
   void _onPrimary(OtaDownloadState dl) {
-    if (!_isAndroid) {
-      OpenUrl.launch(context, kOtaReleasesPageUrl);
-      return;
-    }
     if (dl.isDone) {
-      _install(dl.apkPath);
+      _install(dl.filePath);
       return;
     }
     if (dl.isDownloading || _checking || _installing) return;
@@ -533,9 +526,8 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                       Expanded(
                         child: Text(
                           _isAndroid
-                              ? '安卓适配：$abiLabel，自动匹配安装包（OTA 仅安卓）'
-                              : '电脑版：本页只列出 Windows 版本，自动下载安装仅支持安卓'
-                                '（请点下方按钮前往下载页）',
+                              ? '安卓适配：$abiLabel，自动匹配安装包'
+                              : '电脑版适配：Windows·x64，自动下载更新包并替换',
                           style: context.appText.body,
                         ),
                       ),
@@ -549,7 +541,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                           borderRadius: BorderRadius.circular(AppRadius.pill),
                         ),
                         child: Text(
-                          _isAndroid ? '自动选包' : '手动下载',
+                          _isAndroid ? '自动选包' : '自动更新',
                           style: context.appText.caption.copyWith(
                             color: colors.accent,
                           ),
@@ -733,21 +725,19 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                           size: 18,
                         ),
                   label: Text(
-                    !_isAndroid
-                        ? '前往下载页（Windows）'
-                        : (dl.isDone
-                              ? (_installing ? '安装中…' : '安装更新')
-                              : (dl.isDownloading
-                                    ? '下载中…'
-                                    : (_checking
-                                          ? '检查中…'
-                                          : (_checked
-                                                ? (dl.isError
-                                                      ? '重试下载'
-                                                      : (sel != null
-                                                            ? '下载 ${sel.tag}'
-                                                            : '检查更新'))
-                                                : '检查更新')))),
+                    dl.isDone
+                        ? (_installing ? '安装中…' : '安装更新')
+                        : (dl.isDownloading
+                              ? '下载中…'
+                              : (_checking
+                                    ? '检查中…'
+                                    : (_checked
+                                          ? (dl.isError
+                                                ? '重试下载'
+                                                : (sel != null
+                                                      ? '下载 ${sel.tag}'
+                                                      : '检查更新'))
+                                          : '检查更新'))),
                   ),
                   onPressed: (_checking || dl.isDownloading || _installing)
                       ? null
@@ -767,9 +757,10 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
               const SizedBox(height: AppSpace.xs),
               Text(
                 '连接 GitHub Releases 自动获取安装包；安卓按本机架构（arm64/arm32）'
-                '自动选对应拆分包，下载后校验 SHA-256 哈希，通过才提示安装；'
+                '自动选对应拆分包，Windows 电脑版自动下载更新包；'
+                '下载后校验 SHA-256 哈希，通过才提示安装；'
                 '支持后台下载（可关闭本页，完成后通知你）。'
-                'Windows 版（标记 Windows·x64）请从官网下载。',
+                'Windows 版安装后自动替换并重启。',
                 style: context.appText.artist,
               ),
             ],

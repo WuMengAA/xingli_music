@@ -241,10 +241,11 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     }
   }
 
-  /// cl74：调系统安装器安装已下载的 APK（供下载完成 SnackBar 的「安装」动作）。
-  Future<void> _installApk(String apkPath) async {
+  /// cl74 / cl77：安装已下载并校验通过的更新包（供下载完成 SnackBar 的
+  /// 「安装」动作；安卓 = APK 系统安装器，Windows 电脑版 = 解压替换自启）。
+  Future<void> _installUpdate(String filePath) async {
     try {
-      await OtaInstall.install(apkPath);
+      await OtaInstall.install(filePath);
     } on OtaException catch (e) {
       if (mounted) appNotify(context, e.message);
     } catch (e) {
@@ -287,13 +288,13 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       (OtaDownloadState? previous, OtaDownloadState next) {
         if (previous == null || previous.isDownloading == false) return;
         if (next.isDone) {
-          final String path = next.apkPath;
+          final String path = next.filePath;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('新版本 ${next.tag} 已下载并通过 SHA-256 校验'),
               action: SnackBarAction(
                 label: Terms.install,
-                onPressed: () => unawaited(_installApk(path)),
+                onPressed: () => unawaited(_installUpdate(path)),
               ),
             ),
           );
