@@ -29,17 +29,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../models/track.dart';
 import '../../providers/auth/user_provider.dart';
+import '../../providers/audio/playback_notifier.dart';
 import '../../providers/content/content_providers.dart';
 import '../../providers/security/cert_policy_provider.dart';
 import '../../providers/audio/audio_providers.dart';
+import '../../providers/audio/auto_play_providers.dart';
+import '../../providers/sources/netease_provider.dart';
 import '../../widgets/common/aurora_background.dart';
 import '../../providers/settings/notification_providers.dart';
 import '../../providers/settings/oobe_choice_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../services/auth/auth_service.dart';
+import '../../services/audio/oobe_preview_service.dart';
 import '../../services/content/terms_service.dart';
 import '../../services/open_url.dart';
+import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
 import '../../services/security/http_client_factory.dart';
 
@@ -356,6 +362,56 @@ class _OobePageState extends ConsumerState<OobePage> {
         side: const BorderSide(color: Color(0x33FFFFFF)),
       );
 
+  /// 流派试听小按钮（「风格选择能听歌」cl17）。
+  ///
+  /// 点击 → 在线搜索该流派首曲并播放；未登录 / 无结果 / 网络异常
+  /// 一律降级为可展示提示（[OobePreviewService] 保证不抛异常）。
+  Widget _previewButton(Color accent, String genre) => IconButton(
+    onPressed: () => _previewGenre(genre),
+    icon: const Icon(Icons.graphic_eq_rounded, size: 16),
+    color: accent,
+    tooltip: '试听「$genre」',
+    visualDensity: VisualDensity.compact,
+    padding: const EdgeInsets.all(4),
+    constraints: const BoxConstraints.tightFor(
+      width: 28,
+      height: 28,
+    ),
+  );
+
+  /// 执行流派试听：搜索 → playTrack；失败给可展示消息，绝不静默。
+  Future<void> _previewGenre(String genre) async {
+    final ScaffoldMessengerState messenger =
+        ScaffoldMessenger.of(context);
+    final OobePreviewService service = OobePreviewService(
+      // 可用性 = 网易云源可用（需登录）；搜索复用既有 cloudsearch 链路，
+      // 播放前 uri 为占位符，由 StreamResolver 懒解析（现成链路，不手写）。
+      canPreview: () => ref.read(neteaseSourceProvider).enabled,
+      search: (String g) =>
+          ref.read(neteaseSourceProvider).search(g, limit: 8),
+    );
+    final GenrePreview result = await service.previewFor(genre);
+    if (!mounted) return;
+    if (result.ok && result.track != null) {
+      final String msg = await ref
+          .read(playbackActionsProvider)
+          .playTrack(result.track!, queue: <Track>[result.track!]);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(msg.isEmpty ? '正在试听「$genre」' : msg),
+          duration: const Duration(milliseconds: 1500),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          duration: const Duration(milliseconds: 1800),
+        ),
+      );
+    }
+  }
+
   Widget _switchRow(
     Color accent,
     bool value,
@@ -467,7 +523,7 @@ class _OobePageState extends ConsumerState<OobePage> {
         _linkRow(
           context,
           '查看开源仓库与完整协议',
-          'https://github.com/WuMengAA/xingli_music',
+          kRepoUrl,
         ),
         const SizedBox(height: 14),
         CheckboxListTile(
@@ -504,19 +560,26 @@ class _OobePageState extends ConsumerState<OobePage> {
             alignment: WrapAlignment.center,
             children: <Widget>[
               for (final String g in kGenreOptions)
-                _chip(accent, g, genres.contains(g), () {
-                  final bool ok = ref
-                      .read(genrePrefsProvider.notifier)
-                      .toggle(g);
-                  if (!ok) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('最多选 3 个就够了'),
-                        duration: Duration(milliseconds: 1200),
-                      ),
-                    );
-                  }
-                }),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _chip(accent, g, genres.contains(g), () {
+                      final bool ok = ref
+                          .read(genrePrefsProvider.notifier)
+                          .toggle(g);
+                      if (!ok) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('最多选 3 个就够了'),
+                            duration: Duration(milliseconds: 1200),
+                          ),
+                        );
+                      }
+                    }),
+                    const SizedBox(width: 2),
+                    _previewButton(accent, g),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -543,6 +606,8 @@ class _OobePageState extends ConsumerState<OobePage> {
             _capCard(accent, Icons.view_in_ar_rounded, '3D 体素世界', '边听边逛，空间里漫游'),
             _capCard(accent, Icons.group_rounded, '一起听', '和 TA 同步听同一首歌'),
             _capCard(accent, Icons.cloud_outlined, '开放音源', '网易云、B站… 一处聚合'),
+            _capCard(accent, Icons.hd_outlined, '无损音质', '高品 / 无损档随源生效'),
+            _capCard(accent, Icons.library_music_outlined, '本地曲库', '扫码即听，离线无忧'),
           ],
         ),
         const SizedBox(height: 16),
@@ -581,6 +646,9 @@ class _OobePageState extends ConsumerState<OobePage> {
     final int aq = ref.watch(audioQualityProvider);
     final bool bg = ref.watch(backgroundPlayProvider);
     final bool wn = ref.watch(whiteNoiseEnabledProvider);
+    final bool auto = ref.watch(autoPlayProvider);
+    final bool lock = ref.watch(lockScreenProvider);
+    final bool ana = ref.watch(analyticsConsentProvider);
     return _scroll(
       Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -600,6 +668,14 @@ class _OobePageState extends ConsumerState<OobePage> {
           const SizedBox(height: 10),
           _switchRow(
             accent,
+            auto,
+            (bool v) => ref.read(autoPlayProvider.notifier).state = v,
+            '自动连播',
+            '一首结束后自动播放下一首',
+          ),
+          const SizedBox(height: 10),
+          _switchRow(
+            accent,
             bg,
             (bool v) => ref.read(backgroundPlayProvider.notifier).state = v,
             '允许后台播放',
@@ -608,10 +684,26 @@ class _OobePageState extends ConsumerState<OobePage> {
           const SizedBox(height: 10),
           _switchRow(
             accent,
+            lock,
+            (bool v) => ref.read(lockScreenProvider.notifier).state = v,
+            '锁屏控制',
+            '锁屏 / 通知栏显示播放控制',
+          ),
+          const SizedBox(height: 10),
+          _switchRow(
+            accent,
             wn,
             (bool v) => ref.read(whiteNoiseEnabledProvider.notifier).state = v,
             '白噪音',
             '无人声时播放环境音，助眠专注',
+          ),
+          const SizedBox(height: 10),
+          _switchRow(
+            accent,
+            ana,
+            (bool v) => ref.read(analyticsConsentProvider.notifier).state = v,
+            '匿名统计',
+            '发送匿名使用统计，帮助改进体验',
           ),
           const SizedBox(height: 16),
         ],
