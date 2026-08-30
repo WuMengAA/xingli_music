@@ -687,18 +687,18 @@ Map<String, dynamic> _publicUser(Map<String, dynamic> rec) =>
 
 Future<Map<String, dynamic>> _authRegister(HttpRequest req) async {
   final Map<String, dynamic>? body = await _readJsonBody(req);
-  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
   final String username = (body['username'] as String? ?? '').trim();
   final String password = (body['password'] as String? ?? '');
   if (username.length < 3 || username.length > 24) {
-    return <String, dynamic>{'error': '用户名需 3-24 字符'};
+    return <String, dynamic>{'ok': false, 'error': '用户名需 3-24 字符'};
   }
   if (!RegExp(r'^[a-zA-Z0-9_\-]+$').hasMatch(username)) {
-    return <String, dynamic>{'error': '用户名仅限字母数字 _ -'};
+    return <String, dynamic>{'ok': false, 'error': '用户名仅限字母数字 _ -'};
   }
-  if (password.length < 6) return <String, dynamic>{'error': '密码至少 6 位'};
+  if (password.length < 6) return <String, dynamic>{'ok': false, 'error': '密码至少 6 位'};
   final File f = File('$_kUsersDir/$username.json');
-  if (await f.exists()) return <String, dynamic>{'error': '用户名已存在'};
+  if (await f.exists()) return <String, dynamic>{'ok': false, 'error': '用户名已存在'};
   final String salt = base64Encode(_randomBytes(16));
   final Map<String, dynamic> rec = <String, dynamic>{
     'username': username,
@@ -712,7 +712,7 @@ Future<Map<String, dynamic>> _authRegister(HttpRequest req) async {
     await Directory(_kUsersDir).create(recursive: true);
     await f.writeAsString(jsonEncode(rec));
   } catch (_) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   return <String, dynamic>{
     'ok': true,
@@ -723,20 +723,20 @@ Future<Map<String, dynamic>> _authRegister(HttpRequest req) async {
 
 Future<Map<String, dynamic>> _authLogin(HttpRequest req) async {
   final Map<String, dynamic>? body = await _readJsonBody(req);
-  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
   final String username = (body['username'] as String? ?? '').trim();
   final String password = (body['password'] as String? ?? '');
   final File f = File('$_kUsersDir/$username.json');
-  if (!await f.exists()) return <String, dynamic>{'error': '用户名或密码错误'};
+  if (!await f.exists()) return <String, dynamic>{'ok': false, 'error': '用户名或密码错误'};
   Map<String, dynamic> rec;
   try {
     rec = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
   } catch (_) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   final String expect = _pbkdf2(password, rec['salt'] as String? ?? '');
   if (expect != rec['verifier']) {
-    return <String, dynamic>{'error': '用户名或密码错误'};
+    return <String, dynamic>{'ok': false, 'error': '用户名或密码错误'};
   }
   return <String, dynamic>{
     'ok': true,
@@ -747,17 +747,17 @@ Future<Map<String, dynamic>> _authLogin(HttpRequest req) async {
 
 Future<Map<String, dynamic>> _authMe(HttpRequest req) async {
   final String? token = _bearer(req);
-  if (token == null) return <String, dynamic>{'error': 'unauthorized'};
+  if (token == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final Map<String, dynamic>? payload = _verifyToken(token);
-  if (payload == null) return <String, dynamic>{'error': 'unauthorized'};
+  if (payload == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final File f = File('$_kUsersDir/${payload['uid']}.json');
-  if (!await f.exists()) return <String, dynamic>{'error': 'unauthorized'};
+  if (!await f.exists()) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   try {
     final Map<String, dynamic> rec =
         jsonDecode(await f.readAsString()) as Map<String, dynamic>;
     return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
   } catch (_) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
 }
 
@@ -801,16 +801,16 @@ Future<bool> _writeUserRecord(Map<String, dynamic> rec) async {
 /// 更新偏好：`PUT /api/auth/prefs`，body 为 `{prefs: {...}}` 或直接 `{...}`。
 Future<Map<String, dynamic>> _authUpdatePrefs(HttpRequest req) async {
   final Map<String, dynamic>? rec = await _authedUserRecord(req);
-  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  if (rec == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final Map<String, dynamic>? body = await _readJsonBody(req);
-  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
   final Object? prefs = body['prefs'] ?? body;
   if (prefs is! Map<String, dynamic>) {
-    return <String, dynamic>{'error': 'prefs must be object'};
+    return <String, dynamic>{'ok': false, 'error': 'prefs must be object'};
   }
   rec['prefs'] = prefs;
   if (!await _writeUserRecord(rec)) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
 }
@@ -818,14 +818,14 @@ Future<Map<String, dynamic>> _authUpdatePrefs(HttpRequest req) async {
 /// 更新收藏：`PUT /api/auth/favorites`，body 为 `{favorites: [...]}` 或直接 `[...]`。
 Future<Map<String, dynamic>> _authUpdateFavorites(HttpRequest req) async {
   final Map<String, dynamic>? rec = await _authedUserRecord(req);
-  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  if (rec == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final Map<String, dynamic>? body = await _readJsonBody(req);
-  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
   final Object? favs = body['favorites'] ?? body;
-  if (favs is! List) return <String, dynamic>{'error': 'favorites must be array'};
+  if (favs is! List) return <String, dynamic>{'ok': false, 'error': 'favorites must be array'};
   rec['favorites'] = favs;
   if (!await _writeUserRecord(rec)) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
 }
@@ -833,25 +833,25 @@ Future<Map<String, dynamic>> _authUpdateFavorites(HttpRequest req) async {
 /// 部分更新档案：`PUT/PATCH /api/auth/profile`，body 可含 `prefs` 和/或 `favorites`。
 Future<Map<String, dynamic>> _authUpdateProfile(HttpRequest req) async {
   final Map<String, dynamic>? rec = await _authedUserRecord(req);
-  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  if (rec == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final Map<String, dynamic>? body = await _readJsonBody(req);
-  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
   if (body.containsKey('prefs')) {
     final Object? prefs = body['prefs'];
     if (prefs is! Map<String, dynamic>) {
-      return <String, dynamic>{'error': 'prefs must be object'};
+      return <String, dynamic>{'ok': false, 'error': 'prefs must be object'};
     }
     rec['prefs'] = prefs;
   }
   if (body.containsKey('favorites')) {
     final Object? favs = body['favorites'];
     if (favs is! List) {
-      return <String, dynamic>{'error': 'favorites must be array'};
+      return <String, dynamic>{'ok': false, 'error': 'favorites must be array'};
     }
     rec['favorites'] = favs;
   }
   if (!await _writeUserRecord(rec)) {
-    return <String, dynamic>{'error': 'server error'};
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
 }
@@ -874,8 +874,8 @@ const int _kAppLogMaxFileBytes = 64 * 1024 * 1024;
 /// `[{ts, level, tag, msg}, ...]`（与 log_server 的 /api/logs 协议一致）。
 Future<Map<String, dynamic>> _handleAppLogs(HttpRequest req) async {
   final Object? v = await _readJsonAny(req);
-  if (v is! List) return <String, dynamic>{'error': 'expected array'};
-  if (v.isEmpty) return <String, dynamic>{'error': 'empty batch'};
+  if (v is! List) return <String, dynamic>{'ok': false, 'error': 'expected array'};
+  if (v.isEmpty) return <String, dynamic>{'ok': false, 'error': 'empty batch'};
   final List<dynamic> slice =
       v.take(_kAppLogMaxEntries).toList(growable: false);
   // 规整字段，忽略坏行。
@@ -889,7 +889,7 @@ Future<Map<String, dynamic>> _handleAppLogs(HttpRequest req) async {
       'msg': e['msg'] is String ? e['msg'] as String : jsonEncode(e),
     });
   }
-  if (rows.isEmpty) return <String, dynamic>{'error': 'no valid entries'};
+  if (rows.isEmpty) return <String, dynamic>{'ok': false, 'error': 'no valid entries'};
   final int written = await _appendAppLogs(rows);
   return <String, dynamic>{'ok': true, 'received': rows.length, 'written': written};
 }
@@ -1133,7 +1133,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
     return;
   }
   if (!authed) {
-    await _json(req, <String, dynamic>{'error': 'unauthorized'}, status: 401);
+    await _json(req, <String, dynamic>{'ok': false, 'error': 'unauthorized'}, status: 401);
     return;
   }
   if (path == '/api/admin/log') {
@@ -1248,13 +1248,13 @@ Future<void> _handleAdmin(HttpRequest req) async {
   final RegExpMatch? m =
       RegExp(r'^/api/admin/content/([a-z]+)(?:/([^/]+))?$').firstMatch(path);
   if (m == null) {
-    await _json(req, <String, dynamic>{'error': 'bad path'}, status: 404);
+    await _json(req, <String, dynamic>{'ok': false, 'error': 'bad path'}, status: 404);
     return;
   }
   final String type = m.group(1)!;
   final String? id = m.group(2);
   if (!_kAdminTypes.contains(type)) {
-    await _json(req, <String, dynamic>{'error': 'unknown type'}, status: 400);
+    await _json(req, <String, dynamic>{'ok': false, 'error': 'unknown type'}, status: 400);
     return;
   }
 
@@ -1266,7 +1266,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
   if (method == 'POST' && id == null) {
     final Map<String, dynamic>? body = await _readJsonBody(req);
     if (body == null) {
-      await _json(req, <String, dynamic>{'error': 'invalid body'}, status: 400);
+      await _json(req, <String, dynamic>{'ok': false, 'error': 'invalid body'}, status: 400);
       return;
     }
     final Map<String, dynamic> cur =
@@ -1284,7 +1284,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
   if ((method == 'PUT' || method == 'PATCH') && id != null) {
     final Map<String, dynamic>? body = await _readJsonBody(req);
     if (body == null) {
-      await _json(req, <String, dynamic>{'error': 'invalid body'}, status: 400);
+      await _json(req, <String, dynamic>{'ok': false, 'error': 'invalid body'}, status: 400);
       return;
     }
     final Map<String, dynamic> cur =
@@ -1293,7 +1293,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
         List<dynamic>.from(cur[type] as List? ?? <dynamic>[]);
     final int idx = list.indexWhere((e) => e is Map && e['id'] == id);
     if (idx < 0) {
-      await _json(req, <String, dynamic>{'error': 'not found'}, status: 404);
+      await _json(req, <String, dynamic>{'ok': false, 'error': 'not found'}, status: 404);
       return;
     }
     list[idx] = <String, dynamic>{...list[idx] as Map, ...body, 'id': id};
@@ -1310,7 +1310,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
     final int before = list.length;
     list.removeWhere((e) => e is Map && e['id'] == id);
     if (list.length == before) {
-      await _json(req, <String, dynamic>{'error': 'not found'}, status: 404);
+      await _json(req, <String, dynamic>{'ok': false, 'error': 'not found'}, status: 404);
       return;
     }
     await _saveContent(type, list);
@@ -1319,7 +1319,7 @@ Future<void> _handleAdmin(HttpRequest req) async {
         <String, dynamic>{'ok': true, 'removed': before - list.length});
     return;
   }
-  await _json(req, <String, dynamic>{'error': 'method not allowed'},
+  await _json(req, <String, dynamic>{'ok': false, 'error': 'method not allowed'},
       status: 405);
 }
 
