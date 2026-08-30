@@ -17,6 +17,7 @@ import 'pages/world/world_page.dart';
 import 'pages/settings/settings_page.dart';
 import 'providers/audio/audio_providers.dart';
 import 'providers/audio/equalizer_providers.dart';
+import 'providers/cast/now_playing_providers.dart';
 import 'providers/scene/scene_providers.dart';
 import 'providers/settings/notification_providers.dart';
 import 'providers/settings/ota_download_provider.dart';
@@ -334,6 +335,9 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     // 歌名/曲名真源桥接：把引擎实际加载的曲目镜像进 nowPlayingProvider
     // （消除「选曲即写」与「加载成功才写」错位，修复曲名对不上）。
     ref.watch(nowPlayingBridgeProvider);
+    // clOTA/ClassIsland 联动：Windows 端常驻启动 NowPlaying 状态服务
+    // （/nowplaying /health /control，协议见 docs/方案_ClassIsland联动.md）。
+    ref.watch(nowPlayingLocalBridgeProvider);
 
     return Scaffold(
       // R16：跟随全局明暗主题（不再是固定浅色 bgPage）

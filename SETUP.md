@@ -1,6 +1,6 @@
 # 星璃 · 无限音乐画布 —— 项目初始化与依赖配置步骤
 
-> 目标：在 Flutter 3.x 上从零初始化 `xingli_music` 项目，支持 Android 5.0+ 与 iOS 12.0+，使用 Riverpod 状态管理，按功能模块组织目录。
+> 目标：在 Flutter 3.x 上从零初始化 `xingli_music` 项目，支持 Android 5.0+ 与 iOS 10.0+（✏️ C-4 对齐：以 PROJECT_STATE 平台决策为准；iOS 当前无工程，数值待定），使用 Riverpod 状态管理，按功能模块组织目录。
 
 ---
 
@@ -140,16 +140,18 @@ defaultConfig {
 > Flutter 3.x 默认 `minSdk` 即 21（`flutter.minSdkVersion`），此处显式写出便于维护。
 > 若后续引入需要更高 minSdk 的插件，按需上调。
 
-### iOS（最低 iOS 12.0）
+### iOS（最低 iOS 10.0）
+
+> ✏️ **C-4 回填**：原 12.0 为 `flutter create` 默认值；平台决策（`PROJECT_STATE.md` 三）：iOS 最低 **10 / 目标 26**，当前无 iOS 工程（待定）。以 PROJECT_STATE 为准。
 
 文件：`ios/Flutter/AppFrameworkInfo.plist`
 
 ```xml
 <key>MinimumOSVersion</key>
-<string>12.0</string>
+<string>10.0</string>
 ```
 
-另外在 Xcode 中确认 Runner Target 的 **Deployment Target = 12.0**（`flutter create .` 生成的 `project.pbxproj` 中为 `IPHONEOS_DEPLOYMENT_TARGET`，若需保持 12.0 可在 Xcode 中修改后重新生成）。
+另外在 Xcode 中确认 Runner Target 的 **Deployment Target = 10.0**（`flutter create .` 生成的 `project.pbxproj` 中为 `IPHONEOS_DEPLOYMENT_TARGET`，若需保持 10.0 可在 Xcode 中修改后重新生成）。
 
 ---
 

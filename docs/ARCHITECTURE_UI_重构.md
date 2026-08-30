@@ -189,31 +189,52 @@ SizedBox(height: 80)
 新建 `lib/providers/shell/shell_providers.dart`，**只加 4 个，不动任何现有 provider**：
 
 ```dart
-enum ShellPage { scene, explore, library, settings, home }   // index 0..4
+/// Shell 页面索引常量（对应 IndexedStack.children 顺序）
+abstract final class ShellPage {
+  static const int home = 0;     // 主页 —— Tab 0
+  static const int library = 1;  // 曲库页 —— Tab 1
+  static const int world = 2;    // 世界页 —— Tab 2
+  static const int explore = 3;  // 探索页 —— Tab 3
+  static const int settings = 4; // 设置页 —— Tab 4
+  static const int count = 5;
+  static const int tabCount = 5;
+  static bool isTab(int index) => index >= 0 && index < tabCount;
+}
 
-/// 唯一真源：当前 Shell 页面
-final shellPageProvider = StateProvider<ShellPage>((_) => ShellPage.scene);
+/// 唯一真源：当前 Shell 页面索引（0..4），冷启动默认「主页」
+final shellPageIndexProvider = StateProvider<int>((_) => ShellPage.home);
 
-/// 派生：Dock 高亮 Tab（home → null，对应设计稿 P4「4 Tab 全灰」）
+/// 派生：Dock 高亮 Tab（非 Tab 页 → null，对应设计稿「4 Tab 全灰」）
 final selectedTabIndexProvider = Provider<int?>((ref) {
-  final i = ref.watch(shellPageProvider).index;
-  return i <= 3 ? i : null;
+  final i = ref.watch(shellPageIndexProvider);
+  return ShellPage.isTab(i) ? i : null;
 });
 
-/// 曲库页搜索关键词（P1-02）
-final librarySearchQueryProvider = StateProvider.autoDispose<String>((_) => '');
+/// 各页搜索关键词（按页面索引分槽，切 Tab 不互相污染）
+final searchQueryProvider = StateProvider.family<String, int>((ref, i) => '');
 
-/// 设置页搜索关键词（P1-02）
-final settingsSearchQueryProvider = StateProvider.autoDispose<String>((_) => '');
+/// 切换 Shell 页面的统一入口（唯一写入点）
+void setShellPage(WidgetRef ref, int pageIndex) { /* 边界校验 + 赋值 */ }
 ```
+
+> ✏️ **落地回填（治理 C-2）**：原设计稿此处为 `enum ShellPage` + `shellPageProvider`（StateProvider\<ShellPage\>）。落地演化为上方形态：`ShellPage` 为常量类、真源改 `shellPageIndexProvider`（StateProvider\<int\>），并新增 `setShellPage` 统一写入口、`searchQueryProvider` family 合并原 `librarySearchQueryProvider` / `settingsSearchQueryProvider`。以 `lib/providers/shell/shell_providers.dart` 为准。
 
 新建 `lib/providers/settings/settings_ui_providers.dart`：
 
 ```dart
-enum SettingsCategory { playback, source, scene, notification, about }
-final settingsCategoryProvider =
-    StateProvider<SettingsCategory>((_) => SettingsCategory.playback);
+enum SettingsGroup { basic, advanced, about }   // 设置页一级分组（用户定版）
+
+enum SettingsSection {
+  audio,        // 基础·音频：音量、静音、播放模式、EQ + 音源入口
+  visual,       // 基础·画面：外观、场景、游戏、性能
+  notification, // 基础·通知：通知中心、后台播放
+  experiment,   // 高级·实验：同意状态、逐项启停、大模型
+  about,        // 关于：应用信息、日志上报
+}
+final settingsSectionProvider = StateProvider<SettingsSection>((_) => SettingsSection.audio);
 ```
+
+> ✏️ **落地回填（治理 C-3）**：原设计稿为 `enum SettingsCategory { playback, source, scene, notification, about }` + `settingsCategoryProvider`。落地演化为上方形态：新增一级分组 `SettingsGroup`，`SettingsCategory` → `SettingsSection`（audio/visual/notification/experiment/about，音源入口并入 audio），命名与 `lib/providers/settings/settings_ui_providers.dart` 对齐。
 
 **与现有体系的衔接原则**：
 
@@ -253,7 +274,7 @@ final settingsCategoryProvider =
 | N01 | `lib/core/theme/light_tokens.dart` | §6 全部固定 Token：`AppColors` / `AppRadius` / `AppSpace` / `AppSize` / `AppShadow` / `AppTextStyles` | 180 |
 | N02 | `lib/core/theme/light_theme.dart` | `buildLightTheme()` + 顶层 `final kLightTheme` | 140 |
 | N03 | `lib/providers/shell/shell_providers.dart` | `ShellPage` 枚举 + 4 个 provider | 40 |
-| N04 | `lib/providers/settings/settings_ui_providers.dart` | `SettingsCategory` 枚举 + provider + 元数据表 | 50 |
+| N04 | `lib/providers/settings/settings_ui_providers.dart` | `SettingsSection` 枚举 + `SettingsGroup` + provider + 元数据表（回填 C-3） | 50 |
 | N05 | `lib/widgets/shell/app_dock.dart` | 自定义药丸 Dock（§1.3） | 130 |
 | N06 | `lib/widgets/shell/mini_player.dart` | 双胶囊迷你播放器 + 进度条 + 4 按钮（§1.4） | 260 |
 | N07 | `lib/widgets/shell/app_search_bar.dart` | 圆角胶囊搜索栏（受控，绑定外部 query provider） | 90 |
@@ -415,34 +436,40 @@ classDiagram
     }
     class ShellProviders {
         <<library>>
-        +StateProvider~ShellPage~ shellPageProvider$
+        +StateProvider~int~ shellPageIndexProvider$
         +Provider~int?~ selectedTabIndexProvider$
-        +StateProvider~String~ librarySearchQueryProvider$
-        +StateProvider~String~ settingsSearchQueryProvider$
+        +StateProviderFamily~String, int~ searchQueryProvider$
+        +void setShellPage(WidgetRef, int)$
     }
     ShellProviders ..> ShellPage
 
-    class SettingsCategory {
+    class SettingsSection {
         <<enumeration>>
-        playback
-        source
-        scene
+        audio
+        visual
         notification
+        experiment
         about
     }
-    class SettingsCategoryMeta {
-        +SettingsCategory id
+    class SettingsGroup {
+        <<enumeration>>
+        basic
+        advanced
+        about
+    }
+    class SettingsSectionMeta {
+        +SettingsSection id
         +IconData icon
         +String label "2 汉字"
         +Widget buildDetail(BuildContext, WidgetRef)
     }
     class SettingsUiProviders {
         <<library>>
-        +StateProvider~SettingsCategory~ settingsCategoryProvider$
-        +List~SettingsCategoryMeta~ kSettingsCategories$
+        +StateProvider~SettingsSection~ settingsSectionProvider$
+        +List~SettingsSectionMeta~ kSettingsSections$
     }
-    SettingsUiProviders ..> SettingsCategoryMeta
-    SettingsCategoryMeta --> SettingsCategory
+    SettingsUiProviders ..> SettingsSectionMeta
+    SettingsSectionMeta --> SettingsSection
 
     %% ══════════ Shell 组件层（新增）══════════
     class AppShell {
@@ -627,16 +654,15 @@ classDiagram
 
 ```dart
 AppDock(
-  selectedIndex: ref.watch(selectedTabIndexProvider),   // int? —— null = Home 态，4 Tab 全灰
-  onTabSelected: (i) =>
-      ref.read(shellPageProvider.notifier).state = ShellPage.values[i],
+  selectedIndex: ref.watch(selectedTabIndexProvider),   // int? —— null = 非 Tab 态，4 Tab 全灰
+  onTabSelected: (i) => setShellPage(ref, i),           // 统一写入口（回填 C-2）
 )
 ```
 `AppDock` **自身不读 provider**（保持纯组件、可单测），由 `AppShell` 注入。
 
 #### 设置页 5 槽位映射（Q5 落盘）
 
-| 槽位 | `SettingsCategory` | 标签 | 图标 | 详情区内容 | 覆盖回归项 |
+| 槽位 | `SettingsSection`（回填 C-3；含旧槽位名） | 标签 | 图标 | 详情区内容 | 覆盖回归项 |
 |---|---|---|---|---|---|
 | 1 | `playback` | 播放 | `Icons.play_circle_outline` | 音乐音量滑块 / 音乐静音 / 音景音量滑块 / 音景静音 / 播放模式四选一 | R10, R11 |
 | 2 | `source` | 音源 | `Icons.dns_outlined` | 「音乐服务器与本地目录」跳转行 → `ServerSettingsPage` + 已启用源数量摘要 | **R12（一票否决）**, R1–R5 |
@@ -713,7 +739,7 @@ sequenceDiagram
     participant M as main()
     participant App as StelarithMusicApp
     participant Shell as AppShell
-    participant SP as shellPageProvider
+    participant SP as shellPageIndexProvider
     participant TP as selectedTabIndexProvider
     participant IS as IndexedStack
     participant Dock as AppDock
@@ -884,7 +910,7 @@ sequenceDiagram
 | **依赖** | 无 |
 | **改动范围** | 新增约 410 行；`app.dart` 改 6 行；`main.dart` 加 3 行 |
 | **涉及旧组件清理** | 否（仅在 `app_theme.dart` 头部加作用域声明注释） |
-| **交付判定** | ① §6 全部 Token 落地为 `static const`；② `kLightTheme` 顶层构建一次、不 watch 任何 provider；③ `themeMode: ThemeMode.light` 且 `darkTheme` 也是浅色；④ `notificationColor: Color(0xFF7C6BFF)`（P0-A5 / R15）；⑤ 状态栏图标 `Brightness.dark`；⑥ `ShellPage` / `SettingsCategory` 两个枚举与 4+1 个 provider 就位；⑦ `flutter analyze` 无 error |
+| **交付判定** | ① §6 全部 Token 落地为 `static const`；② `kLightTheme` 顶层构建一次、不 watch 任何 provider；③ `themeMode: ThemeMode.light` 且 `darkTheme` 也是浅色；④ `notificationColor: Color(0xFF7C6BFF)`（P0-A5 / R15）；⑤ 状态栏图标 `Brightness.dark`；⑥ `ShellPage` 常量类 / `SettingsSection` / `SettingsGroup` 三个类型与 4+1 个 provider 就位；⑦ `flutter analyze` 无 error |
 | **对应需求** | P0-A1, A2, A5, A6 |
 | **风险提示** | 此时旧页面尚未改，App 会「白底 + 白字」大面积不可读——**这是预期中间态**，T02/T03 完成后消失。不要因此回滚。 |
 
