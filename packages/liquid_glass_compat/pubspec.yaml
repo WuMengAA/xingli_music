@@ -1,0 +1,24 @@
+name: liquid_glass_compat
+description: >-
+  Liquid Glass for Flutter —— 移植自 martin65536/liquid-glass-webgl
+  （WebGL 版）与 Kyant0/AndroidLiquidGlass（Android 原版）的液态玻璃组件：
+  G2 连续曲率圆角、Chamfer SDF 纹理、双弹簧物理、自适应亮度、渐进模糊、
+  懒/非懒滚动容器，附省电/均衡/流畅性能预设。
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  shaders:
+    - shaders/g2_sdf.frag
