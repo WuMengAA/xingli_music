@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 29;
+  static const int day = 31;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -486,6 +486,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.31',
+    cl: 'beta_cl01',
+    title: 'clOTA：GitHub Pages 分发链路',
+    details: <String>[
+      'OTA 更新新增 GitHub Pages 静态分发源（gh-pages 分支托管 ota/manifest.json 与各版本安装包），更新检查 / 下载走 Pages 优先、GitHub Releases 回退，互不依赖',
+      '静态源无 GitHub API 限额、无 draft/时序波动，发布脚本 tools/publish_pages_ota.ps1 一键生成 manifest 并推送 gh-pages',
+      '客户端双源自适应：Pages manifest 直读最新版本与资产哈希（校验少一次请求），Pages 不可用自动回退 Releases，链路不中断',
+      'Windows / 安卓资产同 manifest 管理：分平台分架构列出（arm64-v8a / armeabi-v7a / windows x64），版本列表页同步支持',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.28',
     cl: 'beta_cl12',

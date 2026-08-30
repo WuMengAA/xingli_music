@@ -1,15 +1,23 @@
-/// OTA 更新服务（cl55-G7）：检查 GitHub Releases → 下载 → SHA-256 校验。
+/// OTA 更新服务（cl55-G7 / clOTA）：检查更新 → 下载 → SHA-256 校验。
+///
+/// 分发源（clOTA 起**双源**）：
+/// 1. **GitHub Pages 静态源（优先）**：仓库 `gh-pages` 分支托管
+///    `ota/manifest.json`，含各渠道最新版本 + 每 tag 平台资产（name/size/sha256）。
+///    静态 CDN、无 API 限额、无 draft/时序波动；发布由
+///    `tools/publish_pages_ota.ps1` 完成。
+/// 2. **GitHub Releases（回退）**：原链路 `/repos/WuMengAA/xingli_music/releases`，
+///    拉最新 tag（`cl*` / `v*` / 新格式），解析构建号。
 ///
 /// 流程：
-/// 1. `checkForUpdate()`：调 GitHub Releases API（`/repos/WuMengAA/xingli_music/releases`），
-///    取最新 tag（`cl*` / `v*`），解析出构建号；
+/// 1. `checkForUpdate()`：先取 Pages manifest（12s 超时，失败/无该渠道回退
+///    Releases API），取当前渠道最新版本；
 /// 2. 比对当前 [AppVersion.buildCount]：tag 构建号更高 → 有更新；
 ///    `-hotfix` 标记 → 直接进入下载（不弹确认）；
-/// 3. `download()`：下载 Release 资产 `app-release.apk` 到应用文档目录，
-///    同时下载 `.sha256` 资产；
-/// 4. 下载完成后校验 SHA-256，通过返回安装包路径，供上层提示安装。
+/// 3. `download()`：下载资产（Pages 静态 URL 或 Releases 资产）到应用文档目录，
+///    SHA-256 校验（Pages 用 manifest 内哈希，Releases 用 .sha256 资产）；
+/// 4. 校验通过返回安装包路径，供上层提示安装。
 ///
-/// 仓库地址集中在此，可切换官方源（GitHub Releases 为默认 OTA 源）。
+/// 仓库地址集中在此，可切换官方源（GitHub Pages 为默认 OTA 源）。
 library;
 
 import 'dart:convert';
@@ -25,6 +33,7 @@ import 'package:flutter/services.dart';
 
 import '../core/app_version.dart';
 import 'log_service.dart';
+import 'ota/pages_manifest.dart';
 
 /// OTA 仓库（开源 + Releases 源）。
 const String kOtaRepoOwner = 'WuMengAA';
@@ -34,6 +43,11 @@ const String kOtaReleaseApi =
 
 /// 仓库主页（设置-关于「GitHub 仓库」入口用，消除各处硬编码 URL）。
 const String kRepoUrl = 'https://github.com/$kOtaRepoOwner/$kOtaRepoName';
+
+/// GitHub Pages 分发源（clOTA，优先）。
+/// 域名 = `<owner 小写>.github.io/<repo>`（开仓库时按实际 Pages 域名核对）。
+const String kOtaPagesBase = 'https://wumengaa.github.io/$kOtaRepoName';
+const String kOtaPagesManifestUrl = '$kOtaPagesBase/ota/manifest.json';
 
 /// 设备架构（用于 OTA 选对应拆分包）。
 enum DeviceAbi {
@@ -113,7 +127,8 @@ class OtaTagInfo {
   });
 
   final String tag;
-  /// 日期键：`year*10000 + month*100 + day`（如 2026-08-17 → 20260817）。
+  /// 日期键：`year*10000 + month*100 + day`（如 26.8.17 → 260817，YY 而非 YYYY；
+  /// 与 [AppVersion] 的 `year*10000+month*100+day` 同构，2026 年内比较一致）。
   final int dateKey;
   final UpdateChannel channel;
   final int build;
@@ -234,16 +249,80 @@ class OtaService {
     return false;
   }
 
-  /// 检查 GitHub Releases 是否有新版本（仅当前渠道）。
+  /// 拉取 GitHub Pages 的 ota/manifest.json（失败返回 null，上层回退 Releases）。
+  Future<PagesOtaManifest?> _fetchPagesManifest() async {
+    try {
+      final http.Response resp = await _client
+          .get(Uri.parse(kOtaPagesManifestUrl))
+          .timeout(const Duration(seconds: 12));
+      if (resp.statusCode != 200) return null;
+      return parsePagesManifest(utf8.decode(resp.bodyBytes));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 检查是否有新版本（仅当前渠道）。
   ///
   /// 新旧判断（2026-08-17 渠道化定版）：tag 需为新格式
-  /// `0.26.8.<day>_<channel>_cl<NN>`；**只比较 [channel] 渠道**的 Release；
+  /// `0.26.8.<day>_<channel>_cl<NN>`；**只比较 [channel] 渠道**的版本；
   /// **先比日期、同日再比 cl**——cl 不再单独决定新旧，跨天 cl 清零不会误判
   /// （历史坑：cl78 > cl01 误判"有更新"）。历史 `cl*`/`v*` tag（无日期）忽略。
-  /// 失败（网络 / 无 Release / 解析失败）返回 [OtaCheckResult.none]，不抛。
+  /// 失败（网络 / 无版本 / 解析失败）返回 [OtaCheckResult.none]，不抛。
+  ///
+  /// clOTA：先查 GitHub Pages manifest（静态源优先），
+  /// Pages 无该渠道 / 资产 / 网络失败 → 回退 GitHub Releases API。
   Future<OtaCheckResult> checkForUpdate({
     UpdateChannel channel = UpdateChannel.beta,
   }) async {
+    final PagesOtaManifest? pages = await _fetchPagesManifest();
+    if (pages != null) {
+      final PagesChannelLatest? best = pages.channels[channel.tag];
+      if (best != null && best.tag.isNotEmpty) {
+        // 平台可安装性：该 tag 是否有当前平台资产（防止只含别的平台包被误判）。
+        final PagesTagAssets? ta = pages.assetsByTag[best.tag];
+        final bool platformOk = Platform.isAndroid
+            ? (ta?.android.isNotEmpty ?? false)
+            : Platform.isWindows
+                ? (ta?.windows?.isNotEmpty ?? false)
+                : false;
+        if (platformOk) {
+          final int currentDateKey = _currentDateKey;
+          final int currentBuild = AppVersion.buildCount;
+          final OtaTagInfo info = OtaTagInfo(
+            tag: best.tag,
+            dateKey: best.dateKey,
+            channel: channel,
+            build: best.build,
+            hotfix: best.hotfix,
+            notes: best.notes,
+          );
+          final bool hasUpdate =
+              info.newerThanCurrent(currentDateKey, currentBuild);
+          LogService.instance.i(
+              'ota',
+              '检查更新(pages): 最新=${best.tag} date=${best.dateKey} '
+              'cl=${best.build} 渠道=${best.channelTag} | 当前 date=$currentDateKey '
+              'cl=$currentBuild 渠道=${channel.tag} 有更新=$hasUpdate');
+          return OtaCheckResult(
+            latestTag: best.tag,
+            latestBuild: best.build,
+            latestDateKey: best.dateKey,
+            latestChannel: channel,
+            isHotfix: best.hotfix != null,
+            hasUpdate: hasUpdate,
+            releaseNotes: best.notes,
+          );
+        }
+      }
+    }
+    return _checkReleases(channel);
+  }
+
+  /// 回退源：GitHub Releases API 检查更新（原 cl55-G7 链路）。
+  Future<OtaCheckResult> _checkReleases(
+    UpdateChannel channel,
+  ) async {
     try {
       final http.Response resp = await _client
           .get(Uri.parse(kOtaReleaseApi))
@@ -279,7 +358,7 @@ class OtaService {
       final bool hasUpdate = best.newerThanCurrent(currentDateKey, currentBuild);
       LogService.instance.i(
           'ota',
-          '检查更新: 最新=${best.tag} date=${best.dateKey} cl=${best.build} '
+          '检查更新(releases): 最新=${best.tag} date=${best.dateKey} cl=${best.build} '
           '渠道=${best.channel.tag} | 当前 date=$currentDateKey '
           'cl=$currentBuild 渠道=${channel.tag} 有更新=$hasUpdate');
       return OtaCheckResult(
@@ -305,11 +384,22 @@ class OtaService {
   static const String _kCachedNotesKey = 'ota_cached_notes';
   static const String _kCachedNotesTagKey = 'ota_cached_notes_tag';
 
-  /// 启动时拉取当前渠道最新 Release 的说明（更新日志）并缓存本地。
+  /// 启动时拉取当前渠道最新版本的说明（更新日志）并缓存本地。
   /// 供设置页「更新日志」查看；网络失败沿用旧缓存。返回是否拉到新内容。
+  /// clOTA：Pages manifest 优先（静态源），失败回退 Releases API。
   Future<bool> refreshCachedNotes({
     UpdateChannel channel = UpdateChannel.beta,
   }) async {
+    final PagesOtaManifest? pages = await _fetchPagesManifest();
+    if (pages != null) {
+      final PagesChannelLatest? best = pages.channels[channel.tag];
+      if (best != null && best.notes.trim().isNotEmpty) {
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kCachedNotesKey, best.notes);
+        await prefs.setString(_kCachedNotesTagKey, best.tag);
+        return true;
+      }
+    }
     try {
       final http.Response resp = await _client
           .get(Uri.parse(kOtaReleaseApi))
@@ -354,11 +444,27 @@ class OtaService {
     return prefs.getString(_kCachedNotesTagKey);
   }
 
-  /// 列出当前渠道所有（非 draft）Release 版本，按 (日期, cl) 倒序，
-  /// 供更新面板「多版本选择」。每项含 notes（Release body）。
-  /// 网络失败返回空列表（不抛）。
+  /// 列出当前渠道所有版本，按 (日期, cl) 倒序，
+  /// 供更新面板「多版本选择」。每项含 notes（仅最新版带发布说明）。
+  /// 网络失败返回空列表（不抛）。clOTA：Pages manifest 版本列表优先，
+  /// 空 / 失败回退 Releases API。
   Future<List<OtaTagInfo>> listChannelReleases(
       UpdateChannel channel) async {
+    final PagesOtaManifest? pages = await _fetchPagesManifest();
+    if (pages != null && pages.versions.isNotEmpty) {
+      final List<OtaTagInfo> out = <OtaTagInfo>[];
+      for (final String tag in pages.versions) {
+        final OtaTagInfo? info = parseOtaTag(tag);
+        if (info == null || info.channel != channel) continue;
+        final PagesTagAssets? ta = pages.assetsByTag[tag];
+        if (Platform.isAndroid && !(ta?.android.isNotEmpty ?? false)) continue;
+        if (Platform.isWindows && !(ta?.windows?.isNotEmpty ?? false)) continue;
+        final PagesChannelLatest? latest = pages.channels[channel.tag];
+        if (latest != null && latest.tag == tag) info.notes = latest.notes;
+        out.add(info);
+      }
+      if (out.isNotEmpty) return out;
+    }
     try {
       final http.Response resp = await _client
           .get(Uri.parse(kOtaReleaseApi))
@@ -390,7 +496,7 @@ class OtaService {
     }
   }
 
-  /// 下载 Release 中「适配本机平台/架构」的资产并校验 SHA-256。
+  /// 下载「适配本机平台/架构」的资产并校验 SHA-256。
   ///
   /// - 安卓：按设备架构选 `app-arm64-v8a-release.apk` /
   ///   `app-armeabi-v7a-release.apk` 拆分包（[abi] 不传自动检测）；
@@ -399,24 +505,41 @@ class OtaService {
   /// [onProgress] 在下载期间持续回调进度（字节 / 网速），供 UI 展示；
   /// 下载不依赖调用方生命周期（调用方销毁后 Future 继续跑，即「挂后台」）。
   /// 返回下载文件路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。
+  ///
+  /// clOTA：URL 选源——该 tag 在 Pages manifest 有平台资产 → Pages 静态 URL
+  /// 且哈希直接用 manifest 内值（少一次请求）；否则回退 Releases 资产 URL
+  /// 并拉取 `.sha256` 资产。
   Future<String> downloadAndVerify(
     String tag, {
     DeviceAbi? abi,
     void Function(OtaProgress progress)? onProgress,
   }) async {
     final bool windows = Platform.isWindows;
-    final String asset = windows ? otaWindowsAssetName() : otaApkAssetForAbi(abi ?? await detectDeviceAbi());
-    final String shaAsset = windows ? otaWindowsShaAssetName() : otaShaAssetForAbi(abi ?? await detectDeviceAbi());
-    final String url =
-        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$asset';
-    final String shaUrl =
-        'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag/$shaAsset';
+    final DeviceAbi abiUsed = abi ?? await detectDeviceAbi();
+    final String asset = windows ? otaWindowsAssetName() : otaApkAssetForAbi(abiUsed);
+    final String shaAsset = windows ? otaWindowsShaAssetName() : otaShaAssetForAbi(abiUsed);
+
+    final PagesOtaManifest? pages = await _fetchPagesManifest();
+    final String abiKey = windows
+        ? 'x64'
+        : abiUsed == DeviceAbi.arm32
+            ? 'armeabi-v7a'
+            : 'arm64-v8a';
+    final PagesAssetItem? pageAsset = pages?.assetFor(tag, abiKey, windows: windows);
+
+    final bool usePages = pageAsset != null;
+    final String baseUrl = usePages
+        ? '$kOtaPagesBase/ota/$tag'
+        : 'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag';
+    final String url = '$baseUrl/$asset';
 
     final Directory dir = await appDataDir();
     final String apkPath = p.join(dir.path, 'ota_${tag}_$asset');
 
-    // 1) 下载 sha256 期望值（对应资产）。
-    final String expected = await _fetchSha256(shaUrl);
+    // 1) 期望哈希：Pages 用 manifest 内 sha256（少一次请求）；Releases 拉资产。
+    final String expected = usePages && pageAsset.sha256.isNotEmpty
+        ? pageAsset.sha256
+        : await _fetchSha256('$baseUrl/$shaAsset');
 
     // 2) 资产下载（流式，回调进度）。
     await _download(url, apkPath, onProgress: onProgress);

@@ -69,3 +69,13 @@
 - [ ] `explore`、`flutter analyze` 无新增 error/warning
 - [ ] 对应改动补了单测并 `flutter test` 全绿
 - [ ] 文档面：本周改动的方案/盘点文档落带日期后缀
+
+> 💡 **clOTA（GitHub Pages 分发链路）**：移动端 OTA 走双源——静态源
+> `https://wumengaa.github.io/xingli_music/ota/manifest.json`（gh-pages 分支，优先、无 API 限额）
+> 与 GitHub Releases API（回退）。安卓发布用
+> `tools/publish_pages_ota.ps1 -Tag 0.26.8.31_beta_cl01 -Notes '...'`（自动构建、收集 APK、
+> 合并历史、SHA256 内嵌、推送 gh-pages）；Windows 包仍走 `tools/publish_windows_ota.ps1`（Releases，zip 超 Pages 100MB 上限）。
+> 发布后自查：
+> - [ ] `git ls-remote --heads origin gh-pages` 有新 commit
+> - [ ] Pages 域名下的 `ota/manifest.json` 可访问且 `channels.<ch>.latest` 为嵌套结构、`dateKey` 为 YYMMDD（与客户端 `OtaTagInfo` 同构）
+> - [ ] 首启 Pages 后等 1~2 分钟生效（Settings → Pages → Source: Deploy from a branch → `gh-pages` / (root)）
