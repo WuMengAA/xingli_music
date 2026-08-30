@@ -93,24 +93,47 @@ flutter run
 
 ## 三、依赖配置说明（pubspec.yaml）
 
+> 完整依赖以仓库 `pubspec.yaml` 为权威源（含版本号与注释）；下表为核心分组速览。
+
 ```yaml
 dependencies:
-  flutter_riverpod: ^2.6.1    # 状态管理（必须）
-  audioplayers: ^6.1.0        # 音频播放（音乐模块）
-  just_audio: ^0.9.42         # 音频引擎（音乐模块）
-  sqflite: ^2.4.1             # SQLite 本地库
-  path: ^1.9.0
-  path_provider: ^2.1.5       # 访问本地目录（音乐文件索引）
-  shared_preferences: ^2.3.3  # 轻量偏好（心情 / 配色偏好）
+  flutter_riverpod: ^2.6.1     # 状态管理（必须）
+  audioplayers: ^6.1.0         # 音频播放（音乐模块）
+  just_audio: ^0.9.42          # 音频引擎（音乐模块）
+  media_kit: ^1.2.6            # libmpv 全格式解码（Windows/Android libs 配套）
+  audio_service: ^0.18.19      # 后台播放 + 锁屏/通知栏控件
+  audio_session: ^0.1.25       # 音频焦点（与 just_audio 自带对齐）
+  on_audio_query: ^2.9.0       # 本地音乐元数据与封面
+  sqflite: ^2.4.1              # SQLite 本地库（音乐索引 / 行为存储）
+  sqflite_common_ffi: ^2.4.2+1 # 桌面端 SQLite
+  path: ^1.9.0                 # 路径处理
+  path_provider: ^2.1.5        # 访问本地目录
+  shared_preferences: ^2.3.3   # 轻量偏好（心情 / 配色）
+  permission_handler: ^11.3.1  # 系统权限
+  flutter_svg: ^2.0.10         # SVG 图标（game-icon-pack, CC0）
+  http: ^1.2.2                 # HTTP 请求
+  crypto: ^3.0.6               # Subsonic token 鉴权（md5）
+  archive: ^3.6.1              # OTA 增量补丁解压（BSDIFF40）
+  sensors_plus: ^7.0.0         # v2 实验 F：加速度/陀螺仪摇晃切场景（按需 import）
+  file_picker: ^11.0.3         # 文件选择
+  share_plus: ^12.0.2          # 系统分享
+  cross_file: ^0.3.5+4         # 跨端文件 IO
+  liquid_glass_widgets: ^0.29.6# 液态玻璃 UI 库（iOS 26 风格导航/面板）
+  flutter_localizations:       # i18n（gen-l10n）
+    sdk: flutter
 ```
 
 | 依赖 | 用途 | 是否必须 |
 | ---- | ---- | ---- |
 | `flutter_riverpod` | 状态管理（ProviderScope / ConsumerWidget） | 必须 |
-| `audioplayers` | 播放本地音乐（与场景联动） | 后续模块 |
-| `just_audio` | 更细粒度的音频控制（进度 / 变速） | 后续模块 |
-| `sqflite` | 音乐索引、播放记录、使用行为存储 | 后续模块 |
-| `shared_preferences` | 心情、配色、上次浏览位置等轻量状态 | 后续模块 |
+| `just_audio` + `audioplayers` | 播放引擎 / 多引擎兼容层 | 必须 |
+| `media_kit`（+ 平台 libs） | libmpv 全格式解码 / 视频场景背景 | 必须 |
+| `sqflite` + `sqflite_common_ffi` | 音乐索引、播放记录、使用行为存储 | 必须 |
+| `on_audio_query` | 本地音乐元数据与封面读取 | 必须 |
+| `sensors_plus` | v2 实验 F：摇晃切场景（Android/iOS，按需 import） | 实验 |
+| `liquid_glass_widgets` | 液态玻璃 UI（导航层 / 浮动面板） | 必须 |
+
+> ✏️ v2 实验依赖仅 `sensors_plus ^7.0.0`（2026-08-31 核实 pubspec）；旧规划中的「light 传感器依赖」未入依赖清单，勿照抄。
 
 新增依赖后执行：
 

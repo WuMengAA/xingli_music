@@ -54,15 +54,31 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposab
         IsVisible = false,
     };
 
+    private readonly Button _prevButton = new() { Content = "上一首" };
+    private readonly Button _toggleButton = new() { Content = "播放" };
+    private readonly Button _nextButton = new() { Content = "下一首" };
+
     public NowPlayingStatusComponent()
     {
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            Margin = new Avalonia.Thickness(0, 6, 0, 0),
+            Children = { _prevButton, _toggleButton, _nextButton },
+        };
+
         var panel = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 3,
-            Children = { _mainLine, _subLine, _radioLine },
+            Children = { _mainLine, _subLine, _radioLine, buttonPanel },
         };
         Content = panel;
+
+        _prevButton.Click += async (_, _) => await _client.ControlAsync("prev");
+        _toggleButton.Click += async (_, _) => await _client.ControlAsync("toggle");
+        _nextButton.Click += async (_, _) => await _client.ControlAsync("next");
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += OnTick;
@@ -82,12 +98,16 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposab
             _mainLine.Text = "未连接星璃";
             _subLine.Text = "启动星璃音乐后自动显示";
             _radioLine.IsVisible = false;
+            _toggleButton.Content = "播放";
+            SetButtonsEnabled(false);
             return;
         }
 
+        SetButtonsEnabled(true);
         _mainLine.Text = snapshot.DisplayTitle;
         _mainLine.Foreground = new SolidColorBrush(
             snapshot.IsPlaying ? Color.FromRgb(233, 236, 255) : Color.FromRgb(160, 168, 200));
+        _toggleButton.Content = snapshot.IsPlaying ? "暂停" : "播放";
 
         var sub = BuildSubLine(snapshot);
         _subLine.Text = sub;
@@ -95,6 +115,13 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposab
         var radio = snapshot.RadioText;
         _radioLine.Text = radio ?? "";
         _radioLine.IsVisible = radio is not null;
+    }
+
+    private void SetButtonsEnabled(bool value)
+    {
+        _prevButton.IsEnabled = value;
+        _toggleButton.IsEnabled = value;
+        _nextButton.IsEnabled = value;
     }
 
     private static string BuildSubLine(NowPlayingSnapshot s)

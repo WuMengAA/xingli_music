@@ -91,5 +91,24 @@ public sealed class NowPlayingClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// 发送远程控制指令（`play|pause|toggle|next|prev`，仅本机回环）。
+    /// 服务端只接受 127.0.0.1/::1 来源；返回 true 表示服务端已受理。
+    /// </summary>
+    public async Task<bool> ControlAsync(string action, CancellationToken ct = default)
+    {
+        try
+        {
+            var payload = JsonSerializer.Serialize(new { action });
+            using var content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json");
+            using var res = await _http.PostAsync(_baseUrl + "/control", content, ct).ConfigureAwait(false);
+            return res.IsSuccessStatusCode;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            return false;
+        }
+    }
+
     public void Dispose() => _http.Dispose();
 }

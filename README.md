@@ -13,6 +13,13 @@
 
 （早期规划含 iOS，当前工程聚焦 Windows + Android）
 
+| 平台 | 状态 | 说明 |
+| ---- | ---- | ---- |
+| Windows | ✅ 现行 | 体素 3D 渲染、B站视频场景背景、扫码 / 系统浏览器登录、OTA（clOTA 双源）、ClassIsland 联动（本地 NowPlaying 服务，端口 8742） |
+| Android | ✅ 现行 | 原生 WebView 登录、扫码登录、按 ABI 拆分包（arm64-v8a / armeabi-v7a，无整包） |
+| iOS | 🏗️ 规划 | 平台决策（PROJECT_STATE 三）：最低 iOS 10 / 目标 26；**当前无 iOS 工程（待建）** |
+| macOS / Linux / Web | ⏸️ 未支持 | 未列入发布矩阵（部分代码含 kIsWeb 防御分支，仅防回归，非可用目标） |
+
 ## 核心模块
 
 | 模块 | 说明 |
@@ -31,6 +38,23 @@
 - 音频 / 视频：media_kit（纯音频关视频输出；背景视频走独立 Player + VideoController）
 - 多音源抽象：MusicSource（`activeSourcesProvider`：网易云 / B站 / 本地）
 - 本地存储：SQLite（sqflite）+ shared_preferences + SecureBox（加密 cookie）
+
+### 主要依赖（权威源 = `pubspec.yaml`）
+
+| 依赖 | 用途 |
+| ---- | ---- |
+| `just_audio` / `audioplayers` / `audio_service` | 播放引擎 / 后台播放 / 锁屏控件 |
+| `media_kit`（含 Windows/Android libs） | libmpv 全格式解码（视频场景背景） |
+| `on_audio_query` | 本地音乐元数据与封面读取 |
+| `sqflite` / `path` / `path_provider` | 音乐索引与本地存储 |
+| `permission_handler` | 系统权限 |
+| `http` / `crypto` | 网络请求 / Subsonic token 鉴权 |
+| `archive` | OTA 增量补丁解压（BSDIFF40） |
+| `flutter_svg` | game-icon-pack（CC0）矢量图标 |
+| `liquid_glass_widgets` | iOS 26 液态玻璃 UI 库（导航层 / 面板） |
+| `sensors_plus` | v2 实验 F：加速度/陀螺仪摇晃切场景（按需 import） |
+| `file_picker` / `share_plus` / `cross_file` | 文件选择 / 分享 / 跨端 IO |
+| `flutter_localizations` | i18n（gen-l10n，cl07） |
 
 ## 设计原则
 

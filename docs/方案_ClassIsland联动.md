@@ -186,6 +186,8 @@ class NowPlayingSnapshot {
 | M2 | 回环远程控制按钮 | M0 |
 | M3 | 异机部署文档 + 可选 token 鉴权 | M0 |
 
+> ✅ **状态（2026-08-31）**：M1 骨架与 M2 控制按钮均已实现于 `tools/classisland_xingli_plugin/`（组件注册/2s 轮询只读显示 + 上一首/播放·暂停/下一首按钮 → POST /control 回环），编译 **0 警告 0 错误**；ClassIsland 本体实机拖拽联调待验证。
+
 ### 5.2 与 ClassIsland 的生态边界
 
 - 不修改 ClassIsland 本体；仅通过插件 API 注入组件。
