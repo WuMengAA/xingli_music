@@ -409,6 +409,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       _node = null;
       _djListeners = false;
     }
+    _posTimer?.cancel();
+    _posTimer = null;
     try {
       state = state.copyWith(
         status: ConnStatus.connecting,
@@ -487,6 +489,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       _node = null;
       _djListeners = false;
     }
+    _posTimer?.cancel();
+    _posTimer = null;
     _joined = Completer<void>();
     try {
       state = state.copyWith(

@@ -35,17 +35,13 @@ class StationRoomPage extends ConsumerWidget {
     final c = context.appColors;
     final NetSessionState s = ref.watch(netSessionProvider);
     final bool isConnected = s.status == ConnStatus.connected;
-    // 退出清理：无论点「离开」按钮还是系统返回键/手势 pop，都先 leave()
-    // 清空 netSessionProvider._node，否则残留连接导致后续「创建/加入」失败。
-    Future<void> onExit() async {
-      await ref.read(netSessionProvider.notifier).leave();
-    }
 
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (bool didPop, Object? result) {
-        if (!didPop) return;
-        onExit();
+        // cl15：返回主页不退出房间。连接由 netSessionProvider 单例维护，
+        // 下次创建/加入新房时 host()/join() 会自动清理残留节点。
+        // 仅「离开」按钮显式调用 leave() 断线退房。
       },
       child: Scaffold(
         backgroundColor: c.bgPage,
@@ -69,7 +65,7 @@ class StationRoomPage extends ConsumerWidget {
               icon: const Icon(Icons.logout),
               tooltip: '离开',
               onPressed: () async {
-                await onExit();
+                await ref.read(netSessionProvider.notifier).leave();
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
               },
