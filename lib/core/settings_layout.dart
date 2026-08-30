@@ -358,6 +358,16 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           name: '关于',
           items: <SettingItem>[
             SettingItem(id: 'aboutInfo', title: '应用信息', kind: SettingKind.block),
+            // cl08：离线模式（不检查 OTA / 不连官方中转 / 不上传日志）。
+            SettingItem(id: 'offlineMode', title: '离线模式'),
+            // cl10：账号（登录 / 注册 / 退出 / 收藏同步）。
+            SettingItem(id: 'accountEntry', title: '账号'),
+            // cl10：连接安全（证书策略：严格 / 宽松）。
+            SettingItem(id: 'connectionSecurity', title: '连接安全'),
+            // cl08：内容服务地址（relay_server http 根）。
+            SettingItem(id: 'contentBase', title: '内容服务地址'),
+            // 系统信息（平台 / 版本）。
+            SettingItem(id: 'systemInfo', title: '系统信息'),
             // cl54-G6：存储占用（软件占用空间统计）。
             SettingItem(id: 'storageUsage', title: '存储'),
             // cl55：版本日志（自动获取最新）+ 版本更新（OTA 入口）。

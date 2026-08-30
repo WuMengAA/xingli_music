@@ -7,6 +7,8 @@
 /// 未注册的 id（用户自定义合集里放了未知项）→ 占位提示，不崩。
 library;
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +21,7 @@ import '../pages/scene/voxel_sound_editor_page.dart';
 import '../pages/settings/scene_editor_page.dart';
 import '../pages/settings/game_graphics_page.dart';
 import '../pages/settings/server_settings_page.dart';
+import '../pages/settings/auth_page.dart';
 import '../pages/settings/voxel_save_manager_page.dart';
 import '../pages/world/world_page.dart';
 import '../providers/voxel/graphics_quality_provider.dart';
@@ -37,6 +40,10 @@ import '../repositories/settings_repository.dart';
 import '../providers/settings/performance_providers.dart';
 import '../providers/settings/scene_card_opacity_provider.dart';
 import '../providers/settings/settings_persistence_providers.dart';
+import '../providers/settings/offline_providers.dart';
+import '../providers/content/content_providers.dart';
+import '../providers/security/cert_policy_provider.dart';
+import '../providers/auth/user_provider.dart';
 import '../providers/sources/netease_provider.dart';
 import '../providers/sources/bilibili_provider.dart';
 import '../services/audio/sources/bilibili/bilibili_api.dart';
@@ -144,6 +151,42 @@ Future<void> _pickUpdateChannel(BuildContext context, WidgetRef ref) async {
   await repo.setChannelSwitchPending(true);
   if (context.mounted) {
     appNotify(context, '已切换到 ${picked.label} 渠道，重启后生效并进入升级引导');
+  }
+}
+
+/// 编辑内容服务地址（cl08：relay_server http 根，设置可改）。
+Future<void> _editContentBase(BuildContext context, WidgetRef ref) async {
+  final TextEditingController c =
+      TextEditingController(text: ref.read(contentBaseUrlProvider));
+  final String? next = await showDialog<String>(
+    context: context,
+    builder: (BuildContext dlg) => AlertDialog(
+      title: const Text('内容服务地址'),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        keyboardType: TextInputType.url,
+        decoration: const InputDecoration(
+          hintText: 'https://relay.245959623.xyz',
+          helperText: '内容 / 公告 / 随机推荐与账号服务的后端地址',
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dlg).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
+          child: const Text('保存'),
+        ),
+      ],
+    ),
+  );
+  if (next != null && next.isNotEmpty) {
+    ref.read(contentBaseUrlProvider.notifier).set(next);
+    if (!context.mounted) return;
+    appNotify(context, '内容服务地址已更新');
   }
 }
 
@@ -1628,6 +1671,92 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: Text('星璃音乐空间', style: Theme.of(context).textTheme.bodyMedium),
       subtitle: Text(AppVersion.display, style: Theme.of(context).textTheme.bodySmall),
     ),
+  ),
+  // 2026-08-17 渠道化：更新渠道（Beta 稳定 默认 / Alpha 尝鲜；切换后重启生效）。
+  // cl08：离线模式（不依靠官方服务器）开关。
+  'offlineMode': SettingItemDef(
+    title: '离线模式',
+    builder: (context, ref) => _toggle(
+      context,
+      title: '离线模式',
+      subtitle: '不检查 OTA / 不连官方中转 / 不上传日志',
+      value: ref.watch(offlineModeProvider),
+      onChanged: (bool v) => ref.read(offlineModeProvider.notifier).set(v),
+    ),
+  ),
+  // cl10：账号（登录 / 注册 / 退出；偏好与收藏跨设备同步）。
+  'accountEntry': SettingItemDef(
+    title: '账号',
+    builder: (context, ref) {
+      final AuthState auth = ref.watch(authProvider);
+      return _entry(
+        context,
+        ref,
+        icon: Icons.account_circle_outlined,
+        title: '账号',
+        subtitle: auth.isAuthed ? '已登录 · ${auth.user?.username ?? ''}' : '登录 / 注册（游客可跳过）',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const AuthPage()),
+        ),
+      );
+    },
+  ),
+  // cl10：连接安全（证书策略：严格默认 / 宽松自签名局域网）。
+  'connectionSecurity': SettingItemDef(
+    title: '连接安全',
+    builder: (context, ref) {
+      final CertPolicy p = ref.watch(certPolicyProvider);
+      final bool lenient = p == CertPolicy.lenient;
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          lenient ? Icons.lock_open_outlined : Icons.lock_outline,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text('连接安全', style: Theme.of(context).textTheme.bodyMedium),
+        subtitle: Text(
+          lenient ? '宽松 · 接受自签名（局域网自托管）' : '严格 · 校验证书链（推荐）',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        trailing: Switch(
+          value: lenient,
+          onChanged: (bool v) => ref
+              .read(certPolicyProvider.notifier)
+              .set(v ? CertPolicy.lenient : CertPolicy.strict),
+        ),
+      );
+    },
+  ),
+  // cl08：内容服务地址（relay_server http 根，可改）。
+  'contentBase': SettingItemDef(
+    title: '内容服务地址',
+    builder: (context, ref) {
+      final String base = ref.watch(contentBaseUrlProvider);
+      return _entry(
+        context,
+        ref,
+        icon: Icons.dns_outlined,
+        title: '内容服务地址',
+        subtitle: base,
+        onTap: () => _editContentBase(context, ref),
+      );
+    },
+  ),
+  // 系统信息（平台 / 架构 / 渲染引擎展示）。
+  'systemInfo': SettingItemDef(
+    title: '系统信息',
+    builder: (context, ref) {
+      final String os = Platform.operatingSystem;
+      final String arch = Platform.operatingSystemVersion;
+      return ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text('系统信息', style: Theme.of(context).textTheme.bodyMedium),
+        subtitle: Text(
+          '$os · $arch\n当前版本 ${AppVersion.display}',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      );
+    },
   ),
   // cl54-G6：存储占用（软件占用空间统计）。
   'storageUsage': SettingItemDef(
