@@ -203,8 +203,8 @@ class NowPlayingSnapshot {
 
 ## 7. 验收清单
 
-- [ ] `flutter analyze` 无新增 error（0 errors）
-- [ ] `test/services/now_playing_server_test.dart` 全绿（并入全量测试）
-- [ ] Windows 启动 AppShell 后 `http://127.0.0.1:8742/health` 返回 ok
-- [ ] 播放中 `http://127.0.0.1:8742/nowplaying` 返回真实曲目；进电台房后 `radio` 出现
-- [ ] ClassIsland 插件（M1 交付后）在大屏显示封面/标题/歌手/电台条
+- [x] `flutter analyze` 无新增 error（0 errors）——已验证（2026-08-31）
+- [x] `test/services/now_playing_server_test.dart` 全绿（7/7）——已验证（2026-08-31），并入全量测试
+- [ ] Windows 启动 AppShell 后 `http://127.0.0.1:8742/health` 返回 ok（单测已覆盖；实机待验证）
+- [ ] 播放中 `http://127.0.0.1:8742/nowplaying` 返回真实曲目；进电台房后 `radio` 出现（单测已覆盖；实机待验证）
+- [ ] ClassIsland 插件在 ClassIsland 本体中拖入主界面，显示封面/标题/歌手/电台条（**M1 骨架已交付**：`tools/classisland_xingli_plugin/` 编译 0 警告 0 错误，组件注册/轮询/显示已实现；实机联调待 ClassIsland 安装后验证）
