@@ -475,7 +475,7 @@ Future<Map<String, dynamic>> _capabilities() async {
     'ok': true,
     'server': <String, dynamic>{
       'service': 'xingli-relay',
-      'version': 'cl15',
+      'version': 'cl16',
       'mode': 'official',
       'tls': _tlsEnabled,
       'ts': DateTime.now().toIso8601String(),
@@ -546,7 +546,7 @@ Future<void> _handleApi(HttpRequest req) async {
       payload = <String, dynamic>{
         'ok': true,
         'service': 'xingli-relay',
-        'version': 'cl15',
+        'version': 'cl16',
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };
