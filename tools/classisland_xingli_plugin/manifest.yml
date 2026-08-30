@@ -1,0 +1,12 @@
+# nonk8s
+# 插件清单文件使用 YAML 格式存储。
+# YAML 教程：https://www.runoob.com/w3cnote/yaml-intro.html
+
+id: ClassIslandXingliPlugin
+name: 星璃联动
+description: 联动星璃音乐：在主界面显示正在播放的曲目（标题/歌手/电台）。需要星璃 Windows 端运行（本地 HTTP 127.0.0.1:8742，协议 v1）。
+entranceAssembly: "ClassIslandXingliPlugin.dll"
+url: https://github.com/wumengaa/xingli_music
+version: 0.1.0.0
+apiVersion: 2.0.0.0
+author: 星璃音乐
