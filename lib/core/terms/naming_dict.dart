@@ -130,6 +130,12 @@ abstract final class Terms {
   /// 筛选标签：专辑
   static const String filterAlbums = '专辑';
 
+  /// 筛选标签：歌单（cl15 曲库四栏）
+  static const String filterPlaylists = '歌单';
+
+  /// 筛选标签：歌手（cl15 曲库四栏）
+  static const String filterSingers = '歌手';
+
   /// 筛选标签：在线
   static const String filterOnline = '在线';
 

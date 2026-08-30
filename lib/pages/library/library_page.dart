@@ -15,41 +15,38 @@ import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/album_card.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/library/card_view.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/shell/app_search_bar.dart';
+import 'playlist_detail_page.dart';
 
-/// 曲库浏览分类筛选（null = 全部，#421）。
+/// 曲库四栏（cl15：歌曲 / 歌单 / 专辑 / 歌手）。
 ///
-/// 画布「Screen · 曲库」筛选条：歌曲 / 专辑 / 在线 / 音景。
-/// 数据模型仅有 [TrackSource]（本地 / 在线 / 音景）三类，故「歌曲」= 全部、
-/// 「专辑」复用本地源（音景/在线直接对应），保证四个筛选都接入真实数据。
-final libraryCategoryProvider = StateProvider<TrackSource?>((_) => null);
+/// 数据模型仅有 [TrackSource]（本地 / 在线 / 音景），故「歌曲」= 全部曲目、
+/// 「专辑」按 album 字段分组、「歌手」按 artist 字段分组、「歌单」读全局
+/// 歌单（playlistsProvider）——四个 Tab 全部接入真实数据。
+enum LibraryTab { tracks, playlists, albums, artists }
 
-/// 曲库页（#421 重构 · 对齐画布 3:147）
+final libraryCategoryProvider = StateProvider<LibraryTab>((_) => LibraryTab.tracks);
+
+/// 曲库页（cl15 四栏重构 · 对齐画布 3:147）
 ///
 /// 单屏滚动，自上而下：
 /// 1. 顶部聚合搜索入口（本地 / 网易云 / B站 三源合一）
 /// 2. 搜索栏（搜歌曲 / 歌手 / 专辑）
-/// 3. 分类筛选条（歌曲 / 专辑 / 在线 / 音景）
-/// 4. 「最近播放」+ 视图切换（卡片 / 列表）→ 曲库列表
-/// 5. 时光沉底横幅（累计听歌时长）
-/// 6. 「听歌排行」→ 播放排行
+/// 3. 四栏切换（歌曲 / 歌单 / 专辑 / 歌手）
+/// 4. 当前栏内容：歌曲（最近播放 + 视图切换 + 列表/卡片 + 排行）、
+///    歌单（全局歌单列表 + 新建）、专辑（按专辑分组 + 展开播放）、
+///    歌手（按歌手分组 + 展开播放）
+/// 5. 时光沉底横幅（累计听歌时长，歌曲栏底部）
 class LibraryPage extends ConsumerWidget {
   const LibraryPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final String query = ref.watch(searchQueryProvider(ShellPage.library));
-    final LibraryViewStyle style = ref.watch(libraryViewStyleProvider);
-    final TrackSource? cat = ref.watch(libraryCategoryProvider);
-    final AsyncValue<List<Track>> library =
-        ref.watch(effectiveMusicLibraryProvider);
-    final AsyncValue<List<TrackStats>> stats =
-        ref.watch(playStatsProvider);
-
-    final bool landscape =
-        MediaQuery.of(context).size.width >= AppSize.landscapeBreakpoint;
+    final LibraryTab tab = ref.watch(libraryCategoryProvider);
 
     return PageScaffold(
       title: Terms.library,
@@ -71,110 +68,16 @@ class LibraryPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 const SizedBox(height: 8),
-                // 分类筛选条（歌曲 / 专辑 / 在线 / 音景）。
-                const _FilterChips(),
+                // 四栏切换（歌曲 / 歌单 / 专辑 / 歌手）。
+                const _CategoryTabs(),
                 const SizedBox(height: 20),
-                // 「最近播放」+ 视图切换（卡片 / 列表）。
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Text(Terms.recentlyPlayed,
-                          style: context.appText.title),
-                    ),
-                    const _ViewToggle(),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // 曲库列表（卡片 / 列表随样式切换）。
-                library.when(
-                  loading: () =>
-                      const LoadingView(label: Terms.loading),
-                  error: (Object e, StackTrace st) => ErrorView(
-                    message: Terms.loadFailed,
-                    onRetry: () =>
-                        ref.invalidate(effectiveMusicLibraryProvider),
-                  ),
-                  data: (List<Track> all) {
-                    final List<Track> shown = _filter(all, query, cat);
-                    if (shown.isEmpty) return const LibraryEmptyView();
-                    if (style == LibraryViewStyle.card) {
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: landscape ? 220 : 200,
-                          mainAxisSpacing: AppSpace.gridRowGap,
-                          crossAxisSpacing: AppSpace.xl,
-                          childAspectRatio: 0.92,
-                        ),
-                        itemCount: shown.length,
-                        itemBuilder: (BuildContext c, int i) =>
-                            AlbumCard(
-                          track: shown[i],
-                          onTap: () =>
-                              _playTrack(ref, context, shown[i]),
-                        ),
-                      );
-                    }
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        for (int i = 0; i < shown.length; i++)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _TrackRowCard(
-                              track: shown[i],
-                              onTap: () =>
-                                  _playTrack(ref, context, shown[i]),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-                // 时光沉底横幅（累计听歌时长）。
-                _TimeSinkBanner(totalMs: ref.watch(totalPlayMsProvider)),
-                const SizedBox(height: 20),
-                // 「听歌排行」。
-                Text(Terms.topCharts, style: context.appText.title),
-                const SizedBox(height: 12),
-                stats.when(
-                  loading: () =>
-                      const LoadingView(label: Terms.topChartsLoading),
-                  error: (Object e, StackTrace st) => ErrorView(
-                    message: Terms.loadFailed,
-                    onRetry: () => ref.invalidate(playStatsProvider),
-                  ),
-                  data: (List<TrackStats> list) {
-                    if (list.isEmpty) {
-                      return const EmptyView(
-                        title: Terms.noPlayHistory,
-                        message: Terms.noPlayHistoryMsg,
-                      );
-                    }
-                    final List<TrackStats> top = list.take(10).toList();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        for (int i = 0; i < top.length; i++)
-                          Padding(
-                            padding: EdgeInsets.only(
-                              bottom: i < top.length - 1 ? 16 : 0,
-                            ),
-                            child: _RankRowCard(
-                              rank: i + 1,
-                              stats: top[i],
-                              onTap: () =>
-                                  _playStats(ref, context, top[i]),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+                // 当前栏内容。
+                switch (tab) {
+                  LibraryTab.tracks => _TracksTab(query: query),
+                  LibraryTab.playlists => _PlaylistsTab(query: query),
+                  LibraryTab.albums => _AlbumsTab(query: query),
+                  LibraryTab.artists => _ArtistsTab(query: query),
+                },
                 const SizedBox(height: 24),
               ],
             ),
@@ -183,46 +86,585 @@ class LibraryPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  List<Track> _filter(List<Track> all, String query, TrackSource? cat) {
-    final String q = query.trim().toLowerCase();
-    Iterable<Track> it = all;
-    if (cat != null) it = it.where((Track t) => t.source == cat);
-    if (q.isNotEmpty) {
-      it = it.where((Track t) =>
-          t.title.toLowerCase().contains(q) ||
-          t.artist.toLowerCase().contains(q) ||
-          (t.album ?? '').toLowerCase().contains(q));
-    }
-    return it.toList();
+/// 四栏切换条。
+class _CategoryTabs extends ConsumerWidget {
+  const _CategoryTabs();
+
+  static const List<(String, LibraryTab)> _tabs = <(String, LibraryTab)>[
+    (Terms.filterTracks, LibraryTab.tracks),
+    (Terms.filterPlaylists, LibraryTab.playlists),
+    (Terms.filterAlbums, LibraryTab.albums),
+    (Terms.filterSingers, LibraryTab.artists),
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final LibraryTab sel = ref.watch(libraryCategoryProvider);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          for (int i = 0; i < _tabs.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(width: 8),
+            _Chip(
+              label: _tabs[i].$1,
+              selected: sel == _tabs[i].$2,
+              onTap: () => ref
+                  .read(libraryCategoryProvider.notifier)
+                  .state = _tabs[i].$2,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 歌曲栏：曲库列表（卡片/列表切换 + 投稿/收藏按钮）+ 听歌排行 + 时光横幅。
+class _TracksTab extends ConsumerWidget {
+  const _TracksTab({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final LibraryViewStyle style = ref.watch(libraryViewStyleProvider);
+    final AsyncValue<List<Track>> library =
+        ref.watch(effectiveMusicLibraryProvider);
+    final AsyncValue<List<TrackStats>> stats = ref.watch(playStatsProvider);
+    final bool landscape =
+        MediaQuery.of(context).size.width >= AppSize.landscapeBreakpoint;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        // 「最近在听」+ 视图切换（卡片 / 列表）。
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Text(Terms.recentlyPlayed, style: context.appText.title),
+            ),
+            const _ViewToggle(),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // 曲库列表（卡片 / 列表随样式切换）。
+        library.when(
+          loading: () => const LoadingView(label: Terms.loading),
+          error: (Object e, StackTrace st) => ErrorView(
+            message: Terms.loadFailed,
+            onRetry: () => ref.invalidate(effectiveMusicLibraryProvider),
+          ),
+          data: (List<Track> all) {
+            final List<Track> shown = _filter(all, query);
+            if (shown.isEmpty) return const LibraryEmptyView();
+            if (style == LibraryViewStyle.card) {
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: landscape ? 220 : 200,
+                  mainAxisSpacing: AppSpace.gridRowGap,
+                  crossAxisSpacing: AppSpace.xl,
+                  childAspectRatio: 0.92,
+                ),
+                itemCount: shown.length,
+                itemBuilder: (BuildContext c, int i) => AlbumCard(
+                  track: shown[i],
+                  onTap: () => _playTrack(ref, context, shown[i]),
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < shown.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _TrackRowCard(
+                      track: shown[i],
+                      onTap: () => _playTrack(ref, context, shown[i]),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 20),
+        // 时光沉底横幅（累计听歌时长）。
+        _TimeSinkBanner(totalMs: ref.watch(totalPlayMsProvider)),
+        const SizedBox(height: 20),
+        // 「你的排行」。
+        Text(Terms.topCharts, style: context.appText.title),
+        const SizedBox(height: 12),
+        stats.when(
+          loading: () => const LoadingView(label: Terms.topChartsLoading),
+          error: (Object e, StackTrace st) => ErrorView(
+            message: Terms.loadFailed,
+            onRetry: () => ref.invalidate(playStatsProvider),
+          ),
+          data: (List<TrackStats> list) {
+            if (list.isEmpty) {
+              return const EmptyView(
+                title: Terms.noPlayHistory,
+                message: Terms.noPlayHistoryMsg,
+              );
+            }
+            final List<TrackStats> top = list.take(10).toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < top.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(
+                      bottom: i < top.length - 1 ? 16 : 0,
+                    ),
+                    child: _RankRowCard(
+                      rank: i + 1,
+                      stats: top[i],
+                      onTap: () => _playStats(ref, context, top[i]),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// 歌单栏：全局歌单列表（playlistsProvider）+ 新建。
+class _PlaylistsTab extends ConsumerWidget {
+  const _PlaylistsTab({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AsyncValue<List<Playlist>> pls = ref.watch(playlistsProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(Terms.filterPlaylists, style: context.appText.title),
+            ),
+            // 新建歌单。
+            TextButton.icon(
+              onPressed: () => _createPlaylist(ref, context),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(Terms.createPlaylist),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        pls.when(
+          loading: () => const LoadingView(label: Terms.loading),
+          error: (Object e, StackTrace st) => ErrorView(
+            message: Terms.loadFailed,
+            onRetry: () => ref.invalidate(playlistsProvider),
+          ),
+          data: (List<Playlist> list) {
+            final String q = query.trim().toLowerCase();
+            final List<Playlist> shown = q.isEmpty
+                ? list
+                : list
+                    .where((Playlist p) =>
+                        p.name.toLowerCase().contains(q))
+                    .toList();
+            if (shown.isEmpty) {
+              return EmptyView(
+                title: Terms.noPlaylist,
+                message: Terms.playlistEmpty,
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                for (int i = 0; i < shown.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _PlaylistCard(
+                      playlist: shown[i],
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => PlaylistDetailPage(
+                              playlistId: shown[i].id ?? -1),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
 
-  Future<void> _playTrack(
-      WidgetRef ref, BuildContext context, Track t) async {
-    final String msg = await ref.read(playbackActionsProvider).playTrack(t);
-    if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
+  Future<void> _createPlaylist(WidgetRef ref, BuildContext context) async {
+    final TextEditingController ctrl = TextEditingController();
+    final String? name = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dctx) => AlertDialog(
+        title: const Text(Terms.createPlaylist),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 20,
+          decoration: const InputDecoration(hintText: '歌单名称'),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dctx).pop(ctrl.text.trim()),
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    await ref.read(trackStatsDbProvider).createPlaylist(name);
+    ref.invalidate(playlistsProvider);
+    if (context.mounted) {
+      appNotify(context, '已创建歌单「$name」', title: '歌单');
+    }
+  }
+}
+
+/// 专辑栏：按 album 分组曲目（内嵌展开播放）。
+class _AlbumsTab extends ConsumerStatefulWidget {
+  const _AlbumsTab({required this.query});
+
+  final String query;
+
+  @override
+  ConsumerState<_AlbumsTab> createState() => _AlbumsTabState();
+}
+
+class _AlbumsTabState extends ConsumerState<_AlbumsTab> {
+  String? _expanded; // 展开的专辑名（null=全收起）
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<List<Track>> library =
+        ref.watch(effectiveMusicLibraryProvider);
+    return library.when(
+      loading: () => const LoadingView(label: Terms.loading),
+      error: (Object e, StackTrace st) => ErrorView(
+        message: Terms.loadFailed,
+        onRetry: () => ref.invalidate(effectiveMusicLibraryProvider),
+      ),
+      data: (List<Track> all) {
+        final String q = widget.query.trim().toLowerCase();
+        // 按专辑名分组（album 非空），组内去重、排序稳定。
+        final Map<String, List<Track>> groups = <String, List<Track>>{};
+        for (final Track t in all) {
+          final String album = (t.album ?? '').trim();
+          if (album.isEmpty) continue;
+          if (q.isNotEmpty &&
+              !album.toLowerCase().contains(q) &&
+              !t.artist.toLowerCase().contains(q)) {
+            continue;
+          }
+          groups.putIfAbsent(album, () => <Track>[]).add(t);
+        }
+        if (groups.isEmpty) {
+          return const EmptyView(
+            title: '还没有专辑',
+            message: '播放带专辑信息的歌曲后会自动归类',
+          );
+        }
+        final List<String> names = groups.keys.toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text('${Terms.filterAlbums}（${names.length}）',
+                style: context.appText.title),
+            const SizedBox(height: 12),
+            for (int i = 0; i < names.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _GroupCard(
+                  title: names[i],
+                  subtitle: '${groups[names[i]]!.length} 首',
+                  coverUrl: _firstCover(groups[names[i]]!),
+                  expanded: _expanded == names[i],
+                  onTap: () => setState(() {
+                    _expanded = _expanded == names[i] ? null : names[i];
+                  }),
+                  children: [
+                    for (final Track t in groups[names[i]]!)
+                      _TrackRowCard(
+                        track: t,
+                        onTap: () => _playTrack(ref, context, t),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 
-  /// 在曲库中按归一化键匹配真实 [Track] 后播放（听歌排行复用）。
-  Future<void> _playStats(
-      WidgetRef ref, BuildContext context, TrackStats s) async {
-    final List<Track> all =
-        await ref.read(effectiveMusicLibraryProvider.future);
-    Track? matched;
-    for (final Track t in all) {
-      if (trackKeyOf(t.title, t.artist, t.sourceId) ==
-          trackKeyOf(s.title, s.artist, s.sourceId)) {
-        matched = t;
-        break;
-      }
+  String? _firstCover(List<Track> tracks) {
+    for (final Track t in tracks) {
+      if (t.coverUrl != null && t.coverUrl!.isNotEmpty) return t.coverUrl;
     }
-    if (matched == null || !context.mounted) {
-      if (context.mounted) appNotify(context, Terms.trackNotFound);
-      return;
+    return null;
+  }
+}
+
+/// 歌手栏：按 artist 分组曲目（内嵌展开播放）。
+class _ArtistsTab extends ConsumerStatefulWidget {
+  const _ArtistsTab({required this.query});
+
+  final String query;
+
+  @override
+  ConsumerState<_ArtistsTab> createState() => _ArtistsTabState();
+}
+
+class _ArtistsTabState extends ConsumerState<_ArtistsTab> {
+  String? _expanded; // 展开的歌手名（null=全收起）
+
+  @override
+  Widget build(BuildContext context) {
+    final AsyncValue<List<Track>> library =
+        ref.watch(effectiveMusicLibraryProvider);
+    return library.when(
+      loading: () => const LoadingView(label: Terms.loading),
+      error: (Object e, StackTrace st) => ErrorView(
+        message: Terms.loadFailed,
+        onRetry: () => ref.invalidate(effectiveMusicLibraryProvider),
+      ),
+      data: (List<Track> all) {
+        final String q = widget.query.trim().toLowerCase();
+        final Map<String, List<Track>> groups = <String, List<Track>>{};
+        for (final Track t in all) {
+          final String artist = t.artist.trim();
+          if (artist.isEmpty) continue;
+          if (q.isNotEmpty &&
+              !artist.toLowerCase().contains(q) &&
+              !t.title.toLowerCase().contains(q)) {
+            continue;
+          }
+          groups.putIfAbsent(artist, () => <Track>[]).add(t);
+        }
+        if (groups.isEmpty) {
+          return const EmptyView(
+            title: '还没有歌手',
+            message: '播放带歌手信息的歌曲后会自动归类',
+          );
+        }
+        final List<String> names = groups.keys.toList()
+          ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text('${Terms.filterSingers}（${names.length}）',
+                style: context.appText.title),
+            const SizedBox(height: 12),
+            for (int i = 0; i < names.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _GroupCard(
+                  title: names[i],
+                  subtitle: '${groups[names[i]]!.length} 首',
+                  coverUrl: _firstCover(groups[names[i]]!),
+                  expanded: _expanded == names[i],
+                  onTap: () => setState(() {
+                    _expanded = _expanded == names[i] ? null : names[i];
+                  }),
+                  children: [
+                    for (final Track t in groups[names[i]]!)
+                      _TrackRowCard(
+                        track: t,
+                        onTap: () => _playTrack(ref, context, t),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  String? _firstCover(List<Track> tracks) {
+    for (final Track t in tracks) {
+      if (t.coverUrl != null && t.coverUrl!.isNotEmpty) return t.coverUrl;
     }
-    final String msg =
-        await ref.read(playbackActionsProvider).playTrack(matched);
-    if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
+    return null;
+  }
+}
+
+/// 专辑 / 歌手分组卡（基本信息 + 展开歌曲列表）。
+class _GroupCard extends StatelessWidget {
+  const _GroupCard({
+    required this.title,
+    required this.subtitle,
+    required this.coverUrl,
+    required this.expanded,
+    required this.onTap,
+    required this.children,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? coverUrl;
+  final bool expanded;
+  final VoidCallback onTap;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    final Widget fallback = ColoredBox(
+      color: c.accentSoft,
+      child: Icon(Icons.album_rounded, size: 20, color: c.accent),
+    );
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          // 分组头。
+          Container(
+            decoration: BoxDecoration(
+              color: c.bgSurface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: c.border),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onTap,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  child: Row(
+                    children: <Widget>[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: coverUrl != null && coverUrl!.isNotEmpty
+                              ? Image.network(
+                                  coverUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => fallback,
+                                  loadingBuilder: (BuildContext c2,
+                                          Widget child, ImageChunkEvent? p) =>
+                                      p == null ? child : fallback,
+                                )
+                              : fallback,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            Text(title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.appText.trackName),
+                            const SizedBox(height: 2),
+                            Text(subtitle,
+                                style: context.appText.caption),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: c.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // 展开的歌曲列表。
+          if (expanded) ...<Widget>[
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// 歌单卡片。
+class _PlaylistCard extends StatelessWidget {
+  const _PlaylistCard({required this.playlist, required this.onTap});
+
+  final Playlist playlist;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.queue_music_rounded, color: c.accent, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(playlist.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appText.trackName),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${playlist.trackCount} 首',
+                        style: context.appText.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: c.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -245,45 +687,6 @@ class _AggregateSearchButton extends StatelessWidget {
 }
 
 /// 分类筛选条（画布 chip / chip-active 64×34 r17）。
-class _FilterChips extends ConsumerWidget {
-  const _FilterChips();
-
-  static const List<_ChipDef> _chips = <_ChipDef>[
-    _ChipDef(label: Terms.filterTracks, source: null),
-    _ChipDef(label: Terms.filterAlbums, source: TrackSource.local),
-    _ChipDef(label: Terms.filterOnline, source: TrackSource.stream),
-    _ChipDef(label: Terms.filterSoundscape, source: TrackSource.soundscape),
-  ];
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final TrackSource? sel = ref.watch(libraryCategoryProvider);
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: <Widget>[
-          for (int i = 0; i < _chips.length; i++) ...<Widget>[
-            if (i > 0) const SizedBox(width: 8),
-            _Chip(
-              label: _chips[i].label,
-              selected: sel == _chips[i].source,
-              onTap: () => ref
-                  .read(libraryCategoryProvider.notifier)
-                  .state = _chips[i].source,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ChipDef {
-  const _ChipDef({required this.label, required this.source});
-  final String label;
-  final TrackSource? source;
-}
-
 class _Chip extends StatelessWidget {
   const _Chip({
     required this.label,
@@ -327,8 +730,6 @@ class _Chip extends StatelessWidget {
 }
 
 /// 视图切换（画布 view-toggle 121×28 r14：卡片 / 列表）。
-///
-/// 直连 [libraryViewStyleProvider]，切换卡片 / 列表两种曲库呈现。
 class _ViewToggle extends ConsumerWidget {
   const _ViewToggle();
 
@@ -353,7 +754,7 @@ class _ViewToggle extends ConsumerWidget {
   }
 }
 
-/// 列表式歌曲行（画布 track-row 345×64 r16）。
+/// 列表式歌曲行（画布 track-row 345×64 r16；cl15 补投稿/收藏按钮）。
 class _TrackRowCard extends StatelessWidget {
   const _TrackRowCard({required this.track, required this.onTap});
 
@@ -363,7 +764,6 @@ class _TrackRowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppThemeColors c = context.appColors;
-    // cl04：iOS 分组卡 + Fluent Card 质感——浅色卡片底 + 1px 描边分层。
     return Container(
       decoration: BoxDecoration(
         color: c.bgSurface,
@@ -376,7 +776,7 @@ class _TrackRowCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
             child: Row(
               children: <Widget>[
                 _RowCover(track: track),
@@ -400,8 +800,9 @@ class _TrackRowCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.play_circle_rounded,
-                    size: 22, color: c.accent),
+                // cl15：投稿 / 收藏。
+                TrackActionButtons(track: track),
+                Icon(Icons.play_circle_rounded, size: 22, color: c.accent),
               ],
             ),
           ),
@@ -580,4 +981,46 @@ class _TimeSinkBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+// ═══════ 纯函数（可单测）═══════════════════════════════════════════════
+
+/// 按关键词过滤曲目（歌名 / 歌手 / 专辑）。
+List<Track> _filter(List<Track> all, String query) {
+  final String q = query.trim().toLowerCase();
+  if (q.isEmpty) return all;
+  return all
+      .where((Track t) =>
+          t.title.toLowerCase().contains(q) ||
+          t.artist.toLowerCase().contains(q) ||
+          (t.album ?? '').toLowerCase().contains(q))
+      .toList();
+}
+
+Future<void> _playTrack(
+    WidgetRef ref, BuildContext context, Track t) async {
+  final String msg = await ref.read(playbackActionsProvider).playTrack(t);
+  if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
+}
+
+/// 在曲库中按归一化键匹配真实 [Track] 后播放（听歌排行复用）。
+Future<void> _playStats(
+    WidgetRef ref, BuildContext context, TrackStats s) async {
+  final List<Track> all =
+      await ref.read(effectiveMusicLibraryProvider.future);
+  Track? matched;
+  for (final Track t in all) {
+    if (trackKeyOf(t.title, t.artist, t.sourceId) ==
+        trackKeyOf(s.title, s.artist, s.sourceId)) {
+      matched = t;
+      break;
+    }
+  }
+  if (matched == null || !context.mounted) {
+    if (context.mounted) appNotify(context, Terms.trackNotFound);
+    return;
+  }
+  final String msg =
+      await ref.read(playbackActionsProvider).playTrack(matched);
+  if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
 }

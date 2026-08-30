@@ -11,8 +11,8 @@ import 'package:xingli_music/services/net/net_message.dart';
 
 void main() {
   group('NetMsgType 索引稳定性（线上编码，勿重排）', () {
-    test('14 种类型，索引与线上编码一致', () {
-      expect(NetMsgType.values.length, 14);
+    test('17 种类型，索引与线上编码一致', () {
+      expect(NetMsgType.values.length, 17);
       expect(NetMsgType.hello.index, 0);
       expect(NetMsgType.welcome.index, 1);
       expect(NetMsgType.peerJoin.index, 2);
@@ -27,6 +27,9 @@ void main() {
       expect(NetMsgType.ping.index, 11);
       expect(NetMsgType.editSnapshot.index, 12);
       expect(NetMsgType.requestEditSnapshot.index, 13);
+      expect(NetMsgType.orderSubmit.index, 14);
+      expect(NetMsgType.orderQueue.index, 15);
+      expect(NetMsgType.orderDecision.index, 16);
     });
   });
 

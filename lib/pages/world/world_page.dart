@@ -23,6 +23,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../pages/settings/voxel_game_settings_page.dart';
 import '../../pages/settings/voxel_save_manager_page.dart';
+import '../../pages/social/station_lobby_page.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/notification/app_notify.dart';
@@ -143,6 +144,18 @@ class _WorldPageState extends ConsumerState<WorldPage> {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const VoxelLobbyPage(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpace.md),
+              // 电台 → 电台房大厅（cl15：创建/加入，公开/私密+模式+房间号）。
+              _EntryRow(
+                icon: Icons.radio_rounded,
+                label: '电台',
+                subtitle: '创建校园广播 / 一起听电台，或加入公开房间',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const StationLobbyPage(),
                   ),
                 ),
               ),

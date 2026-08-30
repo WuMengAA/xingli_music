@@ -24,6 +24,74 @@ const int kNetDefaultPort = 8765;
 /// 部署位置变化时改这里即可，一处生效、全端统一。
 const String kDefaultRelayUrl = 'wss://relay.245959623.xyz/ws';
 
+/// 房间模式标签（与 relay 后端 _RoomMode 对齐）。
+class RadioRoomMode {
+  static const String campus = 'campus'; // 校园广播
+  static const String listen = 'listen'; // 一起听
+}
+
+/// cl15：公开电台房信息（relay GET /api/rooms 返回的条目）。
+class RadioRoomInfo {
+  const RadioRoomInfo({
+    required this.code,
+    required this.name,
+    required this.mode,
+    required this.capacity,
+    required this.members,
+  });
+
+  final String code; // 房间号
+  final String name; // 房主昵称
+  final String mode; // campus / listen
+  final int capacity; // 人数上限
+  final int members; // 当前人数
+
+  bool get isCampus => mode == RadioRoomMode.campus;
+  String get modeLabel => isCampus ? '校园广播' : '一起听';
+
+  factory RadioRoomInfo.fromJson(Map<String, dynamic> j) => RadioRoomInfo(
+        code: j['code'] as String? ?? '',
+        name: j['name'] as String? ?? '房主',
+        mode: j['mode'] as String? ?? RadioRoomMode.campus,
+        capacity: (j['capacity'] as num?)?.toInt() ?? 100,
+        members: (j['members'] as num?)?.toInt() ?? 1,
+      );
+}
+
+/// cl15：拉取中转服务器公开房间列表（GET {base}/api/rooms）。
+///
+/// [relayUrl] 形如 `wss://host/ws`，转成 `https://host` 后调 REST。注入
+/// [client] 便于单测（不碰真实网络）。失败返回空列表。
+Future<List<RadioRoomInfo>> fetchPublicRooms(
+  String relayUrl, {
+  HttpClient? client,
+}) async {
+  try {
+    final Uri u = Uri.parse(relayUrl);
+    final String scheme = u.scheme == 'wss' ? 'https' : 'http';
+    final Uri api = Uri.parse('$scheme://${u.authority}/api/rooms');
+    final HttpClient c = client ?? HttpClient();
+    try {
+      final HttpClientRequest req = await c.getUrl(api);
+      final HttpClientResponse resp = await req.close();
+      if (resp.statusCode != 200) return <RadioRoomInfo>[];
+      final String body = await resp.transform(utf8.decoder).join();
+      final Object? v = jsonDecode(body);
+      if (v is! Map<String, dynamic> || v['ok'] != true) {
+        return <RadioRoomInfo>[];
+      }
+      return <RadioRoomInfo>[
+        for (final Object? r in (v['rooms'] as List? ?? <dynamic>[]))
+          if (r is Map<String, dynamic>) RadioRoomInfo.fromJson(r),
+      ];
+    } finally {
+      if (client == null) c.close(force: true);
+    }
+  } catch (_) {
+    return <RadioRoomInfo>[];
+  }
+}
+
 /// 中转服务器连接错误 → 终端用户可读的中文提示。
 ///
 /// dart:io WebSocket.connect 的异常类型不固定（HandshakeException /
@@ -54,6 +122,15 @@ String friendlyRelayError(Object error) {
   if (s.contains('room full')) return '房间已满，请稍后再试或换一间';
   if (s.contains('room required')) {
     return '房间号无效，请确认房主提供的 6 位房间号';
+  }
+  if (s.contains('room exists')) {
+    return '房间号已被占用，请换一个房间号';
+  }
+  if (s.contains('wrong password')) {
+    return '密码错误，请确认后重试';
+  }
+  if (s.contains('room not found')) {
+    return '房间不存在或已结束，请确认房间号';
   }
   // 未知错误不再透传英文原文（2026-08-17 定规：消息框不得出现成片英文）。
   return '连接出错，请检查网络后重试';
@@ -119,6 +196,9 @@ class NetNode {
   /// 中转模式：服务器 `ctl:error` 返回的错误（如 room required / room full）。
   /// ready 完成后由调用方读取；null = 无错误（cl79 起透传，供中文提示映射）。
   String? relayError;
+
+  /// cl15：服务器 `ready` 帧回传的房间元数据（code/name/mode/capacity/public/members）。
+  Map<String, dynamic>? relayMeta;
 
   static Future<NetNode> host({int port = kNetDefaultPort}) async {
     final HttpServer server = await HttpServer.bind(
@@ -209,12 +289,20 @@ class NetNode {
   /// 服务器随后通过控制帧(`ctl`)回报 peerJoin/peerLeave/ready；游戏帧（无 `ctl`）
   /// 原样转发为 [NetMessageEvent]，使既有会话逻辑无需改动即可跨公网运行。
   /// [isHostGame] 表示该端在游戏层的角色（房主/加入者），不影响传输（二者均连中转）。
+  ///
+  /// cl15：电台房间体系——[isPublic]（公开/私密）、[mode]（campus/listen）、
+  /// [capacity]（人数上限）、[password]（私密密码）。房主创建时携带，加入者仅
+  /// 私密房间需要带正确 [password]。
   static Future<NetNode> relay(
     String relayUrl,
     String room,
     String name, {
     required bool isHostGame,
     bool allowInsecure = false,
+    bool isPublic = true,
+    String mode = 'campus',
+    int capacity = 100,
+    String? password,
   }) async {
     final WebSocket ws = allowInsecure
         ? await HttpOverrides.runZoned(
@@ -242,6 +330,8 @@ class NetNode {
             switch (c['ctl']) {
               case 'ready':
                 node.localId = (c['id'] as String?) ?? '';
+                node.relayMeta =
+                    (c['meta'] as Map?)?.cast<String, dynamic>();
                 node._readyCompleter?.complete();
                 return;
               case 'peerJoin':
@@ -271,12 +361,19 @@ class NetNode {
       onDone: () => node._events.add(const NetClosed()),
       onError: (_) => node._events.add(const NetClosed()),
     );
-    // 首帧：向中转服务器登记房间（host=是否游戏房主，仅用于展示/统计）。
+    // 首帧：向中转服务器登记房间（host=是否房主；房主带完整房间配置，加入者带密码）。
     ws.add(jsonEncode(<String, dynamic>{
       'ctl': 'join',
       'room': room,
       'name': name,
       'host': isHostGame,
+      if (isHostGame) ...<String, dynamic>{
+        'public': isPublic,
+        'mode': mode,
+        'capacity': capacity,
+        if (password != null && password.isNotEmpty) 'password': password,
+      } else if (password != null && password.isNotEmpty)
+        'password': password,
     }));
     return node;
   }

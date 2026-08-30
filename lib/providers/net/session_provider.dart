@@ -262,6 +262,7 @@ class NetSessionState {
     this.reconnectAttempt = 0,
     this.roomCode,
     this.relayUrl,
+    this.roomMeta,
     this.lastSeenAt,
     this.orderQueue = const <OrderItem>[],
   });
@@ -281,6 +282,10 @@ class NetSessionState {
   final int reconnectAttempt; // 重连尝试次数（status==reconnecting 时 UI 展示）
   final String? roomCode; // 中转模式：房间号（房主展示给好友）
   final String? relayUrl; // 中转模式：中转服务器地址
+
+  /// cl15：房间元数据（服务器 ready 帧回传）：code/name/mode/capacity/public/members。
+  /// 供电台房页展示模式 / 人数上限。
+  final Map<String, dynamic>? roomMeta;
 
   /// cl06：最近一次收到远端消息的时间（HUD 显示联机「延迟/当前状态」）。
   final DateTime? lastSeenAt;
@@ -304,6 +309,7 @@ class NetSessionState {
     int? reconnectAttempt,
     String? roomCode,
     String? relayUrl,
+    Map<String, dynamic>? roomMeta,
     DateTime? lastSeenAt,
     List<OrderItem>? orderQueue,
   }) =>
@@ -323,6 +329,7 @@ class NetSessionState {
         reconnectAttempt: reconnectAttempt ?? this.reconnectAttempt,
         roomCode: roomCode ?? this.roomCode,
         relayUrl: relayUrl ?? this.relayUrl,
+        roomMeta: roomMeta ?? this.roomMeta,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
         orderQueue: orderQueue ?? this.orderQueue,
       );
@@ -401,6 +408,11 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     String name = '玩家',
     String? relayUrl,
     String? room,
+    // cl15：电台房间体系——公开/私密、模式(campus/listen)、容量、密码。
+    bool isPublic = true,
+    String mode = 'campus',
+    int capacity = 100,
+    String? password,
   }) async {
     // 兜底：若残留连接节点（如房间页被系统返回直接 pop、leave 尚未完成），
     // 先清理再继续，避免被 `_node != null` 卡死导致无法建新房 / 重进。
@@ -435,6 +447,10 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           name,
           isHostGame: true,
           allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
+          isPublic: isPublic,
+          mode: mode,
+          capacity: capacity,
+          password: password,
         );
         await _node!.ready.timeout(const Duration(seconds: 6));
         // cl79：服务器 ctl:error（如 room full）经 [NetNode.relayError] 透传。
@@ -446,6 +462,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           localId: _node!.localId,
           dj: true,
           roomCode: roomCode,
+          roomMeta: _node!.relayMeta,
         );
         _subscribe();
         _startDj();
@@ -482,6 +499,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     String name = '玩家',
     String? relayUrl,
     String? room,
+    String? password, // cl15：私密房间密码
   }) async {
     // 兜底：与 host() 同理，残留节点先清理再重进/加入。
     if (_node != null) {
@@ -517,6 +535,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           name,
           isHostGame: false,
           allowInsecure: ref.read(certPolicyProvider) == CertPolicy.lenient,
+          password: password,
         );
         await _node!.ready.timeout(const Duration(seconds: 6));
         // cl79：服务器 ctl:error（room required / room full）经 relayError 透传。
@@ -526,6 +545,7 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
           role: NetRole.client,
           status: ConnStatus.connected,
           localId: _node!.localId,
+          roomMeta: _node!.relayMeta,
         );
         _subscribe();
         _sendHello();

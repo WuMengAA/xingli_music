@@ -12,10 +12,15 @@
 ///       `relay_server.exe --port 9000`（指定端口）
 ///
 /// 协议（与客户端 NetNode.relay() 对齐）：
-///   - 首帧：{ctl:'join', room, name, host}  → 分配 peerId，回 {ctl:'ready', id}
+///   - 首帧：{ctl:'join', room, name, host, public, mode, capacity, password}
+///     → 分配 peerId，回 {ctl:'ready', id}
+///     · host=true 时为创建：携带 public(公开/私密)、mode(campus/listen)、
+///       capacity(人数上限)、password(私密房间密码) 元数据，登记房间。
+///     · host=false 时为加入：私密房间须带正确 password，公开房间可不带。
 ///   - 同房间加入/离开：广播 {ctl:'peerJoin'/'peerLeave', id}
 ///   - 普通消息（NetMessage 信封，无 ctl）：msg.to 存在则定向投递，否则按房间扇出（不回发发送者）
-///   - 错误：{ctl:'error', msg}（room required / room full / 房间不存在）
+///   - 错误：{ctl:'error', msg}（room required / room full / 房间不存在 / 密码错误）
+///   - REST：GET /api/rooms 返回公开房间列表（供大厅展示，含模式/容量/人数/房主）
 library;
 
 import 'dart:async';
@@ -85,8 +90,14 @@ class NetMessage {
       NetMessage.fromJson(jsonDecode(s) as Map<String, dynamic>);
 }
 
-/// 单房间人数上限（避免房间被刷爆）。
-const int kMaxRoomMembers = 32;
+/// 默认房间人数上限（未显式指定时兜底；创建时按模式计算）。
+const int kMaxRoomMembers = 100;
+
+/// 房间模式：校园广播（默认 100 人）/ 一起听（2-10 人）。
+class _RoomMode {
+  static const String campus = 'campus'; // 校园广播：上限 100
+  static const String listen = 'listen'; // 一起听：上限 2-10
+}
 
 /// 一个已建立连接的客户端。
 class _Client {
@@ -103,9 +114,38 @@ class _Client {
   final String name;
 }
 
+/// 房间元数据（cl15：公开/私密 + 模式 + 容量 + 密码）。
+class _RoomMeta {
+  _RoomMeta({
+    required this.code,
+    required this.name,
+    required this.mode,
+    required this.capacity,
+    required this.isPublic,
+    this.password,
+  });
+
+  final String code; // 房间号（公开房间列表展示）
+  final String name; // 房主昵称
+  final String mode; // campus / listen
+  final int capacity; // 人数上限
+  final bool isPublic; // true=公开（大厅可搜）/ false=私密（需房间号+密码）
+  final String? password; // 私密房间密码（null=无需密码）
+
+  Map<String, dynamic> toJson(int members) => <String, dynamic>{
+        'code': code,
+        'name': name,
+        'mode': mode,
+        'capacity': capacity,
+        'public': isPublic,
+        'members': members,
+      };
+}
+
 final Map<String, WebSocket> _clientsById = <String, WebSocket>{}; // peerId → ws
 final Map<String, _Client> _clientsByWs = <String, _Client>{}; // ws hash → client
 final Map<String, int> _roomCount = <String, int>{}; // room → 人数
+final Map<String, _RoomMeta> _rooms = <String, _RoomMeta>{}; // room → 元数据
 
 String _genId() => '${DateTime.now().microsecondsSinceEpoch.toRadixString(16)}-'
     '${DateTime.now().millisecondsSinceEpoch % 0xffff}';
@@ -169,22 +209,65 @@ void _handleClient(_Client client, String data) {
 void _onJoin(_Client client, Map<String, dynamic> join) {
   final String room = (join['room'] as String?)?.trim() ?? '';
   final String name = (join['name'] as String?)?.trim() ?? '';
+  final bool isHost = join['host'] == true;
 
   if (room.isEmpty) {
     _error(client, 'room required');
     return;
   }
 
-  final int count = _roomCount[room] ?? 0;
-  if (count >= kMaxRoomMembers) {
-    _error(client, 'room full');
-    return;
+  // ── 创建房间（host=true）：登记元数据 ──────────────────────────────
+  if (isHost) {
+    // 已有活跃房间（同号）：拒绝，提示换房号。
+    if (_rooms.containsKey(room) && (_roomCount[room] ?? 0) > 0) {
+      _error(client, 'room exists');
+      return;
+    }
+    final String mode = (join['mode'] as String?) ?? _RoomMode.campus;
+    final bool isPublic = join['public'] == true;
+    // 容量：一起听 2-10，校园广播默认 100，其余兜底 100。
+    final int capacity = switch (mode) {
+      _RoomMode.listen => ((join['capacity'] as num?) ?? 10)
+          .toInt()
+          .clamp(2, 10),
+      _ => ((join['capacity'] as num?) ?? 100).toInt().clamp(1, 100),
+    };
+    final String? password = join['password'] as String?;
+    _rooms[room] = _RoomMeta(
+      code: room,
+      name: name.isEmpty ? '房主' : name,
+      mode: mode,
+      capacity: capacity,
+      isPublic: isPublic,
+      password: (password == null || password.isEmpty) ? null : password,
+    );
+    _roomCount[room] = 0;
+  } else {
+    // ── 加入房间（host=false）：校验存在 + 私密密码 + 容量 ─────────────
+    final _RoomMeta? meta = _rooms[room];
+    if (meta == null) {
+      _error(client, 'room not found');
+      return;
+    }
+    // 私密房间：须带正确密码（无密码私密房可直接进）。
+    if (!meta.isPublic && meta.password != null) {
+      final String pw = (join['password'] as String?) ?? '';
+      if (pw != meta.password) {
+        _error(client, 'wrong password');
+        return;
+      }
+    }
+    final int count = _roomCount[room] ?? 0;
+    if (count >= meta.capacity) {
+      _error(client, 'room full');
+      return;
+    }
   }
 
   // 分配 id，绑定房间
   final String id = _genId();
   _clientsById[id] = client.ws;
-  _roomCount[room] = count + 1;
+  _roomCount[room] = (_roomCount[room] ?? 0) + 1;
   // 用最新对象重写（保留 room/name）
   final _Client bound = _Client(
     ws: client.ws,
@@ -194,8 +277,13 @@ void _onJoin(_Client client, Map<String, dynamic> join) {
   );
   _clientsByWs[client.ws.hashCode.toString()] = bound;
 
-  // 回 ready
-  _sendRaw(client.ws, <String, dynamic>{'ctl': 'ready', 'id': id});
+  // 回 ready（创建者带房间元数据，供客户端展示人数上限/模式）
+  final _RoomMeta? meta = _rooms[room];
+  _sendRaw(client.ws, <String, dynamic>{
+    'ctl': 'ready',
+    'id': id,
+    if (meta != null) 'meta': meta.toJson(_roomCount[room] ?? 1),
+  });
 
   // 广播 peerJoin 给同房间其它成员（不含新成员自身）
   _broadcastToRoom(room, <String, dynamic>{'ctl': 'peerJoin', 'id': id});
@@ -212,6 +300,7 @@ void _removeClient(_Client client) {
   if (count != null) {
     if (count <= 1) {
       _roomCount.remove(client.room);
+      _rooms.remove(client.room); // cl15：房间清空即下线（含元数据）
     } else {
       _roomCount[client.room] = count - 1;
     }
@@ -386,7 +475,7 @@ Future<Map<String, dynamic>> _capabilities() async {
     'ok': true,
     'server': <String, dynamic>{
       'service': 'xingli-relay',
-      'version': 'cl14',
+      'version': 'cl15',
       'mode': 'official',
       'tls': _tlsEnabled,
       'ts': DateTime.now().toIso8601String(),
@@ -457,7 +546,7 @@ Future<void> _handleApi(HttpRequest req) async {
       payload = <String, dynamic>{
         'ok': true,
         'service': 'xingli-relay',
-        'version': 'cl14',
+        'version': 'cl15',
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };
@@ -480,6 +569,22 @@ Future<void> _handleApi(HttpRequest req) async {
     case '/api/content/random':
       payload = await _randomContent();
       if (payload == null) status = 404;
+      break;
+    case '/api/rooms':
+      // cl15：公开房间列表（供电台大厅「加入」页展示，含模式/容量/人数/房主）。
+      if (method != 'GET') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = <String, dynamic>{
+        'ok': true,
+        'rooms': <dynamic>[
+          for (final MapEntry<String, _RoomMeta> e in _rooms.entries)
+            if (e.value.isPublic && (_roomCount[e.key] ?? 0) > 0)
+              e.value.toJson(_roomCount[e.key] ?? 0),
+        ],
+      };
       break;
     case '/api/auth/register':
       if (method != 'POST') {

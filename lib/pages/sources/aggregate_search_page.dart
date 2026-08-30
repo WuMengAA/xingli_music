@@ -23,6 +23,7 @@ import '../../providers/search/search_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../../widgets/sources/bilibili_login_sheet.dart';
 import '../../widgets/notification/app_notify.dart';
@@ -139,12 +140,14 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
 
   Future<void> _openNeteaseLogin() async {
     if (!await _ensureDisclaimer()) return;
+    if (!mounted) return;
     final bool? ok = await showNeteaseLoginSheet(context);
     if (ok == true && mounted) appNotify(context, '已登录网易云');
   }
 
   Future<void> _openBilibiliLogin() async {
     if (!await _ensureDisclaimer()) return;
+    if (!mounted) return;
     final bool? ok = await showBilibiliLoginSheet(context);
     if (ok == true && mounted) appNotify(context, '已登录哔哩哔哩');
   }
@@ -254,8 +257,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
             TextButton(
               onPressed: () =>
                   ref.read(searchHistoryProvider.notifier).clear(),
-              child: Text('清空', style: context.appText.artist
-                  ?.copyWith(color: context.appColors.iconInactive)),
+              child: Text('清空', style: context.appText.artist.copyWith(color: context.appColors.iconInactive)),
             ),
           ],
         ),
@@ -596,8 +598,7 @@ class _TrackTile extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             _fmt(track.duration!),
-                            style: context.appText.artist
-                                ?.copyWith(color: context.appColors.iconInactive),
+                            style: context.appText.artist.copyWith(color: context.appColors.iconInactive),
                           ),
                         ],
                       ],
@@ -615,8 +616,7 @@ class _TrackTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(tag!,
-                      style: context.appText.artist
-                          ?.copyWith(color: context.appColors.accent)),
+                      style: context.appText.artist.copyWith(color: context.appColors.accent)),
                 ),
               ],
               // T7：B站结果行音质提示（未登录=标清 / 登录=高清）。
@@ -632,12 +632,14 @@ class _TrackTile extends StatelessWidget {
                   ),
                   child: Text(
                     track.extras!['qualityHint']! as String,
-                    style: context.appText.artist
-                        ?.copyWith(color: context.appColors.textSecondary),
+                    style: context.appText.artist.copyWith(color: context.appColors.textSecondary),
                   ),
                 ),
               ],
-              const SizedBox(width: AppSpace.sm),
+              // cl15：投稿 / 收藏（聚合搜索处即点即投）。
+              const SizedBox(width: AppSpace.xs),
+              TrackActionButtons(track: track),
+              const SizedBox(width: AppSpace.xs),
               Icon(Icons.play_circle_outline_rounded,
                   size: AppSize.icon, color: context.appColors.accent),
             ],

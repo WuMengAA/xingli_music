@@ -75,8 +75,23 @@ void main() {
       );
     });
 
-    test('未识别错误 / null → null（沿用原文案）', () {
-      expect(mapRelayErrorText('server exploded'), isNull);
+    test('room exists → 房间号被占用', () {
+      expect(mapRelayErrorText('room exists'), '房间号已被占用，请换一个房间号');
+    });
+
+    test('wrong password → 密码错误', () {
+      expect(mapRelayErrorText('wrong password'), '密码错误，请确认后重试');
+    });
+
+    test('room not found → 房间不存在', () {
+      expect(mapRelayErrorText('room not found'), '房间不存在或已结束，请确认房间号');
+    });
+
+    test('未识别错误 → 中文兜底（不再透传英文原文）', () {
+      expect(mapRelayErrorText('server exploded'), contains('连接中转服务器出错'));
+    });
+
+    test('null → null（无错误）', () {
       expect(mapRelayErrorText(null), isNull);
     });
   });

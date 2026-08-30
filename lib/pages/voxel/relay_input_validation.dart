@@ -30,5 +30,8 @@ String? mapRelayErrorText(String? raw) {
   if (raw == null) return null;
   if (raw.contains('room full')) return '房间已满，请稍后再试或换一间';
   if (raw.contains('room required')) return '房间号无效，请确认房主提供的 6 位房间号';
+  if (raw.contains('room exists')) return '房间号已被占用，请换一个房间号';
+  if (raw.contains('wrong password')) return '密码错误，请确认后重试';
+  if (raw.contains('room not found')) return '房间不存在或已结束，请确认房间号';
   return '连接中转服务器出错，请检查房间号与地址后重试';
 }
