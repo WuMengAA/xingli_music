@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/track_stats.dart';
 import '../../providers/auth/user_provider.dart';
 import '../../providers/content/content_providers.dart';
 import '../../providers/security/cert_policy_provider.dart';
+import '../../providers/stats/track_stats_providers.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/security/http_client_factory.dart';
 
@@ -21,7 +23,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final TextEditingController _u = TextEditingController();
   final TextEditingController _p = TextEditingController();
   bool _loading = false;
+  bool _syncing = false;
   String? _error;
+  String? _syncMsg;
 
   Future<void> _submit(bool register) async {
     final String username = _u.text.trim();
@@ -55,6 +59,49 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     }
   }
 
+  /// 把本地收藏上传到 relay（登录用户），返回是否成功。
+  Future<void> _syncToCloud() async {
+    final AuthState a = ref.read(authProvider);
+    final String? token = a.token;
+    final String? username = a.user?.username;
+    if (token == null || username == null) return;
+    setState(() {
+      _syncing = true;
+      _syncMsg = null;
+    });
+    try {
+      final List<FavoriteEntry> favs =
+          await ref.read(favoritesProvider.future);
+      final List<dynamic> payload = favs
+          .map((FavoriteEntry e) => <String, dynamic>{
+                'title': e.title,
+                'artist': e.artist,
+                'sourceId': e.sourceId,
+                'trackKey': e.trackKey,
+              })
+          .toList(growable: false);
+      final String base = ref.read(contentBaseUrlProvider);
+      final bool lenient = ref.watch(certPolicyProvider) == CertPolicy.lenient;
+      final client = makeHttpClient(lenient: lenient);
+      final AuthResult res =
+          await updateUserFavorites(base, token, payload, client: client);
+      client.close();
+      if (!mounted) return;
+      setState(() => _syncing = false);
+      if (res.ok) {
+        _syncMsg = '已同步 ${payload.length} 条收藏到云端';
+      } else {
+        _syncMsg = res.error ?? '同步失败';
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _syncing = false;
+        _syncMsg = '同步失败';
+      });
+    }
+  }
+
   @override
   void dispose() {
     _u.dispose();
@@ -83,6 +130,25 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               title: const Text('当前账号'),
               subtitle: Text(auth.user?.username ?? ''),
             ),
+            if (_syncing)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else ...[
+              FilledButton.tonalIcon(
+                onPressed: _syncToCloud,
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: const Text('同步收藏到云端'),
+              ),
+              if (_syncMsg != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(_syncMsg!,
+                      style: TextStyle(
+                          fontSize: 12, color: theme.colorScheme.outline)),
+                ),
+            ],
             FilledButton(
               onPressed: () => ref.read(authProvider.notifier).logout(),
               child: const Text('退出登录'),

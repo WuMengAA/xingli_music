@@ -386,7 +386,7 @@ Future<Map<String, dynamic>> _capabilities() async {
     'ok': true,
     'server': <String, dynamic>{
       'service': 'xingli-relay',
-      'version': 'cl12',
+      'version': 'cl14',
       'mode': 'official',
       'tls': _tlsEnabled,
       'ts': DateTime.now().toIso8601String(),
@@ -419,64 +419,138 @@ final Random _random = Random();
 Future<void> _handleApi(HttpRequest req) async {
   final String path = req.uri.path;
   final String method = req.method;
-  Map<String, dynamic>? payload;
-  int status = 200;
+  // cl13：CORS 预检——后台前端已分离部署（独立静态站点），跨域调用先应答 OPTIONS。
+  if (method == 'OPTIONS') {
+    try {
+      req.response
+        ..statusCode = 204
+        ..headers.set('Access-Control-Allow-Origin', '*')
+        ..headers.set('Access-Control-Allow-Methods',
+            'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+        ..headers.set(
+            'Access-Control-Allow-Headers', 'Authorization, Content-Type')
+        ..headers.set('Access-Control-Max-Age', '86400');
+      await req.response.close();
+    } catch (_) {}
+    return;
+  }
+  // cl14：基础防护——登录/注册限流防爆破、admin 限流防滥用（按 IP 滑动窗口）。
+  final String ip = _clientIp(req);
+  if ((path == '/api/auth/login' || path == '/api/auth/register') &&
+      !_rateLimit('$ip|auth', _kAuthRateMax, _kAuthRateWindowSec)) {
+    await _jsonError(req, '请求过于频繁，请稍后再试', status: 429);
+    return;
+  }
+  if ((path == '/api/admin' || path.startsWith('/api/admin/')) &&
+      !_rateLimit('$ip|admin', _kAdminRateMax, _kAdminRateWindowSec)) {
+    await _jsonError(req, '请求过于频繁，请稍后再试', status: 429);
+    return;
+  }
   if (path == '/api/admin' || path.startsWith('/api/admin/')) {
     await _handleAdmin(req);
     return;
   }
+  Map<String, dynamic>? payload;
+  int status = 200;
   switch (path) {
     case '/api/health':
       payload = <String, dynamic>{
         'ok': true,
         'service': 'xingli-relay',
-        'version': 'cl12',
+        'version': 'cl14',
         'tls': _tlsEnabled,
         'ts': DateTime.now().toIso8601String(),
       };
+      break;
     case '/api/capabilities':
       payload = await _capabilities();
+      break;
     case '/api/content/scenes':
       payload = await _loadContent('scenes');
       if (payload == null) status = 404;
+      break;
     case '/api/content/playlists':
       payload = await _loadContent('playlists');
       if (payload == null) status = 404;
+      break;
     case '/api/content/notices':
       payload = await _loadContent('notices');
       if (payload == null) status = 404;
+      break;
     case '/api/content/random':
       payload = await _randomContent();
       if (payload == null) status = 404;
+      break;
     case '/api/auth/register':
       if (method != 'POST') {
         status = 405;
-        payload = <String, dynamic>{'error': 'method not allowed'};
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
         break;
       }
       payload = await _authRegister(req);
       if (payload['ok'] != true) status = 400;
+      break;
     case '/api/auth/login':
       if (method != 'POST') {
         status = 405;
-        payload = <String, dynamic>{'error': 'method not allowed'};
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
         break;
       }
       payload = await _authLogin(req);
       if (payload['ok'] != true) status = 401;
+      break;
     case '/api/auth/me':
       payload = await _authMe(req);
       if (payload['ok'] != true) status = 401;
+      break;
     case '/api/auth/logout':
       payload = await _authLogout(req);
+      break;
+    case '/api/auth/prefs':
+      if (method != 'PUT') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authUpdatePrefs(req);
+      if (payload['ok'] != true) status = 400;
+      break;
+    case '/api/auth/favorites':
+      if (method != 'PUT') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authUpdateFavorites(req);
+      if (payload['ok'] != true) status = 400;
+      break;
+    case '/api/auth/profile':
+      if (method != 'PUT' && method != 'PATCH') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authUpdateProfile(req);
+      if (payload['ok'] != true) status = 400;
+      break;
+    case '/api/logs':
+      if (method != 'POST') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _handleAppLogs(req);
+      if (payload['ok'] != true) status = 400;
+      break;
     default:
       status = 404;
-      payload = <String, dynamic>{'error': 'not found'};
+      payload = <String, dynamic>{'ok': false, 'error': 'not found'};
   }
   try {
     req.response
       ..statusCode = status
       ..headers.contentType = ContentType.json
+      ..headers.set('Access-Control-Allow-Origin', '*')
       ..write(jsonEncode(payload));
     await req.response.close();
   } catch (_) {}
@@ -692,6 +766,210 @@ Future<Map<String, dynamic>> _authLogout(HttpRequest req) async {
   return <String, dynamic>{'ok': true};
 }
 
+// ═══ cl14：用户档案读写（偏好 / 收藏跨设备同步）════════════════════
+
+/// 校验请求的 Bearer token 并返回对应用户记录；未登录/失效返回 null。
+Future<Map<String, dynamic>?> _authedUserRecord(HttpRequest req) async {
+  final String? token = _bearer(req);
+  if (token == null) return null;
+  final Map<String, dynamic>? payload = _verifyToken(token);
+  if (payload == null) return null;
+  final File f = File('$_kUsersDir/${payload['uid']}.json');
+  if (!await f.exists()) return null;
+  try {
+    return jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 原子写回用户记录（复用 .tmp + rename，避免半写损坏）。
+Future<bool> _writeUserRecord(Map<String, dynamic> rec) async {
+  final String username = rec['username'] as String? ?? '';
+  if (username.isEmpty) return false;
+  try {
+    final File f = File('$_kUsersDir/$username.json');
+    final File tmp = File('${f.path}.tmp');
+    await tmp.writeAsString(jsonEncode(rec));
+    await tmp.rename(f.path);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// 更新偏好：`PUT /api/auth/prefs`，body 为 `{prefs: {...}}` 或直接 `{...}`。
+Future<Map<String, dynamic>> _authUpdatePrefs(HttpRequest req) async {
+  final Map<String, dynamic>? rec = await _authedUserRecord(req);
+  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  final Object? prefs = body['prefs'] ?? body;
+  if (prefs is! Map<String, dynamic>) {
+    return <String, dynamic>{'error': 'prefs must be object'};
+  }
+  rec['prefs'] = prefs;
+  if (!await _writeUserRecord(rec)) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+  return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
+}
+
+/// 更新收藏：`PUT /api/auth/favorites`，body 为 `{favorites: [...]}` 或直接 `[...]`。
+Future<Map<String, dynamic>> _authUpdateFavorites(HttpRequest req) async {
+  final Map<String, dynamic>? rec = await _authedUserRecord(req);
+  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  final Object? favs = body['favorites'] ?? body;
+  if (favs is! List) return <String, dynamic>{'error': 'favorites must be array'};
+  rec['favorites'] = favs;
+  if (!await _writeUserRecord(rec)) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+  return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
+}
+
+/// 部分更新档案：`PUT/PATCH /api/auth/profile`，body 可含 `prefs` 和/或 `favorites`。
+Future<Map<String, dynamic>> _authUpdateProfile(HttpRequest req) async {
+  final Map<String, dynamic>? rec = await _authedUserRecord(req);
+  if (rec == null) return <String, dynamic>{'error': 'unauthorized'};
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'error': 'invalid body'};
+  if (body.containsKey('prefs')) {
+    final Object? prefs = body['prefs'];
+    if (prefs is! Map<String, dynamic>) {
+      return <String, dynamic>{'error': 'prefs must be object'};
+    }
+    rec['prefs'] = prefs;
+  }
+  if (body.containsKey('favorites')) {
+    final Object? favs = body['favorites'];
+    if (favs is! List) {
+      return <String, dynamic>{'error': 'favorites must be array'};
+    }
+    rec['favorites'] = favs;
+  }
+  if (!await _writeUserRecord(rec)) {
+    return <String, dynamic>{'error': 'server error'};
+  }
+  return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
+}
+
+// ═══ cl14：App 日志接收（/api/logs，JSONL 落盘）════════════════════
+
+/// App 日志目录（按日 JSONL：logs/<YYYY-MM-DD>.log）。
+const String _kAppLogsDir = 'logs';
+
+/// 单请求体上限（防刷爆）。
+const int _kAppLogMaxBody = 256 * 1024;
+
+/// 单次最大条数。
+const int _kAppLogMaxEntries = 500;
+
+/// 单日文件上限（超出丢弃新日志）。
+const int _kAppLogMaxFileBytes = 64 * 1024 * 1024;
+
+/// 接收 App 批量日志：`POST /api/logs`，body 为 JSON 数组
+/// `[{ts, level, tag, msg}, ...]`（与 log_server 的 /api/logs 协议一致）。
+Future<Map<String, dynamic>> _handleAppLogs(HttpRequest req) async {
+  final Object? v = await _readJsonAny(req);
+  if (v is! List) return <String, dynamic>{'error': 'expected array'};
+  if (v.isEmpty) return <String, dynamic>{'error': 'empty batch'};
+  final List<dynamic> slice =
+      v.take(_kAppLogMaxEntries).toList(growable: false);
+  // 规整字段，忽略坏行。
+  final List<Map<String, dynamic>> rows = <Map<String, dynamic>>[];
+  for (final dynamic e in slice) {
+    if (e is! Map<String, dynamic>) continue;
+    rows.add(<String, dynamic>{
+      'ts': e['ts'] is String ? e['ts'] as String : '',
+      'level': e['level'] is String ? e['level'] as String : 'INFO',
+      'tag': e['tag'] is String ? e['tag'] as String : '',
+      'msg': e['msg'] is String ? e['msg'] as String : jsonEncode(e),
+    });
+  }
+  if (rows.isEmpty) return <String, dynamic>{'error': 'no valid entries'};
+  final int written = await _appendAppLogs(rows);
+  return <String, dynamic>{'ok': true, 'received': rows.length, 'written': written};
+}
+
+/// 读取任意 JSON（数组/对象都接受），失败返回 null。
+Future<Object?> _readJsonAny(HttpRequest req) async {
+  try {
+    final String body = await utf8.decoder.bind(req).join();
+    if (body.isEmpty || body.length > _kAppLogMaxBody) return null;
+    return jsonDecode(body);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// 追加日志到当日 JSONL（超单日上限丢弃并返回 0）。
+Future<int> _appendAppLogs(List<Map<String, dynamic>> rows) async {
+  try {
+    final Directory dir = Directory(_kAppLogsDir);
+    await dir.create(recursive: true);
+    final String stamp = DateTime.now().toIso8601String().split('T').first;
+    final File f = File('$_kAppLogsDir/$stamp.log');
+    if (await f.exists()) {
+      final int size = await f.length();
+      if (size > _kAppLogMaxFileBytes) return 0;
+    }
+    final String lines =
+        rows.map((Map<String, dynamic> r) => jsonEncode(r)).join('\n') + '\n';
+    await f.writeAsString(lines, mode: FileMode.append);
+    return rows.length;
+  } catch (_) {
+    return 0;
+  }
+}
+
+/// 读最近 [n] 条 App 日志（倒序，跨当日文件）。
+Future<List<dynamic>> _readRecentAppLogs(int n) async {
+  final List<dynamic> out = <dynamic>[];
+  try {
+    final Directory dir = Directory(_kAppLogsDir);
+    if (!await dir.exists()) return out;
+    final List<FileSystemEntity> files = await dir.list().toList();
+    files.sort((a, b) => b.path.compareTo(a.path)); // 新文件在前
+    for (final FileSystemEntity e in files) {
+      if (e is! File || !e.path.endsWith('.log')) continue;
+      final List<String> lines = await e.readAsLines();
+      for (int i = lines.length - 1; i >= 0 && out.length < n; i--) {
+        final Object? v = jsonDecode(lines[i]);
+        if (v is Map<String, dynamic>) out.add(v);
+      }
+      if (out.length >= n) break;
+    }
+  } catch (_) {}
+  return out;
+}
+
+/// 统计注册用户数（users/ 下 *.json 数量）。
+Future<int> _countUsers() async {
+  try {
+    final Directory dir = Directory(_kUsersDir);
+    if (!await dir.exists()) return 0;
+    final List<FileSystemEntity> files = await dir.list().toList();
+    return files.where((e) => e is File && e.path.endsWith('.json')).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
+/// 统计 App 日志文件数（logs/ 下 *.log 数量）。
+Future<int> _countAppLogFiles() async {
+  try {
+    final Directory dir = Directory(_kAppLogsDir);
+    if (!await dir.exists()) return 0;
+    final List<FileSystemEntity> files = await dir.list().toList();
+    return files.where((e) => e is File && e.path.endsWith('.log')).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
 Future<void> _listen(int port, {String? certPath, String? keyPath}) async {
   final HttpServer server;
   if (certPath != null && keyPath != null) {
@@ -713,10 +991,8 @@ Future<void> _listen(int port, {String? certPath, String? keyPath}) async {
       await _handleApi(req);
       return;
     }
-    if (req.uri.path == '/admin' || req.uri.path.startsWith('/admin/')) {
-      await _serveAdmin(req);
-      return;
-    }
+    // cl13：后台前端已拆分为独立静态站点（admin_web/），relay 只提供 /api/* REST，
+    // 不再吐页面；非 API 路径（除 /ws）一律关闭连接。
     if (req.uri.path != '/ws' && req.uri.path != '/') {
       try {
         await req.response.close();
@@ -798,9 +1074,45 @@ Future<void> _json(HttpRequest req, Map<String, dynamic> data,
     req.response
       ..statusCode = status
       ..headers.contentType = ContentType.json
+      // cl13：分离部署后前端跨域调用，放行 CORS（鉴权仍由 Authorization 头把关）。
+      ..headers.set('Access-Control-Allow-Origin', '*')
       ..write(jsonEncode(data));
     await req.response.close();
   } catch (_) {}
+}
+
+/// 统一错误响应（cl14：与成功结构对齐，均带 `ok` 字段）。
+Future<void> _jsonError(HttpRequest req, String message,
+    {int status = 400}) async {
+  await _json(req, <String, dynamic>{'ok': false, 'error': message},
+      status: status);
+}
+
+// ═══ cl14：基础防护——按 IP 的滑动窗口限流 ═════════════════════════
+
+/// 登录/注册限流：每 IP 每窗口最多 [kAuthRateMax] 次（防爆破）。
+const int _kAuthRateMax = 20;
+const int _kAuthRateWindowSec = 60;
+
+/// admin 限流：每 IP 每窗口最多 [kAdminRateMax] 次（防滥用）。
+const int _kAdminRateMax = 120;
+const int _kAdminRateWindowSec = 60;
+
+final Map<String, List<int>> _rateBuckets = <String, List<int>>{};
+
+/// 滑动窗口限流：窗口 [windowSec] 内超过 [max] 次返回 false（应拒绝）。
+///
+/// 桶按 key（通常 `ip|用途`）累计时间戳，并定期裁剪过期项防内存膨胀。
+bool _rateLimit(String key, int max, int windowSec) {
+  final int now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  final List<int> bucket = _rateBuckets.putIfAbsent(key, () => <int>[]);
+  bucket.removeWhere((int t) => now - t > windowSec);
+  if (bucket.length >= max) return false;
+  bucket.add(now);
+  if (bucket.length > 256) {
+    bucket.removeRange(0, bucket.length - 128);
+  }
+  return true;
 }
 
 /// admin REST：/api/admin/content/<type>[/<id>]，方法 GET/POST/PUT/DELETE。
@@ -813,7 +1125,8 @@ Future<void> _handleAdmin(HttpRequest req) async {
   if (path == '/api/admin') {
     await _json(req, <String, dynamic>{
       'ok': true,
-      'ui': '/admin',
+      // cl13：后台前端已拆为独立静态站点 admin_web/，relay 不再提供 /admin 页面。
+      'ui': 'admin_web/ (独立前端，任意静态托管)',
       'authed': authed,
       'types': _kAdminTypes,
     });
@@ -836,6 +1149,99 @@ Future<void> _handleAdmin(HttpRequest req) async {
       }
     } catch (_) {}
     await _json(req, <String, dynamic>{'logs': logs});
+    return;
+  }
+  if (path == '/api/admin/logs/app') {
+    // cl14：查看 App 上报的日志（最近 200 条，跨当日文件）。
+    await _json(req, <String, dynamic>{'logs': await _readRecentAppLogs(200)});
+    return;
+  }
+  if (path == '/api/admin/stats') {
+    // cl14：服务统计（用户数 / 内容数 / 日志行数），供后台概览。
+    final Map<String, dynamic> content = <String, dynamic>{};
+    for (final String t in _kAdminTypes) {
+      final Map<String, dynamic>? data = await _loadContent(t);
+      content[t] = (data?[t] as List?)?.length ?? 0;
+    }
+    await _json(req, <String, dynamic>{
+      'ok': true,
+      'users': await _countUsers(),
+      'content': content,
+      'appLogFiles': await _countAppLogFiles(),
+      'ts': DateTime.now().toIso8601String(),
+    });
+    return;
+  }
+  if (path == '/api/admin/users') {
+    // cl14：用户列表（公开档案 + 文件信息，不含凭据）。
+    final List<dynamic> users = <dynamic>[];
+    try {
+      final Directory dir = Directory(_kUsersDir);
+      if (await dir.exists()) {
+        final List<FileSystemEntity> files = await dir.list().toList();
+        files.sort((a, b) => a.path.compareTo(b.path));
+        for (final FileSystemEntity e in files) {
+          if (e is! File || !e.path.endsWith('.json')) continue;
+          try {
+            final Map<String, dynamic> rec =
+                jsonDecode(await e.readAsString()) as Map<String, dynamic>;
+            final Map<String, dynamic> u = _publicUser(rec);
+            u['fileSize'] = await e.length();
+            u['prefsCount'] = (rec['prefs'] as Map?)?.length ?? 0;
+            u['favoritesCount'] = (rec['favorites'] as List?)?.length ?? 0;
+            users.add(u);
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+    await _json(req, <String, dynamic>{'users': users, 'count': users.length});
+    return;
+  }
+
+  // 用户管理：DELETE 删除用户 / POST reset 重置密码。
+  final RegExpMatch? userOp =
+      RegExp(r'^/api/admin/users/([A-Za-z0-9_\-]+)$').firstMatch(path);
+  if (userOp != null) {
+    final String username = userOp.group(1)!;
+    final File f = File('$_kUsersDir/$username.json');
+    if (!await f.exists()) {
+      await _jsonError(req, '用户不存在', status: 404);
+      return;
+    }
+    if (method == 'DELETE') {
+      try {
+        await f.delete();
+      } catch (_) {
+        await _jsonError(req, '删除失败', status: 500);
+        return;
+      }
+      await _logAdmin('deleteUser', 'users', username, _clientIp(req));
+      await _json(req, <String, dynamic>{'ok': true, 'removed': username});
+      return;
+    }
+    if (method == 'POST') {
+      // 重置密码：body {password} → 重新生成 salt + verifier。
+      final Map<String, dynamic>? body = await _readJsonBody(req);
+      final String password = (body?['password'] as String? ?? '').trim();
+      if (password.length < 6) {
+        await _jsonError(req, '新密码至少 6 位', status: 400);
+        return;
+      }
+      try {
+        final Map<String, dynamic> rec =
+            jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+        rec['salt'] = base64Encode(_randomBytes(16));
+        rec['verifier'] = _pbkdf2(password, rec['salt'] as String);
+        await _writeUserRecord(rec);
+      } catch (_) {
+        await _jsonError(req, '重置失败', status: 500);
+        return;
+      }
+      await _logAdmin('resetPassword', 'users', username, _clientIp(req));
+      await _json(req, <String, dynamic>{'ok': true, 'reset': username});
+      return;
+    }
+    await _jsonError(req, 'method not allowed', status: 405);
     return;
   }
 
@@ -915,26 +1321,6 @@ Future<void> _handleAdmin(HttpRequest req) async {
   }
   await _json(req, <String, dynamic>{'error': 'method not allowed'},
       status: 405);
-}
-
-/// serve 后台管理单页（admin/index.html，随 exe 同目录）。
-Future<void> _serveAdmin(HttpRequest req) async {
-  final File f = File('admin/index.html');
-  if (!await f.exists()) {
-    try {
-      req.response.statusCode = 404;
-      await req.response.close();
-    } catch (_) {}
-    return;
-  }
-  try {
-    final String html = await f.readAsString();
-    req.response
-      ..statusCode = 200
-      ..headers.contentType = ContentType.parse('text/html; charset=utf-8')
-      ..write(html);
-      await req.response.close();
-    } catch (_) {}
 }
 
 /// 审计日志（JSONL，追加写）：记录后台写操作，供运营追溯。

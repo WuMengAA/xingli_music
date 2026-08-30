@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../providers/content/content_providers.dart';
 import '../../providers/settings/log_upload_providers.dart';
 import '../../services/log_discovery.dart';
 import '../../services/remote_log_uploader.dart';
@@ -107,6 +108,14 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
     setState(() => _status = n > 0 ? '已上报 $n 条' : '当前无待上报日志');
   }
 
+  /// 使用官方 relay 作为日志端点（relay 已支持 /api/logs 接收）。
+  void _useOfficialRelay() {
+    final String base = kDefaultContentBaseUrl;
+    _urlCtrl.text = base;
+    ref.read(logUploadEndpointProvider.notifier).state = base;
+    setState(() => _status = '已填入官方 relay 地址：$base（点「启用上报」即开始）');
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool enabled = ref.watch(logUploadEnabledProvider);
@@ -144,8 +153,8 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
               ),
               const SizedBox(height: AppSpace.sm),
               Text(
-                '把本机已脱敏的日志批量发到你自建的日志服务（配套 tools/log_server）。'
-                '默认关闭；手机与电脑在同一 Wi-Fi 时点「自动搜索」免填地址。',
+                '把本机已脱敏的日志批量上报到日志服务（官方 relay 已支持 /api/logs，'
+                '也可自建 tools/log_server）。默认关闭；点「官方 relay」直接填官方地址。',
                 style: context.appText.artist,
               ),
               const SizedBox(height: AppSpace.md),
@@ -179,8 +188,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                   labelText: '服务器地址',
                   hintText: 'http://logs.example.com',
                   hintStyle: context.appText.artist,
-                  helperText: '不带 /api/logs 后缀',
-                  helperStyle: context.appText.caption,
+                  helperText: '不带 /api/logs 后缀',                  helperStyle: context.appText.caption,
                   filled: true,
                   fillColor: context.appColors.bgCard,
                   border: OutlineInputBorder(
@@ -201,6 +209,11 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                 spacing: AppSpace.sm,
                 runSpacing: AppSpace.xs,
                 children: <Widget>[
+                  OutlinedButton.icon(
+                    onPressed: _useOfficialRelay,
+                    icon: const Icon(Icons.cloud_outlined, size: 18),
+                    label: const Text('官方 relay'),
+                  ),
                   OutlinedButton.icon(
                     onPressed: _discover,
                     icon: const Icon(Icons.wifi_find_rounded, size: 18),
