@@ -10,6 +10,7 @@ import '../../../models/track.dart';
 import '../../../providers/audio/audio_providers.dart';
 import '../../../providers/audio/playback_notifier.dart';
 import '../../../providers/scene/scene_providers.dart';
+import '../../../providers/settings/oobe_choice_providers.dart';
 import '../../../services/content/local_semantic_random.dart';
 import '../../../widgets/common/info_row.dart';
 import '../../../widgets/common/page_scaffold.dart';
@@ -73,8 +74,14 @@ class _LocalSemanticRandomPageState
               Expanded(
                 child: library.when(
                   data: (List<Track> all) {
+                    // cl17：OOBE 所选流派（≤3）并入语义词库——风格选择落地，
+                    // 偏好流派命中曲目优先前排，未选流派时行为不变。
+                    final List<String> genreWords =
+                        ref.watch(genrePrefsProvider).toList(growable: false);
                     final List<Track> ranked = const LocalSemanticRandom()
-                        .recommend(all, scene, seed: Random(_seed));
+                        .recommend(all, scene,
+                            seed: Random(_seed),
+                            extraKeywords: genreWords);
                     if (ranked.isEmpty) {
                       return const EmptyView(
                         title: '曲库为空',

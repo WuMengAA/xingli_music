@@ -39,15 +39,21 @@ class LocalSemanticRandom {
   /// 从 [all] 中按场景 [scene] 语义推荐 [count] 首。
   ///
   /// [seed] 可注入固定随机源（测试用）；缺省用真随机，每次结果不同。
+  /// [extraKeywords] 为附加加权词（如 OOBE 所选流派词），并入词库一起打分——
+  /// 让「风格选择」真正影响推荐结果（cl17 联动）。
   List<Track> recommend(
     List<Track> all,
     Scene scene, {
     int count = 30,
     Random? seed,
+    List<String> extraKeywords = const <String>[],
   }) {
     if (all.isEmpty) return const <Track>[];
     final Random rng = seed ?? Random();
-    final List<String> keywords = _keywordsFor(scene);
+    final List<String> keywords = <String>[
+      ..._keywordsFor(scene),
+      ...extraKeywords,
+    ];
 
     // ▢ 1. 逐曲打原始语义分（标题命中 ×2、歌手/专辑 ×1）。
     final List<(Track, int)> scored = all

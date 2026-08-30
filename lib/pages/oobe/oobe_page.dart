@@ -1,16 +1,18 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// OOBE · 6 页极简引导（cl05 · Win11 OOBE 分步聚焦；cl07 视觉语言统一
-/// Material，移除界面风格页）
+/// OOBE · 7 页极简引导（cl05 · Win11 OOBE 分步聚焦；cl07 视觉语言统一
+/// Material，移除界面风格页；cl17 插入账号页 + 条款远端拉取本地兜底）
 /// ════════════════════════════════════════════════════════════════════════
 ///
 /// 一页只做一件事，顶部进度点、底部固定操作栏：
 ///   0. 品牌   —— 情感开场（不索要权限，无「跳过」）
 ///   1. 权限   —— 存储访问（好处前置 + 「授权并导入」/「仅在线使用」）
-///               底部并入合同勾选（服务条款 / 隐私政策，合规保留）
-///   2. 流派   —— 选音乐流派（≤3，防选择瘫痪）
+///               底部并入合同勾选（服务条款 / 隐私政策，合规保留；
+///               cl17 起条款正文尝试从 GitHub 拉取，失败用本地最新并显示来源与时间）
+///   2. 流派   —— 选音乐流派（≤3，防选择瘫痪；cl17 起并入语义随机加权词库）
 ///   3. 世界   —— 星璃功能亮点（场景化 / 3D 世界 / 一起听 / 开放音源）
 ///   4. 体验   —— 无损音质 / 后台播放 / 白噪音 开关
-///   5. 加载   —— 沉浸式扫描（旋转唱片 + 动态文案 + 进度条），完成自动进入
+///   5. 账号   —— 登录 / 注册（可选，游客可跳过；复用后端 /api/auth/*）
+///   6. 加载   —— 沉浸式扫描（旋转唱片 + 动态文案 + 进度条），完成自动进入
 ///
 /// 文案随机：每页标题 / 描述均有多款变体，启动时随机抽一套
 /// （「有秩序的随机感」——每次打开 OOBE 不重样）。
@@ -27,13 +29,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../providers/auth/user_provider.dart';
+import '../../providers/content/content_providers.dart';
+import '../../providers/security/cert_policy_provider.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../widgets/common/aurora_background.dart';
 import '../../providers/settings/notification_providers.dart';
 import '../../providers/settings/oobe_choice_providers.dart';
 import '../../providers/settings/performance_providers.dart';
+import '../../services/auth/auth_service.dart';
+import '../../services/content/terms_service.dart';
 import '../../services/open_url.dart';
 import '../../services/permission_service.dart';
+import '../../services/security/http_client_factory.dart';
 
 /// ═══════════ cl05 文案池（每页多款，随机出现）═══════════
 
@@ -110,12 +118,22 @@ class OobePage extends ConsumerStatefulWidget {
 }
 
 class _OobePageState extends ConsumerState<OobePage> {
-  static const int _pageCount = 6;
+  static const int _pageCount = 7;
 
   final PageController _ctrl = PageController();
   final math.Random _rng = math.Random();
   int _page = 0;
   bool _agreed = false;
+
+  // ═══ cl17：条款（远端拉取，本地兜底）═══
+  TermsDoc? _termsDoc;
+  TermsDoc? _privacyDoc;
+
+  // ═══ cl17：账号页（可选登录/注册）═══
+  final TextEditingController _accountUser = TextEditingController();
+  final TextEditingController _accountPass = TextEditingController();
+  bool _authBusy = false;
+  String? _authError;
 
   /// cl05：启动时随机抽一套文案（每页标题/描述各一款）。
   /// cl07：品牌页标题/副标题改为 l10n 随机池（跟随语言），首次 build 抽一次。
@@ -136,8 +154,27 @@ class _OobePageState extends ConsumerState<OobePage> {
   String _pick(List<String> pool) => pool[_rng.nextInt(pool.length)];
 
   @override
+  void initState() {
+    super.initState();
+    _loadTerms();
+  }
+
+  /// cl17：条款文本从 GitHub 拉取，失败自动回退本地内置（见 [fetchTermsDoc]）。
+  Future<void> _loadTerms() async {
+    final TermsDoc terms = await fetchTermsDoc(TermsKind.terms);
+    final TermsDoc privacy = await fetchTermsDoc(TermsKind.privacy);
+    if (!mounted) return;
+    setState(() {
+      _termsDoc = terms;
+      _privacyDoc = privacy;
+    });
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
+    _accountUser.dispose();
+    _accountPass.dispose();
     super.dispose();
   }
 
@@ -215,7 +252,8 @@ class _OobePageState extends ConsumerState<OobePage> {
                       if (i == 2) return _prefPage(c, accent);
                       if (i == 3) return _worldPage(c, accent);
                       if (i == 4) return _expPage(c, accent);
-                      return _loadingPage(c, accent); // i == 5
+                      if (i == 5) return _accountPage(c, accent);
+                      return _loadingPage(c, accent); // i == 6
                     },
                   ),
                 ),
@@ -410,14 +448,20 @@ class _OobePageState extends ConsumerState<OobePage> {
         const SizedBox(height: 20),
         _contractTile(
           accent,
-          '服务条款',
-          '星璃音乐为开源（MIT）项目，供个人学习与研究使用。第三方音源（网易云、B站等）的版权归原平台所有，仅限个人学习，请勿用于商业或二次分发。',
+          _termsDoc?.title ?? '服务条款',
+          _termsDoc?.body ?? kLocalTermsBody,
+          _termsDoc == null
+              ? null
+              : '${_termsDoc!.source} · 更新于 ${_termsDoc!.updatedAt}',
         ),
         const SizedBox(height: 8),
         _contractTile(
           accent,
-          '隐私政策',
-          '你的数据仅保存在本机。日志默认脱敏，不收集账号密码与具体曲目标题。我们不会向第三方出售你的数据。',
+          _privacyDoc?.title ?? '隐私政策',
+          _privacyDoc?.body ?? kLocalPrivacyBody,
+          _privacyDoc == null
+              ? null
+              : '${_privacyDoc!.source} · 更新于 ${_privacyDoc!.updatedAt}',
         ),
         const SizedBox(height: 10),
         _linkRow(
@@ -575,7 +619,169 @@ class _OobePageState extends ConsumerState<OobePage> {
     );
   }
 
-  // ── 第 5 页：沉浸式加载（扫描本地） ────────────────
+  // ── 第 5 页：账号（可选登录/注册） ────────────────
+
+  Widget _accountPage(BuildContext context, Color accent) {
+    final AuthState auth = ref.watch(authProvider);
+    return _scroll(
+      Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          _title(accent, '账号（可选）'),
+          const SizedBox(height: 8),
+          _sub('登录后可跨设备同步偏好与收藏；也可以游客身份继续，随时可在设置里登录。'),
+          const SizedBox(height: 20),
+          if (auth.isAuthed) ...<Widget>[
+            Container(
+              width: 200,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0x14FFFFFF),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: const Color(0x22FFFFFF)),
+              ),
+              child: Column(
+                children: <Widget>[
+                  Icon(Icons.account_circle, size: 44, color: accent),
+                  const SizedBox(height: 8),
+                  Text(
+                    auth.user?.username ?? '',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FilledButton.tonal(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0x22FFFFFF),
+                    ),
+                    onPressed: () => ref.read(authProvider.notifier).logout(),
+                    child: const Text('退出登录',
+                        style: TextStyle(fontSize: 12, color: Colors.white)),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...<Widget>[
+            _accountField(auth, '用户名', _accountUser, Icons.person_outline),
+            const SizedBox(height: 10),
+            _accountField(auth, '密码（至少 6 位）', _accountPass,
+                Icons.lock_outline,
+                obscure: true),
+            if (_authError != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(
+                _authError!,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFFF8A80)),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 14),
+            if (_authBusy)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Colors.white70,
+                ),
+              )
+            else ...<Widget>[
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  minimumSize: const Size(220, 44),
+                ),
+                onPressed: () => _tryAuth(false),
+                icon: const Icon(Icons.login_rounded, size: 18),
+                label: const Text('登录'),
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => _tryAuth(true),
+                child: const Text(
+                  '注册新账号',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                ),
+              ),
+            ],
+            const SizedBox(height: 6),
+            Text(
+              '不登录也能正常使用全部本地功能',
+              style: const TextStyle(fontSize: 11, color: Colors.white38),
+            ),
+          ],
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  /// 账号页输入框（暗底半透明白卡）。
+  Widget _accountField(
+    AuthState auth,
+    String hint,
+    TextEditingController ctrl,
+    IconData icon, {
+    bool obscure = false,
+  }) =>
+      Container(
+        decoration: BoxDecoration(
+          color: const Color(0x14FFFFFF),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: TextField(
+          controller: ctrl,
+          obscureText: obscure,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+            prefixIcon: Icon(icon, size: 18, color: Colors.white54),
+            border: InputBorder.none,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+      );
+
+  /// 登录 / 注册提交（复用后端 /api/auth/*，成功即写入全局登录态）。
+  Future<void> _tryAuth(bool register) async {
+    final String u = _accountUser.text.trim();
+    final String p = _accountPass.text;
+    if (u.length < 3) {
+      setState(() => _authError = '用户名至少 3 个字符');
+      return;
+    }
+    if (p.length < 6) {
+      setState(() => _authError = '密码至少 6 位');
+      return;
+    }
+    setState(() {
+      _authBusy = true;
+      _authError = null;
+    });
+    final String base = ref.read(contentBaseUrlProvider);
+    final bool lenient = ref.watch(certPolicyProvider) == CertPolicy.lenient;
+    final client = makeHttpClient(lenient: lenient);
+    final AuthResult res = register
+        ? await registerUser(base, u, p, client: client)
+        : await loginUser(base, u, p, client: client);
+    client.close();
+    if (!mounted) return;
+    setState(() => _authBusy = false);
+    if (res.ok && res.token != null && res.user != null) {
+      await ref.read(authProvider.notifier).setSession(res.token!, res.user!);
+      _accountPass.clear();
+    } else {
+      setState(() => _authError = res.error ?? '请求失败');
+    }
+  }
+
+  // ── 第 6 页：沉浸式加载（扫描本地） ────────────────
 
   Widget _loadingPage(BuildContext context, Color accent) => _LoadingProgress(
     accent: accent,
@@ -586,37 +792,45 @@ class _OobePageState extends ConsumerState<OobePage> {
 
   // ── 合同辅助 ─────────────────────────────────────
 
-  Widget _contractTile(Color accent, String title, String body) => Container(
-    decoration: BoxDecoration(
-      color: const Color(0x14FFFFFF),
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      border: Border.all(color: const Color(0x22FFFFFF)),
-    ),
-    child: Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 14, color: Colors.white),
-        ),
-        iconColor: accent,
-        collapsedIconColor: Colors.white70,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Text(
-              body,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.white70,
-                height: 1.5,
+  Widget _contractTile(Color accent, String title, String body,
+      [String? sourceNote]) =>
+    Container(
+      decoration: BoxDecoration(
+        color: const Color(0x14FFFFFF),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(
+            title,
+            style: const TextStyle(fontSize: 14, color: Colors.white),
+          ),
+          subtitle: sourceNote == null
+              ? null
+              : Text(
+                  sourceNote,
+                  style: const TextStyle(fontSize: 10, color: Colors.white54),
+                ),
+          iconColor: accent,
+          collapsedIconColor: Colors.white70,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(
+                body,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.white70,
+                  height: 1.5,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
 
   Widget _linkRow(BuildContext context, String label, String url) => InkWell(
     onTap: () async {
