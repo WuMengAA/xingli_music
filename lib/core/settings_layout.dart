@@ -358,6 +358,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           name: '关于',
           items: <SettingItem>[
             SettingItem(id: 'aboutInfo', title: '应用信息', kind: SettingKind.block),
+            // 恢复 GitHub 仓库入口（cl07 曾实现，vivo 重构时丢失）。
+            SettingItem(id: 'aboutRepo', title: 'GitHub 仓库'),
             // cl08：离线模式（不检查 OTA / 不连官方中转 / 不上传日志）。
             SettingItem(id: 'offlineMode', title: '离线模式'),
             // cl10：账号（登录 / 注册 / 退出 / 收藏同步）。

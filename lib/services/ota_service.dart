@@ -32,6 +32,9 @@ const String kOtaRepoName = 'xingli_music';
 const String kOtaReleaseApi =
     'https://api.github.com/repos/$kOtaRepoOwner/$kOtaRepoName/releases';
 
+/// 仓库主页（设置-关于「GitHub 仓库」入口用，消除各处硬编码 URL）。
+const String kRepoUrl = 'https://github.com/$kOtaRepoOwner/$kOtaRepoName';
+
 /// 设备架构（用于 OTA 选对应拆分包）。
 enum DeviceAbi {
   arm64,

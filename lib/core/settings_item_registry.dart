@@ -50,6 +50,8 @@ import '../services/audio/sources/bilibili/bilibili_api.dart';
 import '../services/audio/sources/bilibili/bilibili_source.dart';
 import '../providers/theme/theme_providers.dart';
 import '../services/audio/audio_service.dart';
+import '../services/open_url.dart';
+import '../services/ota_service.dart';
 import '../services/permission_service.dart';
 import '../pages/templates/ui_editor_page.dart';
 import '../pages/templates/ui_template_gallery_page.dart';
@@ -1670,6 +1672,19 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       contentPadding: EdgeInsets.zero,
       title: Text('星璃音乐空间', style: Theme.of(context).textTheme.bodyMedium),
       subtitle: Text(AppVersion.display, style: Theme.of(context).textTheme.bodySmall),
+    ),
+  ),
+  // 恢复设置-关于「GitHub 仓库」入口（cl07 曾有，重构 vivo 布局时丢失；
+  // 仓库 URL 统一走 ota_service.kRepoUrl，消除各处硬编码）。
+  'aboutRepo': SettingItemDef(
+    title: 'GitHub 仓库',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.code_rounded,
+      title: 'GitHub 仓库',
+      subtitle: 'WuMengAA/xingli_music · main · MIT',
+      onTap: () => OpenUrl.launch(context, kRepoUrl),
     ),
   ),
   // 2026-08-17 渠道化：更新渠道（Beta 稳定 默认 / Alpha 尝鲜；切换后重启生效）。

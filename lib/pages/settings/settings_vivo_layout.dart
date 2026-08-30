@@ -24,6 +24,16 @@ class SettingsVivoLayout extends ConsumerStatefulWidget {
 }
 
 class _SettingsVivoLayoutState extends ConsumerState<SettingsVivoLayout> {
+  /// 设置搜索词（P0-C1/P1-02：内容容器顶部胶囊搜索栏，过滤设置项）。
+  final TextEditingController _queryCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _queryCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final SettingsLayout layout = ref.watch(settingsLayoutProvider);
@@ -49,7 +59,7 @@ class _SettingsVivoLayoutState extends ConsumerState<SettingsVivoLayout> {
     final bool wide =
         MediaQuery.sizeOf(context).width >= AppSize.landscapeBreakpoint;
 
-    return wide
+    final Widget content = wide
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -76,6 +86,167 @@ class _SettingsVivoLayoutState extends ConsumerState<SettingsVivoLayout> {
               ),
             ],
           );
+
+    final String q = _query.trim().toLowerCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        _SettingsSearchBar(
+          controller: _queryCtrl,
+          onChanged: (String v) => setState(() => _query = v),
+        ),
+        const SizedBox(height: AppSpace.sm),
+        Expanded(
+          child: q.isEmpty
+              ? content
+              : _SearchResultsView(query: q, onClear: _clearSearch),
+        ),
+      ],
+    );
+  }
+
+  void _clearSearch() {
+    _queryCtrl.clear();
+    setState(() => _query = '');
+  }
+}
+
+/// 设置页顶部胶囊搜索栏（P0-C1：全宽、离顶紧凑、过滤当前页设置项）。
+class _SettingsSearchBar extends StatelessWidget {
+  const _SettingsSearchBar({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: c.border),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: context.appText.body,
+        decoration: InputDecoration(
+          hintText: '搜索设置项',
+          hintStyle: context.appText.bodyMuted,
+          prefixIcon: Icon(Icons.search_rounded, color: c.textSecondary),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: Icon(Icons.close_rounded, color: c.textSecondary),
+                  tooltip: '清除',
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                ),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      ),
+    );
+  }
+}
+
+/// 搜索结果：跨全部合集匹配的设置项（P1-02 数据驱动，零写死）。
+class _SearchResultsView extends ConsumerWidget {
+  const _SearchResultsView({required this.query, required this.onClear});
+
+  final String query;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
+    final AppThemeColors c = context.appColors;
+
+    final List<(SettingCollection, SettingGroup, SettingItem)> hits = [];
+    for (final SettingCollection collection in layout.collections) {
+      for (final SettingGroup group in collection.groups) {
+        for (final SettingItem item in group.items) {
+          final String title = item.title.toLowerCase();
+          if (title.contains(query)) {
+            hits.add((collection, group, item));
+          }
+        }
+      }
+    }
+
+    if (hits.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(Icons.search_off_rounded, size: 40, color: c.textSecondary),
+            const SizedBox(height: 10),
+            Text(
+              '未找到与「$query」相关的设置项',
+              style: context.appText.bodyMuted,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final String? currentId =
+        ref.watch(layoutSelectedCollectionProvider);
+
+    return ListView(
+      padding: const EdgeInsets.only(
+        bottom: AppSpace.lg,
+        right: AppSpace.md,
+      ),
+      children: <Widget>[
+        for (final hit in hits) ...<Widget>[
+          Container(
+            margin: const EdgeInsets.only(bottom: AppSpace.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpace.md,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: c.bgSurface,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: c.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                buildSettingItem(context, ref, hit.$3.id),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8, top: 2),
+                  child: Text(
+                    '在 ${hit.$1.name} · ${hit.$2.name} 中',
+                    style: context.appText.bodyMuted.copyWith(fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 4),
+        Center(
+          child: TextButton.icon(
+            onPressed: () {
+              if (currentId != null && currentId.isNotEmpty) {
+                ref.read(layoutSelectedCollectionProvider.notifier).state =
+                    currentId;
+              }
+              onClear();
+            },
+            icon: const Icon(Icons.arrow_back_rounded, size: 16),
+            label: const Text('返回设置'),
+          ),
+        ),
+      ],
+    );
   }
 }
 
