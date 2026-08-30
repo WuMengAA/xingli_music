@@ -76,7 +76,9 @@ void main() {
   group('AppVersion 渠道化展示', () {
     test('displayShort 含渠道段（beta 默认）', () {
       // Windows VM 上 display 带 _pc；displayShort 无 cl/pc，稳定断言。
-      expect(AppVersion.displayShort, startsWith('0.26.08.17_beta'));
+      // 版本号按日期演进（0.26.08.17 → 0.26.08.29 …），这里只校验格式
+      // （x.yy.mm.dd_beta/alpha），不写死具体日期，避免随版本迭代失效。
+      expect(AppVersion.displayShort, matches(RegExp(r'^0\.26\.\d{2}\.\d{2}_(beta|alpha)$')));
       expect(AppVersion.display, contains('_beta_cl'));
     });
 

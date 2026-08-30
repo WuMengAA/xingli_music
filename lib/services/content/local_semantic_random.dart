@@ -49,21 +49,35 @@ class LocalSemanticRandom {
     final Random rng = seed ?? Random();
     final List<String> keywords = _keywordsFor(scene);
 
-    // ▢ 1. 逐曲打分：语义命中 + 随机抖动（±2，拉开同分曲目差异）。
+    // ▢ 1. 逐曲打原始语义分（标题命中 ×2、歌手/专辑 ×1）。
     final List<(Track, int)> scored = all
-        .map((Track t) => (t, _score(t, keywords) + rng.nextInt(5) - 2))
+        .map((Track t) => (t, _score(t, keywords)))
         .toList(growable: false);
 
-    // ▢ 2. 按分数降序；同分保持原相对顺序（稳定排序）。
-    scored.sort((a, b) => b.$2.compareTo(a.$2));
-
-    // ▢ 3. 满分为 0 说明词库没命中任何曲目 → 退化为纯随机洗牌，
-    //     保证「随机」语义始终成立（而不是永远返回同一批）。
-    final bool anyHit = scored.any((s) => s.$2 > 2);
+    // ▢ 2. 词库零命中 → 退化为纯随机洗牌，保证「随机」语义始终成立。
+    final bool anyHit = scored.any((s) => s.$2 > 0);
     if (!anyHit) {
       scored.shuffle(rng);
+      return scored.take(count).map((s) => s.$1).toList(growable: false);
     }
-    return scored.take(count).map((s) => s.$1).toList(growable: false);
+
+    // ▢ 3. 语义优先：按原始命中分降序，**同分分组内**再随机抖动——
+    //      既保证语义命中曲目排前面（不会因 ±2 抖动被零命中曲目反超），
+    //      又保留「同场景每次结果不同」的随机性。
+    scored.sort((a, b) => b.$2.compareTo(a.$2));
+    final List<Track> ordered = <Track>[];
+    for (int i = 0; i < scored.length;) {
+      int j = i;
+      while (j < scored.length && scored[j].$2 == scored[i].$2) {
+        j++;
+      }
+      final List<Track> bucket =
+          scored.sublist(i, j).map((s) => s.$1).toList(growable: false);
+      bucket.shuffle(rng);
+      ordered.addAll(bucket);
+      i = j;
+    }
+    return ordered.take(count).toList(growable: false);
   }
 
   /// 场景 → 关键词：先取 mood 词库，再并入场景名/描述里的中文词。

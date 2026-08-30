@@ -17,12 +17,10 @@ import '../../providers/net/session_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
-import 'station_lobby_page.dart';
 
 /// 点歌队列页。
 class OrderQueuePage extends ConsumerStatefulWidget {
-  const OrderQueuePage({super.key, required this.mode});
-  final StationMode mode;
+  const OrderQueuePage({super.key});
 
   @override
   ConsumerState<OrderQueuePage> createState() => _OrderQueuePageState();
@@ -109,17 +107,8 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
     // DJ 端：把点歌推入当前播放（复用音频服务），并标记 playing。
     final AudioService svc = ref.read(audioServiceProvider);
     await svc.playMusic(track, fade: const Duration(milliseconds: 300));
-    if (widget.mode == StationMode.orderOnly) {
-      // 纯点歌台：推入播放即视为 played（不同步），保持队列清爽。
-      ref.read(netSessionProvider.notifier).decideOrder(
-            // 找到该 track 对应 pending/approved 项
-            ref.read(netSessionProvider).orderQueue
-                .where((it) => it.track.uri == track.uri && it.status != OrderStatus.played && it.status != OrderStatus.rejected)
-                .firstOrNull
-                ?.id ?? '',
-            true,
-          );
-    }
+    // cl16：电台模式已统一为 校园广播/一起听（均支持一起听+点歌），
+    // 纯点歌台（orderOnly）已移除，DJ 播放后由审批流程管理队列状态。
   }
 
   Widget _buildSubmitCard(AppThemeColors c) => Container(

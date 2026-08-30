@@ -57,7 +57,7 @@ class StationRoomPage extends ConsumerWidget {
                 tooltip: '点歌队列',
                 onPressed: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
-                    builder: (_) => OrderQueuePage(mode: mode),
+                    builder: (_) => const OrderQueuePage(),
                   ),
                 ),
               ),
