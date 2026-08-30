@@ -173,10 +173,13 @@ abstract final class Terms {
   /// 实验室区块标题（原「实验」区）
   static const String lab = '实验室';
 
-  /// 功能区入口：智能推荐
+  /// 功能区入口：智能推荐（cl17 已下线，词条保留供归档）
   static const String smartRecommend = '智能推荐';
 
-  /// 功能区入口：AI 陪伴
+  /// 功能区入口：网易云推荐（cl17 转正，替换已下线的智能推荐）
+  static const String neteaseDaily = '网易云推荐';
+
+  /// 功能区入口：AI 陪伴（cl17 已下线，词条保留供归档）
   static const String aiCompanion = '小璃';
 
   /// 功能区入口：星璃世界

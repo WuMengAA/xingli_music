@@ -6,17 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/cast_page.dart';
-import '../../pages/explore/experiments/companion_page.dart';
 import '../../pages/explore/experiments/cue_sheet_page.dart';
-import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/local_semantic_random_page.dart';
-import '../../pages/explore/experiments/mood_analysis_page.dart';
 import '../../pages/explore/experiments/net_library_page.dart';
 import '../../pages/explore/experiments/netease_playlist_page.dart';
 import '../../pages/explore/experiments/netease_recommend_page.dart';
-import '../../pages/explore/experiments/recommend_page.dart';
 import '../../pages/explore/experiments/scraper_page.dart';
-import '../../pages/explore/experiments/sensor_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
 
@@ -75,19 +70,23 @@ class ExperimentConsentNotifier extends StateNotifier<ExperimentConsent> {
   }
 }
 
-/// 实验清单（数据驱动配置表，P0-M2-2）。
+/// 实验清单（数据驱动配置表，P0-M2-2）· **T 系列质量排序**。
 ///
-/// 不硬编码在 UI；新增实验只需在此追加。已下线示例保留注释。
+/// 排序原则（cl17 · 2026-08-31）：
+///
+/// 1. **稳定且真实可用**的实验优先（`stable` 在前，`experimenting` 在后）；
+/// 2. 同类实验按「数据源可靠性」排：网易云官方 > 本地真实计算 > 第三方远端；
+/// 3. 无真实效果的**劣质内容已下线**（见下方「已下线清单」），不再进网格——
+///    用户反馈：智能推荐/心情分析/AI 陪伴在离线无 LLM 下只有固定回复，
+///    音效均衡器无真实滤镜合成，传感器应归开发者调试工具而非功能。
+///
+/// 页面实现文件保留在 `lib/pages/explore/experiments/`（含 `EqualizerPage`
+/// 仍由设置项注册表引用），便于后续修好效果后重新接入，不必重写。
+///
+/// 不硬编码在 UI；新增实验只需在此追加。
 final Provider<List<ExperimentItem>> experimentsProvider =
     Provider<List<ExperimentItem>>((Ref ref) => <ExperimentItem>[
-          ExperimentItem(
-            id: 'recommend',
-            name: '智能推荐',
-            description: '按当前场景情绪推荐曲目',
-            icon: Icons.auto_awesome_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const RecommendPage(),
-          ),
+          // ── 稳定 · 本地真实可用 ──────────────────────────────
           ExperimentItem(
             id: 'local_random',
             name: '语义随机',
@@ -95,54 +94,6 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             icon: Icons.shuffle_rounded,
             status: ExperimentStatus.stable,
             builder: () => const LocalSemanticRandomPage(),
-          ),
-          ExperimentItem(
-            id: 'equalizer',
-            name: '音效均衡器',
-            description: '低中高频三档 + 4 组预设',
-            icon: Icons.equalizer_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const EqualizerPage(),
-          ),
-          ExperimentItem(
-            id: 'mood',
-            name: '心情分析',
-            description: '问卷 → 音乐心情匹配',
-            icon: Icons.mood_rounded,
-            status: ExperimentStatus.stable,
-            builder: () => const MoodAnalysisPage(),
-          ),
-          ExperimentItem(
-            id: 'sensor',
-            name: '传感器',
-            description: '光线 / 加速度 → 场景联动',
-            icon: Icons.sensors_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const SensorPage(),
-          ),
-          ExperimentItem(
-            id: 'companion',
-            name: 'AI 陪伴（实验）',
-            description: '一个陌生人，先由你开口；全程离线、模板生成',
-            icon: Icons.chat_bubble_outline_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const CompanionPage(),
-          ),
-          ExperimentItem(
-            id: 'netease_recommend',
-            name: '网易云推荐',
-            description: '每日精选 · 个性化无限漫游',
-            icon: Icons.explore_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const NeteaseRecommendPage(),
-          ),
-          ExperimentItem(
-            id: 'netease_playlist',
-            name: '网易云歌单',
-            description: '我的歌单 · 收藏曲目',
-            icon: Icons.queue_music_rounded,
-            status: ExperimentStatus.experimenting,
-            builder: () => const NeteasePlaylistPage(),
           ),
           ExperimentItem(
             id: 'cast_stream',
@@ -160,6 +111,23 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             status: ExperimentStatus.stable,
             builder: () => const CueSheetPage(),
           ),
+          // ── 实验中 · 官方源 / 远端工具 ───────────────────────
+          ExperimentItem(
+            id: 'netease_recommend',
+            name: '网易云推荐',
+            description: '每日精选 · 官方源无限漫游',
+            icon: Icons.explore_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const NeteaseRecommendPage(),
+          ),
+          ExperimentItem(
+            id: 'netease_playlist',
+            name: '网易云歌单',
+            description: '我的歌单 · 收藏曲目',
+            icon: Icons.queue_music_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const NeteasePlaylistPage(),
+          ),
           ExperimentItem(
             id: 'net_library',
             name: '网络音乐库',
@@ -176,8 +144,14 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             status: ExperimentStatus.experimenting,
             builder: () => const ScraperPage(),
           ),
-          // 电台房（station_lobby）已从实验区移除，转正为导航/主导航入口
-          // （见 app_shell / 主导航），不再作为实验项展示。
+          // ── 已下线清单（cl17，页面文件保留，不再进实验网格）────
+          // recommend「智能推荐」：离线无 LLM 只有固定回复，等于垃圾功能 → 下线。
+          // mood「心情分析」：问卷结果映射为固定曲目集合，非「分析」初心 → 下线。
+          // equalizer「音效均衡器」：无真实滤镜合成链路，滑杆无实际效果 →
+          //   从实验区下线（设置「音频」入口仍保留，等待真实 EQ 实现后回归）。
+          // sensor「传感器」：属开发者调试/测试工具，不作为面向用户的功能 → 下线。
+          // companion「AI 陪伴」：离线模板回复，体验最差 → 下线。
+          // station_lobby 已从实验区移除，转正为导航/主导航入口（见 app_shell）。
           // 示例：已下线（P0-M2-4 置灰禁入）
           // ExperimentItem(
           //   id: 'old_x',

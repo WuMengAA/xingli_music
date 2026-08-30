@@ -78,16 +78,31 @@ void main() {
       expect(find.text('同意并进入'), findsOneWidget);
       expect(find.text('暂不参与'), findsOneWidget);
 
-      // 同意 → 实验列表（数据驱动）
+      // 同意 → 实验列表（数据驱动）。
+      // 注意：Gate 位于探索长页底部，先 ensureVisible 滚入视口再点击
+      //（直接 drag SingleChildScrollView.first 可能拖到横向实用功能条）。
+      await tester.ensureVisible(find.text('同意并进入'));
+      await settle(tester);
       await tester.tap(find.text('同意并进入'));
       await settle(tester);
 
-      // 注：'智能推荐' 同时出现在常驻「功能模块」入口与实验卡片，故用 findsWidgets（≥1）。
-      expect(find.text('智能推荐'), findsWidgets);
-      expect(find.text('音效均衡器'), findsWidgets);
-      expect(find.text('心情分析'), findsWidgets);
-      expect(find.text('传感器'), findsWidgets);
-      expect(find.text('AI 陪伴（实验）'), findsWidgets);
+      // cl17 清理后的实验清单（T 系列质量排序，7 项保留）：
+      // 文本同时出现在横排实用功能条 / 功能区入口 / 实验卡片，用 findsWidgets（≥1）。
+      expect(find.text('语义随机'), findsWidgets);
+      expect(find.text('投屏'), findsWidgets);
+      expect(find.text('CUE 分轨'), findsWidgets);
+      expect(find.text('网易云推荐'), findsWidgets);
+      expect(find.text('网易云歌单'), findsWidgets);
+      expect(find.text('网络音乐库'), findsWidgets);
+      expect(find.text('刮削器'), findsWidgets);
+
+      // cl17 下线项不再出现（智能推荐 / 心情分析 / 音效均衡器 / 传感器 / AI 陪伴），
+      // 页面实现文件保留，网格与入口已移除。
+      expect(find.text('智能推荐'), findsNothing);
+      expect(find.text('心情分析'), findsNothing);
+      expect(find.text('音效均衡器'), findsNothing);
+      expect(find.text('AI 陪伴（实验）'), findsNothing);
+      expect(find.text('传感器'), findsNothing);
     });
   });
 
@@ -152,13 +167,16 @@ void main() {
       await tester.tap(find.text('曲库'));
       await settle(tester);
 
-      // R26fx：曲库分页后——「专辑」= Tab + 三形态 segment 各一；验证 Tab 与切换器。
-      expect(find.text('卡片'), findsOneWidget);
-      expect(find.text('文件夹'), findsOneWidget);
-      expect(find.text('歌曲'), findsOneWidget); // 分页 Tab
-      expect(find.text('专辑'), findsNWidgets(2)); // Tab + segment
+      // cl15 曲库改版：四栏 chips（歌曲/歌单/专辑/歌手）+ 卡片/列表视图切换
+      // （旧「三态 SegmentedButton + 文件夹段」已被四栏取代）。
+      expect(find.text('卡片'), findsWidgets); // 视图切换
+      expect(find.text('列表'), findsWidgets); // 视图切换
+      expect(find.text('歌曲'), findsWidgets); // 四栏 chip
+      expect(find.text('歌单'), findsWidgets);
+      expect(find.text('专辑'), findsWidgets);
+      expect(find.text('歌手'), findsWidgets);
       // 搜索栏 hint
-      expect(find.text('搜索歌曲、歌手、专辑'), findsOneWidget);
+      expect(find.text('搜索歌曲、歌手或专辑…'), findsOneWidget);
     });
 
     testWidgets('P1-1 复验：FolderView 直接渲染非空曲库（竖屏树 + 横屏 master-detail）', (tester) async {
@@ -234,8 +252,9 @@ void main() {
       );
       await settle(tester);
 
-      // 场景页（默认，含微光圆点入口）
-      expect(find.text('场景'), findsWidgets);
+      // 场景页（默认，含微光圆点入口）：标题为空、Dock 首页标签为「主页」
+      // （l10n），页面正文品牌名「星璃音乐」是稳定锚点。
+      expect(find.text('星璃音乐'), findsWidgets);
 
       // 曲库卡片视图（演示流有曲目 → 网格渲染）
       await tester.tap(find.text('曲库'));

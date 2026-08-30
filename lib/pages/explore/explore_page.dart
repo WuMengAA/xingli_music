@@ -24,13 +24,11 @@ import '../../widgets/common/aggregate_search_sheet.dart';
 import '../../core/terms/naming_dict.dart';
 import 'consent_gate.dart';
 import 'experiments/cast_page.dart';
-import 'experiments/companion_page.dart';
 import 'experiments/cue_sheet_page.dart';
 import 'experiments/local_semantic_random_page.dart';
 import 'experiments/net_library_page.dart';
 import 'experiments/netease_playlist_page.dart';
 import 'experiments/netease_recommend_page.dart';
-import 'experiments/recommend_page.dart';
 import 'experiments/scraper_page.dart';
 
 /// 探索页（v2 M2 重写，按画布「Screen · 探索」3:238 重建）。
@@ -61,18 +59,18 @@ class ExplorePage extends ConsumerWidget {
             tabs: const <String>[Terms.exploreTabTracks, Terms.exploreTabPlaylists, Terms.exploreTabUsers],
           ),
         );
-    void goRecommend() => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const RecommendPage()),
-        );
-    void goCompanion() => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const CompanionPage()),
-        );
     // 星璃世界走 Shell Tab 切换（IndexedStack 唯一真源）。
     void goWorld() => setShellPage(ref, ShellPage.world);
     // 电台房（转正）：从实验区提升为正式功能入口。
     void goStation() => Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const StationLobbyPage()),
         );
+    // 网易云推荐：T 系列核心入口（cl17 清理后保留的优质实验之一）。
+    void goNeteaseRecommend() => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const NeteaseRecommendPage()),
+        );
+    // cl17：智能推荐 / AI 陪伴 已下线（离线无 LLM 只有固定回复），
+    // 原 goRecommend / goCompanion 跳转一并移除。
     // 每日推荐 / 漫游 / 电台房 已移入下方「实验室」网格，不再在此单列。
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
@@ -108,8 +106,7 @@ class ExplorePage extends ConsumerWidget {
             const SizedBox(height: AppSpace.md),
             _FunctionSection(
               onAggregate: openSearch,
-              onRecommend: goRecommend,
-              onCompanion: goCompanion,
+              onNeteaseRecommend: goNeteaseRecommend,
               onWorld: goWorld,
               onStation: goStation,
             ),
@@ -493,22 +490,21 @@ class _RemoteNoticeBar extends ConsumerWidget {
   }
 }
 
-/// 功能区：聚合搜索 / 智能推荐 / AI 陪伴 / 星璃世界（345×56，圆角 16）。
+/// 功能区：聚合搜索 / 网易云推荐 / 星璃世界 / 电台（345×56，圆角 16）。
 ///
 /// 收敛为核心 4 个高频入口；每日推荐 / 漫游 / 电台房 已下沉到下方「实验室」
 /// 网格（数据驱动 `experimentsProvider`），避免功能区分裂在两个区块造成重复。
+/// cl17：智能推荐、AI 陪伴 已下线（离线无 LLM 只有固定回复），不再设为入口。
 class _FunctionSection extends StatelessWidget {
   const _FunctionSection({
     required this.onAggregate,
-    required this.onRecommend,
-    required this.onCompanion,
+    required this.onNeteaseRecommend,
     required this.onWorld,
     required this.onStation,
   });
 
   final VoidCallback onAggregate;
-  final VoidCallback onRecommend;
-  final VoidCallback onCompanion;
+  final VoidCallback onNeteaseRecommend;
   final VoidCallback onWorld;
   final VoidCallback onStation;
 
@@ -525,17 +521,10 @@ class _FunctionSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
-          title: Terms.smartRecommend,
-          subtitle: '外部音源优先 · 按类型筛选',
-          onTap: onRecommend,
-          trailing: Icon(Icons.auto_awesome_rounded, size: AppSize.iconSm, color: c.iconInactive),
-        ),
-        const SizedBox(height: AppSpace.sm),
-        _FuncRow(
-          title: Terms.aiCompanion,
-          subtitle: '关键词触发 · 联动应用内资源',
-          onTap: onCompanion,
-          trailing: Icon(Icons.smart_toy_outlined, size: AppSize.iconSm, color: c.iconInactive),
+          title: Terms.neteaseDaily,
+          subtitle: '每日精选 · 官方源无限漫游',
+          onTap: onNeteaseRecommend,
+          trailing: Icon(Icons.explore_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
