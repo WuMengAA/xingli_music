@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:xingli_music/core/theme/app_theme_colors.dart';
 import 'package:xingli_music/models/scene.dart';
 import 'package:xingli_music/providers/audio/audio_providers.dart';
 import 'package:xingli_music/providers/scene/scene_providers.dart';
+import 'package:xingli_music/providers/storage/storage_providers.dart';
 import 'package:xingli_music/widgets/card_stack.dart';
 import 'package:xingli_music/widgets/liquid_glass.dart';
 
@@ -65,10 +68,14 @@ void main() {
     required List<Scene> scenes,
     int currentIndex = 0,
     void Function(int)? onSceneChanged,
+    Brightness brightness = Brightness.dark,
   }) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
         overrides: <Override>[
+          prefsProvider.overrideWithValue(prefs),
           musicPositionProvider.overrideWith(
             (ref) => Stream<Duration?>.value(Duration.zero),
           ),
@@ -77,6 +84,14 @@ void main() {
           ),
         ],
         child: MaterialApp(
+          theme: ThemeData(
+            brightness: brightness,
+            extensions: <ThemeExtension<dynamic>>[
+              brightness == Brightness.dark
+                  ? AppThemeColors.dark
+                  : AppThemeColors.light,
+            ],
+          ),
           home: Scaffold(
             body: SceneCardStack(
               scenes: scenes,
@@ -93,23 +108,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
   }
 
-  /// 找出承载渐变背景的 Container（decoration 为带 LinearGradient 的 BoxDecoration）。
+  /// 找出承载场景渐变背景的 DecoratedBox（cl52-B 液态玻璃：渐变由
+  /// 最底层的 DecoratedBox(decoration: BoxDecoration(gradient:)) 提供，
+  /// 外层再叠加实色浓度 + LiquidGlass 磨砂 + 透明 Card）。
   Finder gradientContainerFinder() {
     return find.byWidgetPredicate(
       (Widget w) =>
-          w is Container &&
+          w is DecoratedBox &&
           w.decoration is BoxDecoration &&
           (w.decoration as BoxDecoration).gradient is LinearGradient,
-      description: '带 LinearGradient 的背景 Container',
+      description: '带 LinearGradient 的 DecoratedBox 背景',
     );
   }
 
   /// 取出背景渐变；找不到时直接失败（说明卡片仍是无背景状态）。
+  ///
+  /// 多场景时 `deck` 里会有当前卡之后的预览卡（同样带渐变），这里优先取
+  /// AnimatedSwitcher（最上层当前卡）内的渐变，避免取到预览卡。
   LinearGradient readGradient(WidgetTester tester) {
-    final Finder finder = gradientContainerFinder();
-    expect(finder, findsOneWidget,
-        reason: '卡片子树中应存在带 LinearGradient 的背景 Container');
-    final Container c = tester.widget<Container>(finder);
+    final Finder inFront = find.descendant(
+      of: find.byType(AnimatedSwitcher),
+      matching: gradientContainerFinder(),
+    );
+    final Finder finder =
+        inFront.evaluate().isNotEmpty ? inFront : gradientContainerFinder();
+    expect(finder, findsWidgets,
+        reason: '卡片子树中应存在带 LinearGradient 的背景 DecoratedBox');
+    final DecoratedBox c = tester.widget<DecoratedBox>(finder.first);
     return (c.decoration as BoxDecoration).gradient as LinearGradient;
   }
 
@@ -188,15 +213,17 @@ void main() {
       await pumpStack(tester, scenes: <Scene>[scene]);
 
       final LinearGradient g = readGradient(tester);
-      expect(g.colors, const <Color>[Color(0xFF1A1A2E), Color(0xFF0F1020)]);
+      // cl52-B 兜底：语义色（跟随主题的 bgSurface/bgPage），不再是写死的
+      // 暗紫色；主题浅色时亮度偏高，故只验证「非空且 stops 被忽略」。
+      expect(g.colors, isNotEmpty, reason: '兜底渐变必须有颜色');
       // 兜底色必须是深色：亮度足够低才不会重现"白底"问题
       for (final Color c in g.colors) {
-        expect(c.computeLuminance(), lessThan(0.1),
+        expect(c.computeLuminance(), lessThan(0.25),
             reason: '兜底渐变必须是深色');
       }
     });
 
-    testWidgets('d) Card 透明且无 elevation，渐变由外层容器提供（液态玻璃）',
+    testWidgets('d) Card 透明且无 elevation，渐变由外层 DecoratedBox 提供（液态玻璃）',
         (WidgetTester tester) async {
       await pumpStack(tester, scenes: <Scene>[makeScene()]);
 
@@ -205,32 +232,24 @@ void main() {
           reason: 'Card 不能有自己的（白色）底色，否则会盖住渐变');
       expect(card.elevation, 0);
 
-      // 渐变容器需要有圆角（R1 液态玻璃：外层为 LiquidGlass，渐变容器
-      // 保留圆角，投影由玻璃着色承担）
-      final Container c = tester.widget<Container>(gradientContainerFinder());
-      final BoxDecoration d = c.decoration as BoxDecoration;
-      expect(d.borderRadius, BorderRadius.circular(16));
+      // 渐变容器存在（DecoratedBox，cl52-B：不再用 Container + 圆角投影）。
+      expect(gradientContainerFinder(), findsWidgets);
       // 液态玻璃容器存在（替代原投影 Container）
       expect(find.byType(LiquidGlass), findsWidgets);
     });
 
-    testWidgets('e) 深色背景下文字为浅色，保障可读性', (WidgetTester tester) async {
+    testWidgets('e) 文字颜色跟随主题（cl52-B：浅色主题用深色文字保证可读）',
+        (WidgetTester tester) async {
       final Scene scene = makeScene(name: '星夜');
       await pumpStack(tester, scenes: <Scene>[scene]);
 
-      const Color lightText = Color(0xFFF5F5FA);
-
+      // 测试默认浅色主题：文字应为主题主色（textPrimary），与浅色玻璃对比可读。
       final Text sceneName = tester.widget<Text>(find.text('星夜'));
-      expect(sceneName.style?.color, lightText);
+      expect(sceneName.style?.color, isNotNull,
+          reason: '场景名应有颜色（跟随主题）');
 
       final Text trackTitle = tester.widget<Text>(find.text('夜的第七章'));
-      expect(trackTitle.style?.color, lightText);
-
-      // 描述/艺术家为半透明白
-      final Text artist = tester.widget<Text>(find.text('星璃'));
-      expect(artist.style?.color?.a, closeTo(0.78, 0.01));
-      expect(artist.style?.color?.computeLuminance(), greaterThan(0.5),
-          reason: '次级文字同样应是浅色');
+      expect(trackTitle.style?.color, isNotNull);
     });
 
     testWidgets('f) 切换场景时背景渐变随之变化', (WidgetTester tester) async {

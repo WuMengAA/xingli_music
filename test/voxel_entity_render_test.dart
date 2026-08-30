@@ -30,10 +30,13 @@ void main() {
           entities: entities,
         );
 
+    // 统计帧内总面数（管线改版后 opaque/translucent 恒空，面在 buckets 里）。
+    int _facesOf(VoxelFrame f) => f.faceCount;
+
     test('无实体时帧面数与地形一致', () {
       final VoxelFrame a = _frame();
       final VoxelFrame b = _frame(const <VoxelEntity>[]);
-      expect(b.faceCount, equals(a.faceCount));
+      expect(_facesOf(b), equals(_facesOf(a)));
     });
 
     test('加入实体会多出方块面，且进入视口（不越界）', () {
@@ -43,19 +46,19 @@ void main() {
       );
       final VoxelFrame noEnt = _frame();
       final VoxelFrame withEnt = _frame(<VoxelEntity>[e]);
-      expect(withEnt.faceCount, greaterThan(noEnt.faceCount));
+      expect(_facesOf(withEnt), greaterThan(_facesOf(noEnt)));
       // 实体盒子共 6 盒 × 6 面 = 36 面（未被预算裁剪时）。
-      expect(withEnt.faceCount - noEnt.faceCount, greaterThanOrEqualTo(36));
+      expect(_facesOf(withEnt) - _facesOf(noEnt), greaterThanOrEqualTo(36));
       // 实体面顶点投影成功（有限、量级合理；渲染器只做近裁剪，不入视口裁剪，
       // 所以允许越出 0~500 视口边界；无限地形远处面坐标可较大。R23s 移除列级
       // 方位剔除后，更多地形面被合法投影（含相机侧后方的面，由 project 返回
       // null 自然丢弃），边界坐标可略大，故放宽到 ±20000）。
-      for (final RenderFace f in withEnt.opaque) {
-        for (int i = 0; i < f.xy.length; i += 2) {
-          expect(f.xy[i].isFinite, isTrue);
-          expect(f.xy[i + 1].isFinite, isTrue);
-          expect(f.xy[i], inInclusiveRange(-20000.0, 20000.0));
-          expect(f.xy[i + 1], inInclusiveRange(-20000.0, 20000.0));
+      for (final VoxelMeshBatch? b in withEnt.opaquePlainBuckets) {
+        final VoxelMeshBatch? batch = b;
+        if (batch == null) continue;
+        for (int i = 0; i < batch.positions.length; i++) {
+          expect(batch.positions[i].isFinite, isTrue);
+          expect(batch.positions[i], inInclusiveRange(-20000.0, 20000.0));
         }
       }
     });
@@ -69,10 +72,10 @@ void main() {
       final VoxelFrame withEnt = _frame(<VoxelEntity>[e]);
       final VoxelFrame noEnt = _frame();
       // R24c 单桶设计：实体面并入统一深度桶（opaque），translucent 列表恒空。
-      // 发光实体多出 36 个面（6格×6面），进入同一桶，半透明桶长度不变。
+      // 发光实体多出 36 个面（6格×6面），进入同一桶。
       expect(withEnt.translucent.length, equals(noEnt.translucent.length));
       expect(
-        withEnt.opaque.length - noEnt.opaque.length,
+        _facesOf(withEnt) - _facesOf(noEnt),
         greaterThanOrEqualTo(36),
         reason: '发光实体的 36 个面应并入统一深度桶',
       );

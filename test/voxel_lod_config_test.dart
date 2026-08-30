@@ -81,7 +81,8 @@ void main() {
     // 大最远距离 + 粗采样 → 档位表 cell 增长到 ≥32 触发 Impostor（flat 合成单元）。
     final VoxelFrame f = _frame(_cfg(lodMaxChunks: 32, lodSampleBase: 8));
     expect(f.lodFaceCount, greaterThan(0), reason: 'Impostor 也应发射远景面');
-    expect(f.opaque.length, greaterThan(0));
+    // 管线改版后 opaque 列表恒空，面在 buckets——总面数以 faceCount 为准。
+    expect(f.faceCount, greaterThan(0));
   });
 
   test('近处 LOD：fullBand=1（3×3 满精度带）LOD 面 ≥ fullBand=2（5×5）', () {

@@ -19,5 +19,9 @@ void main() {
     );
 
     expect(find.byType(MaterialApp), findsOneWidget);
+
+    // MediaKitBackend 构造用 Future() 延后 ensureInitialized（避免首帧卡死），
+    // 测试结束前推进时间让该定时器触发，否则报「Timer is still pending」。
+    await tester.pump(const Duration(seconds: 1));
   });
 }

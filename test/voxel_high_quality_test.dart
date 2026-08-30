@@ -22,13 +22,15 @@ void main() {
     }
   });
 
-  test('VoxelTextureAtlas.tileUV maps each voxel to a 16x16 atlas tile', () {
+  test('VoxelTextureAtlas.tileUV maps each voxel to atlas slot (variant-aware)', () {
     // 图集几何校验（不触发 GPU 解码，避免测试环境回调不触发导致的挂起）。
-    // 第 0 格应在图集左上角 (0,0)-(16,16)；第 1 格右移一列。
+    // 每个体素占 kVoxelVariantSlots=4 个连续瓦片，tileUV(index) 取该体素的
+    // 第 0 变体：index=0 → slot 0（第 0 列）；index=1 → slot 4（第 4 列，
+    // 16px/格 → x0=64）。
     final Float32List uv0 = VoxelTextureAtlas.tileUV(0);
     expect(uv0, Float32List.fromList(<double>[0, 0, 16, 0, 16, 16, 0, 16]));
     final Float32List uv1 = VoxelTextureAtlas.tileUV(1);
-    expect(uv1, Float32List.fromList(<double>[16, 0, 32, 0, 32, 16, 16, 16]));
+    expect(uv1, Float32List.fromList(<double>[64, 0, 80, 0, 80, 16, 64, 16]));
     // 顶点序对齐 _fillCorners（minX,minZ / maxX,minZ / maxX,maxZ / minX,maxZ）。
     expect(uv0.length, 8);
   });

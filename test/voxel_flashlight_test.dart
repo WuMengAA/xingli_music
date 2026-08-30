@@ -29,23 +29,26 @@ void main() {
         fov: fov,
       );
 
+  // 管线改版后 opaque 列表恒空，面在 buckets；总面数直接看 faceCount。
+  int _faces(VoxelFrame f) => f.faceCount;
+
   test('手电筒开：窄锥剔除使面数显著少于关闭（正视角）', () {
     final VoxelCamera cam = _cam(fov: 1.1);
-    final int off = _frame(
+    final int off = _faces(_frame(
       camera: cam,
       config: const RenderConfig(
         lodQuality: LodQuality.off,
         maxChunkBuildsPerFrame: 9999,
       ),
-    ).opaque.length;
-    final int on = _frame(
+    ));
+    final int on = _faces(_frame(
       camera: cam,
       config: const RenderConfig(
         lodQuality: LodQuality.off,
         maxChunkBuildsPerFrame: 9999,
         flashlight: true,
       ),
-    ).opaque.length;
+    ));
     expect(on, lessThan(off), reason: '手电筒窄锥应剔除锥外面，面数更少');
     expect(on, greaterThan(0), reason: '锥内仍有可见面');
   });
@@ -54,21 +57,21 @@ void main() {
     // 俯视（pitch≈-85°）：原 cullAzimuth 因水平分量→0 关闭剔除 → 全渲染所有方块。
     // 手电筒用完整视线锥（含俯仰），俯视时仍只保留脚下锥内面 → 面数收敛。
     final VoxelCamera cam = _cam(pitch: -85 * 3.14159 / 180, fov: 1.0);
-    final int plain = _frame(
+    final int plain = _faces(_frame(
       camera: cam,
       config: const RenderConfig(
         lodQuality: LodQuality.off,
         maxChunkBuildsPerFrame: 9999,
       ),
-    ).opaque.length;
-    final int flashlight = _frame(
+    ));
+    final int flashlight = _faces(_frame(
       camera: cam,
       config: const RenderConfig(
         lodQuality: LodQuality.off,
         maxChunkBuildsPerFrame: 9999,
         flashlight: true,
       ),
-    ).opaque.length;
+    ));
     expect(
       flashlight,
       lessThan(plain),

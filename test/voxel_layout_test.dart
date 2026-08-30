@@ -58,22 +58,27 @@ void main() {
     debugPrint('DBG Scaffold=${tester.getSize(find.byType(Scaffold))}');
     debugPrint(
         'DBG 3DView=${tester.getSize(find.byType(VoxelWorldView3D).first)}');
-    for (final Element e in find.text('2.5D').evaluate()) {
-      debugPrint('DBG 2.5D rect=${tester.getRect(find.byWidget(e.widget))}');
-    }
 
-    // ③ 视角切换 chips（2.5D/俯瞰/第一人称）在屏幕下半部
-    final Finder chip = find.text('2.5D');
+    // ③ R26h：视角切换收进右上角芯片列（顶部），不再是屏幕下半部大按钮。
+    // 「UI 不挤在顶部一条」的回归保障 = ①占满全屏 + ④ D-pad 在下半部。
+    // 这里验证顶栏芯片（菜单/相机/2.5D画布/更多）仍在屏幕顶部区域。
+    final Finder chip = find.text('菜单');
     if (chip.evaluate().isNotEmpty) {
-      expect(tester.getCenter(chip.first).dy, greaterThan(screenH / 2),
-          reason: '视角切换应位于屏幕下半部（不应挤在顶部）');
+      expect(tester.getCenter(chip.first).dy, lessThan(screenH / 2),
+          reason: '顶栏芯片应位于屏幕上半部（R26h 设计）');
     }
 
-    // ④ D-pad 在屏幕下半部
-    final Finder dpad = find.byIcon(Icons.keyboard_arrow_up_rounded);
-    if (dpad.evaluate().isNotEmpty) {
-      expect(tester.getCenter(dpad.first).dy, greaterThan(screenH / 2),
-          reason: 'D-pad 应位于屏幕下半部');
+    // ④ 动作键（右下 2×2 攻击/放置/蹲/跳）与摇杆（左下）在屏幕下半部
+    // （R26skel-b3：旧 D-pad 拆为独立动作键；左下方是 FP/TP 摇杆）。
+    final Finder action = find.byIcon(Icons.flash_on_rounded);
+    if (action.evaluate().isNotEmpty) {
+      expect(tester.getCenter(action.first).dy, greaterThan(screenH / 2),
+          reason: '动作键应位于屏幕下半部');
+    }
+    final Finder jump = find.byIcon(Icons.arrow_upward_rounded);
+    if (jump.evaluate().isNotEmpty) {
+      expect(tester.getCenter(jump.first).dy, greaterThan(screenH / 2),
+          reason: '跳跃键应位于屏幕下半部');
     }
   });
 }
