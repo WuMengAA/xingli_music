@@ -14,7 +14,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart' show Alignment, Color, IconData, LinearGradient, Offset;
+import 'package:flutter/material.dart'
+    show Alignment, Color, IconData, Icons, LinearGradient, Offset;
 
 /// 节点类型（决定渲染形态与可用属性）。
 enum UiNodeType {
@@ -387,12 +388,40 @@ int? parseHexColor(String? hex) {
   return v;
 }
 
-/// 解析 Material 图标名（'add' / 'e145'）。返回 IconData 或 null。
+/// 模板用到的 MaterialIcons 十六进制 codePoint → const 图标。
+///
+/// 渲染字形由 codePoint 决定（fontFamily: MaterialIcons），与字段名无关；
+/// 使用 const 字段可让 release 图标树摇（tree-shake-icons）正常工作——
+/// 禁止运行时构造非 const IconData。未收录的 codePoint 交由上层回退图标。
+const Map<String, IconData> kTemplateIconByHex = <String, IconData>{
+  'e036': Icons.nine_mp,
+  'e042': Icons.account_box,
+  'e050': Icons.add_circle_outline,
+  'e05e': Icons.add_to_photos,
+  'e145': Icons.cast_connected,
+  'e147': Icons.catching_pokemon,
+  'e161': Icons.child_friendly,
+  'e242': Icons.event_seat,
+  'e251': Icons.extension_off,
+  'e2c7': Icons.forward_5,
+  'e567': Icons.search,
+  'e5d2': Icons.sort,
+  'e5d8': Icons.spa,
+  'e7c4': Icons.backup_sharp,
+  'e80b': Icons.brightness_low_sharp,
+  'e80e': Icons.browser_not_supported_sharp,
+  'e86c': Icons.cloud_circle_sharp,
+  'e896': Icons.coronavirus_sharp,
+  'e8b8': Icons.delete_sharp,
+  'e8e0': Icons.disabled_by_default_sharp,
+  'e8e8': Icons.do_not_disturb_off_sharp,
+  'e8f4': Icons.done_outline_sharp,
+};
+
+/// 解析 Material 图标名（十六进制 codePoint，如 'e145'）。返回 IconData 或 null。
 IconData? resolveIcon(String? name, {double? size}) {
   if (name == null || name.isEmpty) return null;
-  final int? cp = int.tryParse(name, radix: 16);
-  if (cp != null) return IconData(cp, fontFamily: 'MaterialIcons');
-  return null;
+  return kTemplateIconByHex[name.toLowerCase()];
 }
 
 /// 编辑器画布坐标（保留给自由定位节点）。
