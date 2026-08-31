@@ -1,9 +1,11 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using ClassIsland.Core.Abstractions.Controls;
 using ClassIsland.Core.Attributes;
@@ -59,6 +61,17 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
     private readonly Button _toggleButton = new() { Content = "播放" };
     private readonly Button _nextButton = new() { Content = "下一首" };
 
+    private readonly Image _cover = new()
+    {
+        Width = 56,
+        Height = 56,
+        Stretch = Stretch.UniformToFill,
+        IsVisible = false,
+        Margin = new Avalonia.Thickness(0, 0, 10, 0),
+    };
+
+    private string? _loadedCoverUrl;
+
     public NowPlayingStatusComponent()
     {
         var buttonPanel = new StackPanel
@@ -69,11 +82,17 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
             Children = { _prevButton, _toggleButton, _nextButton },
         };
 
-        var panel = new StackPanel
+        var textPanel = new StackPanel
         {
             Orientation = Orientation.Vertical,
             Spacing = 3,
             Children = { _mainLine, _subLine, _radioLine, buttonPanel },
+        };
+
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Children = { _cover, textPanel },
         };
         Content = panel;
 
@@ -122,6 +141,7 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
             _radioLine.IsVisible = false;
             _toggleButton.Content = "播放";
             SetButtonsEnabled(false);
+            UpdateCover(null);
             return;
         }
 
@@ -130,6 +150,7 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
         _mainLine.Foreground = new SolidColorBrush(
             snapshot.IsPlaying ? Color.FromRgb(233, 236, 255) : Color.FromRgb(160, 168, 200));
         _toggleButton.Content = snapshot.IsPlaying ? "暂停" : "播放";
+        UpdateCover(snapshot.Track?.CoverUrl);
 
         var sub = BuildSubLine(snapshot);
         _subLine.Text = sub;
@@ -137,6 +158,36 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
         var radio = snapshot.RadioText;
         _radioLine.Text = radio ?? "";
         _radioLine.IsVisible = radio is not null;
+    }
+
+    /// <summary>
+    /// 更新封面图。同机场景 coverUrl 为本地文件路径，直读；异机（http/https 且 v1 不转发）隐藏。
+    /// 相同 URL 缓存去重，避免每 2s 轮询重复加载位图。
+    /// </summary>
+    private void UpdateCover(string? coverUrl)
+    {
+        coverUrl = string.IsNullOrWhiteSpace(coverUrl) ? null : coverUrl;
+        if (string.Equals(_loadedCoverUrl, coverUrl, StringComparison.Ordinal)) return;
+        _loadedCoverUrl = coverUrl;
+
+        if (coverUrl is null || coverUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || coverUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            _cover.Source = null;
+            _cover.IsVisible = false;
+            return;
+        }
+
+        try
+        {
+            _cover.Source = new Bitmap(coverUrl);
+            _cover.IsVisible = true;
+        }
+        catch (Exception)
+        {
+            _cover.Source = null;
+            _cover.IsVisible = false;
+        }
     }
 
     private void SetButtonsEnabled(bool value)
