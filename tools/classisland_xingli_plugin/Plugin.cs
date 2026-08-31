@@ -16,6 +16,6 @@ public class Plugin : PluginBase
 {
     public override void Initialize(HostBuilderContext context, IServiceCollection services)
     {
-        services.AddComponent<NowPlayingStatusComponent>();
+        services.AddComponent<NowPlayingStatusComponent, NowPlayingSettingsControl>();
     }
 }

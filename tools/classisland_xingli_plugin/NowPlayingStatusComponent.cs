@@ -11,20 +11,21 @@ using ClassIsland.Core.Attributes;
 namespace ClassIslandXingliPlugin;
 
 /// <summary>
-/// 「星璃 · 正在播放」组件（M1 骨架：只读显示）。
-/// 轮询星璃端本地 HTTP 服务（默认 127.0.0.1:8742，协议 v1），
-/// 展示当前曲目 + 电台状态；星璃未运行/端口冲突时显示「未连接」。
+/// 「星璃 · 正在播放」组件（M1 骨架 + M2 控制按钮 + 设置配置化）。
+/// 按设置轮询星璃端 HTTP 服务（默认 127.0.0.1:8742，协议 v1），
+/// 展示当前曲目 + 电台状态；星璃未运行/地址不可达时显示「未连接」。
 /// </summary>
 [ComponentInfo(
     "E7C5B3A2-4F8D-4B2A-9C1E-3D6A8F0B2E41",
     "星璃 · 正在播放",
     "\uE9B0",
-    "联动星璃音乐：显示正在播放的曲目（标题/歌手/电台）。需要星璃 Windows 端运行。")]
-public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposable
+    "联动星璃音乐：显示正在播放的曲目（标题/歌手/电台）+ 回环控制按钮。需要星璃 Windows 端运行。")]
+public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlayingPluginSettings>, IDisposable
 {
-    private readonly NowPlayingClient _client = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly DispatcherTimer _timer;
+    private NowPlayingClient? _client;
+    private string? _clientUrl;
     private readonly TextBlock _mainLine = new()
     {
         Text = "未连接星璃",
@@ -76,18 +77,39 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposab
         };
         Content = panel;
 
-        _prevButton.Click += async (_, _) => await _client.ControlAsync("prev");
-        _toggleButton.Click += async (_, _) => await _client.ControlAsync("toggle");
-        _nextButton.Click += async (_, _) => await _client.ControlAsync("next");
+        _prevButton.Click += async (_, _) => await Client().ControlAsync("prev");
+        _toggleButton.Click += async (_, _) => await Client().ControlAsync("toggle");
+        _nextButton.Click += async (_, _) => await Client().ControlAsync("next");
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += OnTick;
     }
 
+    /// <summary>按设置目标地址取得客户端；地址变更时重建（设置可在运行期修改）。</summary>
+    private NowPlayingClient Client()
+    {
+        var url = Settings?.Url;
+        if (string.IsNullOrWhiteSpace(url)) url = "http://127.0.0.1:8742";
+        if (_client is null || !string.Equals(_clientUrl, url, StringComparison.OrdinalIgnoreCase))
+        {
+            _client?.Dispose();
+            _client = new NowPlayingClient(url);
+            _clientUrl = url;
+        }
+        return _client;
+    }
+
     private async void OnTick(object? sender, EventArgs e)
     {
         if (_cts.IsCancellationRequested) return;
-        var snapshot = await _client.FetchAsync(_cts.Token).ConfigureAwait(true);
+
+        // Settings 在组件初始化完成后才可用；此处可能为 null（异常时保持默认）
+        var settings = Settings;
+        var interval = settings?.PollSeconds is > 0 ? settings.PollSeconds : 2.0;
+        if (Math.Abs(_timer.Interval.TotalSeconds - interval) > 0.01)
+            _timer.Interval = TimeSpan.FromSeconds(interval);
+
+        var snapshot = await Client().FetchAsync(_cts.Token).ConfigureAwait(true);
         Apply(snapshot);
     }
 
@@ -161,6 +183,7 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase, IDisposab
         _timer.Stop();
         _cts.Cancel();
         _cts.Dispose();
-        _client.Dispose();
+        _client?.Dispose();
+        _client = null;
     }
 }
