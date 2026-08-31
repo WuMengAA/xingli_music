@@ -36,7 +36,10 @@ class GlassDockItem {
 
 class GlassDock extends StatefulWidget {
   final List<GlassDockItem> items;
-  final int selectedIndex;
+
+  /// 当前选中下标；`null` = 全部未选中（隐藏页全灰契约，见 Xingli
+  /// `AppDock`：Home 隐藏页 / 沉浸画布下 4 个 Tab 一致渲染未选中态）。
+  final int? selectedIndex;
   final ValueChanged<int>? onSelected;
 
   /// 容器胶囊高度（忠实 64dp）。
@@ -54,6 +57,9 @@ class GlassDock extends StatefulWidget {
   /// 性能预设（null → 默认均衡）。
   final GlassPerformancePreset? performancePreset;
 
+  /// 是否显示文字标签（false → 只留图标，紧凑屏/手表用）。
+  final bool showLabels;
+
   const GlassDock({
     super.key,
     required this.items,
@@ -64,6 +70,7 @@ class GlassDock extends StatefulWidget {
     this.blur = 8,
     this.accentColor,
     this.performancePreset,
+    this.showLabels = true,
   });
 
   @override
@@ -80,7 +87,7 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _indicatorFrac = widget.selectedIndex.toDouble();
+    _indicatorFrac = (widget.selectedIndex ?? 0).toDouble();
     _ticker = createTicker(_onTick);
   }
 
@@ -105,7 +112,8 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
     if (!_ticker.isActive) return;
     final dt = _last == Duration.zero ? (1 / 60.0) : (elapsed - _last).inMicroseconds / 1e6;
     _last = elapsed;
-    final target = widget.selectedIndex.toDouble();
+    // null（隐藏页全灰）时归位到首 Tab，但 active 判定全 false → 视觉全灰。
+    final target = (widget.selectedIndex ?? 0).toDouble();
     final r = springStepCritical(_indicatorFrac, _indicatorVel, target, dt,
         omegaN: kToggleValueOmegaN);
     _indicatorFrac = r.value;
@@ -157,6 +165,7 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
                     active: widget.selectedIndex == i,
                     accent: accent,
                     contentColor: palette.tabsContentColor,
+                    showLabels: widget.showLabels,
                     onTap: widget.onSelected == null ? null : () => widget.onSelected!(i),
                   ),
                 ),
@@ -204,6 +213,7 @@ class _DockTab extends StatelessWidget {
   final bool active;
   final Color accent;
   final Color contentColor;
+  final bool showLabels;
   final VoidCallback? onTap;
 
   const _DockTab({
@@ -211,6 +221,7 @@ class _DockTab extends StatelessWidget {
     required this.active,
     required this.accent,
     required this.contentColor,
+    required this.showLabels,
     this.onTap,
   });
 
@@ -225,17 +236,19 @@ class _DockTab extends StatelessWidget {
         children: [
           Icon(active ? item.selectedIcon : item.icon,
               size: 22, color: iconColor),
-          const SizedBox(height: 3),
-          Text(
-            item.label,
-            style: TextStyle(
-              fontSize: 10.5,
-              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-              color: iconColor,
+          if (showLabels) ...<Widget>[
+            const SizedBox(height: 3),
+            Text(
+              item.label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: iconColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+          ],
         ],
       ),
     );

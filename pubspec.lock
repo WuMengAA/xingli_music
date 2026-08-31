@@ -444,6 +444,13 @@ packages:
       url: "https://mirrors.cloud.tencent.com/dart-pub/"
     source: hosted
     version: "5.1.1"
+  liquid_glass_compat:
+    dependency: "direct main"
+    description:
+      path: "packages/liquid_glass_compat"
+      relative: true
+    source: path
+    version: "0.1.0"
   liquid_glass_widgets:
     dependency: "direct main"
     description:

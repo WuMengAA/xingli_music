@@ -4,6 +4,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
@@ -56,6 +57,15 @@ Future<void> main() async {
   };
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+  // ── 初始化阶段预热液态玻璃（R32 用户拍板：测试/预热必须在初始化阶段，
+  // 不能等首帧渲染时才现编译 → 卡顿甚至 ANR/崩溃）──────────────
+  // liquid_glass_widgets 官方要求：在 main() 里 `await` 后再 runApp。
+  // Android GLES 下 glCompileShader+glLinkProgram 是同步编译（100~800ms），
+  // 必须在 native splash 背后完成，否则 nativeSurfaceChanged 竞争 → ANR
+  // （GitHub #187）。仅 Android 生效，iOS/macOS Metal 预编译零成本，跳过。
+  await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
+  debugPrint('[startup] LiquidGlass 预热完成（shader + Impeller 管线）');
 
   // 根应用启动（初始 + 「崩溃界面」重新启动共用）。
   void runRoot() {

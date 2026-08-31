@@ -2,7 +2,7 @@ name: xingli_music
 description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
 publish_to: 'none'
 
-version: 0.26.8+115
+version: 0.26.8+116
 
 environment:
   sdk: ^3.9.0
@@ -71,6 +71,12 @@ dependencies:
   # 自适应画质 / 无障碍内置）。导航层（Dock/TabBar、AppBar、Sheet、Slider）
   # 与浮动玻璃面板统一走本库，替代自研 LiquidGlass。
   liquid_glass_widgets: ^0.29.6
+  # ── WebGL 液态玻璃移植包（用户指定：Dock 底部标签栏用 WebGL 方式）。
+  # 移植自 martin65536/liquid-glass-webgl + Kyant0/AndroidLiquidGlass，
+  # 提供 GlassDock / GlassSurface / SDF 连续曲率着色器等，替代 AdaptiveGlass
+  # 在 Android 真机上的 Skia/GLES 回落（旧路径退化成接近原生，用户实测无玻璃效果）。
+  liquid_glass_compat:
+    path: packages/liquid_glass_compat
 
 dev_dependencies:
   flutter_test:
