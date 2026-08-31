@@ -421,7 +421,18 @@ abstract final class AppVersion {
 /// requiresCredential（与网易云区分）。解析层支持搜索词，接入 netease.search /
 /// bilibili.search；聚合搜索页的来源筛选与结果按能力开关过滤，关掉的来源不再
 /// 发请求、也不再催登录。netease.playlist 维持 planned（歌单链路确未落地）。
-static const int buildCount = 1;
+/// cl02（08.31）：液态玻璃性能基准 + 高级调节分离 + 白噪音粉红噪声采样——
+/// ①「液态玻璃·性能基准」页（设置→关于→开发者工具）实测 premium/standard/
+/// minimal 三档光栅帧耗时（P50/P75/P95/P99）+ shader 支持探测 + 降级建议
+/// （对照包内 GlassQualityAdapter 阈值 20/28ms），诊断「部分安卓手机无法加载
+/// 液态玻璃」（Mali/Impeller 的 premium 路径专属问题）；②「液态玻璃·高级调节」
+/// 独立页（premium 真折射参数：折射/色散/厚度/色差/辉光/Fresnel/环境光边），
+/// 与标准模式严格分离——frosted/standard 路径零改动，仅 GlassStyle.liquid 读取
+/// 覆盖 provider，恢复默认即回标准；③白噪音采样优化——旧实现 prev=white-
+/// prev*0.35 实为高通反馈（增强高频→刺耳嘶声），R23p 换 Paul Kellet 粉红噪声
+/// （-3dB/oct 平滑下倾），主白噪与分类提示音 shhh 同步改，version 3→4 强制重建
+/// 缓存文件。buildCount 1→2（0.26.8.31_beta_cl02）。
+static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -486,6 +497,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.31',
+    cl: 'beta_cl02',
+    title: '液态玻璃性能基准 + 高级调节分离 + 白噪音粉红噪声采样',
+    details: <String>[
+      '液态玻璃·性能基准（设置→关于→开发者工具）：实测当前设备 premium / standard / minimal 三档光栅帧耗时（P50/P75/P95/P99）+ shader 支持探测 + 降级建议，对照包内 GlassQualityAdapter 阈值（P75<20ms→premium、≤28ms→standard、>28ms→minimal），用于诊断「部分安卓手机无法加载液态玻璃」（Mali GPU/Impeller 的 premium 真折射路径专属问题）',
+      '液态玻璃·高级调节（独立页）：premium 真折射参数（折射/色散/厚度/色差/辉光/Fresnel/环境光边）可单独微调，与标准模式严格分离——frosted/standard 路径零改动、行为与旧版一致，仅 GlassStyle.liquid 读取覆盖，恢复默认一键回标准',
+      '白噪音采样优化：旧实现 prev=white-prev*0.35 实为高通反馈滤波（增强高频→刺耳嘶声），R23p 改 Paul Kellet 粉红噪声（-3dB/oct 频谱平滑下倾，睡眠白噪标准做法），主白噪与分类提示音 shhh 同步改进，缓存版本 3→4 强制重建',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.31',
     cl: 'beta_cl01',
