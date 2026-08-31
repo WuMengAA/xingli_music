@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +6,7 @@ import '../../core/layout/responsive_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/performance_providers.dart';
+import '../liquid_glass.dart';
 
 /// Dock 单个 Tab 的静态描述
 @immutable
@@ -130,58 +129,62 @@ class AppDock extends StatelessWidget {
     final List<DockItem> dockItems =
         items ?? buildDockItems(AppLocalizations.of(context));
     // 玻璃焦点：Dock 为「极简基底 + 玻璃焦点」中的唯二玻璃之一。
-    // ⚠️ 稳定性修复（0.26.8.29 实测）：liquid_glass_widgets 的 AdaptiveGlass
-    // 走 own-layer 合成，在 Windows 底部浮层里不稳定 → 整条 dock 不绘制。
-    // 改回系统原生 BackdropFilter 磨砂条——这正是 iOS TabBar 本体（systemBar
-    // 材质），双端稳定可见、零依赖第三方 layer 合成。模糊强度跟随全局性能模式。
-    final Brightness bright = Theme.of(context).brightness;
-    final Color barColor = bright == Brightness.dark
-        ? const Color(0xB31C1C1E) // iOS dark systemBar
-        : const Color(0xCCF2F2F7); // iOS light systemBar
-    // 磨砂强度固定（dock 保持纯组件、可读 provider，便于单测）。
-    const double blur = 18;
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          color: barColor,
-          child: SizedBox(
-            height: dockH,
-            child: Stack(
-              children: <Widget>[
-                // iOS TabBar 顶部 hairline（1px separator，跟随明暗主题）。
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    height: 1,
-                    color: context.appColors.divider.withValues(alpha: 0.6),
-                  ),
-                ),
-                Material(
-                  type: MaterialType.transparency,
-                  child: Row(
-                    // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
-                    // 设计坐标 x=0/104/208/312（390dp 基准）。
-                    children: <Widget>[
-                      for (int i = 0; i < dockItems.length; i++)
-                        Expanded(
-                          child: _DockTab(
-                            item: dockItems[i],
-                            selected: selectedIndex == i,
-                            // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
-                            showLabel: rl.dockShowLabels &&
-                                density != UiDensity.compact,
-                            onTap: () => onTabSelected(i),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+    // R25：Dock 上液态玻璃（GlassStyle.liquid 真折射/色散路径）。
+    // ⚠️ 稳定性说明（0.26.8.29 曾回退）：liquid_glass_widgets 的 AdaptiveGlass
+    // 走 own-layer 合成，当时在 Windows 底部浮层实测整条不绘制，改回原生
+    // BackdropFilter。此后包升级至 0.29.8，且**同浮层的播放控制栏
+    // （unified_player._frostedPanel transparent）已稳定走 GlassStyle.liquid
+    // premium 真折射**——本处复用同一稳定路径（refraction=8/dispersion=1.6
+    // 与播放栏一致），液态玻璃参数同时吃「高级调节」provider 覆盖。
+    return LiquidGlass(
+      // R32 白名单：Dock 为唯二玻璃焦点之一（极简基底 + 玻璃焦点）。
+      forceGlass: true,
+      // 整条直角条（iOS TabBar 无圆角药丸）。
+      radius: 0,
+      // 液态玻璃：折射 + 色散（premium 真折射路径，与播放控制栏质感一致）。
+      style: GlassStyle.liquid,
+      // 折射/色散强度：对齐播放控制栏「刚刚好完美」档（默认 5/1.2 太弱）。
+      refraction: 8,
+      dispersion: 1.6,
+      // tint 跟随皮肤主色派生语义色；iOS TabBar 无四边框 → 透明描边，
+      // 顶部 hairline 由内部 Stack 绘制（见下）。
+      tint: context.appColors.glassTint,
+      borderColor: Colors.transparent,
+      child: SizedBox(
+        height: dockH,
+        child: Stack(
+          children: <Widget>[
+            // iOS TabBar 顶部 hairline（1px separator，跟随明暗主题）。
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 1,
+                color: context.appColors.divider.withValues(alpha: 0.6),
+              ),
             ),
-          ),
+            Material(
+              type: MaterialType.transparency,
+              child: Row(
+                // 各 Tab 严格等分（数量随 items 变化），中间不插 SizedBox —— 才能对齐
+                // 设计坐标 x=0/104/208/312（390dp 基准）。
+                children: <Widget>[
+                  for (int i = 0; i < dockItems.length; i++)
+                    Expanded(
+                      child: _DockTab(
+                        item: dockItems[i],
+                        selected: selectedIndex == i,
+                        // R22：紧凑密度强制隐藏文字标签（只留图标，效果明显）
+                        showLabel: rl.dockShowLabels &&
+                            density != UiDensity.compact,
+                        onTap: () => onTabSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

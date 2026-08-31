@@ -432,7 +432,13 @@ abstract final class AppVersion {
 /// prev*0.35 实为高通反馈（增强高频→刺耳嘶声），R23p 换 Paul Kellet 粉红噪声
 /// （-3dB/oct 平滑下倾），主白噪与分类提示音 shhh 同步改，version 3→4 强制重建
 /// 缓存文件。buildCount 1→2（0.26.8.31_beta_cl02）。
-static const int buildCount = 2;
+/// cl03（08.31）：底部导航栏 Dock 上液态玻璃——恢复 GlassStyle.liquid premium
+/// 真折射/色散路径（0.26.8.29 曾因 Windows 底部浮层 own-layer 不稳定回退原生
+/// BackdropFilter；包升至 0.29.8 且同浮层播放控制栏已稳定走此路径），参数对齐
+/// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
+/// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
+/// buildCount 2→3（0.26.8.31_beta_cl03）。
+static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -497,6 +503,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.31',
+    cl: 'beta_cl03',
+    title: '底部导航栏 Dock 上液态玻璃（premium 真折射）',
+    details: <String>[
+      'Dock 恢复液态玻璃质感：GlassStyle.liquid premium 真折射/色散路径，参数对齐播放控制栏「刚刚好完美」档（refraction=8 / dispersion=1.6）——0.26.8.29 曾因 Windows 底部浮层 own-layer 不稳定回退原生磨砂条，本次包已升至 0.29.8 且同浮层播放栏稳定走该路径，故复用同一稳定实现',
+      '保留 iOS TabBar 顶部 1px hairline 分隔线（跟随明暗主题），整条直角无药丸圆角',
+      'Dock 液态玻璃自动吃「液态玻璃·高级调节」覆盖 provider：在高级调节页微调折射/色散/厚度/色差等参数会同时作用于底部导航栏，恢复默认即回标准质感',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.31',
     cl: 'beta_cl02',
