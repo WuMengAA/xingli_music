@@ -20,6 +20,8 @@ import '../pages/scene/custom_scene_list_page.dart';
 import '../pages/scene/voxel_sound_editor_page.dart';
 import '../pages/settings/scene_editor_page.dart';
 import '../pages/settings/game_graphics_page.dart';
+import '../pages/settings/liquid_glass_advanced_page.dart';
+import '../pages/settings/liquid_glass_benchmark_page.dart';
 import '../pages/settings/server_settings_page.dart';
 import '../pages/settings/auth_page.dart';
 import '../pages/settings/voxel_save_manager_page.dart';
@@ -1927,6 +1929,40 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       subtitle: '资产拖入 + 实时编辑预览 + 自动纠错，导出 JSON',
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const UiEditorPage()),
+      ),
+    ),
+  ),
+  // 液态玻璃性能基准：量化当前设备 premium/standard/minimal 三档光栅帧
+  // 耗时，输出降级建议（诊断"部分安卓手机无法加载液态玻璃"）。
+  'liquidGlassBenchmark': SettingItemDef(
+    title: '液态玻璃 · 性能基准',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.speed_outlined,
+      title: '液态玻璃 · 性能基准',
+      subtitle: '实测三档玻璃帧耗时 + 降级建议（安卓真机诊断）',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const LiquidGlassBenchmarkPage(),
+        ),
+      ),
+    ),
+  ),
+  // 液态玻璃高级调节：premium 真折射参数微调（折射/色散/厚度/色差/光照），
+  // 与标准模式严格分离；恢复默认即回到标准完美状态。
+  'liquidGlassAdvanced': SettingItemDef(
+    title: '液态玻璃 · 高级调节',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.tune_rounded,
+      title: '液态玻璃 · 高级调节',
+      subtitle: 'premium 真折射参数微调（不影响标准模式）',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const LiquidGlassAdvancedPage(),
+        ),
       ),
     ),
   ),

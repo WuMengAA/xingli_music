@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../core/theme/app_theme_colors.dart';
+import '../providers/settings/liquid_glass_advanced_providers.dart';
 import '../providers/settings/performance_providers.dart';
 
 /// ── 原生极简模式总开关（R27 风格转向，R32 白名单化）────────────────────
@@ -124,6 +125,29 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
     final Color resolvedTint = widget.tint ?? colors.glassTint;
     final Color resolvedBorder = widget.borderColor ?? colors.glassBorder;
 
+    // 高级调节（仅 [GlassStyle.liquid] / premium 路径生效）：用户在独立
+    // 高级调节页显式覆盖的参数优先；未覆盖（null）时跟随构造默认值，
+    // 因此标准模式（frosted）零改动、行为与旧版完全一致。
+    final double refraction = liquid
+        ? (ref.watch(liquidRefractionProvider) ?? widget.refraction)
+        : widget.refraction;
+    final double dispersion = liquid
+        ? (ref.watch(liquidDispersionProvider) ?? widget.dispersion)
+        : widget.dispersion;
+    final double liquidThickness = liquid
+        ? (ref.watch(liquidThicknessProvider) ?? 34)
+        : 34;
+    final double liquidChromatic = liquid
+        ? (ref.watch(liquidChromaticAberrationProvider) ??
+            (dispersion / 100) * 6)
+        : 0.012;
+    final double liquidGlow =
+        liquid ? (ref.watch(liquidGlowProvider) ?? 0.7) : 0.7;
+    final double liquidFresnel =
+        liquid ? (ref.watch(liquidFresnelProvider) ?? 1.2) : 1.2;
+    final double liquidAmbientRim =
+        liquid ? (ref.watch(liquidAmbientRimProvider) ?? 0.2) : 0.2;
+
     // 性能档把半透明叠加减到接近 0（关闭一切半透明效果）。
     final Color tint = perf == PerformanceMode.performance
         ? resolvedTint.withValues(alpha: resolvedTint.a * 0.15)
@@ -135,23 +159,21 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
       // glassColor：alpha 即着色强度，跟随皮肤主色派生语义色。
       glassColor: tint,
       // depth：液态玻璃更厚（折射更明显），毛玻璃偏薄。
-      thickness: liquid ? 34 : 14,
+      thickness: liquid ? liquidThickness : 14,
       // refractiveIndex：液态玻璃按 refraction 映射（1 + v/100*0.2），
       // 毛玻璃给极弱折射（接近纯模糊）。
       // liquid 档：v/100 放大 2.5 倍映射（refraction=8 → 1.20，明显折射），
       // 对齐 AndroidLiquidGlass 的 refractionAmount 视觉强度。
       refractiveIndex: liquid
-          ? (1 + (widget.refraction / 100) * 2.5).clamp(1.0, 1.6)
+          ? (1 + (refraction / 100) * 2.5).clamp(1.0, 1.6)
           : 1.05,
       // chromaticAberration：色散（4 * v/100），液态玻璃明显、毛玻璃几乎无。
       // liquid 档：v/100 放大 6 倍（dispersion=1.6 → 0.096，柔和彩虹边）。
-      chromaticAberration: liquid
-          ? (widget.dispersion / 100) * 6
-          : 0.012,
+      chromaticAberration: liquid ? liquidChromatic : 0.012,
       saturation: 1.4,
-      glowIntensity: liquid ? 0.7 : 0.4,
-      fresnelStrength: liquid ? 1.2 : 1.0,
-      ambientRim: liquid ? 0.2 : 0.0,
+      glowIntensity: liquid ? liquidGlow : 0.4,
+      fresnelStrength: liquid ? liquidFresnel : 1.0,
+      ambientRim: liquid ? liquidAmbientRim : 0.0,
       shadowElevation: 1.0,
       whitenStrength: 0.0,
       edgeAbsorption: 0.0,

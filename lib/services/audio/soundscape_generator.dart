@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../core/paths.dart';
 
 /// 场景音景生成器：程序化合成氛围声（雨/森林/壁炉/海浪…）
@@ -16,7 +15,10 @@ class SoundscapeGenerator {
   /// 生成逻辑版本号：改合成算法时 +1，避免旧缓存文件生效
   /// R23n：白噪 / 程序合成音景**源响度**整体降 ~56%（峰值 0.8→0.35），
   /// 解决"白噪刺耳 / 调到最低仍很大声"（源文件太满），版本 2→3 强制重建。
-  static const int version = 3;
+  /// R23p：白噪改**粉红噪声**（Paul Kellet 经济型 -3dB/oct 滤波器）——旧实现
+  /// `prev = white - prev*0.35` 实为高通反馈（增强高频 → 刺耳嘶声），换粉噪后
+  /// 频谱平滑下倾、柔和得多（睡眠用白噪标准做法），版本 3→4 强制重建。
+  static const int version = 4;
 
   /// 循环淡入淡出时长（秒）：首尾各一段包络，循环时不突兀
   static const double loopFadeSeconds = 2.0;
@@ -80,12 +82,18 @@ class SoundscapeGenerator {
           buf[i] = lp * 2.2 * sway;
         }
       case 'whiteNoise':
-        // shhh：轻低通白噪
-        double prev = 0;
+        // shhh：柔和粉红噪声（R23p：与主白噪同步改 Kellet 粉噪，去刺耳）
+        double b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
         for (int i = 0; i < n; i++) {
           final double white = rng.nextDouble() * 2 - 1;
-          prev = white - prev * 0.35;
-          buf[i] = prev * 0.7;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          b3 = 0.86650 * b3 + white * 0.3104856;
+          b4 = 0.55000 * b4 + white * 0.5329522;
+          b5 = -0.7616 * b5 - white * 0.0168980;
+          buf[i] = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+          b6 = white * 0.115926;
         }
       case 'sfx':
         // click：极短高频脉冲，快速衰减
@@ -134,18 +142,33 @@ class SoundscapeGenerator {
         buf.map((v) => (v * gain * 32767).round().clamp(-32768, 32767)).toList());
   }
 
-  /// compute 入口：白噪声合成（后台 isolate）
+  /// compute 入口：白噪声合成（后台 isolate）——R23p 改粉红噪声。
+  ///
+  /// 旧实现 `prev = white - prev*0.35` 的反馈系数为**负**，等效一阶高通
+  /// （Nyquist 处增益 1.54× DC 处 0.74×），增强高频 → 嘶声刺耳。R23p 换成
+  /// Paul Kellet 经济型粉红噪声滤波器（-3dB/oct 频谱平滑下倾，睡眠白噪
+  /// 标准做法），听感柔和自然。版本 3→4 强制重建缓存文件。
   static Uint8List _synthesizeWhiteNoise(int _) {
     final Random rng = Random(7);
     final int n = sampleRate * 30;
     final List<double> buf = List<double>.filled(n, 0);
-    double prev = 0;
+
+    // 粉红噪声：7 阶 IIR（Kellet 经济型），每步由白噪驱动。
+    double b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
     for (int i = 0; i < n; i++) {
-      // 轻微低通滤波让白噪声更柔和（不再是刺耳的纯白）
       final double white = rng.nextDouble() * 2 - 1;
-      prev = white - prev * 0.35;
-      buf[i] = prev * 0.7;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      final double pink =
+          b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+      b6 = white * 0.115926;
+      buf[i] = pink;
     }
+
     // 循环包络
     final int fadeLen = (sampleRate * loopFadeSeconds).round();
     for (int i = 0; i < fadeLen && i < buf.length; i++) {

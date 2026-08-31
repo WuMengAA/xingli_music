@@ -388,6 +388,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
           items: <SettingItem>[
             SettingItem(id: 'uiTemplateGallery', title: 'UI 模板库'),
             SettingItem(id: 'uiEditor', title: 'UI 编辑器'),
+            SettingItem(id: 'liquidGlassBenchmark', title: '液态玻璃 · 性能基准'),
+            SettingItem(id: 'liquidGlassAdvanced', title: '液态玻璃 · 高级调节'),
           ],
         ),
       ],
