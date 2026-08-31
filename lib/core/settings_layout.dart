@@ -368,6 +368,8 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             SettingItem(id: 'connectionSecurity', title: '连接安全'),
             // cl08：内容服务地址（relay_server http 根）。
             SettingItem(id: 'contentBase', title: '内容服务地址'),
+            // 2026-08-31：ClassIsland 联动鉴权 token（方案 §8，v1.1 可选）。
+            SettingItem(id: 'nowPlayingToken', title: '联动鉴权 token'),
             // 系统信息（平台 / 版本）。
             SettingItem(id: 'systemInfo', title: '系统信息'),
             // cl54-G6：存储占用（软件占用空间统计）。

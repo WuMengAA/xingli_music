@@ -440,4 +440,13 @@ class SettingsRepository {
   /// 主要聆听场景（多选，逗号拼接；空串 = 未选）。
   String get listenSources => _prefs.getString(kListenSources) ?? '';
   Future<void> setListenSources(String v) => _prefs.setString(kListenSources, v);
+
+  // ── ClassIsland 联动（方案 docs/方案_ClassIsland联动.md §8，v1.1 可选鉴权）──
+  static const String kNowPlayingToken = 'settings.nowPlayingToken';
+
+  /// 联动鉴权 token（空串 = 关闭鉴权，v1 冻结行为；非空则服务端需
+  /// `?token=` 或 `Authorization: Bearer`，且 `/control` 放行异机）。
+  String get nowPlayingToken => _prefs.getString(kNowPlayingToken) ?? '';
+  Future<void> setNowPlayingToken(String v) =>
+      _prefs.setString(kNowPlayingToken, v);
 }

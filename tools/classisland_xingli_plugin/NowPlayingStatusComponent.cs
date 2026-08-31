@@ -28,6 +28,7 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
     private readonly DispatcherTimer _timer;
     private NowPlayingClient? _client;
     private string? _clientUrl;
+    private string? _clientToken;
     private readonly TextBlock _mainLine = new()
     {
         Text = "未连接星璃",
@@ -104,16 +105,21 @@ public sealed partial class NowPlayingStatusComponent : ComponentBase<NowPlaying
         _timer.Tick += OnTick;
     }
 
-    /// <summary>按设置目标地址取得客户端；地址变更时重建（设置可在运行期修改）。</summary>
+    /// <summary>按设置目标地址与 token 取得客户端；地址/token 变更时重建（设置可在运行期修改）。</summary>
     private NowPlayingClient Client()
     {
-        var url = Settings?.Url;
+        var settings = Settings;
+        var url = settings?.Url;
         if (string.IsNullOrWhiteSpace(url)) url = "http://127.0.0.1:8742";
-        if (_client is null || !string.Equals(_clientUrl, url, StringComparison.OrdinalIgnoreCase))
+        var token = string.IsNullOrWhiteSpace(settings?.Token) ? null : settings.Token.Trim();
+        if (_client is null
+            || !string.Equals(_clientUrl, url, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(_clientToken, token, StringComparison.Ordinal))
         {
             _client?.Dispose();
-            _client = new NowPlayingClient(url);
+            _client = new NowPlayingClient(url, token);
             _clientUrl = url;
+            _clientToken = token;
         }
         return _client;
     }

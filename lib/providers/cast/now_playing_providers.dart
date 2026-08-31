@@ -11,6 +11,7 @@ import '../../services/cast/now_playing_server.dart';
 import '../../services/log_service.dart';
 import '../audio/audio_providers.dart';
 import '../net/session_provider.dart';
+import '../settings/settings_persistence_providers.dart' show settingsRepositoryProvider;
 
 /// ============================================================================
 /// NowPlayingServer 的 Riverpod 组装层（ClassIsland 联动 · docs/方案_ClassIsland联动.md）。
@@ -22,10 +23,13 @@ import '../net/session_provider.dart';
 /// ============================================================================
 
 final nowPlayingLocalServerProvider = Provider<NowPlayingServer>((ref) {
+  // v1.1 可选鉴权：设置页「联动鉴权 token」非空则启用（见方案 §8）。
+  final String token = ref.read(settingsRepositoryProvider).nowPlayingToken;
   return NowPlayingServer(
     version: AppVersion.display,
     reader: () => _buildSnapshot(ref),
     control: (String action) => _handleControl(ref, action),
+    token: token.isEmpty ? null : token,
   );
 });
 

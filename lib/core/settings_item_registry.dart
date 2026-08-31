@@ -192,6 +192,43 @@ Future<void> _editContentBase(BuildContext context, WidgetRef ref) async {
   }
 }
 
+/// 编辑 ClassIsland 联动鉴权 token（方案 docs/方案_ClassIsland联动.md §8，v1.1）。
+/// 留空 = 关闭鉴权（v1 冻结行为）；非空即启用（所有端点需 token）。
+Future<void> _editNowPlayingToken(BuildContext context, WidgetRef ref) async {
+  final TextEditingController c = TextEditingController(
+      text: ref.read(settingsRepositoryProvider).nowPlayingToken);
+  final String? next = await showDialog<String>(
+    context: context,
+    builder: (BuildContext dlg) => AlertDialog(
+      title: const Text('联动鉴权 token'),
+      content: TextField(
+        controller: c,
+        autofocus: true,
+        decoration: const InputDecoration(
+          hintText: '留空 = 关闭鉴权',
+          helperText: 'ClassIsland 插件同页填一致 token 即可联动。'
+              '启用后所有端点需鉴权，远程控制可由异机（有 token）发起；'
+              '未启用时控制仅本机回环。修改后重启星璃生效。',
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(dlg).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
+          child: const Text('保存'),
+        ),
+      ],
+    ),
+  );
+  if (next == null) return;
+  await ref.read(settingsRepositoryProvider).setNowPlayingToken(next);
+  if (!context.mounted) return;
+  appNotify(context, next.isEmpty ? '已关闭联动鉴权' : '联动鉴权已启用，重启星璃生效');
+}
+
 /// 单选 chips。
 Widget _chips<T>({
   required WidgetRef ref,
@@ -1754,6 +1791,24 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         title: '内容服务地址',
         subtitle: base,
         onTap: () => _editContentBase(context, ref),
+      );
+    },
+  ),
+  // 2026-08-31：ClassIsland 联动鉴权 token（方案 §8，v1.1 可选）。
+  'nowPlayingToken': SettingItemDef(
+    title: '联动鉴权 token',
+    builder: (context, ref) {
+      final String token =
+          ref.read(settingsRepositoryProvider).nowPlayingToken;
+      return _entry(
+        context,
+        ref,
+        icon: Icons.key_outlined,
+        title: '联动鉴权 token',
+        subtitle: token.isEmpty
+            ? '关闭（ClassIsland 插件同机回环可用）'
+            : '已启用 · 重启星璃生效',
+        onTap: () => _editNowPlayingToken(context, ref),
       );
     },
   ),

@@ -11,10 +11,15 @@ import '../log_service.dart';
 /// 纯 dart:io HttpServer，**零 Riverpod 依赖**：状态通过 [reader] 闭包注入，
 /// 远程控制通过可选 [control] 闭包注入，便于脱离 App 单独单测。
 ///
-/// 路由（协议 v1，冻结见方案文档 §3）：
+/// 路由（协议 v1，冻结见方案文档 §3；v1.1 可选 token 鉴权见 §8）：
 /// - `GET  /nowplaying` → 当前曲目 + 播放状态 + 电台状态 JSON
 /// - `GET  /health`     → 探活 `{"ok":true,"app":"xingli_music","version":...}`
 /// - `POST /control`    → `{"action":"play|pause|toggle|next|prev"}`（仅本机回环）
+///
+/// 鉴权（v1.1，可选）：构造传入 [token] 时开启——所有端点需带
+/// `?token=` 查询参数或 `Authorization: Bearer <token>` 头，否则 401；
+/// 有 token 时 `/control` 放行任意来源（token 即授权凭据）。
+/// [token] 为 null/空（默认）→ v1 冻结行为：GET 局域网开放、/control 仅回环。
 /// ============================================================================
 
 /// 曲目快照（/nowplaying 的 `track` 对象）。
@@ -118,12 +123,16 @@ class NowPlayingServer {
     required NowPlayingSnapshot Function() reader,
     this.version = '',
     this.control,
+    this.token,
   }) : _reader = reader;
 
   static const int defaultPort = 8742;
 
   final NowPlayingSnapshot Function() _reader;
   final String version;
+
+  /// 可选鉴权 token（v1.1）。null/空 = 关闭鉴权（v1 冻结行为）。
+  final String? token;
 
   /// 远程控制处理器（未注入时 /control 返回 501）。返回 true 表示已受理。
   final Future<bool> Function(String action)? control;
@@ -173,6 +182,14 @@ class NowPlayingServer {
   Future<void> _onRequest(HttpRequest req) async {
     final HttpResponse res = req.response;
     try {
+      // v1.1 可选鉴权：启用 token 后，三个 API 端点均需通过校验。
+      final bool isApi = req.uri.path == '/health' ||
+          req.uri.path == '/nowplaying' ||
+          req.uri.path == '/control';
+      if (isApi && !_authorized(req)) {
+        await _respondText(res, HttpStatus.unauthorized, 'unauthorized');
+        return;
+      }
       switch (req.method) {
         case 'GET':
           switch (req.uri.path) {
@@ -221,16 +238,46 @@ class NowPlayingServer {
     await _respondJson(res, snapshot.toJson());
   }
 
+  /// v1.1 鉴权：token 未启用（null/空）时恒放行；启用时接受
+  /// `?token=` 查询参数或 `Authorization: Bearer <token>` 头。
+  bool _authorized(HttpRequest req) {
+    final String? t = token;
+    if (t == null || t.isEmpty) return true;
+    final String? fromQuery = req.uri.queryParameters['token'];
+    if (fromQuery != null && _constantTimeEquals(fromQuery, t)) return true;
+    final String? auth = req.headers.value(HttpHeaders.authorizationHeader);
+    if (auth != null &&
+        auth.startsWith('Bearer ', 0) &&
+        _constantTimeEquals(auth.substring(7).trim(), t)) {
+      return true;
+    }
+    return false;
+  }
+
+  static bool _constantTimeEquals(String a, String b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (int i = 0; i < a.length; i++) {
+      diff |= a.codeUnitAt(i) ^ b.codeUnitAt(i);
+    }
+    return diff == 0;
+  }
+
   Future<void> _respondControl(HttpRequest req, HttpResponse res) async {
-    // 只允许本机回环来源（127.0.0.1 / ::1）——局域网只读展示，写操作防误触。
-    final InternetAddress? from = req.connectionInfo?.remoteAddress;
-    final bool loopback = from != null &&
-        (from.isLoopback ||
-            from.address == '0.0.0.0' ||
-            from.address == '::');
-    if (!loopback) {
-      await _respondText(res, HttpStatus.forbidden, 'loopback only');
-      return;
+    // 回环限制仅在未启用 token 时生效（v1 冻结行为：防局域网误触）。
+    // 启用 token 后由鉴权承担授权边界，允许异机（有 token 即可信）。
+    final String? t = token;
+    if (t == null || t.isEmpty) {
+      // 只允许本机回环来源（127.0.0.1 / ::1）——局域网只读展示，写操作防误触。
+      final InternetAddress? from = req.connectionInfo?.remoteAddress;
+      final bool loopback = from != null &&
+          (from.isLoopback ||
+              from.address == '0.0.0.0' ||
+              from.address == '::');
+      if (!loopback) {
+        await _respondText(res, HttpStatus.forbidden, 'loopback only');
+        return;
+      }
     }
     if (control == null) {
       await _respondText(res, HttpStatus.notImplemented, 'no controller');

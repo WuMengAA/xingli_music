@@ -25,6 +25,12 @@ public sealed partial class NowPlayingSettingsControl : ComponentBase<NowPlaying
         MinWidth = 80,
     };
 
+    private readonly TextBox _tokenBox = new()
+    {
+        Watermark = "（留空 = 关闭鉴权）",
+        MinWidth = 280,
+    };
+
     private bool _initialized;
 
     public NowPlayingSettingsControl()
@@ -39,10 +45,12 @@ public sealed partial class NowPlayingSettingsControl : ComponentBase<NowPlaying
                 _urlBox,
                 Label("轮询间隔（秒）"),
                 _pollBox,
+                Label("鉴权 token（可选）"),
+                _tokenBox,
                 new TextBlock
                 {
-                    Text = "星璃音乐 Windows 端需运行中（内置本地状态服务，协议 v1）。"
-                         + "保存后组件自动按新配置刷新；控制按钮仅本机回环可用。",
+                    Text = "星璃音乐 Windows 端需运行中（内置本地状态服务，协议 v1/v1.1）。"
+                         + "保存后组件自动按新配置刷新；控制按钮仅本机回环可用（启用 token 后异机亦可，见方案 §8）。",
                     FontSize = 12,
                     Foreground = new SolidColorBrush(Color.FromRgb(130, 138, 170)),
                     TextWrapping = TextWrapping.Wrap,
@@ -54,6 +62,7 @@ public sealed partial class NowPlayingSettingsControl : ComponentBase<NowPlaying
 
         _urlBox.TextChanged += (_, _) => Flush();
         _pollBox.TextChanged += (_, _) => Flush();
+        _tokenBox.TextChanged += (_, _) => Flush();
     }
 
     private static TextBlock Label(string text) => new()
@@ -70,6 +79,7 @@ public sealed partial class NowPlayingSettingsControl : ComponentBase<NowPlaying
         if (settings is null) return;
         settings.Url = string.IsNullOrWhiteSpace(_urlBox.Text) ? "http://127.0.0.1:8742" : _urlBox.Text.Trim();
         settings.PollSeconds = double.TryParse(_pollBox.Text, out var sec) && sec > 0 ? sec : 2.0;
+        settings.Token = _tokenBox.Text?.Trim() ?? "";
     }
 
     protected override void OnAttachedToVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
@@ -84,6 +94,7 @@ public sealed partial class NowPlayingSettingsControl : ComponentBase<NowPlaying
             if (settings is null) return;
             _urlBox.Text = settings.Url;
             _pollBox.Text = settings.PollSeconds.ToString("0.#");
+            _tokenBox.Text = settings.Token;
         }, DispatcherPriority.Background);
     }
 }

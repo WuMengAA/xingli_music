@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
@@ -68,10 +69,13 @@ public sealed class NowPlayingClient : IDisposable
     private readonly string _baseUrl;
     private readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
-    public NowPlayingClient(string? baseUrl = null)
+    public NowPlayingClient(string? baseUrl = null, string? token = null)
     {
         _baseUrl = (baseUrl ?? "http://127.0.0.1:8742").TrimEnd('/');
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        if (!string.IsNullOrWhiteSpace(token))
+            _http.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token.Trim());
     }
 
     /// <summary>拉取一次快照；请求失败或解析失败返回 null（调用方保持旧值即可）。</summary>
