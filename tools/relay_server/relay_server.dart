@@ -115,6 +115,7 @@ class _Client {
 }
 
 /// 房间元数据（cl15：公开/私密 + 模式 + 容量 + 密码）。
+/// cl16：电台自动化——房主保活（autoDJ/ttl）与归主（hostId）字段。
 class _RoomMeta {
   _RoomMeta({
     required this.code,
@@ -123,6 +124,9 @@ class _RoomMeta {
     required this.capacity,
     required this.isPublic,
     this.password,
+    this.hostId,
+    this.autoDJ = false,
+    this.ttlSeconds = 0,
   });
 
   final String code; // 房间号（公开房间列表展示）
@@ -131,6 +135,14 @@ class _RoomMeta {
   final int capacity; // 人数上限
   final bool isPublic; // true=公开（大厅可搜）/ false=私密（需房间号+密码）
   final String? password; // 私密房间密码（null=无需密码）
+  final String? hostId; // 房主稳定标识（客户端生成并持久化，归主凭据）
+  final bool autoDJ; // 无人值守：房主离线房间不销毁（relay 托管）
+  final int ttlSeconds; // 房主离线保活秒数（autoDJ 时生效；0=立即随房主销毁）
+
+  // ── 运行态（非创建字段，随房间生命周期更新）─────────────────────
+  String? hostPeerId; // 当前在线房主的 peerId（断线判定）
+  bool hostOffline = false; // 房主离线托管中（虚拟 DJ 接管）
+  Timer? ttlTimer; // 房主离线 TTL 倒计时（到点销毁房间）
 
   Map<String, dynamic> toJson(int members) => <String, dynamic>{
         'code': code,
@@ -139,6 +151,8 @@ class _RoomMeta {
         'capacity': capacity,
         'public': isPublic,
         'members': members,
+        if (autoDJ) 'autoDJ': autoDJ,
+        if (hostOffline) 'hostOffline': hostOffline,
       };
 }
 
@@ -210,16 +224,28 @@ void _onJoin(_Client client, Map<String, dynamic> join) {
   final String room = (join['room'] as String?)?.trim() ?? '';
   final String name = (join['name'] as String?)?.trim() ?? '';
   final bool isHost = join['host'] == true;
+  final String? hostId = join['hostId'] as String?;
 
   if (room.isEmpty) {
     _error(client, 'room required');
     return;
   }
 
+  // ── 房主归主判定（cl16）：托管态房间 + 同 hostId → 恢复房主身份 ────
+  // 先判定（用 pre 的原始状态），成功 join 后再做归主收尾，避免提前复位
+  // hostOffline 导致「room exists」误判。
+  final _RoomMeta? pre = _rooms[room];
+  final bool hostReturn = isHost &&
+      pre != null &&
+      pre.hostOffline &&
+      hostId != null &&
+      hostId == pre.hostId;
+
   // ── 创建房间（host=true）：登记元数据 ──────────────────────────────
   if (isHost) {
     // 已有活跃房间（同号）：拒绝，提示换房号。
-    if (_rooms.containsKey(room) && (_roomCount[room] ?? 0) > 0) {
+    // 注：托管态房间（hostOffline=true）+ 同 hostId 的房主归主放行。
+    if (_rooms.containsKey(room) && (_roomCount[room] ?? 0) > 0 && !hostReturn) {
       _error(client, 'room exists');
       return;
     }
@@ -233,15 +259,22 @@ void _onJoin(_Client client, Map<String, dynamic> join) {
       _ => ((join['capacity'] as num?) ?? 100).toInt().clamp(1, 100),
     };
     final String? password = join['password'] as String?;
-    _rooms[room] = _RoomMeta(
-      code: room,
-      name: name.isEmpty ? '房主' : name,
-      mode: mode,
-      capacity: capacity,
-      isPublic: isPublic,
-      password: (password == null || password.isEmpty) ? null : password,
-    );
-    _roomCount[room] = 0;
+    final bool autoDJ = join['autoDJ'] == true;
+    final int ttlSeconds =
+        ((join['ttl'] as num?) ?? 0).toInt().clamp(0, 3600);
+    final _RoomMeta meta = _rooms[room] ?? _RoomMeta(
+          code: room,
+          name: name.isEmpty ? '房主' : name,
+          mode: mode,
+          capacity: capacity,
+          isPublic: isPublic,
+          password: (password == null || password.isEmpty) ? null : password,
+          hostId: hostId,
+          autoDJ: autoDJ,
+          ttlSeconds: ttlSeconds,
+        );
+    if (!_rooms.containsKey(room)) _rooms[room] = meta;
+    _roomCount[room] = (_roomCount[room] ?? 0); // 归主时保持现有成员数
   } else {
     // ── 加入房间（host=false）：校验存在 + 私密密码 + 容量 ─────────────
     final _RoomMeta? meta = _rooms[room];
@@ -276,6 +309,21 @@ void _onJoin(_Client client, Map<String, dynamic> join) {
     name: name,
   );
   _clientsByWs[client.ws.hashCode.toString()] = bound;
+  // 房主：记录当前在线房主 peerId（断线判定用）
+  if (isHost) {
+    _rooms[room]?.hostPeerId = id;
+  }
+
+  // 房主归主收尾：取消 TTL、复位 hostOffline、通知房内成员
+  if (hostReturn) {
+    pre.ttlTimer?.cancel();
+    pre.ttlTimer = null;
+    pre.hostOffline = false;
+    _broadcastToRoom(
+      room,
+      <String, dynamic>{'ctl': 'peerHostBack', 'id': hostId},
+    );
+  }
 
   // 回 ready（创建者带房间元数据，供客户端展示人数上限/模式）
   final _RoomMeta? meta = _rooms[room];
@@ -296,18 +344,40 @@ void _error(_Client client, String msg) {
 void _removeClient(_Client client) {
   _clientsById.remove(client.id);
   _clientsByWs.remove(client.ws.hashCode.toString());
-  final int? count = _roomCount[client.room];
+  final String room = client.room;
+  final int? count = _roomCount[room];
+  final _RoomMeta? meta = _rooms[room];
   if (count != null) {
-    if (count <= 1) {
-      _roomCount.remove(client.room);
-      _rooms.remove(client.room); // cl15：房间清空即下线（含元数据）
+    final bool isHostLeaving = meta?.hostPeerId == client.id;
+    if (isHostLeaving && meta != null && meta.autoDJ && meta.ttlSeconds > 0) {
+      // ── 房主离线：转入托管态（cl16，电台自动化）─────────────
+      // 房间不销毁，交给虚拟 DJ（M2）继续广播；房主凭 hostId 归主恢复。
+      meta.hostOffline = true;
+      meta.hostPeerId = null;
+      _roomCount[room] = count - 1;
+      meta.ttlTimer?.cancel();
+      meta.ttlTimer = Timer(Duration(seconds: meta.ttlSeconds), () {
+        // TTL 到期：房主未归 → 销毁房间（含元数据）
+        _roomCount.remove(room);
+        _rooms.remove(room);
+      });
+      // 通知房内成员：托管态（虚拟 DJ 接管，房主可回归）
+      _broadcastToRoom(
+        room,
+        <String, dynamic>{'ctl': 'roomMetaUpdate', 'hostOffline': true},
+      );
+    } else if (count <= 1 && !(meta?.hostOffline ?? false)) {
+      // 房间清空（非托管态）：立即下线（含元数据）——cl15 原行为
+      _roomCount.remove(room);
+      _rooms.remove(room);
     } else {
-      _roomCount[client.room] = count - 1;
+      // 一般成员离开 / 托管态成员离开：仅减人数，房间保留至 TTL
+      _roomCount[room] = count - 1;
     }
   }
   // 广播 peerLeave 给同房间其它成员
   _broadcastToRoom(
-    client.room,
+    room,
     <String, dynamic>{'ctl': 'peerLeave', 'id': client.id},
   );
 }
