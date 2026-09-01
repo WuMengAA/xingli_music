@@ -1,0 +1,57 @@
+{
+    "schema":  1,
+    "source":  "github-pages",
+    "updatedAt":  "2026-09-01T23:40:35+08:00",
+    "channels":  {
+                     "beta":  {
+                                  "latest":  {
+                                                 "tag":  "0.26.8.31_beta_cl03",
+                                                 "dateKey":  260831,
+                                                 "build":  3,
+                                                 "hotfix":  null,
+                                                 "notes":  "clOTA：正式签名切换（release-key.jks），Android OTA + Windows 双端"
+                                             }
+                              }
+                 },
+    "assets":  {
+                   "0.26.8.31_beta_cl01":  {
+                                               "android":  {
+                                                               "arm64-v8a":  {
+                                                                                 "sha256":  "c5c82952a27e38b5cacb97239b46087b54b9d91f603618de5aac4a80c4bbacb1",
+                                                                                 "name":  "app-arm64-v8a-release.apk",
+                                                                                 "size":  44878711
+                                                                             },
+                                                               "armeabi-v7a":  {
+                                                                                   "sha256":  "d3376f0b1ccc6cde4541ca42d7662f6952a4a6e3599837a5dd7a7ecd7a69dd09",
+                                                                                   "name":  "app-armeabi-v7a-release.apk",
+                                                                                   "size":  42271429
+                                                                               }
+                                                           }
+                                           },
+                   "0.26.8.31_beta_cl03":  {
+                                               "android":  {
+                                                               "arm64-v8a":  {
+                                                                                 "sha256":  "4b428d7e12253b92aed49c89120deb12395a1cd4483926a7d35f71c5a6a03af6",
+                                                                                 "name":  "app-arm64-v8a-release.apk",
+                                                                                 "size":  45543027
+                                                                             },
+                                                               "armeabi-v7a":  {
+                                                                                   "sha256":  "e5538029564393bff9cb627642355ac0ebfe286b1d74efb7563fe67a49c4f9e8",
+                                                                                   "name":  "app-armeabi-v7a-release.apk",
+                                                                                   "size":  42919361
+                                                                               }
+                                                           },
+                                               "windows":  {
+                                                               "x64":  {
+                                                                           "sha256":  "b14ed449449289efab132b6967c6a869c6b79877052a68a56b71478cf2c27a41",
+                                                                           "name":  "xingli_music_windows_x64.zip",
+                                                                           "size":  38664541
+                                                                       }
+                                                           }
+                                           }
+               },
+    "versions":  [
+                     "0.26.8.31_beta_cl03",
+                     "0.26.8.31_beta_cl01"
+                 ]
+}
