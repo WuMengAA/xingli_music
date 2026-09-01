@@ -43,18 +43,43 @@ android {
         // "0.26.8"（flutter.versionName 只取 x.y.z）。
         // 规范（用户 2026-08-16）：0.26.8.XX_beta_clXXX[_hotfixX]。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion.display 同步更新！
-        versionName = "0.26.8.29_beta_cl01"
+        versionName = "0.26.8.31_beta_cl03"
         // 架构裁剪改由 android 顶层 `splits { abi }` 统一处理（见本块下方），
         // 这里不再用 ndk.abiFilters：它与 splits / --split-per-abi 冲突，且实测
         // 管不住 Flutter 引擎 .so（多余）。x86_64 仍由文件末尾 androidComponents 排除。
     }
 
+    // ── 正式签名配置（2026-09-01 R32）：────────────────────────────
+    // 密钥库 android/app/release-key.jks + 口令 android/app/key.properties，
+    // 两者均已被 .gitignore 忽略、不入库。构建时按需读取；文件缺失时
+    // 退回 debug 签名以便开发环境/CI 仍能构建（release 正式出包必须存在）。
+    def keystoreProperties = new Properties()
+    def keystorePropertiesFile = rootProject.file("app/key.properties")
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.withReader("UTF-8") { reader ->
+            keystoreProperties.load(reader)
+        }
+    }
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"]
+                keyPassword = keystoreProperties["keyPassword"]
+                storeFile = file(keystoreProperties["storeFile"])
+                storePassword = keystoreProperties["storePassword"]
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // ⚠️ 高危：当前仍使用 debug 签名，仅为让 `flutter build apk --release`
-            // 能直接跑通。正式对外发布前必须替换为自有 release 密钥库，
-            // 否则该 APK 无法上架应用商店，且后续无法用正式密钥覆盖升级。
-            signingConfig = signingConfigs.debug
+            // 正式签名（2026-09-01 R32 用户拍板切换）：密钥在 android/app/
+            // release-key.jks（30 年有效），口令在 android/app/key.properties。
+            // ⚠️ 两者均已被 .gitignore 忽略，绝不入库；一旦丢失/泄露将无法
+            // 覆盖升级既有安装包。切换后所有后续版本必须用同一密钥签名。
+            signingConfig = keystorePropertiesFile.exists()
+                ? signingConfigs.release
+                : signingConfigs.debug // 仅开发/CI 无密钥时的兜底
 
             // R8 代码混淆 + 无用代码裁剪。保活规则见 proguard-rules.pro。
             // 注：本工程 dex 仅约 1MB（业务逻辑几乎都在 Dart 侧的 libapp.so），
