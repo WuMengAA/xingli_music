@@ -1,7 +1,7 @@
 ; 星璃音乐 · Windows 正式安装向导（Inno Setup 7）
 ; 源：build/windows/x64/runner/Release（含全部 DLL + data/）
 #define MyAppName "星璃音乐"
-#define MyAppVersion "0.26.8.29"
+#define MyAppVersion "0.26.8.31"
 #define MyAppPublisher "Stellara"
 #define MySrc "D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release"
 #define MyOut "D:\Stellara\Music\xingli_music\release"
@@ -15,7 +15,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 OutputDir={#MyOut}
-OutputBaseFilename=星璃音乐_0.26.8.29_beta_cl01_pc_win_setup
+OutputBaseFilename=星璃音乐_0.26.8.31_beta_cl03_pc_win_setup
 SetupIconFile={#MyIcon}
 UninstallDisplayIcon={#MyIcon}
 Compression=lzma2
