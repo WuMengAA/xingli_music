@@ -65,3 +65,10 @@ VoiceHub 可借鉴项（按价值排序）：
 - **WebGL 液态玻璃 = 用户一直要求的核心**：VoiceHub 用 Pixi.js/WebGL 做 Web 液态玻璃渲染层。星璃的 `liquid_glass_compat`（WebGL 移植）正是对齐此方向，Dock 已用 WebGL 玻璃，R32 起全站玻璃统一流畅档。
 - **必须长期写记忆**：Hindsight 未配置 token（401）时，记忆走 `docs/MEMORY_*.md` 兜底，持续追加。用户已多次批评「不记忆日常 md」，务必坚持。
 
+## 七、部署记录（2026-09-02）
+
+- **relay_server.exe 已升级**：备份旧版 `relay_server_cl16_HHmmss.exe.bak`，新 exe（含 change-password + profile 昵称/头像，0:37:09 编译）覆盖 `tools/relay_server/relay_server.exe`，重启监听 8092（pid 变化）。用户数据在 `tools/relay_server/users/*.json`（3 用户，未受影响）。健康检查 `/api/health` 正常。
+- **修复真实崩溃**：`lib/providers/settings/performance_providers.dart` `PicturePreset.fps` 的 map 中 `high: null` 是合法值，但 `[this]!` 强解包 → 用户选「高质」档即崩（relay crash 日志实锤两连崩）。改为 `[this]`（非空返回类型允许 null）。commit 8b62653。
+- **git push 慢的根因**：Steam++ 加速器（hosts 指 github.com→127.0.0.1）+ Git Credential Manager 弹 GUI（8 个 git-credential-manager 进程堆积卡死）。**可靠方案：URL 内嵌 token 直推** `https://x-access-token:<PAT>@github.com/...`（绕过 GCM），一次成功。
+
+
