@@ -80,6 +80,10 @@ class StationRoomPage extends ConsumerWidget {
                   if (isHost) _buildRoomCode(context, c, s),
                   _buildDjCard(c, s),
                   const SizedBox(height: 16),
+                  if (mode.acceptOrder) ...[
+                    _buildOrderQueueCard(context, c, s),
+                    const SizedBox(height: 16),
+                  ],
                   _buildMembers(c, s),
                   if (mode.syncListen) ...<Widget>[
                     const SizedBox(height: 16),
@@ -225,6 +229,115 @@ class StationRoomPage extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildOrderQueueCard(
+      BuildContext context, AppThemeColors c, NetSessionState s) {
+    final List<OrderItem> pending = s.orderQueue
+        .where((it) => it.status == OrderStatus.pending)
+        .toList();
+    final List<OrderItem> approved = s.orderQueue
+        .where((it) => it.status == OrderStatus.approved)
+        .toList();
+    // VoiceHub 风格：点歌队列在房间内可见——待审批 + 待播放两张小卡。
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.border.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.queue_music, color: c.accent, size: 18),
+              const SizedBox(width: 8),
+              Text('点歌队列',
+                  style: TextStyle(
+                      color: c.textPrimary, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (pending.isNotEmpty || approved.isNotEmpty)
+                TextButton(
+                  onPressed: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const OrderQueuePage(),
+                    ),
+                  ),
+                  child: const Text('查看全部'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          if (s.orderQueue.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text('暂无点歌，听众可点歌',
+                  style: TextStyle(color: c.textSecondary, fontSize: 12)),
+            )
+          else ...<Widget>[
+            if (pending.isNotEmpty) ...<Widget>[
+              _queueRow(c: c, icon: Icons.pending_actions, label: '待审批', items: pending),
+              const SizedBox(height: 8),
+            ],
+            if (approved.isNotEmpty) ...<Widget>[
+              _queueRow(c: c, icon: Icons.playlist_play, label: '待播放', items: approved),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 单行队列分组：最多展示 3 条，其余「+N」。
+  Widget _queueRow({
+    required AppThemeColors c,
+    required IconData icon,
+    required String label,
+    required List<OrderItem> items,
+  }) {
+    final List<OrderItem> shown = items.take(3).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          children: <Widget>[
+            Icon(icon, size: 14, color: c.textSecondary),
+            const SizedBox(width: 4),
+            Text('$label（${items.length}）',
+                style: TextStyle(color: c.textSecondary, fontSize: 11)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ...shown.map((OrderItem it) => Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                children: <Widget>[
+                  Icon(Icons.music_note, size: 14, color: c.accent),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      it.track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: c.textPrimary, fontSize: 12),
+                    ),
+                  ),
+                  Text(it.anonymous ? '匿名' : it.fromName,
+                      style:
+                          TextStyle(color: c.textTertiary, fontSize: 11)),
+                ],
+              ),
+            )),
+        if (items.length > shown.length)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text('+${items.length - shown.length} 首',
+                style: TextStyle(color: c.textTertiary, fontSize: 11)),
+          ),
+      ],
     );
   }
 
