@@ -22,10 +22,19 @@ class AuthPage extends ConsumerStatefulWidget {
 class _AuthPageState extends ConsumerState<AuthPage> {
   final TextEditingController _u = TextEditingController();
   final TextEditingController _p = TextEditingController();
+  // R32：资料编辑（昵称/头像）与改密码。
+  final TextEditingController _nick = TextEditingController();
+  final TextEditingController _avatar = TextEditingController();
+  final TextEditingController _oldPwd = TextEditingController();
+  final TextEditingController _newPwd = TextEditingController();
   bool _loading = false;
   bool _syncing = false;
+  bool _savingProfile = false;
+  bool _changingPwd = false;
   String? _error;
   String? _syncMsg;
+  String? _profileMsg;
+  String? _pwdMsg;
 
   Future<void> _submit(bool register) async {
     final String username = _u.text.trim();
@@ -102,10 +111,84 @@ class _AuthPageState extends ConsumerState<AuthPage> {
     }
   }
 
+  /// R32：保存昵称/头像资料。
+  Future<void> _saveProfile() async {
+    final AuthState a = ref.read(authProvider);
+    final String? token = a.token;
+    if (token == null) return;
+    setState(() {
+      _savingProfile = true;
+      _profileMsg = null;
+    });
+    final String base = ref.read(contentBaseUrlProvider);
+    final bool lenient = ref.watch(certPolicyProvider) == CertPolicy.lenient;
+    final client = makeHttpClient(lenient: lenient);
+    final String? nick = _nick.text.trim().isEmpty ? null : _nick.text.trim();
+    final String? avatar =
+        _avatar.text.trim().isEmpty ? null : _avatar.text.trim();
+    final AuthResult res = await updateUserProfile(
+      base,
+      token,
+      displayName: nick,
+      avatar: avatar,
+      client: client,
+    );
+    client.close();
+    if (!mounted) return;
+    setState(() => _savingProfile = false);
+    if (res.ok && res.user != null) {
+      await ref.read(authProvider.notifier).setSession(token, res.user!);
+      _profileMsg = '已保存';
+    } else {
+      _profileMsg = res.error ?? '保存失败';
+    }
+  }
+
+  /// R32：修改密码（校验旧密码）。
+  Future<void> _changePassword() async {
+    final AuthState a = ref.read(authProvider);
+    final String? token = a.token;
+    if (token == null) return;
+    if (_newPwd.text.length < 6) {
+      setState(() => _pwdMsg = '新密码至少 6 位');
+      return;
+    }
+    setState(() {
+      _changingPwd = true;
+      _pwdMsg = null;
+    });
+    final String base = ref.read(contentBaseUrlProvider);
+    final bool lenient = ref.watch(certPolicyProvider) == CertPolicy.lenient;
+    final client = makeHttpClient(lenient: lenient);
+    final AuthResult res = await changePassword(
+      base,
+      token,
+      _oldPwd.text,
+      _newPwd.text,
+      client: client,
+    );
+    client.close();
+    if (!mounted) return;
+    setState(() {
+      _changingPwd = false;
+      if (res.ok) {
+        _pwdMsg = '密码已修改';
+        _oldPwd.clear();
+        _newPwd.clear();
+      } else {
+        _pwdMsg = res.error ?? '修改失败';
+      }
+    });
+  }
+
   @override
   void dispose() {
     _u.dispose();
     _p.dispose();
+    _nick.dispose();
+    _avatar.dispose();
+    _oldPwd.dispose();
+    _newPwd.dispose();
     super.dispose();
   }
 
@@ -130,6 +213,76 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               title: const Text('当前账号'),
               subtitle: Text(auth.user?.username ?? ''),
             ),
+            // R32：资料编辑（昵称/头像）。
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 4),
+              child: Text('资料', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            TextField(
+              controller: _nick,
+              decoration: InputDecoration(
+                labelText: '昵称',
+                hintText: auth.user?.name ?? '',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _avatar,
+              decoration: const InputDecoration(
+                labelText: '头像',
+                hintText: 'URL 或 emoji',
+              ),
+            ),
+            if (_profileMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_profileMsg!,
+                    style: TextStyle(
+                        fontSize: 12, color: theme.colorScheme.outline)),
+              ),
+            const SizedBox(height: 8),
+            if (_savingProfile)
+              const Center(child: CircularProgressIndicator())
+            else
+              FilledButton.tonal(
+                onPressed: _saveProfile,
+                child: const Text('保存资料'),
+              ),
+            const Divider(),
+            // R32：修改密码。
+            const Padding(
+              padding: EdgeInsets.only(top: 8, bottom: 4),
+              child: Text('修改密码',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+            TextField(
+              controller: _oldPwd,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: '当前密码'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _newPwd,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: '新密码（至少 6 位）'),
+            ),
+            if (_pwdMsg != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(_pwdMsg!,
+                    style: TextStyle(
+                        fontSize: 12, color: theme.colorScheme.outline)),
+              ),
+            const SizedBox(height: 8),
+            if (_changingPwd)
+              const Center(child: CircularProgressIndicator())
+            else
+              FilledButton.tonal(
+                onPressed: _changePassword,
+                child: const Text('修改密码'),
+              ),
+            const Divider(),
             if (_syncing)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),

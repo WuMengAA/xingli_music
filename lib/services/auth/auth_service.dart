@@ -14,18 +14,31 @@ import 'package:http/http.dart' as http;
 class AuthUser {
   const AuthUser({
     required this.username,
+    this.displayName,
+    this.avatar,
     this.prefs = const <String, dynamic>{},
     this.favorites = const <dynamic>[],
     this.createdAt,
   });
 
   final String username;
+
+  /// 昵称（R32：可编辑，≤32 字符；空则回退 username）。
+  final String? displayName;
+
+  /// 头像（R32：URL/emoji，≤512 字符）。
+  final String? avatar;
   final Map<String, dynamic> prefs;
   final List<dynamic> favorites;
   final String? createdAt;
 
+  /// 展示名：昵称优先，无则用户名。
+  String get name => (displayName?.isNotEmpty ?? false) ? displayName! : username;
+
   factory AuthUser.fromJson(Map<String, dynamic> m) => AuthUser(
         username: (m['username'] as String?) ?? '',
+        displayName: m['displayName'] as String?,
+        avatar: m['avatar'] as String?,
         prefs: (m['prefs'] as Map<String, dynamic>?) ?? const <String, dynamic>{},
         favorites: (m['favorites'] as List<dynamic>?) ?? const <dynamic>[],
         createdAt: m['createdAt'] as String?,
@@ -33,10 +46,27 @@ class AuthUser {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'username': username,
+        if (displayName != null) 'displayName': displayName,
+        if (avatar != null) 'avatar': avatar,
         'prefs': prefs,
         'favorites': favorites,
         'createdAt': createdAt,
       };
+
+  AuthUser copyWith({
+    String? displayName,
+    String? avatar,
+    Map<String, dynamic>? prefs,
+    List<dynamic>? favorites,
+  }) =>
+      AuthUser(
+        username: username,
+        displayName: displayName ?? this.displayName,
+        avatar: avatar ?? this.avatar,
+        prefs: prefs ?? this.prefs,
+        favorites: favorites ?? this.favorites,
+        createdAt: createdAt,
+      );
 }
 
 /// 认证结果。
@@ -124,19 +154,36 @@ Future<AuthResult> updateUserFavorites(
     _putAuth(baseUrl, token, '/api/auth/favorites',
         <String, dynamic>{'favorites': favorites}, client: client);
 
-/// 部分更新档案：`PATCH /api/auth/profile`，body 可含 `prefs` 和/或 `favorites`。
+/// 部分更新档案：`PATCH /api/auth/profile`，body 可含 `displayName` / `avatar` /
+/// `prefs` 和/或 `favorites`。
 Future<AuthResult> updateUserProfile(
   String baseUrl,
   String token, {
+  String? displayName,
+  String? avatar,
   Map<String, dynamic>? prefs,
   List<dynamic>? favorites,
   http.Client? client,
 }) {
   final Map<String, dynamic> body = <String, dynamic>{};
+  if (displayName != null) body['displayName'] = displayName;
+  if (avatar != null) body['avatar'] = avatar;
   if (prefs != null) body['prefs'] = prefs;
   if (favorites != null) body['favorites'] = favorites;
   return _putAuth(baseUrl, token, '/api/auth/profile', body, client: client);
 }
+
+/// 修改密码：`PUT /api/auth/change-password`，body `{oldPassword, newPassword}`。
+Future<AuthResult> changePassword(
+  String baseUrl,
+  String token,
+  String oldPassword,
+  String newPassword, {
+  http.Client? client,
+}) =>
+    _putAuth(baseUrl, token, '/api/auth/change-password',
+        <String, dynamic>{'oldPassword': oldPassword, 'newPassword': newPassword},
+        client: client);
 
 /// 内部：PUT 档案并解析统一响应。
 Future<AuthResult> _putAuth(

@@ -708,6 +708,16 @@ Future<void> _handleApi(HttpRequest req) async {
       payload = await _authUpdateProfile(req);
       if (payload['ok'] != true) status = 400;
       break;
+    case '/api/auth/change-password':
+      // R32：修改密码（校验旧密码 → 重加盐 → 更新 verifier）。
+      if (method != 'PUT') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _authChangePassword(req);
+      if (payload['ok'] != true) status = 400;
+      break;
     case '/api/logs':
       if (method != 'POST') {
         status = 405;
@@ -855,6 +865,10 @@ String? _bearer(HttpRequest req) {
 Map<String, dynamic> _publicUser(Map<String, dynamic> rec) =>
     <String, dynamic>{
       'username': rec['username'],
+      if (rec['displayName'] is String && (rec['displayName'] as String).isNotEmpty)
+        'displayName': rec['displayName'],
+      if (rec['avatar'] is String && (rec['avatar'] as String).isNotEmpty)
+        'avatar': rec['avatar'],
       'prefs': rec['prefs'] ?? <String, dynamic>{},
       'favorites': rec['favorites'] ?? <dynamic>[],
       'createdAt': rec['createdAt'],
@@ -1005,12 +1019,28 @@ Future<Map<String, dynamic>> _authUpdateFavorites(HttpRequest req) async {
   return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
 }
 
-/// 部分更新档案：`PUT/PATCH /api/auth/profile`，body 可含 `prefs` 和/或 `favorites`。
+/// 部分更新档案：`PUT/PATCH /api/auth/profile`，body 可含
+/// `displayName` / `avatar` / `prefs` / `favorites`。
 Future<Map<String, dynamic>> _authUpdateProfile(HttpRequest req) async {
   final Map<String, dynamic>? rec = await _authedUserRecord(req);
   if (rec == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
   final Map<String, dynamic>? body = await _readJsonBody(req);
   if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
+  // R32：昵称（displayName，≤32 字符）与头像（avatar，URL/emoji/data，≤512 字符）。
+  if (body.containsKey('displayName')) {
+    final String v = (body['displayName'] as String? ?? '').trim();
+    if (v.length > 32) {
+      return <String, dynamic>{'ok': false, 'error': '昵称最多 32 字符'};
+    }
+    rec['displayName'] = v;
+  }
+  if (body.containsKey('avatar')) {
+    final String v = (body['avatar'] as String? ?? '').trim();
+    if (v.length > 512) {
+      return <String, dynamic>{'ok': false, 'error': '头像数据过长'};
+    }
+    rec['avatar'] = v;
+  }
   if (body.containsKey('prefs')) {
     final Object? prefs = body['prefs'];
     if (prefs is! Map<String, dynamic>) {
@@ -1029,6 +1059,32 @@ Future<Map<String, dynamic>> _authUpdateProfile(HttpRequest req) async {
     return <String, dynamic>{'ok': false, 'error': 'server error'};
   }
   return <String, dynamic>{'ok': true, 'user': _publicUser(rec)};
+}
+
+/// 修改密码：`PUT /api/auth/change-password`，body `{oldPassword, newPassword}`。
+/// 校验旧密码后更新 verifier（重新加盐），token 不变（仍有效）。
+Future<Map<String, dynamic>> _authChangePassword(HttpRequest req) async {
+  final Map<String, dynamic>? rec = await _authedUserRecord(req);
+  if (rec == null) return <String, dynamic>{'ok': false, 'error': 'unauthorized'};
+  final Map<String, dynamic>? body = await _readJsonBody(req);
+  if (body == null) return <String, dynamic>{'ok': false, 'error': 'invalid body'};
+  final String oldPassword = body['oldPassword'] as String? ?? '';
+  final String newPassword = body['newPassword'] as String? ?? '';
+  if (newPassword.length < 6) {
+    return <String, dynamic>{'ok': false, 'error': '新密码至少 6 位'};
+  }
+  final String oldSalt = rec['salt'] as String? ?? '';
+  final String expect = _pbkdf2(oldPassword, oldSalt);
+  if (expect != (rec['verifier'] as String? ?? '')) {
+    return <String, dynamic>{'ok': false, 'error': '旧密码错误'};
+  }
+  final String newSalt = base64Encode(_randomBytes(16));
+  rec['salt'] = newSalt;
+  rec['verifier'] = _pbkdf2(newPassword, newSalt);
+  if (!await _writeUserRecord(rec)) {
+    return <String, dynamic>{'ok': false, 'error': 'server error'};
+  }
+  return <String, dynamic>{'ok': true};
 }
 
 // ═══ cl14：App 日志接收（/api/logs，JSONL 落盘）════════════════════
