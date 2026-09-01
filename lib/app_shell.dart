@@ -39,6 +39,7 @@ import 'widgets/shell/responsive_floating_layer.dart';
 import 'widgets/shell/scroll_blur.dart';
 import 'widgets/shell/tab_switch_blur.dart';
 import 'widgets/playback/music_card.dart';
+import 'widgets/social/order_floating_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
 import 'widgets/common/app_confirm_dialog.dart';
 
@@ -458,7 +459,19 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                const MusicCard(),
+                // R32 ④：点歌悬浮窗——叠在底部媒体栏（MusicCard）之上方，
+                // 浮出点歌卡片（DJ 审批 / 听众状态），不覆盖媒体控制区。
+                Stack(
+                  children: <Widget>[
+                    const MusicCard(),
+                    const Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: AppSize.heightMiniGroup,
+                      child: OrderFloatingCard(),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: AppSpace.sm),
                 AppDock(
                   selectedIndex: selectedTab,
