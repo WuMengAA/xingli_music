@@ -461,7 +461,7 @@ enum PicturePreset {
         PicturePreset.smooth: FpsLimit.fps30,
         PicturePreset.standard: FpsLimit.fps45,
         PicturePreset.high: null,
-      }[this]!;
+      }[this];
 
   /// 是否「省电」档（套用时提醒）。
   bool get isPowerSave => this == PicturePreset.powerSave;
