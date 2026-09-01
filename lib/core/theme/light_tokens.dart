@@ -244,6 +244,9 @@ abstract final class AppSize {
   /// 此处保留供 AppShell 悬浮预留计算）。
   static const double heightDock = 76;
 
+  /// Dock 离底悬浮间隙（R32：iOS26 悬浮 Dock——浮于底部之上，非贴底）。
+  static const double dockFloatGap = 12;
+
   /// 播放进度条高度。
   static const double heightProgress = 8;
 

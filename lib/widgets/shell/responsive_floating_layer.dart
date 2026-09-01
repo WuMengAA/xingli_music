@@ -26,7 +26,12 @@ class ResponsiveFloatingLayer extends StatelessWidget {
   const ResponsiveFloatingLayer({
     super.key,
     required this.child,
+    this.bottomGap = 0,
   });
+
+  /// 底部悬浮间隙（iOS26 悬浮 Dock 风格：浮于底部之上，非贴底）。
+  /// AppShell 传入约 10~12dp，配合内容区 [AppSize] 预留同步。
+  final double bottomGap;
 
   /// 要悬浮展示的内容（如「播放控件 + dock 栏」纵向堆叠）。
   final Widget child;
@@ -46,8 +51,9 @@ class ResponsiveFloatingLayer extends StatelessWidget {
     return Positioned(
       left: sideInset,
       right: sideInset,
-      // 抬升到手势条之上；软键盘弹出时再叠加键盘高度，整体上浮不遮挡。
-      bottom: safeBottom + keyboardInset,
+      // R32：iOS26 悬浮 Dock——抬升到手势条之上再额外离底 gap（浮于底部之上），
+      // 软键盘弹出时再叠加键盘高度，整体上浮不遮挡。
+      bottom: safeBottom + keyboardInset + bottomGap,
       child: Center(
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: maxWidth),

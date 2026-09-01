@@ -323,10 +323,12 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     final UiDensity density = ref.watch(uiDensityProvider);
     final double dockH =
         AppSize.heightDock * (density == UiDensity.compact ? 0.8 : 1.0);
+    // R32：iOS26 悬浮 Dock——离底间隙（浮于底部之上），预留随间隙同步增高。
+    final double dockFloatGap = AppSize.dockFloatGap;
     // R32 一.1：移除 Dock 上方的空白边界限制区域。
     // 播放控件是玻璃焦点（半透明模糊），内容滑入其下自然透出、与浮层浑然
     // 一体，无需再为它强制留白；仅保留 Dock 高度（实底选中态）的底部防遮挡。
-    final double floatingReserve = dockH;
+    final double floatingReserve = dockH + dockFloatGap;
 
     // R10/R11：运行期同步写回持久化（唯一触发点）
     ref.watch(settingsSyncProvider);
@@ -451,6 +453,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
           // 自适应锚定到屏幕底部：窄屏贴近边缘、宽屏收窄居中，随安全区/键盘抬升。
           // 绘制顺序在本层 → FAB → 通知 toast，故 FAB 仍浮于 dock 之上。
           ResponsiveFloatingLayer(
+            bottomGap: dockFloatGap,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,

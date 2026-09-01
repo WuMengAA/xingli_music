@@ -103,4 +103,7 @@ GlassPerformanceSettings settingsFor(GlassPerformancePreset preset) {
 }
 
 /// 上下文默认值（无显式 preset 时的兜底）。
-const GlassPerformancePreset kDefaultPerformancePreset = GlassPerformancePreset.balanced;
+///
+/// R32：用户定版「所有液态玻璃样式改成流畅档位，效果最佳」→ 默认即流畅
+/// （blurScale 1.0、不降采样、SDF 1024、折射+色差全开、懒加载关）。
+const GlassPerformancePreset kDefaultPerformancePreset = GlassPerformancePreset.smooth;
