@@ -207,6 +207,59 @@ class StationRoomPage extends ConsumerWidget {
     ),
   );
 
+  /// R33：音源指示 chip——告诉当前播放来自哪里（本地 / 网易 / B 站 / 环境音）。
+  /// 放在 DJ 卡 LIVE 标旁边，听众一眼识别当前音源；同时作为「显式切换入口」
+  /// 的语义锚点（未来可点按切换）。
+  static Widget _buildSourceChip(Track? t, AppThemeColors c) {
+    if (t == null) return const SizedBox.shrink();
+    final String label;
+    final IconData icon;
+    final Color color;
+    switch (t.source) {
+      case TrackSource.local:
+        label = '本地';
+        icon = Icons.music_note_rounded;
+        color = const Color(0xFF8BE9FD);
+      case TrackSource.soundscape:
+        label = '环境';
+        icon = Icons.water_drop_rounded;
+        color = const Color(0xFF7DF9FF);
+      case TrackSource.stream:
+        final String hint = t.sourceId;
+        if (hint.startsWith('netease:')) {
+          label = '网易';
+          icon = Icons.cloud_queue_rounded;
+          color = const Color(0xFFFF4F56);
+        } else if (hint.startsWith('bilibili:')) {
+          label = 'B 站';
+          icon = Icons.play_circle_outline_rounded;
+          color = const Color(0xFF00AEEC);
+        } else {
+          label = '在线';
+          icon = Icons.cloud_rounded;
+          color = c.accent;
+        }
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withValues(alpha: 0.55), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   /// DJ 卡片（VoiceHub 风格）—— 玻璃质感 + 脉冲徽章 + 在线状态。
   Widget _buildDjCard(BuildContext context, WidgetRef ref,
       AppThemeColors c, NetSessionState s) {
@@ -214,6 +267,7 @@ class StationRoomPage extends ConsumerWidget {
         (s.role == NetRole.host
             ? PeerInfo(id: s.localId ?? '', isHost: true, name: s.localName)
             : null);
+    final Track? now = ref.watch(nowPlayingProvider);
     return LiquidGlass(
       radius: 16,
       style: GlassStyle.frosted,
@@ -265,6 +319,8 @@ class StationRoomPage extends ConsumerWidget {
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5)),
                     ),
+                    const SizedBox(width: 8),
+                    _buildSourceChip(now, c),
                     if (s.role == NetRole.host) ...<Widget>[
                       const Spacer(),
                       FilledButton.icon(

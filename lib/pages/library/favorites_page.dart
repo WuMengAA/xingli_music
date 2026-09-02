@@ -1,9 +1,9 @@
-﻿/// 鏀惰棌涓庢瓕鍗曪紙cl46 鍏ㄥ眬鏁版嵁灞?UI锛夈€?
+/// 收藏与歌单（cl46 全局数据层 UI）。
 ///
-/// 涓や釜 Tab锛?
-/// - 鏀惰棌锛氬叏閮ㄥ叏灞€鏀惰棌姝屾洸锛岀偣鎾€侀暱鎸夊姞鍏ユ瓕鍗?/ 鍙栨秷鏀惰棌銆?
-/// - 姝屽崟锛氬叏灞€姝屽崟鍗＄墖锛堣嚜瀹氫箟鍚嶇О / 鐩稿唽鑳屾櫙鍥?/ 鎺掑簭鏂瑰紡锛夛紝
-///   鐐硅繘璇︽儏鍙帓搴忋€佸鍒犳瓕鏇层€?
+/// 两个 Tab：
+/// - 收藏：全部全局收藏歌曲，点播、长按加入歌单 / 取消收藏。
+/// - 歌单：全局歌单卡片（自定义名称 / 相册背景图 / 排序方式），
+///   点进详情可排序、增删歌曲。
 library;
 
 import 'dart:io';
@@ -24,9 +24,9 @@ import '../../widgets/common/state_views.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import 'playlist_detail_page.dart';
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-// 鏀惰棌涓庢瓕鍗曚富椤?
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+// ════════════════════════════════════════════════════════════════════════
+// 收藏与歌单主页
+// ════════════════════════════════════════════════════════════════════════
 
 class FavoritesAndPlaylistsPage extends ConsumerStatefulWidget {
   const FavoritesAndPlaylistsPage({super.key});
@@ -48,7 +48,7 @@ class _FavoritesAndPlaylistsPageState
     _checkMergeCandidate();
   }
 
-  /// 鑷姩鏀跺綍锛氭墦寮€鏈〉鏃舵壂鎻忓惉姝屽巻鍙诧紝鍙戠幇鐩镐技姝屽悕/姝屾墜鍒欒闂敤鎴峰綊骞躲€?
+  /// 自动收录：打开本页时扫描听歌历史，发现相似歌名/歌手则询问用户归并。
   Future<void> _checkMergeCandidate() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -58,19 +58,19 @@ class _FavoritesAndPlaylistsPageState
       final bool? merge = await showDialog<bool>(
         context: context,
         builder: (BuildContext ctx) => AlertDialog(
-          title: Text('妫€娴嬪埌鐩镐技姝屾洸', style: ctx.appText.title),
+          title: Text('检测到相似歌曲', style: ctx.appText.title),
           content: Text(
-            '銆?{c.source.title} 路 ${c.source.artist}銆峔n涓庡凡鏀跺綍鐨刓n銆?{c.canonical.title} 路 ${c.canonical.artist}銆峔n\n姝屾墜涓€鑷淬€佹瓕鍚嶇浉浼硷紝鏄惁涓哄悓涓€棣栵紵',
+            '「${c.source.title} · ${c.source.artist}」\n与已收录的\n「${c.canonical.title} · ${c.canonical.artist}」\n\n歌手一致、歌名相似，是否为同一首？',
             style: ctx.appText.body,
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: Text('璺宠繃', style: ctx.appText.body),
+              child: Text('跳过', style: ctx.appText.body),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('鏄紝褰掑苟',
+              child: Text('是，归并',
                   style: ctx.appText.body.copyWith(color: ctx.appColors.accent)),
             ),
           ],
@@ -97,14 +97,14 @@ class _FavoritesAndPlaylistsPageState
       backgroundColor: context.appColors.bgPage,
       appBar: AppBar(
         backgroundColor: context.appColors.bgPage,
-        title: Text('鏀惰棌涓庢瓕鍗?,
+        title: Text('收藏与歌单',
             style: context.appText.title.copyWith(color: context.appColors.textPrimary)),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: context.appColors.accent,
           unselectedLabelColor: context.appColors.textSecondary,
           indicatorColor: context.appColors.accent,
-          tabs: const <Tab>[Tab(text: '鏀惰棌'), Tab(text: '姝屽崟')],
+          tabs: const <Tab>[Tab(text: '收藏'), Tab(text: '歌单')],
         ),
       ),
       body: TabBarView(
@@ -118,25 +118,25 @@ class _FavoritesAndPlaylistsPageState
   }
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-// 鏀惰棌 Tab
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+// ════════════════════════════════════════════════════════════════════════
+// 收藏 Tab
+// ════════════════════════════════════════════════════════════════════════
 
 class _FavoritesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<FavoriteEntry>> favs = ref.watch(favoritesProvider);
     return favs.when(
-      loading: () => const LoadingView(label: '鏀惰棌鍔犺浇涓€?),
+      loading: () => const LoadingView(label: '收藏加载中…'),
       error: (Object e, StackTrace st) => ErrorView(
-        message: '鏀惰棌鍔犺浇澶辫触锛岃绋嶅悗閲嶈瘯',
+        message: '收藏加载失败，请稍后重试',
         onRetry: () => ref.invalidate(favoritesProvider),
       ),
       data: (List<FavoriteEntry> list) {
         if (list.isEmpty) {
           return const EmptyView(
-            title: '杩樻病鏈夋敹钘?,
-            message: '鎾斁涓偣蹇冨舰鍗冲彲鏀惰棌',
+            title: '还没有收藏',
+            message: '播放中点心形即可收藏',
           );
         }
         return ListView.separated(
@@ -180,7 +180,7 @@ class _FavoriteTile extends ConsumerWidget {
     ref.invalidate(playlistTracksProvider(picked));
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('宸插姞鍏ユ瓕鍗?, style: context.appText.caption),
+        content: Text('已加入歌单', style: context.appText.caption),
         duration: const Duration(seconds: 1),
       ));
     }
@@ -232,12 +232,12 @@ class _FavoriteTile extends ConsumerWidget {
           children: <Widget>[
             ListTile(
               leading: const Icon(Icons.playlist_add_rounded),
-              title: Text('鍔犲叆姝屽崟', style: c.appText.body),
+              title: Text('加入歌单', style: c.appText.body),
               onTap: () => Navigator.pop(c, 0),
             ),
             ListTile(
               leading: const Icon(Icons.favorite_rounded),
-              title: Text('鍙栨秷鏀惰棌', style: c.appText.body),
+              title: Text('取消收藏', style: c.appText.body),
               onTap: () => Navigator.pop(c, 1),
             ),
           ],
@@ -268,18 +268,18 @@ class _FavFallback extends StatelessWidget {
       );
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-// 姝屽崟 Tab
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+// ════════════════════════════════════════════════════════════════════════
+// 歌单 Tab
+// ════════════════════════════════════════════════════════════════════════
 
 class _PlaylistsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<Playlist>> pls = ref.watch(playlistsProvider);
     return pls.when(
-      loading: () => const LoadingView(label: '姝屽崟鍔犺浇涓€?),
+      loading: () => const LoadingView(label: '歌单加载中…'),
       error: (Object e, StackTrace st) => ErrorView(
-          message: '姝屽崟鍔犺浇澶辫触锛岃绋嶅悗閲嶈瘯',
+          message: '歌单加载失败，请稍后重试',
         onRetry: () => ref.invalidate(playlistsProvider),
       ),
       data: (List<Playlist> list) {
@@ -347,9 +347,9 @@ class _PlaylistCard extends ConsumerWidget {
       onLongPress: () async {
         final bool? ok = await AppConfirmDialog.show(
           context: context,
-          title: '鍒犻櫎姝屽崟銆?{playlist.name}銆嶏紵',
-          message: '姝屽崟鍐呯殑姝屾洸涓嶄細浠庢洸搴撳垹闄ゃ€?,
-          confirmLabel: '鍒犻櫎',
+          title: '删除歌单「${playlist.name}」？',
+          message: '歌单内的歌曲不会从曲库删除。',
+          confirmLabel: '删除',
           confirmDanger: true,
         );
         if (ok == true) {
@@ -371,7 +371,7 @@ class _PlaylistCard extends ConsumerWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: context.appText.trackName.copyWith(color: Colors.white)),
-            Text('${playlist.trackCount} 棣?路 ${_sortLabel(playlist.sortMode)}',
+            Text('${playlist.trackCount} 首 · ${_sortLabel(playlist.sortMode)}',
                 style: context.appText.caption.copyWith(color: Colors.white.withValues(alpha: 0.85))),
           ],
         ),
@@ -380,11 +380,11 @@ class _PlaylistCard extends ConsumerWidget {
   }
 
   static String _sortLabel(PlaylistSortMode m) => switch (m) {
-        PlaylistSortMode.manual => '鎵嬪姩鎺掑簭',
-        PlaylistSortMode.titleAsc => '姝屽悕 A鈫抁',
-        PlaylistSortMode.titleDesc => '姝屽悕 Z鈫扐',
-        PlaylistSortMode.playCountDesc => '鎸夋挱鏀炬鏁?,
-        PlaylistSortMode.addedDesc => '鎸夋坊鍔犳椂闂?,
+        PlaylistSortMode.manual => '手动排序',
+        PlaylistSortMode.titleAsc => '歌名 A→Z',
+        PlaylistSortMode.titleDesc => '歌名 Z→A',
+        PlaylistSortMode.playCountDesc => '按播放次数',
+        PlaylistSortMode.addedDesc => '按添加时间',
       };
 }
 
@@ -407,7 +407,7 @@ class _NewPlaylistCard extends ConsumerWidget {
               Icon(Icons.add_circle_outline_rounded,
                   size: 28, color: context.appColors.accent),
               const SizedBox(height: 6),
-              Text('鏂板缓姝屽崟', style: context.appText.bodyMuted),
+              Text('新建歌单', style: context.appText.bodyMuted),
             ],
           ),
         ),
@@ -416,7 +416,7 @@ class _NewPlaylistCard extends ConsumerWidget {
   }
 }
 
-/// 鏂板缓姝屽崟瀵硅瘽妗嗭細鍚嶇О + 鑳屾櫙鍥撅紙鏃?/ 鐩稿唽閫夊浘锛夈€?
+/// 新建歌单对话框：名称 + 背景图（无 / 相册选图）。
 Future<void> _showCreateDialog(
     BuildContext context, WidgetRef ref) async {
   final TextEditingController nameCtrl = TextEditingController();
@@ -426,7 +426,7 @@ Future<void> _showCreateDialog(
     context: context,
     builder: (BuildContext c) => StatefulBuilder(
       builder: (BuildContext c, StateSetter setState) => AlertDialog(
-        title: Text('鏂板缓姝屽崟', style: c.appText.title),
+        title: Text('新建歌单', style: c.appText.title),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
@@ -434,27 +434,27 @@ Future<void> _showCreateDialog(
               controller: nameCtrl,
               autofocus: true,
               decoration: const InputDecoration(
-                hintText: '姝屽崟鍚嶇О',
-                labelText: '鍚嶇О',
+                hintText: '歌单名称',
+                labelText: '名称',
               ),
             ),
             const SizedBox(height: 12),
             Row(
               children: <Widget>[
-                Text('鑳屾櫙鍥?, style: c.appText.body),
+                Text('背景图', style: c.appText.body),
                 const Spacer(),
                 TextButton(
                   onPressed: () async {
                     final String? path = await _pickBgImage();
                     if (path != null) setState(() => bgPath = path);
                   },
-                  child: Text(bgPath == null ? '閫夋嫨鍥剧墖' : '宸查€夋嫨 鉁?,
+                  child: Text(bgPath == null ? '选择图片' : '已选择 ✓',
                       style: c.appText.body.copyWith(color: c.appColors.accent)),
                 ),
                 if (bgPath != null)
                   TextButton(
                     onPressed: () => setState(() => bgPath = null),
-                    child: Text('娓呴櫎', style: c.appText.bodyMuted),
+                    child: Text('清除', style: c.appText.bodyMuted),
                   ),
               ],
             ),
@@ -463,7 +463,7 @@ Future<void> _showCreateDialog(
         actions: <Widget>[
           TextButton(
             onPressed: () => Navigator.pop(c),
-            child: Text('鍙栨秷', style: c.appText.body),
+            child: Text('取消', style: c.appText.body),
           ),
           TextButton(
             onPressed: () async {
@@ -479,7 +479,7 @@ Future<void> _showCreateDialog(
               ref.invalidate(playlistsProvider);
               if (c.mounted) Navigator.pop(c);
             },
-            child: Text('鍒涘缓', style: c.appText.body.copyWith(color: c.appColors.accent)),
+            child: Text('创建', style: c.appText.body.copyWith(color: c.appColors.accent)),
           ),
         ],
       ),
@@ -487,7 +487,7 @@ Future<void> _showCreateDialog(
   );
 }
 
-/// 鐢?file_picker 閫変竴寮犲浘鐗囷紝澶嶅埗鍒板簲鐢ㄦ枃妗ｇ洰褰曪紝杩斿洖鏈湴璺緞銆?
+/// 用 file_picker 选一张图片，复制到应用文档目录，返回本地路径。
 Future<String?> _pickBgImage() async {
   final FilePickerResult? result =
       await FilePicker.pickFiles(type: FileType.image);
@@ -503,7 +503,7 @@ Future<String?> _pickBgImage() async {
     File(src).copySync(dst);
     return dst;
   } catch (_) {
-    return src; // 澶嶅埗澶辫触鍒欑洿鎺ョ敤鍘熻矾寰?
+    return src; // 复制失败则直接用原路径
   }
 }
 
@@ -512,9 +512,9 @@ String p_extension(String path) {
   return i < 0 ? '.png' : path.substring(i);
 }
 
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-// 鍔犲叆姝屽崟閫夋嫨鍣?
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+// ════════════════════════════════════════════════════════════════════════
+// 加入歌单选择器
+// ════════════════════════════════════════════════════════════════════════
 
 class _PlaylistPicker extends StatelessWidget {
   const _PlaylistPicker({required this.playlists});
@@ -530,18 +530,18 @@ class _PlaylistPicker extends StatelessWidget {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.all(AppSpace.md),
-            child: Text('鍔犲叆姝屽崟', style: context.appText.title),
+            child: Text('加入歌单', style: context.appText.title),
           ),
           if (list.isEmpty)
             Padding(
               padding: const EdgeInsets.all(AppSpace.md),
-              child: Text('杩樻病鏈夋瓕鍗曪紝鍏堝幓姝屽崟椤垫柊寤?, style: context.appText.bodyMuted),
+              child: Text('还没有歌单，先去歌单页新建', style: context.appText.bodyMuted),
             )
           else
             ...list.map((Playlist p) => ListTile(
                   leading: const Icon(Icons.queue_music_rounded),
                   title: Text(p.name, style: context.appText.body),
-                  subtitle: Text('${p.trackCount} 棣?,
+                  subtitle: Text('${p.trackCount} 首',
                       style: context.appText.caption),
                   onTap: () => Navigator.pop(context, p.id),
                 )),
@@ -551,4 +551,3 @@ class _PlaylistPicker extends StatelessWidget {
     );
   }
 }
-

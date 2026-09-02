@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path/path.dart' as p;
 import '../../core/paths.dart';
@@ -7,48 +8,48 @@ import '../../core/paths.dart';
 import '../../models/track.dart';
 import '../log_service.dart';
 
-/// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-/// 鏈湴闊充箰鎵弿鍣細閫氳繃绯荤粺濯掍綋搴撹鍙栫湡瀹炲厓鏁版嵁锛坥n_audio_query锛夈€?
-/// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+/// ════════════════════════════════════════════════════════════════════════
+/// 本地音乐扫描器：通过系统媒体库读取真实元数据（on_audio_query）。
+/// ════════════════════════════════════════════════════════════════════════
 ///
-/// 涓昏矾寰勶細`on_audio_query` 鏌ヨ绯荤粺 MediaStore锛堝甫鍏冩暟鎹?/ 灏侀潰锛夈€?
+/// 主路径：`on_audio_query` 查询系统 MediaStore（带元数据 / 封面）。
 ///
-/// **Fallback 璺緞**锛堟柊澧烇級锛氬綋绯荤粺濯掍綋搴撲笉鍙敤鏃讹紙瑁佸壀 ROM / Wear OS
-/// GSI 缂哄皯 `READ_MEDIA_AUDIO` 鏉冮檺瀹氫箟銆乣on_audio_query` 鎶?`PlatformException`
-/// Unknown permission銆佹垨鏉冮檺璇锋眰琚嫆锛夛紝鍥為€€鍒?**鐩綍閬嶅巻** 鐩存帴璇?
-/// `/sdcard/Music/`銆乣/sdcard/Download/` 涓嬬殑 `.mp3/.flac/.m4a/.wav/.ogg`锛?
-/// 淇濊瘉鑰佽澶?绮剧畝绯荤粺涔熻兘鎷垮埌鏈湴鏇茬洰锛堢壓鐗插厓鏁版嵁绮惧害鎹㈠彇鍙敤鎬э級銆?
+/// **Fallback 路径**（新增）：当系统媒体库不可用时（裁剪 ROM / Wear OS
+/// GSI 缺少 `READ_MEDIA_AUDIO` 权限定义、`on_audio_query` 抛 `PlatformException`
+/// Unknown permission、或权限请求被拒），回退到 **目录遍历** 直接读
+/// `/sdcard/Music/`、`/sdcard/Download/` 下的 `.mp3/.flac/.m4a/.wav/.ogg`，
+/// 保证老设备/精简系统也能拿到本地曲目（牺牲元数据精度换取可用性）。
 ///
-/// 妗岄潰 / 鏃犲獟浣撳簱骞冲彴鐩存帴杩斿洖绌猴紝鐢辫仛鍚堝眰鍥為€€鍒板叾瀹冮煶婧愩€?
+/// 桌面 / 无媒体库平台直接返回空，由聚合层回退到其它音源。
 class LocalMusicScanner {
   static final OnAudioQuery _query = OnAudioQuery();
   static const String _coverSubdir = 'covers';
 
-  /// 鍏佽鐨勫悗缂€锛堢洰褰曢亶鍘嗙敤锛?
+  /// 允许的后缀（目录遍历用）
   static const Set<String> _audioExts = <String>{
     '.mp3', '.flac', '.m4a', '.wav', '.ogg', '.aac', '.opus',
   };
 
-  /// 鎵弿绯荤粺濯掍綋搴擄紝杩斿洖鐪熷疄鍏冩暟鎹殑鏈湴鏇茬洰鍒楄〃
+  /// 扫描系统媒体库，返回真实元数据的本地曲目列表
   static Future<List<Track>> scan() async {
-    // 妗岄潰骞冲彴鏃犲獟浣撳簱姒傚康锛屼氦缁欒仛鍚堝眰鍥為€€
+    // 桌面平台无媒体库概念，交给聚合层回退
     if (!Platform.isAndroid && !Platform.isIOS) return const [];
 
-    // 涓昏矾寰勶細on_audio_query 璧?MediaStore
+    // 主路径：on_audio_query 走 MediaStore
     final List<Track> mediaTracks = await _scanViaMediaStore();
     if (mediaTracks.isNotEmpty) return mediaTracks;
 
-    // Fallback锛氱洿鎺ョ洰褰曢亶鍘嗭紙鍏煎瑁佸壀绯荤粺 / Wear OS GSI锛?
+    // Fallback：直接目录遍历（兼容裁剪系统 / Wear OS GSI）
     LogService.instance.w(
-        'scan', 'MediaStore 鏈繑鍥炴洸鐩紝鍥為€€鍒扮洰褰曢亶鍘?);
+        'scan', 'MediaStore 未返回曲目，回退到目录遍历');
     return _scanViaDirectory();
   }
 
-  /// on_audio_query 涓昏矾寰?
+  /// on_audio_query 主路径
   static Future<List<Track>> _scanViaMediaStore() async {
     final bool granted = await _requestPermission();
     if (!granted) {
-      LogService.instance.w('scan', '鏈巿浜堥煶涔愬簱鏉冮檺锛岃烦杩?MediaStore 鎵弿');
+      LogService.instance.w('scan', '未授予音乐库权限，跳过 MediaStore 扫描');
       return const <Track>[];
     }
 
@@ -62,8 +63,8 @@ class LocalMusicScanner {
       final List<Track> tracks = <Track>[];
 
       for (final SongModel s in songs) {
-        // R33锛歁ediaStore 涓嶅悓瀹炵幇杩斿洖绫诲瀷涓嶄竴鑷达紙Android 渚у父涓?int锛岄儴鍒嗕负 String锛夛紝
-        // 瀹归敊澶勭悊閬垮厤 "int is not a subtype of String?" 寮鸿浆宕╂簝銆?
+        // R33：MediaStore 不同实现返回类型不一致（Android 侧常为 int，部分为 String），
+        // 容错处理避免 "int is not a subtype of String?" 强转崩溃。
         final int? durMs = switch (s.duration) {
           int di => di,
           _ => int.tryParse(s.duration.toString()),
@@ -71,7 +72,7 @@ class LocalMusicScanner {
         final Duration? duration =
             durMs != null ? Duration(milliseconds: durMs) : null;
 
-        // 灏侀潰锛氭寜闇€鍐欏叆搴旂敤鏂囨。鐩綍缂撳瓨锛堢己澶变笉鑷村懡锛?
+        // 封面：按需写入应用文档目录缓存（缺失不致命）
         String? coverPath;
         try {
           final Uint8List? art = await _query.queryArtwork(
@@ -86,12 +87,12 @@ class LocalMusicScanner {
             coverPath = f.path;
           }
         } catch (_) {
-          // 灏侀潰缂哄け涓嶉樆鏂壂鎻?
+          // 封面缺失不阻断扫描
         }
 
         tracks.add(Track(
           title: s.title,
-          artist: (s.artist ?? '鏈煡鑹轰汉'),
+          artist: (s.artist ?? '未知艺人'),
           uri: s.data,
           source: TrackSource.local,
           sourceId: 'local',
@@ -106,17 +107,17 @@ class LocalMusicScanner {
       }
 
       LogService.instance
-          .i('scan', 'MediaStore 鎵弿瀹屾垚: ${tracks.length} 棣?);
+          .i('scan', 'MediaStore 扫描完成: ${tracks.length} 首');
       return tracks;
     } catch (e, st) {
-      LogService.instance.e('scan', 'MediaStore 鎵弿澶辫触: $e\n$st');
+      LogService.instance.e('scan', 'MediaStore 扫描失败: $e\n$st');
       return const <Track>[];
     }
   }
 
-  /// Fallback 鐩綍閬嶅巻锛氱洿鎺ヨ甯歌闊充箰鐩綍鐨勯煶棰戞枃浠?
+  /// Fallback 目录遍历：直接读常见音乐目录的音频文件
   ///
-  /// 浠呭湪 [_scanViaMediaStore] 杩斿洖绌烘椂璋冪敤銆傛棤鍏冩暟鎹紝鏇插悕鍙栨枃浠跺悕銆?
+  /// 仅在 [_scanViaMediaStore] 返回空时调用。无元数据，曲名取文件名。
   static Future<List<Track>> _scanViaDirectory() async {
     final List<Directory> roots = await _candidateRoots();
     final List<Track> tracks = <Track>[];
@@ -135,7 +136,7 @@ class LocalMusicScanner {
           if (name.isEmpty) continue;
           tracks.add(Track(
             title: name,
-            artist: '鏈湴闊抽',
+            artist: '本地音频',
             uri: path,
             source: TrackSource.local,
             sourceId: 'local',
@@ -149,18 +150,18 @@ class LocalMusicScanner {
           ));
         }
       } catch (e) {
-        // P-1锛氬彧璁版渶鍚庝竴绾х洰褰曞悕锛屼笉钀藉畬鏁寸粷瀵硅矾寰勶紙鍙兘鍚敤鎴峰悕/绉佷汉鐩綍鍚嶏級
+        // P-1：只记最后一级目录名，不落完整绝对路径（可能含用户名/私人目录名）
         LogService.instance
-            .w('scan', '鐩綍閬嶅巻澶辫触 鈥?${p.basename(dir.path)}: $e');
+            .w('scan', '目录遍历失败 …/${p.basename(dir.path)}: $e');
       }
     }
 
     LogService.instance
-        .i('scan', '鐩綍閬嶅巻瀹屾垚: ${tracks.length} 棣?);
+        .i('scan', '目录遍历完成: ${tracks.length} 首');
     return tracks;
   }
 
-  /// 鍊欓€夐煶涔愭牴鐩綍锛堟寜浼樺厛绾э級
+  /// 候选音乐根目录（按优先级）
   static Future<List<Directory>> _candidateRoots() async {
     final List<Directory> roots = <Directory>[];
     final List<String> paths = <String>[
@@ -181,16 +182,16 @@ class LocalMusicScanner {
     return roots;
   }
 
-  /// 璇锋眰绯荤粺濯掍綋搴撴潈闄愶紙on_audio_query 鑷甫鏉冮檺鎺ュ彛锛?
+  /// 请求系统媒体库权限（on_audio_query 自带权限接口）
   static Future<bool> _requestPermission() async {
     try {
       if (await _query.permissionsStatus()) return true;
       return await _query.permissionsRequest();
     } catch (e) {
-      // 鍏抽敭鍏滃簳锛歐ear OS / 瑁佸壀绯荤粺璋冪敤鏉冮檺 API 鏃朵細鎶?
-      // `PlatformException(Unknown permission ...)`锛岃繖閲屾崟鑾峰悗杩斿洖 false锛?
-      // 璁?scan() 杩涘叆 fallback 鐩綍閬嶅巻銆?
-      LogService.instance.w('scan', '鏉冮檺璇锋眰澶辫触锛堢郴缁熶笉璇嗗埆锛燂級: $e');
+      // 关键兜底：Wear OS / 裁剪系统调用权限 API 时会抛
+      // `PlatformException(Unknown permission ...)`，这里捕获后返回 false，
+      // 让 scan() 进入 fallback 目录遍历。
+      LogService.instance.w('scan', '权限请求失败（系统不识别？）: $e');
       return false;
     }
   }
@@ -202,7 +203,7 @@ class LocalMusicScanner {
     return d;
   }
 
-  /// 鍙栨煇鏇插皝闈紙鎸夐渶鎳掑姞杞斤紝渚?UI / 閿佸睆浣跨敤锛?
+  /// 取某曲封面（按需懒加载，供 UI / 锁屏使用）
   static Future<String?> coverPathFor(Track track) async {
     final int? id = track.extras?['androidId'] as int?;
     if (id == null) return track.coverPath;
@@ -221,9 +222,8 @@ class LocalMusicScanner {
         return f.path;
       }
     } catch (_) {
-      // 蹇界暐
+      // 忽略
     }
     return null;
   }
 }
-
