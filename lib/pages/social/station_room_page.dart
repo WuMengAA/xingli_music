@@ -23,6 +23,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
+import '../../providers/radio/radio_history_provider.dart';
 import '../../widgets/liquid_glass.dart';
 import '../../widgets/social/track_picker.dart';
 import 'order_queue_page.dart';
@@ -43,6 +44,7 @@ class StationRoomPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.appColors;
     final NetSessionState s = ref.watch(netSessionProvider);
+    ref.read(radioHistoryProvider.notifier).load();
     final bool isConnected = s.status == ConnStatus.connected;
 
     return PopScope(
@@ -88,6 +90,8 @@ class StationRoomPage extends ConsumerWidget {
                 children: <Widget>[
                   if (isHost) _buildRoomCode(context, c, s),
                   _buildDjCard(context, ref, c, s),
+                  const SizedBox(height: 14),
+                  _buildHistoryCard(context, ref, c),
                   const SizedBox(height: 14),
                   _buildNowPlayingBar(context, ref, c),
                   const SizedBox(height: 14),
@@ -328,6 +332,55 @@ class StationRoomPage extends ConsumerWidget {
         ),
       );
     }
+  }
+
+  /// 已播历史统计条 —— 显示已播总数 + 今日 + 「查看」跳转。
+  Widget _buildHistoryCard(BuildContext context, WidgetRef ref, AppThemeColors c) {
+    final List<PlayedRecord> history = ref.watch(radioHistoryProvider);
+    final DateTime today = DateTime.now();
+    final int todayCount = history
+        .where((r) => r.at.year == today.year &&
+            r.at.month == today.month &&
+            r.at.day == today.day)
+        .length;
+    return LiquidGlass(
+      radius: 14,
+      style: GlassStyle.frosted,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.history, color: c.accent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                text: '已播 ',
+                style: TextStyle(color: c.textSecondary, fontSize: 13),
+                children: <InlineSpan>[
+                  TextSpan(
+                    text: '${history.length}',
+                    style: TextStyle(
+                        color: c.accent,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(
+                    text: ' 首 · 今日 $todayCount 首',
+                    style: TextStyle(color: c.textSecondary, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(builder: (_) => const _HistoryPage()),
+            ),
+            child: const Text('查看'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 正在播放 LIVE mini bar（VoiceHub Player 风格）。
@@ -707,4 +760,112 @@ class _MemberTile extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// 已播历史页 —— VoiceHub 风格玻璃列表。
+class _HistoryPage extends ConsumerWidget {
+  const _HistoryPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.appColors;
+    final List<PlayedRecord> history = ref.watch(radioHistoryProvider);
+    return Scaffold(
+      backgroundColor: c.bgPage,
+      appBar: AppBar(
+        title: const Text('已播历史'),
+        backgroundColor: c.bgPage,
+        foregroundColor: c.textPrimary,
+        elevation: 0,
+      ),
+      body: history.isEmpty
+          ? Center(
+              child: Text('暂无已播记录',
+                  style: TextStyle(color: c.textSecondary)),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: history.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: Colors.white10),
+              itemBuilder: (BuildContext ctx, int i) {
+                final PlayedRecord r = history[i];
+                final bool isDj = r.source == 'dj';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: <Widget>[
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: c.accent.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          isDj ? Icons.radio : Icons.playlist_add,
+                          color: c.accent,
+                          size: 18,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              r.track.title,
+                              style: TextStyle(
+                                  color: c.textPrimary,
+                                  fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              r.track.artist,
+                              style: TextStyle(
+                                  color: c.textSecondary, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: <Widget>[
+                          if (r.fromName.isNotEmpty)
+                            Text(
+                              isDj
+                                  ? 'DJ · ${r.fromName}'
+                                  : r.fromName,
+                              style: TextStyle(
+                                  color: c.textTertiary, fontSize: 11),
+                            ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _fmtDate(r.at),
+                            style: TextStyle(
+                                color: c.textTertiary, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  static String _fmtDate(DateTime d) {
+    final DateTime now = DateTime.now();
+    if (d.year == now.year &&
+        d.month == now.month &&
+        d.day == now.day) {
+      final Duration ago = now.difference(d);
+      if (ago.inHours > 0) return '${ago.inHours}h 前';
+      if (ago.inMinutes > 0) return '${ago.inMinutes}m 前';
+      return '刚刚';
+    }
+    return '${d.month}/${d.day} ${d.hour}:${d.minute.toString().padLeft(2, '0')}';
+  }
 }
