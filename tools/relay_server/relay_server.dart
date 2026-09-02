@@ -575,20 +575,62 @@ Future<Map<String, dynamic>?> _randomContent() async {
 
 final Random _random = Random();
 
+// ═══ cl17：CORS —— 运营后台前端已分离部署（独立静态站点）══════════════════
+//
+// 后台前端不再由 relay 进程伺服，改为独立静态站点部署（见 admin_web/），
+// 浏览器跨域调用 /api/* 因此需要 CORS。
+//
+// 安全边界：CORS 只放宽「读取响应」，不放宽「谁有权限」。鉴权仍靠
+// `Authorization: Bearer <secret>`——没有密钥的站点即便能发出请求，
+// 拿到的也只会是 401，读不到任何 admin 数据。
+//
+// 默认放行任意来源；如需收紧，启动时用环境变量指定来源白名单（逗号分隔）：
+//   RELAY_CORS_ORIGIN=https://admin.example.com,https://staging.example.com
+// 白名单生效时，命中则反射该 Origin，未命中直接在入口拒 403。
+
+/// 允许的来源白名单；空集表示放行任意来源（默认，兼容既有部署）。
+final Set<String> _corsAllowOrigins = <String>{
+  ...(Platform.environment['RELAY_CORS_ORIGIN'] ?? '')
+      .split(',')
+      .map((String s) => s.trim())
+      .where((String s) => s.isNotEmpty),
+};
+
+/// 该跨域来源是否放行（无 Origin 头 = 同源/curl/服务端直连，一律放行）。
+bool _corsAllowed(HttpRequest req) {
+  final String? origin = req.headers.value('origin');
+  if (origin == null || origin.isEmpty) return true;
+  return _corsAllowOrigins.isEmpty || _corsAllowOrigins.contains(origin);
+}
+
+/// 下发 CORS 响应头（幂等，重复调用结果一致）。
+///
+/// 非跨域请求不写任何头，行为与分离部署前完全一致。
+void _applyCors(HttpRequest req) {
+  final String? origin = req.headers.value('origin');
+  if (origin == null || origin.isEmpty) return;
+  if (_corsAllowOrigins.isNotEmpty && !_corsAllowOrigins.contains(origin)) return;
+  req.response.headers
+    ..set('Access-Control-Allow-Origin', origin)
+    ..set('Vary', 'Origin')
+    ..set('Access-Control-Allow-Headers', 'Authorization, Content-Type')
+    ..set('Access-Control-Allow-Methods',
+        'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    ..set('Access-Control-Max-Age', '86400');
+}
+
 Future<void> _handleApi(HttpRequest req) async {
   final String path = req.uri.path;
   final String method = req.method;
-  // cl13：CORS 预检——后台前端已分离部署（独立静态站点），跨域调用先应答 OPTIONS。
+  // cl17：跨域来源白名单校验——未命中直接拒（响应不带 CORS 头，浏览器自行拦截）。
+  if (!_corsAllowed(req)) {
+    await _jsonError(req, 'origin not allowed', status: 403);
+    return;
+  }
+  _applyCors(req);
   if (method == 'OPTIONS') {
     try {
-      req.response
-        ..statusCode = 204
-        ..headers.set('Access-Control-Allow-Origin', '*')
-        ..headers.set('Access-Control-Allow-Methods',
-            'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-        ..headers.set(
-            'Access-Control-Allow-Headers', 'Authorization, Content-Type')
-        ..headers.set('Access-Control-Max-Age', '86400');
+      req.response.statusCode = 204;
       await req.response.close();
     } catch (_) {}
     return;
@@ -731,11 +773,11 @@ Future<void> _handleApi(HttpRequest req) async {
       status = 404;
       payload = <String, dynamic>{'ok': false, 'error': 'not found'};
   }
+  _applyCors(req); // cl17：跨域响应头（幂等）
   try {
     req.response
       ..statusCode = status
       ..headers.contentType = ContentType.json
-      ..headers.set('Access-Control-Allow-Origin', '*')
       ..write(jsonEncode(payload));
     await req.response.close();
   } catch (_) {}
@@ -1302,11 +1344,10 @@ Future<void> _saveContent(String type, List<dynamic> items) async {
 Future<void> _json(HttpRequest req, Map<String, dynamic> data,
     {int status = 200}) async {
   try {
+    _applyCors(req); // cl17：跨域响应头（幂等，非跨域请求不写）
     req.response
       ..statusCode = status
       ..headers.contentType = ContentType.json
-      // cl13：分离部署后前端跨域调用，放行 CORS（鉴权仍由 Authorization 头把关）。
-      ..headers.set('Access-Control-Allow-Origin', '*')
       ..write(jsonEncode(data));
     await req.response.close();
   } catch (_) {}
