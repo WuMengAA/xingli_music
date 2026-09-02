@@ -14,6 +14,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
+import '../../providers/radio/radio_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
@@ -80,8 +81,7 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
         children: <Widget>[
           if (!isHost) _buildSubmitCard(c),
           const SizedBox(height: 12),
-          Text('队列（${s.orderQueue.length}）',
-              style: TextStyle(color: c.textSecondary, fontSize: 13)),
+          _buildQueueHeader(c, s),
           const SizedBox(height: 8),
           if (s.orderQueue.isEmpty)
             _EmptyHint(c: c)
@@ -106,14 +106,84 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
   Future<void> _playAsDj(Track track, String orderId) async {
     final NetSessionNotifier notifier =
         ref.read(netSessionProvider.notifier);
-    // 先标记当前 playing 项为 played，避免丢失播放记录。
+    final NetSessionState s = ref.read(netSessionProvider);
+    // 先找当前 playing 项并写入已播历史。
+    final OrderItem? cur = s.orderQueue
+        .where((it) => it.status == OrderStatus.playing)
+        .firstOrNull;
+    if (cur != null) {
+      final PlayedRecord rec = PlayedRecord(
+        id: cur.id,
+        track: cur.track,
+        fromName: cur.anonymous ? '匿名听众' : cur.fromName,
+        source: cur.fromId == s.localId ? 'dj' : 'listener',
+        at: DateTime.now(),
+      );
+      ref.read(radioHistoryProvider.notifier).add(rec);
+    }
     notifier.markPlayed();
-    // 把 approved → playing。
     notifier.playOrder(orderId);
-    // DJ 端：把点歌推入当前播放（复用音频服务）。
     final AudioService svc = ref.read(audioServiceProvider);
     await svc.playMusic(track, fade: const Duration(milliseconds: 300));
   }
+
+  /// 队列统计头：VoiceHub 风格——按状态分类计数（总 / 待审批 / 待播 / 播放中 / 已播 / 已拒）。
+  Widget _buildQueueHeader(AppThemeColors c, NetSessionState s) {
+    final int total = s.orderQueue.length;
+    final int pending =
+        s.orderQueue.where((it) => it.status == OrderStatus.pending).length;
+    final int approved =
+        s.orderQueue.where((it) => it.status == OrderStatus.approved).length;
+    final int playing =
+        s.orderQueue.where((it) => it.status == OrderStatus.playing).length;
+    final int played =
+        s.orderQueue.where((it) => it.status == OrderStatus.played).length;
+    final int rejected =
+        s.orderQueue.where((it) => it.status == OrderStatus.rejected).length;
+    return Row(
+      children: <Widget>[
+        Text('队列（$total）',
+            style: TextStyle(color: c.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+        const Spacer(),
+        if (pending > 0)
+          _queueChip('待审批', pending, c.warning),
+        if (approved > 0)
+          _queueChip('待播', approved, c.accent),
+        if (playing > 0)
+          _queueChip('播放中', playing, Colors.red),
+        if (played > 0)
+          _queueChip('已播', played, c.textSecondary),
+        if (rejected > 0)
+          _queueChip('已拒', rejected, c.danger),
+      ],
+    );
+  }
+
+  Widget _queueChip(String label, int count, Color color) => Padding(
+        padding: const EdgeInsets.only(left: 6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.18),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text.rich(
+            TextSpan(
+              text: label,
+              style: TextStyle(color: color, fontSize: 11),
+              children: <InlineSpan>[
+                TextSpan(
+                  text: ' $count',
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _buildSubmitCard(AppThemeColors c) => Container(
         padding: const EdgeInsets.all(16),
