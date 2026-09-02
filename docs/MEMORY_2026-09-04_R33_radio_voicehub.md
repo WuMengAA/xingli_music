@@ -75,9 +75,15 @@
 ## R33 剩余 / 未做
 - VoiceHub 排期拖拽（需自定义拖放 + 持久化，成本较高，未做）
 - 多音源在电台上下文显式切换 UI（网易云/哔哩哔哩/本地，需新增 provider，未做）
-- 听众端推送通知（点歌被批 / 切歌）——已走 listenState 广播，UI 侧可加 toast（未做）
-- 版本打包 `0.26.8.31_beta_cl04`（R33 9 提交，新版本号）
+- **版本 `0.26.8.31_beta_cl04`**（`lib/core/app_version.dart`：buildCount 3→4，changelog 新增 cl04 条目）
 - 全量 147 既有 info 未处理（属 pre-existing，非 R33 新增）
+
+## 听众端 toast 通知（6208a25）
+- `NetSessionState` 新增 `notifyId`（toast 文案）、`lastNotifyTrackUri`（去重字段）
+- `orderDecision`：听众收到自己点歌的审批结果 → `你的点歌已被 DJ 批准 ✓` / `拒绝 ✗`
+- `listenState` 换曲：`DJ 正在播放《X》`（lastNotifyTrackUri 去重，不重复弹）
+- `NetSessionNotifier.resetNotify()` 消费后清空
+- `order_queue_page.dart` 使用 `Consumer` + `bottomSheet` 监听并弹 SnackBar
 
 ## 关键约束
 - 短回、直接、要证据、不反复确认

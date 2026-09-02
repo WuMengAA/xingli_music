@@ -438,7 +438,9 @@ abstract final class AppVersion {
 /// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
 /// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
 /// buildCount 2→3（0.26.8.31_beta_cl03）。
-static const int buildCount = 3;
+/// buildCount 3→4（0.26.8.31_beta_cl04）：R33 电台模块深度完善——VoiceHub 风格 UI 美化、
+/// DJ 自选播放、点歌状态机补全、已播历史持久化、队列分色统计、听众 toast 通知、代码清理。
+static const int buildCount = 4;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -503,6 +505,21 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.8.31',
+    cl: 'beta_cl04',
+    title: '电台模块 VoiceHub 风格深度完善（R33）',
+    details: <String>[
+      '电台房 UI 重做 VoiceHub 风格：全页玻璃卡片（LiquidGlass frosted）、DJ 脉冲徽章（_LivePulse 呼吸光环）、在线 LIVE 标、正在播放 LIVE mini bar（曲目+进度条）、成员玻璃行、DJ 光晕角标',
+      'DJ 自选播放：DJ 从曲库/在线搜索直接塞 approved 待播队列（无需审批），共享 TrackPicker 组件支持本地+网易云+哔哩哔哩双源搜索',
+      '点歌状态机补全：setOrderStatus/playOrder/markPlayed，DJ「推入播放」真正把 approved→playing；播放前自动把当前 playing 标为 played，不再丢历史',
+      '已播历史持久化：radio_history_provider 存最近 100 条 PlayedRecord，电台页「已播 X 首 · 今日 Y 首」统计条 + 查看历史页（DJ/听众标记 + 相对时间）',
+      '点歌队列分色统计：队列头按状态分类计数 chip（待审批/待播/播放中/已播/已拒），听众和 DJ 一眼看清排队情况',
+      '听众端 toast 通知：点歌审批结果「你的点歌已被批准 ✓/拒绝 ✗」；DJ 换曲「DJ 正在播放《X》」，lastNotifyTrackUri 去重避免重复弹',
+      '崩溃修复：voxel_world_view3d dispose 后仍 ref 读取（Bad state 崩溃）；local_music_scanner MediaStore int/String? 强转崩溃',
+      '代码清理：8 处未用 import 移除、voxel_renderer copyWith 补全 11 参数（消除 10 处 dead_null_aware_expression 告警）；analyze 警告 54→34',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.31',
     cl: 'beta_cl03',
