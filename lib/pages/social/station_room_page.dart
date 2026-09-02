@@ -23,6 +23,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
+import '../../providers/radio/dj_audio_source_provider.dart';
 import '../../providers/radio/radio_history_provider.dart';
 import '../../widgets/liquid_glass.dart';
 import '../../widgets/social/track_picker.dart';
@@ -45,6 +46,7 @@ class StationRoomPage extends ConsumerWidget {
     final c = context.appColors;
     final NetSessionState s = ref.watch(netSessionProvider);
     ref.read(radioHistoryProvider.notifier).load();
+    ref.read(djAudioSourceProvider.notifier).load();
     final bool isConnected = s.status == ConnStatus.connected;
 
     return PopScope(
@@ -260,6 +262,62 @@ class StationRoomPage extends ConsumerWidget {
     );
   }
 
+  /// R33：DJ 音源显式切换 chip（仅 host 可见）——点开菜单选「本地 / 网易云 /
+  /// 哔哩哔哩」，写 [djAudioSourceProvider] 持久化，并同步「DJ 自选」弹层默认平台。
+  Widget _buildSourceSwitch(BuildContext context, WidgetRef ref,
+      Track? now, AppThemeColors c) {
+    final DjAudioSource pref = ref.watch(djAudioSourceProvider);
+    return PopupMenuButton<DjAudioSource>(
+      tooltip: '切换音源',
+      onSelected: (DjAudioSource src) async {
+        if (src == pref) return;
+        await ref.read(djAudioSourceProvider.notifier).set(src);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('已切换到${_sourceLabel(src)}音源'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      },
+      itemBuilder: (_) => <PopupMenuEntry<DjAudioSource>>[
+        for (final DjAudioSource s in DjAudioSource.values)
+          PopupMenuItem<DjAudioSource>(
+            value: s,
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  s == DjAudioSource.local
+                      ? Icons.library_music_rounded
+                      : s == DjAudioSource.netease
+                          ? Icons.cloud_queue_rounded
+                          : Icons.play_circle_outline_rounded,
+                  size: 16,
+                  color: s == pref ? c.accent : c.textSecondary,
+                ),
+                const SizedBox(width: 8),
+                Text(_sourceLabel(s),
+                    style: TextStyle(
+                        color: s == pref ? c.accent : c.textPrimary)),
+                if (s == pref) ...<Widget>[
+                  const SizedBox(width: 6),
+                  Icon(Icons.check, size: 14, color: c.accent),
+                ],
+              ],
+            ),
+          ),
+      ],
+      child: _buildSourceChip(now, c),
+    );
+  }
+
+  static String _sourceLabel(DjAudioSource s) => switch (s) {
+        DjAudioSource.local => '本地',
+        DjAudioSource.netease => '网易云',
+        DjAudioSource.bilibili => '哔哩哔哩',
+      };
+
   /// DJ 卡片（VoiceHub 风格）—— 玻璃质感 + 脉冲徽章 + 在线状态。
   Widget _buildDjCard(BuildContext context, WidgetRef ref,
       AppThemeColors c, NetSessionState s) {
@@ -320,7 +378,10 @@ class StationRoomPage extends ConsumerWidget {
                               letterSpacing: 1.5)),
                     ),
                     const SizedBox(width: 8),
-                    _buildSourceChip(now, c),
+                    if (s.role == NetRole.host)
+                      _buildSourceSwitch(context, ref, now, c)
+                    else
+                      _buildSourceChip(now, c),
                     if (s.role == NetRole.host) ...<Widget>[
                       const Spacer(),
                       FilledButton.icon(
@@ -372,12 +433,16 @@ class StationRoomPage extends ConsumerWidget {
 
   /// DJ 自选播放：开选曲弹层 → 选中曲目后直接塞入 approved 待播队列
   /// （无需审批，VoiceHub「排期管理」核心能力）。
+  ///
+  /// 弹层默认选中 DJ 当前偏好的音源（本地 / 网易云 / 哔哩哔哩，
+  /// 由 DJ 卡上的源切换 chip 控制，[djAudioSourceProvider] 持久化）。
   Future<void> _djSelfPick(
       BuildContext context, WidgetRef ref) async {
+    final DjAudioSource src = ref.read(djAudioSourceProvider);
     final Track? t = await showModalBottomSheet<Track?>(
       context: context,
       backgroundColor: context.appColors.bgCard,
-      builder: (_) => const TrackPicker(),
+      builder: (_) => TrackPicker(initialSource: src),
     );
     if (t != null && context.mounted) {
       ref.read(netSessionProvider.notifier).djAddToQueue(t);

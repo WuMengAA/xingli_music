@@ -17,9 +17,14 @@ import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
+import '../../providers/radio/dj_audio_source_provider.dart';
 
 class TrackPicker extends ConsumerStatefulWidget {
-  const TrackPicker({super.key});
+  /// [initialSource]：打开时默认选中的音源（电台页 DJ 自选传入 DJ 偏好；
+  /// 听众点歌用默认本地，保持原行为）。
+  const TrackPicker({super.key, this.initialSource = DjAudioSource.local});
+
+  final DjAudioSource initialSource;
 
   @override
   ConsumerState<TrackPicker> createState() => _TrackPickerState();
@@ -27,7 +32,19 @@ class TrackPicker extends ConsumerStatefulWidget {
 
 class _TrackPickerState extends ConsumerState<TrackPicker> {
   final TextEditingController _q = TextEditingController();
-  bool _online = false;
+  late bool _online = widget.initialSource != DjAudioSource.local;
+
+  /// 在线时只展示偏好的平台（网易云 / 哔哩哔哩）；本地偏好则两平台都出。
+  String? get _preferPlatform {
+    switch (widget.initialSource) {
+      case DjAudioSource.netease:
+        return 'netease';
+      case DjAudioSource.bilibili:
+        return 'bilibili';
+      case DjAudioSource.local:
+        return null;
+    }
+  }
 
   @override
   void dispose() {
@@ -152,10 +169,23 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
           child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)));
     }
     final List<Track> all = <Track>[...neHits, ...biHits];
+    final String? pref = _preferPlatform;
+    final List<Track> shown = pref == null
+        ? all
+        : all.where((Track t) => t.sourceId == pref).toList();
+    if (shown.isEmpty) {
+      final bool loading = neRes.isLoading || biRes.isLoading;
+      if (loading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      return Center(
+          child: Text('${pref == 'netease' ? '网易云' : 'B站'} 无匹配',
+              style: TextStyle(color: c.textSecondary)));
+    }
     return ListView.builder(
-      itemCount: all.length,
+      itemCount: shown.length,
       itemBuilder: (_, int i) {
-        final Track t = all[i];
+        final Track t = shown[i];
         final String src = t.sourceId == 'netease'
             ? '网易云'
             : t.sourceId == 'bilibili'
