@@ -29,7 +29,6 @@ import 'package:cross_file/cross_file.dart';
 
 import '../../core/utils/app_motion.dart';
 import '../../models/companion_action.dart';
-import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
 import '../../pages/canvas/photo_gallery_page.dart';
 import '../../pages/now_playing/now_playing_page.dart';
@@ -289,9 +288,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 自动巡航角速度（弧度 / 秒，约 2 分钟一圈）。
   static const double _orbitSpeed = 0.052;
 
-  /// 空闲多久后开始自动旋转（秒，按 motionScale 缩放）。
-  static const double _idleDelay = 6.0;
-
   late VoxelCamera _camera;
 
   /// R26g：测试钩子——当前相机俯仰（回归测试验证「进入第一人称归位
@@ -351,7 +347,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
   Size _viewport = Size.zero;
   Duration _lastTick = Duration.zero;
-  double _idle = 0;
   double _wave = 0;
   bool _dirty = true;
   // R26r2：恢复遮挡剔除——透视根因是绘制顺序（已由深度排序修复），与剔除无关；
@@ -500,7 +495,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   final GlobalKey _captureKey = GlobalKey();
 
   // ── R23d MC 玩法（第一人称：破坏 / 放置）─────────────
-  Voxel _mcSelected = Voxel.stone;
 
   // ── R23e 物理 / 生存模式 ────────────────────────────
   /// true=生存模式（生命/摔落伤害/禁飞）；false=创造（可飞行）。
@@ -588,9 +582,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   Offset? _lastMousePos;
   Offset? _mousePos;
 
-  /// 本次按住期间是否已挖掉方块（松手时不再补一刀）。
-  bool _brokeInHold = false;
-
   /// 正在挖的方块（null = 没在挖）。
   (int, int, int)? _miningAt;
 
@@ -636,7 +627,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   final VoxelChunkCache _chunkCache = VoxelChunkCache();
 
   double _motionScale = 1;
-  bool _autoOrbit = true;
 
   // ── R24d 30s 自动存档状态 ─────────────────────────────
   Timer? _saveTimer;
@@ -1027,26 +1017,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     }
     ref.read(companionStateProvider.notifier).consumeActions();
     _dirty = true;
-  }
-
-  /// 由陪伴会话状态推导出世界中的体素小人实体。
-  ///
-  /// - 未破冰（陌生人尚未接触）→ 不渲染（它只是"坐着"，不在世界里走动）；
-  /// - 已接触 → 出现在 [_figurePos]（初始世界中心，可被 AI 指令移动）；
-  /// - 最后一条是它主动发的消息 → 发光（高亮提示用户它开口了）。
-  List<VoxelEntity> _entitiesFor(CompanionSession s) {
-    if (!s.firstContactMade) return const <VoxelEntity>[];
-    final bool speaking = s.messages.isNotEmpty &&
-        s.messages.last.role == CompanionRole.companion &&
-        s.messages.last.proactive;
-    return <VoxelEntity>[
-      VoxelEntity(
-        position: _figurePos,
-        color: const Color(0xFF7CC8FF),
-        scale: 1.0,
-        glow: speaking,
-      ),
-    ];
   }
 
   @override
@@ -2148,27 +2118,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     return false;
   }
 
-  /// H3：身体泡水比例（0~1，浮力强度依据；站立高 1.75 的足迹采样）。
-  double _bodyWaterRatio() {
-    final VoxelWorld w = widget.world;
-    const double r = 0.3;
-    int total = 0, wet = 0;
-    final int xMin = (_fpPos.x - r).floor();
-    final int xMax = (_fpPos.x + r).floor();
-    final int zMin = (_fpPos.z - r).floor();
-    final int zMax = (_fpPos.z + r).floor();
-    final int yTop = (_fpPos.y + 1.75).floor();
-    for (int yy = _fpPos.y.floor(); yy <= yTop; yy++) {
-      for (int xi = xMin; xi <= xMax; xi++) {
-        for (int zi = zMin; zi <= zMax; zi++) {
-          total++;
-          if (w.get(xi, yy, zi) == Voxel.water) wet++;
-        }
-      }
-    }
-    return total == 0 ? 0 : wet / total;
-  }
-
   /// H3：MC 式 1 格台阶 step-up——baseY → +1 抬高后身体可通行即放行；
   /// 蹲守边缘（crouch）时抬高后脚下无支撑则拒绝（不绕过边缘保护）。
   bool _stepUpOk(double x, double y, double z, double bodyH, bool crouch) {
@@ -2372,7 +2321,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       // 创造：直接进包，方便接着搭。
       _inv.add(ItemStack(broken));
     }
-    _brokeInHold = true;
     _dirty = true;
   }
 
@@ -2458,8 +2406,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     } else {
       _inv.fillCreative(kCreativeBlocks);
     }
-    // R26fx3：同步当前选中方块（否则放置用过期/默认 stone）。
-    _mcSelected = _inv.at(_inv.selected).item;
   }
 
   // ── 交互 ────────────────────────────────────────────────
@@ -2467,13 +2413,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 单指拖动 / 双指平移 → 相机旋转（视角跟随手指）；双指捏合 → 调焦距（FOV）。
   /// 统一走 Scale 识别器：focalPoint 位移驱动环视，scale 比值驱动焦距，互不干扰。
   void _onScaleStart(ScaleStartDetails d) {
-    _idle = 0;
     _scaleFocal = d.localFocalPoint;
     _lastScale = 1.0;
   }
 
   void _onScaleUpdate(ScaleUpdateDetails d) {
-    _idle = 0;
     // 环视：用焦点位移（单指拖动或双指平移都走这里）。
     final Offset delta = d.localFocalPoint - _scaleFocal;
     _scaleFocal = d.localFocalPoint;
@@ -2491,7 +2435,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 滚轮/触控板滚动 → 调焦距（FOV）：上滚拉近、下滚拉远。
   void _onPointerSignal(PointerSignalEvent event) {
     if (event is! PointerScrollEvent) return;
-    _idle = 0;
     final double factor = 1.0 + (-event.scrollDelta.dy) * 0.0015;
     _camera = _camera.zoom(factor);
     _dirty = true;
@@ -2560,7 +2503,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final Offset delta = e.position - last;
     if (delta == Offset.zero) return;
     _camera = _camera.rotate(delta.dx * 0.003, -delta.dy * 0.003);
-    _idle = 0;
     _dirty = true;
   }
 
@@ -2585,7 +2527,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (rx == 0 && ry == 0) return;
     const double speed = 1.7; // rad/s
     _camera = _camera.rotate(rx * speed * dt, ry * speed * dt);
-    _idle = 0;
     _dirty = true;
   }
 
@@ -2625,7 +2566,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       _lastJumpPress = now;
       if (_flyMode) {
         _held.add(_Nav.up); // 飞行中按住 = 上升
-        _idle = 0;
       } else {
         _fpJumpQueued = true; // 单击 = 普通跳跃
       }
@@ -2641,7 +2581,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // 且 _fpVy 被清零（零重力）→ 玩家匀速无限上升且停不下来。
     // 松手一律移除，杜绝这一类「按键状态泄漏」。
     _held.remove(_Nav.up);
-    _idle = 0;
   }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
@@ -2762,8 +2701,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (i < 0 || i >= VoxelInventory.hotbarSize) return;
     setState(() {
       _inv.selected = i;
-      final ItemStack s = _inv.at(i);
-      if (!s.isEmpty) _mcSelected = s.item;
       _dirty = true;
     });
   }
@@ -3093,47 +3030,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     }
   }
 
-  void _press(_Nav nav) {
-    // 第一人称/第三人称：
-    // 下 = 生存/创造未飞行：蹲；创造飞行中：下降。上 = 生存/创造未飞行：跳；
-    // 创造飞行中：飞升（松手停）。
-    if (_viewMode == _ViewMode.firstPerson ||
-        _viewMode == _ViewMode.thirdPerson) {
-      if (nav == _Nav.down) {
-        if (_survival || !_flyMode) {
-          _crouching = true; // 生存任何时候 / 创造未飞行 = 蹲（R26r20）
-        } else {
-          _held.add(nav); // 创造飞行中：LiftPad 下 = 下降
-        }
-        _idle = 0;
-        return;
-      }
-      if (nav == _Nav.up) {
-        if (_survival || !_flyMode) {
-          _idle = 0;
-          _queueJump(); // 生存 / 创造未飞行：上 = 跳跃（统一逻辑）
-          return;
-        }
-        _held.add(nav); // 创造飞行中：飞升
-        _idle = 0;
-        return;
-      }
-      // 前后左右：第一/三人称移动
-      _held.add(nav);
-      _idle = 0;
-      return;
-    }
-    // orbit / iso：方向键旋转视角
-    _held.add(nav);
-    _idle = 0;
-  }
-
-  void _release(_Nav nav) {
-    _held.remove(nav);
-    if (nav == _Nav.down && (_survival || !_flyMode)) _crouching = false;
-    _idle = 0;
-  }
-
   /// 体素 DDA 射线：从相机眼睛沿视线步进，返回第一个实心方块坐标（瞄准/破坏用）。
   /// 射线拾取：返回 (命中方块坐标, 命中的那个面的外法线)。
   /// 连续步进并记录"从上一格(空气/水)跨入实体格"的那一步方向，即为我们看得见、
@@ -3175,14 +3071,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       prev = (bx, by, bz);
     }
     return null;
-  }
-
-  void _queueJump() {
-    if (_viewMode == _ViewMode.firstPerson ||
-        _viewMode == _ViewMode.thirdPerson) {
-      _fpJumpQueued = true;
-      _idle = 0;
-    }
   }
 
   /// 在准星所指方块"看得见的那一面"外侧空格放置当前选中方块。
@@ -3836,7 +3724,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (mounted) _snack('已重命名为「$name」');
   }
 
-  // ignore: unused_element（已由 _openMySaves 取代；保留备用）
+  // （已由 _openMySaves 取代；保留备用）
+  // ignore: unused_element
   Future<void> _openSaveMenu({bool inGame = true}) async {
     List<VoxelManualSaveMeta> saves = await listAllSaves();
     if (!mounted || !context.mounted) return;
@@ -4249,7 +4138,6 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   void _onJoystick(Offset v) {
     _joyX = v.dx;
     _joyY = v.dy;
-    _idle = 0;
   }
 
   // ── R26o：第三人称摄像机环绕（另一摇杆控制，一键复原）────────
@@ -5861,73 +5749,6 @@ class _PauseButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// 升 / 降按钮（观景用，脱离地形）。
-class _LiftPad extends StatelessWidget {
-  const _LiftPad({required this.onPress, required this.onRelease});
-
-  final void Function(_Nav) onPress;
-  final void Function(_Nav) onRelease;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        _HoldButton(
-          icon: Icons.arrow_upward_rounded,
-          nav: _Nav.up,
-          onPress: onPress,
-          onRelease: onRelease,
-        ),
-        const SizedBox(height: AppSpace.xs),
-        _HoldButton(
-          icon: Icons.arrow_downward_rounded,
-          nav: _Nav.down,
-          onPress: onPress,
-          onRelease: onRelease,
-        ),
-      ],
-    );
-  }
-}
-
-/// 按住持续生效的圆形按钮（44dp 热区，沿用 accent 半透明语言）。
-class _HoldButton extends StatelessWidget {
-  const _HoldButton({
-    required this.icon,
-    required this.nav,
-    required this.onPress,
-    required this.onRelease,
-  });
-
-  final IconData icon;
-  final _Nav nav;
-  final void Function(_Nav) onPress;
-  final void Function(_Nav) onRelease;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => onPress(nav),
-      onTapUp: (_) => onRelease(nav),
-      onTapCancel: () => onRelease(nav),
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: context.appColors.accent.withValues(alpha: 0.22),
-          border: Border.all(
-            color: const Color(0x66FFFFFF),
-          ),
-        ),
-        child: Icon(icon, size: 24, color: const Color(0xFFF2F5FA)),
       ),
     );
   }
