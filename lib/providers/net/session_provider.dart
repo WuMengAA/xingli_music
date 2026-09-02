@@ -265,6 +265,8 @@ class NetSessionState {
     this.roomMeta,
     this.lastSeenAt,
     this.orderQueue = const <OrderItem>[],
+    this.notifyId = '',
+    this.lastNotifyTrackUri = '',
   });
 
   final NetRole role;
@@ -293,6 +295,13 @@ class NetSessionState {
   /// 校园点歌队列（DJ 端为权威队列，听众端为镜像）。状态机见 [OrderStatus]。
   final List<OrderItem> orderQueue;
 
+  /// 听众端 toast 通知：orderDecision/listenState 变化时更新本字段，
+  /// order_queue_page.dart 监听 notifyId 变化弹出 toast。
+  final String notifyId;
+
+  /// 最近一次"切歌通知"对应的曲目 uri，防止同一曲反复 toast。
+  final String lastNotifyTrackUri;
+
   NetSessionState copyWith({
     NetRole? role,
     ConnStatus? status,
@@ -312,6 +321,8 @@ class NetSessionState {
     Map<String, dynamic>? roomMeta,
     DateTime? lastSeenAt,
     List<OrderItem>? orderQueue,
+    String? notifyId,
+    String? lastNotifyTrackUri,
   }) =>
       NetSessionState(
         role: role ?? this.role,
@@ -332,6 +343,8 @@ class NetSessionState {
         roomMeta: roomMeta ?? this.roomMeta,
         lastSeenAt: lastSeenAt ?? this.lastSeenAt,
         orderQueue: orderQueue ?? this.orderQueue,
+        notifyId: notifyId ?? this.notifyId,
+        lastNotifyTrackUri: lastNotifyTrackUri ?? this.lastNotifyTrackUri,
       );
 
   PeerInfo? peer(String id) {
@@ -890,11 +903,18 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         final String id = msg.payload['id'] as String? ?? '';
         final OrderStatus decision =
             OrderStatus.values[(msg.payload['decision'] as int?) ?? 0];
-        state = state.copyWith(
-          orderQueue: state.orderQueue
-              .map((it) => it.id == id ? it.copyWith(status: decision) : it)
-              .toList(),
-        );
+        final List<OrderItem> updated =
+            state.orderQueue
+                .map((it) => it.id == id ? it.copyWith(status: decision) : it)
+                .toList();
+        final bool isMyOrder =
+            state.localId != null && updated.any((it) => it.id == id && it.fromId == state.localId);
+        final String notify = isMyOrder
+            ? (decision == OrderStatus.approved
+                ? '你的点歌已被 DJ 批准 ✓'
+                : '你的点歌被 DJ 拒绝 ✗')
+            : '';
+        state = state.copyWith(orderQueue: updated, notifyId: notify.isEmpty ? null : notify);
         break;
 
       case NetMsgType.ping:
@@ -1162,7 +1182,8 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     if (uri.isEmpty) return;
     final Track? cur = ref.read(nowPlayingProvider);
     final AudioService svc = ref.read(audioServiceProvider);
-    if (cur?.uri != uri) {
+    final bool isNewTrack = cur?.uri != uri;
+    if (isNewTrack) {
       final Track track = Track(
         title: (p['title'] as String?) ?? '未知曲目',
         artist: (p['artist'] as String?) ?? '',
@@ -1171,6 +1192,13 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         source: TrackSource.stream,
       );
       unawaited(svc.playMusic(track, fade: Duration.zero));
+      // 切歌通知：仅当 uri 与上次通知不同时才弹（避免周期性 pos 帧反复 toast）。
+      if (uri != state.lastNotifyTrackUri) {
+        state = state.copyWith(
+          notifyId: 'DJ 正在播放《${track.title}》',
+          lastNotifyTrackUri: uri,
+        );
+      }
     }
     final int posMs = (p['pos'] as int?) ?? 0;
     unawaited(svc.seek(Duration(milliseconds: posMs)));
@@ -1181,8 +1209,10 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     }
   }
 
-  // ── G9 cl65：断线重连（仅客户端）───────────────────
+  /// 清空 toast 通知（听众端消费后调用，避免重复弹窗）。
+  void resetNotify() => state = state.copyWith(notifyId: '');
 
+  // ── G9 cl65：断线重连（仅客户端）───────────────────
   /// 开始重连：关闭旧节点，进入 reconnecting 态，调度首次尝试。
   /// 保留 hostIp/port/seed/options/peers，使世界在重连期间继续渲染。
   Future<void> _beginReconnect() async {

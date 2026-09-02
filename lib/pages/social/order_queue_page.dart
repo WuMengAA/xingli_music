@@ -100,6 +100,24 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
                 )),
         ],
       ),
+      // 听众端 toast 通知：监听 notifyId 变化，弹出并立即清空，避免重复弹窗。
+      bottomSheet: Consumer(
+        builder: (BuildContext ctx, WidgetRef ref, Widget? child) {
+          final String nid = ref.watch(netSessionProvider).notifyId;
+          if (nid.isEmpty) return const SizedBox.shrink();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              SnackBar(
+                content: Text(nid),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            // 清空 notifyId，触发一次轻量重建（nid 变空）→ 不再弹。
+            ref.read(netSessionProvider.notifier).resetNotify();
+          });
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 
