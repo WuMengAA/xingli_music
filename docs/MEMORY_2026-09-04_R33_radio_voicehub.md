@@ -1,0 +1,86 @@
+# MEMORY — R33 电台模块深度完善 · 2026-09-04
+
+**目标**：Radio 模块 VoiceHub 风格深度完善 + 代码审查 + 崩溃修复 + UI 美化 + 功能补全
+
+## R32 四项（已完成，8b62653~848882d）
+1. 液态玻璃全部流畅档位（`kDefaultPerformancePreset = smooth`）
+2. 底部 Dock 离底 12px 悬浮（iOS26 设计标准）
+3. 账号后端全做（改密/资料同步，relay cl16 已部署）
+4. 电台还原 VoiceHub（点歌悬浮窗 + 房联排队）
+
+## R33 九项（本轮完成，5956ac8~6a5a652）
+
+### 1. Bug 修复（5956ac8）
+- **voxel_world_view3d.dart**：L564 加 `late final NetSessionNotifier _netSession;`，initState 注入，dispose 改读字段——修复 `Bad state: Cannot use "ref" after the widget was disposed`
+- **local_music_scanner.dart**：L67 修复 MediaStore 不同实现类型不一致（`int`/`String?`），`switch` 多类型容错
+
+### 2. 电台 UI 美化（bfd31d2）—— VoiceHub 风格
+- 全页玻璃卡片（`LiquidGlass` frosted 包裹所有卡）
+- DJ 卡：头像 + 脉冲光环（`_LivePulse` 呼吸动画组件）+ LIVE 标 + 「DJ 自选」按钮（DJ 端）+ 「你」光晕角标（房主）
+- 已播历史条：`已播 X 首 · 今日 Y 首` + 查看按钮
+- 正在播放 LIVE mini bar：脉冲 LIVE 标 + 当前曲目 + 进度条 + 时间格式 `m:ss`
+- 点歌队列玻璃卡：按状态分组（待审批/待播放）+ 单行折叠（最多 3 条 + 剩余数）
+- 成员列表：每行 LiquidGlass 卡片 + DJ 光晕徽章
+
+### 3. DJ 自选播放（8ab1ca7）
+- `session_provider.dart` 新增 `djAddToQueue(Track, message)`：DJ 从曲库/在线搜直接塞 approved 队列（无需审批，VoiceHub 排期核心）
+- 提取共享 `lib/widgets/social/track_picker.dart`：本地 + 网易云 + 哔哩哔哩双源搜索弹层（供 DJ 自选和听众点歌共用）
+
+### 4. 点歌状态机补全（8817472）
+- `session_provider.dart` 新增 `setOrderStatus` / `playOrder` / `markPlayed`
+- `_playAsDj` 播放前：把当前 playing 项自动标为 played（**不再丢播放记录**），再把 approved → playing
+
+### 5. 已播历史持久化（ffdc95b）
+- 新增 `lib/providers/radio/radio_history_provider.dart`：`PlayedRecord { id, track, fromName, source('dj'|'listener'), at }`，SharedPreferences 存最近 100 条
+- 电台页「已播 X 首 · 今日 Y 首」统计条
+- `_HistoryPage`：已播历史列表（DJ/听众标记 + 相对时间：刚刚/3m 前/2h 前/MM/DD HH:mm）
+- 播放前自动写入 played 记录
+
+### 6. 代码审查清理（b73469e）
+- 移除 8 处未用 `path_provider` / `foundation` import
+- `voxel_renderer.dart` copyWith 补全 11 个缺失参数 → 消除 10 处 `dead_null_aware_expression` 警告
+- `local_music_scanner.dart` switch 重构消除死代码告警
+- **analyze 警告：54 → 34**（降 20，剩余均为 pre-existing info-level）
+
+### 7. 队列分色统计（6a5a652）
+- `order_queue_page.dart` 队列头按状态分类计数：待审批/待播/播放中/已播/已拒，VoiceHub 风格色 chip
+- 听众和 DJ 一眼看清排队情况
+
+## 服务端（relay）
+- **Relay 版本**：cl16 已部署（PID 5672，端口 8092）
+- 账号后端：`/api/auth/change-password` PUT 路由（旧密码校验→重加盐）；`_authUpdateProfile`（displayName≤32/avatar≤512）
+- 广播协议：`orderQueue` / `orderDecision` / `listenState` 三类——DJ 自选、审批、播放、一起听全部走现有广播通道，**无需 relay 新增路由**（`_broadcastOrderQueue` 全量同步）
+
+## Push 通道
+- 已确认：URL 内嵌 token `https://x-access-token:<PAT>@github.com/WuMengAA/xingli_music.git`（绕过 GCM GUI 弹窗）
+- 本地 `~/.git-credentials` 存 token
+- 每次 push 后 `git fetch origin main` 同步 tracking ref，`git log --oneline origin/main..main` 验证
+
+## 关键文件清单
+- `lib/pages/social/station_room_page.dart`（763→871 行）：全页 VoiceHub 玻璃 + DJ 徽章 + 已播条 + LIVE mini bar + 历史页
+- `lib/pages/social/order_queue_page.dart`：队列分色统计 + played 记录写入 + DJ 播放状态流转
+- `lib/providers/net/session_provider.dart`：`djAddToQueue` + `setOrderStatus` + `playOrder` + `markPlayed`
+- `lib/providers/radio/radio_history_provider.dart`（新建）：PlayedRecord + SharedPreferences 持久化
+- `lib/widgets/social/track_picker.dart`（新建）：共享选曲弹层（本地 + 网易云 + 哔哩哔哩）
+- `lib/widgets/social/order_floating_card.dart`（R32 新建，R33 未动）：点歌悬浮窗
+- `lib/widgets/liquid_glass.dart`：玻璃组件 API（R32 已定型，R33 未改）
+- `lib/services/audio/local_music_scanner.dart`：MediaStore 容错修复
+
+## 关键组件 API 速查
+- `LiquidGlass{child,radius=24,style,GlassStyle.frosted|liquid,blur,tint,borderColor,refraction=5,dispersion=1.2,padding,forceGlass}`
+- `OrderItem{id,track,fromId,fromName,message,anonymous,status,at}`
+- `OrderStatus{pending/approved/playing/played/rejected}`
+- `OrderStatus.playing` 单例：任意时刻最多 1 首（由 `markPlayed` 前置清理保证）
+
+## R33 剩余 / 未做
+- VoiceHub 排期拖拽（需自定义拖放 + 持久化，成本较高，未做）
+- 多音源在电台上下文显式切换 UI（网易云/哔哩哔哩/本地，需新增 provider，未做）
+- 听众端推送通知（点歌被批 / 切歌）——已走 listenState 广播，UI 侧可加 toast（未做）
+- 版本打包 `0.26.8.31_beta_cl04`（R33 9 提交，新版本号）
+- 全量 147 既有 info 未处理（属 pre-existing，非 R33 新增）
+
+## 关键约束
+- 短回、直接、要证据、不反复确认
+- 逐文件 `git add <path>`，绝不 `git add -A`
+- Hindsight 401（apiToken 未配置），记忆走 docs md
+- 工作目录 `D:\Stellara\Music\xingli_music`
