@@ -64,7 +64,13 @@ class LocalMusicScanner {
       final List<Track> tracks = <Track>[];
 
       for (final SongModel s in songs) {
-        final int? durMs = int.tryParse((s.duration as String?) ?? '');
+        // R33：MediaStore 不同实现返回类型不一致（Android 侧常为 int，部分为 String），
+        // 容错处理避免 "int is not a subtype of String?" 强转崩溃。
+        final int? durMs = switch (s.duration) {
+          String? ds => int.tryParse(ds ?? ''),
+          int di => di,
+          _ => null,
+        };
         final Duration? duration =
             durMs != null ? Duration(milliseconds: durMs) : null;
 

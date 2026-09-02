@@ -563,6 +563,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// late final：在 initState 从 provider 注入（dispose 后仍可用，不依赖 ref）。
   late final PlayerVitals _vitals;
 
+  /// G9·R33：联机会话 notifier（initState 捕获；dispose 里直接清回调，避免
+  /// ConsumerStatefulElement 已 disposed 后 ref 崩溃）。
+  late final NetSessionNotifier _netSession;
+
   /// 僵尸 + 掉落物世界。
   late final MobWorld _mobs = MobWorld(world: widget.world);
 
@@ -657,6 +661,8 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     _effectiveSaveId = widget.saveId ?? _genSessionId();
     // cl38 P1：玩家生存状态单一真相源（开放世界多系统共享）。
     _vitals = ref.read(playerVitalsProvider);
+    // G9·R33：联机会话 notifier（initState 捕获，dispose 里不用 ref）。
+    _netSession = ref.read(netSessionProvider.notifier);
     // cl29·②：场景页「拍照取景」入口透传——进入即开相机取景面板。
     if (widget.initialCameraMode) _cameraMode = true;
     // R26m：初始相机 = 世界中心地表第一人称（去掉俯视 overview 预览）。
@@ -1086,12 +1092,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // cl79：解除 vitals 广播监听（PlayerVitals 为 provider 单例，跨世界存活）。
     _vitals.removeListener(_broadcastVitalsIfChanged);
     if (widget.multiplayer) {
-      final NetSessionNotifier net = ref.read(netSessionProvider.notifier);
-      net.onRemoteEdit = null;
-      net.onRemoteTransform = null;
-      net.onReconnected = null;
-      net.onEditSnapshot = null;
-      net.editSnapshotProvider = null;
+      _netSession.onRemoteEdit = null;
+      _netSession.onRemoteTransform = null;
+      _netSession.onReconnected = null;
+      _netSession.onEditSnapshot = null;
+      _netSession.editSnapshotProvider = null;
     }
     super.dispose();
   }
