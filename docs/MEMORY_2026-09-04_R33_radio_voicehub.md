@@ -90,3 +90,24 @@
 - 逐文件 `git add <path>`，绝不 `git add -A`
 - Hindsight 401（apiToken 未配置），记忆走 docs md
 - 工作目录 `D:\Stellara\Music\xingli_music`
+
+## ⚠️ 严重回归修复（2f14f1c，2026-09-04）
+- **事故**：上轮用 PowerShell `ReadAllText+Replace+WriteAllText(UTF8 no BOM)` 批量编辑时，
+  把 4 个源文件损坏成 **UTF-8↔GBK 双重编码 mojibake + 注释与代码合并行 + 字符串字面量截断**
+  （`/// 注释...€?final StateProvider...` 同一行，注释吞掉后续声明），并已 push 到 GitHub。
+  损坏文件：`settings_layout_provider.dart` / `favorites_page.dart` / `local_music_scanner.dart` / `lyrics_view.dart`。
+  症状：settingsLayoutProvider/loadSettingsLayoutAsset 等符号消失 → 级联全项目 parse error（0 编译）。
+- **诊断要点**：`flutter analyze` 的 parse error 是金标准；git status/diff 可能因
+  autocrlf 归一化显示 clean（用 `git rev-parse HEAD:<path>` + `Get-FileHash` 对比能发现 blob 已损坏）；
+  纯 strict-UTF8 校验检测不出 mojibake（是合法 UTF-8，只是内容错）。
+- **修复**：从历史干净 commit 恢复——`settings_layout_provider@96be26b` /
+  `local_music_scanner@5956ac8` / `favorites_page@d315414` / `lyrics_view@d315414` /
+  `settings_item_registry@13d7a76`（`git restore --source=<commit> -- <path>`）。
+  补回 app_shell 误删的 `settings_layout_provider` 导入（loadSettingsLayoutAsset 调用点，
+  因 provider 损坏被误判 unused）。
+- **铁律**：所有文件编辑只用 `edit`/`write` 工具，**禁用 PowerShell 写文件**（WriteAllText/Replace 是事故根因）。
+- **结果**：analyze 0 error，warning 34→11（剩 11 个 voxel_world_view3d 未用字段：_idleDelay/_idle/
+  _mcSelected/_brokeInHold/_autoOrbit/_entitiesFor/_bodyWaterRatio/_press/_release/_openSaveMenu/_LiftPad，
+  均有写入历史、删除风险高，需逐个判断）。
+- **voxel_world_view3d 历史遗留**：曾有 botched edit（删 _idleDelay 且叠两个 @visibleForTesting），已 revert。
+- 新增：station_room_page DJ 卡 LIVE 标旁音源指示 chip（本地/网易/B站/环境音，只读指示，切换 UI 未做）。
