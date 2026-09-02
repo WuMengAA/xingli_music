@@ -274,8 +274,11 @@ class VoxelTextureAtlas {
     final double n = _noise(px, py, v.index * 131 + 7 + variant * 917);
     double f = 1.0 + (n - 0.5) * 0.26; // ±13% 亮度抖动，材质更活
     // 顶面高光 / 底边阴影：给每种材质读出立体表面（砖块斜面感），近处一眼可辨。
-    if (py <= 1) f *= 1.10;
-    else if (py >= tile - 2) f *= 0.84;
+    if (py <= 1) {
+      f *= 1.10;
+    } else if (py >= tile - 2) {
+      f *= 0.84;
+    }
     switch (v) {
       case Voxel.grass:
         if (py < 4) return _shade(const ui.Color(0xFF6A4A2B), 1.0); // 顶边土

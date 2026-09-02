@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show FlutterErrorDetails;
 
 import '../../services/log_service.dart';
 import '../../widgets/settings/log_upload_sheet.dart';

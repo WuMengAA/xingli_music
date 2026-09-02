@@ -71,7 +71,10 @@ class _MusicQualitySheet extends ConsumerWidget {
                 for (final MusicQuality q in MusicQuality.values)
                   ChoiceChip(
                     label: Text(
-                      q.label + (q == MusicQuality.lossless ? '${neVip ? "" : " · 需VIP"}' : ''),
+                      q.label +
+                          (q == MusicQuality.lossless
+                              ? (neVip ? "" : " · 需VIP")
+                              : ''),
                       style: context.appText.caption,
                     ),
                     selected: mq == q,

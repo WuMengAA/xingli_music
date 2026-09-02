@@ -20,12 +20,10 @@ import 'dart:async';
 import 'dart:convert' show JsonEncoder;
 import 'dart:io' show Directory, File, FileMode;
 import 'dart:math' as math;
-import 'dart:typed_data' show Int32List;
 import 'dart:ui' as ui;
 
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:cross_file/cross_file.dart';
 
 import '../../core/utils/app_motion.dart';
 import '../../models/companion_action.dart';
@@ -343,7 +341,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   bool _audioEnabled = true;
 
   /// 小人是否发光（主动发言时），由 build 写入、tick 复用。
-  bool _figureGlow = false;
+  final bool _figureGlow = false;
 
   Size _viewport = Size.zero;
   Duration _lastTick = Duration.zero;
@@ -351,7 +349,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   bool _dirty = true;
   // R26r2：恢复遮挡剔除——透视根因是绘制顺序（已由深度排序修复），与剔除无关；
   // 恢复后性能回正常，正确性由画家算法保证。
-  bool _occlusionCull = true;
+  final bool _occlusionCull = true;
 
   // cl30：重建增量门控 + 限频（正视用户「视角旋转剔除过度 + 刷新不持久」）。
   // 记录上次实际重建的机位/时相/分辨率倍率/区块失效序号；仅在「运动超阈值 或
@@ -626,7 +624,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
   /// 由本 state 持有，编辑方块 / 换世界 / 切换遮挡剔除时失效。
   final VoxelChunkCache _chunkCache = VoxelChunkCache();
 
-  double _motionScale = 1;
+  final double _motionScale = 1;
 
   // ── R24d 30s 自动存档状态 ─────────────────────────────
   Timer? _saveTimer;
@@ -4214,7 +4212,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
     // R26h：左上「信息显示」面板（可拖拽；含存档名/种子/坐标/群系/时间/时长）。
     // 取代旧「世界信息条 + 独立坐标 HUD」，统一在左上方展示。
-    if (_showWorldInfo && _started)
+    if (_showWorldInfo && _started) {
       controls.add(
         _HudWrap(
           id: HudIds.worldInfo,
@@ -4229,6 +4227,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // R26h：顶部居中「音乐卡片」——进入世界默认折叠常驻顶部，状态不受 UI
     // 变化影响（独立于左右面板）。maxWidth 由播放器自带，Align 居中。
@@ -4833,7 +4832,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     final String addr = isHost
         ? (net.port != null ? '本机 · 端口 ${net.port}' : '本机')
         : (net.hostIp != null
-            ? '${net.hostIp}${net.port != null ? ':' + net.port.toString() : ''}'
+            ? '${net.hostIp}${net.port != null ? ':${net.port}' : ''}'
             : '连接中…');
     final List<PeerInfo> peers = net.peers;
     final String peerText = peers.isEmpty
@@ -5815,7 +5814,7 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
   /// `_openSaveMenu`，用 GlobalKey 拿视图 State 动态调用）。
   final GlobalKey _viewKey = GlobalKey();
   late int _seed = widget.seed;
-  late VoxelWorld _world =
+  late final VoxelWorld _world =
       VoxelWorld(seed: _seed, options: widget.options ?? const WorldOptions());
 
   @override
@@ -5985,7 +5984,7 @@ class _WorldInfoPanelState extends State<_WorldInfoPanel> {
     final int m = d.inMinutes % 60;
     final int sec = d.inSeconds % 60;
     final String dur =
-        h > 0 ? '$h时${m}分' : (m > 0 ? '$m分${sec}秒' : '${sec}秒');
+        h > 0 ? '$h时$m分' : (m > 0 ? '$m分$sec秒' : '$sec秒');
     if (mounted && dur != _realDur) setState(() => _realDur = dur);
   }
 

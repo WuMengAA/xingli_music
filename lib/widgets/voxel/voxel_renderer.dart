@@ -536,9 +536,9 @@ class VoxelFrame {
     ),
     opaque: <RenderFace>[],
     translucent: <RenderFace>[],
-    opaquePlainBuckets: const <VoxelMeshBatch?>[],
-    opaqueTexturedBuckets: const <VoxelMeshBatch?>[],
-    waterBuckets: const <VoxelMeshBatch?>[],
+    opaquePlainBuckets: <VoxelMeshBatch?>[],
+    opaqueTexturedBuckets: <VoxelMeshBatch?>[],
+    waterBuckets: <VoxelMeshBatch?>[],
     columnsVisited: 0,
     facesCollected: 0,
     sunSX: 0,
@@ -547,7 +547,7 @@ class VoxelFrame {
     moonSX: 0,
     moonSY: 0,
     moonVisible: false,
-    nameLabels: const <VoxelNameLabel>[],
+    nameLabels: <VoxelNameLabel>[],
   );
 }
 
@@ -1466,16 +1466,16 @@ abstract final class VoxelRenderer {
     // R26r8：描边已并入 plain 批次（见 pushFace），不再有独立 edge 桶。
 
     // O4：面计数直接来自批量桶（不再维护冗余 RenderFace 列表）。
-    int _sumFaces(List<VoxelMeshBatch?> buckets) {
+    int sumFaces(List<VoxelMeshBatch?> buckets) {
       int n = 0;
       for (final VoxelMeshBatch? b in buckets) {
         if (b != null) n += b.positions.length ~/ 12;
       }
       return n;
     }
-    final int collected = _sumFaces(opaquePlainBuckets) +
-        _sumFaces(opaqueTexturedBuckets) +
-        _sumFaces(waterBuckets);
+    final int collected = sumFaces(opaquePlainBuckets) +
+        sumFaces(opaqueTexturedBuckets) +
+        sumFaces(waterBuckets);
 
     return VoxelFrame(
       sky: sky,
@@ -1916,7 +1916,7 @@ abstract final class VoxelRenderer {
     final double fx = x * 0.11, fz = z * 0.11;
     final int xi = fx.floor(), zi = fz.floor();
     final double tx = fx - xi, tz = fz - zi;
-    final double Function(double) s = (double v) => v * v * (3 - 2 * v);
+    double s(double v) => v * v * (3 - 2 * v);
     final double a = _hash2(xi, zi);
     final double bb = _hash2(xi + 1, zi);
     final double c = _hash2(xi, zi + 1);
@@ -2125,7 +2125,7 @@ abstract final class VoxelRenderer {
     // 对任一点 (x,y,z) 依次做：①绕 (pivotX,pivotZ) 垂直轴 yaw ②绕
     // (pivotY, swingPivotZ) X 轴摆动。
     // cl70：角直接写入复用缓冲 _boxCorners（24 槽：8 角 × 3），不再每角返回新 list。
-    void _rot(double x, double y, double z, int dst) {
+    void rot(double x, double y, double z, int dst) {
       final double x1 =
           rotYaw == 0 ? x : pivotX + (x - pivotX) * cosY - (z - pivotZ) * sinY;
       final double z1 =
@@ -2145,14 +2145,14 @@ abstract final class VoxelRenderer {
     final double cym = (y0 + y1) * 0.5;
     final double czm = (z0 + z1) * 0.5;
     // 八个角（yaw + 摆动后的世界坐标）。
-    _rot(x0, y0, z0, 0);
-    _rot(x1, y0, z0, 1);
-    _rot(x1, y0, z1, 2);
-    _rot(x0, y0, z1, 3);
-    _rot(x0, y1, z0, 4);
-    _rot(x1, y1, z0, 5);
-    _rot(x1, y1, z1, 6);
-    _rot(x0, y1, z1, 7);
+    rot(x0, y0, z0, 0);
+    rot(x1, y0, z0, 1);
+    rot(x1, y0, z1, 2);
+    rot(x0, y0, z1, 3);
+    rot(x0, y1, z0, 4);
+    rot(x1, y1, z0, 5);
+    rot(x1, y1, z1, 6);
+    rot(x0, y1, z1, 7);
 
     for (int k = 0; k < 6; k++) {
       final List<int> idx = _boxQuadIdx[k];

@@ -498,7 +498,7 @@ Future<String?> _pickBgImage() async {
     final Directory bgDir = Directory('${dir.path}/playlist_bg');
     if (!bgDir.existsSync()) bgDir.createSync(recursive: true);
     final String name =
-        'bg_${DateTime.now().millisecondsSinceEpoch}${p_extension(src)}';
+        'bg_${DateTime.now().millisecondsSinceEpoch}${pExtension(src)}';
     final String dst = '${bgDir.path}/$name';
     File(src).copySync(dst);
     return dst;
@@ -507,7 +507,7 @@ Future<String?> _pickBgImage() async {
   }
 }
 
-String p_extension(String path) {
+String pExtension(String path) {
   final int i = path.lastIndexOf('.');
   return i < 0 ? '.png' : path.substring(i);
 }

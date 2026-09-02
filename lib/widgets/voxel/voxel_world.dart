@@ -103,7 +103,7 @@ class VoxelWorld {
   /// 编辑覆盖层：按 chunk 分桶。外层 key = (cx,cz)，内层 key = chunk 内
   /// 局部编码 (lx | ly<<4 | lz<<11)，任意坐标（含大陆外、负坐标、大范围）
   /// 都即时生效。get 优先查它 → 破坏/放置即时可见。
-  /// cl38（开放世界）：原为 Map<int,Voxel>（_editKey=x*65536+z*256+y，z 锁
+  /// cl38（开放世界）：原为 `Map<int,Voxel>`（_editKey=x*65536+z*256+y，z 锁
   /// 0-255、x±32767）→ 改为 chunk 分桶，(cx,cz) 独立 int 不再受限，且天然
   /// 支撑 P2 流式加载 / P4 分块存档（每 chunk 独立读写）。
   final Map<(int, int), Map<int, Voxel>> _edits =

@@ -54,9 +54,9 @@ class MediaKitBackend implements MusicBackend {
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerLog>? _logSub;
-  StreamController<MusicEngineState>? _stateCtrl;
-  StreamController<Duration?>? _positionCtrl;
-  StreamController<Duration?>? _durationCtrl;
+  final StreamController<MusicEngineState>? _stateCtrl;
+  final StreamController<Duration?>? _positionCtrl;
+  final StreamController<Duration?>? _durationCtrl;
 
   bool _playing = false;
   bool _buffering = false;

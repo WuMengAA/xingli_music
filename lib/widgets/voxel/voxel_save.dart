@@ -350,7 +350,7 @@ class VoxelManualSaveMeta {
     this.thumbnail,
   });
 
-  /// 存档标识（文件名 voxel_save_<id>.json）。
+  /// 存档标识（文件名 `voxel_save_<id>.json`）。
   final String id;
 
   /// 用户命名（无命名时回退「存档 <时间>」）。
@@ -383,8 +383,8 @@ Future<String> _manualPath(String id) async {
 /// 新建手动存档：把 [name] 写入 `_meta` 元数据，返回存档 id。
 Future<String> writeManualSave(Map<String, dynamic> data, String name) async {
   final String id =
-      DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
-          '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
+      '${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}'
+      '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
   final String nowIso = DateTime.now().toIso8601String();
   data['_meta'] = <String, dynamic>{
     'id': id,
@@ -579,14 +579,14 @@ Future<void> setSaveThumbnail(String id, String? path) async {
 /// 备份文件路径（同一存档的多个时间戳快照）。
 Future<String> _bakPath(String id, String ts) async {
   final Directory d = await _voxelDir();
-  return '${d.path}${Platform.pathSeparator}voxel_save_${id}_bak_${ts}.json';
+  return '${d.path}${Platform.pathSeparator}voxel_save_${id}_bak_$ts.json';
 }
 
 /// 列出某存档的全部备份（按创建时间倒序）；损坏文件跳过。
 Future<List<VoxelManualSaveMeta>> listBackups(String id) async {
   final Directory d = await _voxelDir();
   if (!await d.exists()) return <VoxelManualSaveMeta>[];
-  final String pre = '${_kManualPrefix}${id}_bak';
+  final String pre = '$_kManualPrefix${id}_bak';
   final List<VoxelManualSaveMeta> metas = <VoxelManualSaveMeta>[];
   await for (final FileSystemEntity e in d.list()) {
     final String n = e.path.split(Platform.pathSeparator).last;
@@ -861,8 +861,8 @@ Future<String?> importSave(File source) async {
     'createdAt': DateTime.now().toIso8601String(),
   };
   final String id =
-      DateTime.now().millisecondsSinceEpoch.toRadixString(36) +
-          '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
+      '${DateTime.now().millisecondsSinceEpoch.toRadixString(36)}'
+      '_${(DateTime.now().microsecondsSinceEpoch & 0xffff).toRadixString(16)}';
   final File f = File(await _manualPath(id));
   await f.writeAsString(const JsonEncoder().convert(data));
   return id;

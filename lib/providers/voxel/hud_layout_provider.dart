@@ -9,7 +9,6 @@
 library;
 
 import 'dart:convert' show JsonDecoder, JsonEncoder;
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
