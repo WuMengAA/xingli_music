@@ -1,30 +1,29 @@
-/// ════════════════════════════════════════════════════════════════════════
-/// OTA 补丁基线管理（cl76_hotfix5：增量差分热修复）
-/// ════════════════════════════════════════════════════════════════════════
+﻿/// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+/// OTA 琛ヤ竵鍩虹嚎绠＄悊锛坈l76_hotfix5锛氬閲忓樊鍒嗙儹淇锛?
+/// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 ///
-/// 增量补丁需要一个「旧 APK 基线」才能合成新包。Android 上**无法直接读
-/// /data/app 下已安装包的字节**，所以首次启动/安装后把当前 APK 复制一份到
-/// 私有 files 目录（`ota_base.apk`）；下次更新下载补丁 → 基线+补丁合成新包 →
-/// 校验通过后把新包提升为新基线，如此迭代。
+/// 澧為噺琛ヤ竵闇€瑕佷竴涓€屾棫 APK 鍩虹嚎銆嶆墠鑳藉悎鎴愭柊鍖呫€侫ndroid 涓?*鏃犳硶鐩存帴璇?
+/// /data/app 涓嬪凡瀹夎鍖呯殑瀛楄妭**锛屾墍浠ラ娆″惎鍔?瀹夎鍚庢妸褰撳墠 APK 澶嶅埗涓€浠藉埌
+/// 绉佹湁 files 鐩綍锛坄ota_base.apk`锛夛紱涓嬫鏇存柊涓嬭浇琛ヤ竵 鈫?鍩虹嚎+琛ヤ竵鍚堟垚鏂板寘 鈫?
+/// 鏍￠獙閫氳繃鍚庢妸鏂板寘鎻愬崌涓烘柊鍩虹嚎锛屽姝よ凯浠ｃ€?
 library;
 
 import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../../core/paths.dart';
 
-/// 取当前安装包路径的原生通道（MainActivity 注册）。
+/// 鍙栧綋鍓嶅畨瑁呭寘璺緞鐨勫師鐢熼€氶亾锛圡ainActivity 娉ㄥ唽锛夈€?
 const String kAppInfoChannel = 'com.stelarith.xingli_music/app_info';
 
-/// OTA 补丁基线。
+/// OTA 琛ヤ竵鍩虹嚎銆?
 class OtaPatchBase {
   OtaPatchBase._();
 
   static const MethodChannel _channel = MethodChannel(kAppInfoChannel);
 
-  /// 当前安装包绝对路径（原生 `sourceDir`；非 Android / 失败返回空串）。
+  /// 褰撳墠瀹夎鍖呯粷瀵硅矾寰勶紙鍘熺敓 `sourceDir`锛涢潪 Android / 澶辫触杩斿洖绌轰覆锛夈€?
   static Future<String> sourceDir() async {
     if (!Platform.isAndroid) return '';
     try {
@@ -40,8 +39,8 @@ class OtaPatchBase {
     return p.join(dir.path, 'ota_base.apk');
   }
 
-  /// 确保补丁合成基线存在（首次则复制当前安装包；已存在直接返回）。
-  /// 返回基线路径；无法取得（非 Android / 复制失败）返回 null。
+  /// 纭繚琛ヤ竵鍚堟垚鍩虹嚎瀛樺湪锛堥娆″垯澶嶅埗褰撳墠瀹夎鍖咃紱宸插瓨鍦ㄧ洿鎺ヨ繑鍥烇級銆?
+  /// 杩斿洖鍩虹嚎璺緞锛涙棤娉曞彇寰楋紙闈?Android / 澶嶅埗澶辫触锛夎繑鍥?null銆?
   static Future<String?> ensureBase() async {
     final String base = await _basePath();
     if (File(base).existsSync()) return base;
@@ -55,7 +54,7 @@ class OtaPatchBase {
     }
   }
 
-  /// 补丁合成并通过 SHA-256 校验后，把新 APK 提升为新基线（供下次补丁）。
+  /// 琛ヤ竵鍚堟垚骞堕€氳繃 SHA-256 鏍￠獙鍚庯紝鎶婃柊 APK 鎻愬崌涓烘柊鍩虹嚎锛堜緵涓嬫琛ヤ竵锛夈€?
   static Future<void> promoteBase(String newApk) async {
     final String base = await _basePath();
     try {
@@ -64,7 +63,7 @@ class OtaPatchBase {
     } catch (_) {}
   }
 
-  /// 删除旧基线（可选：应用更新替换自身后基线可能已过期）。
+  /// 鍒犻櫎鏃у熀绾匡紙鍙€夛細搴旂敤鏇存柊鏇挎崲鑷韩鍚庡熀绾垮彲鑳藉凡杩囨湡锛夈€?
   static Future<void> clearBase() async {
     try {
       final File f = File(await _basePath());
@@ -72,3 +71,4 @@ class OtaPatchBase {
     } catch (_) {}
   }
 }
+

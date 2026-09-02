@@ -367,6 +367,17 @@ class RenderConfig {
     bool? lodFrustumCull,
     bool? outlineEnabled,
     bool? boundaryFog,
+    int? maxChunkBuildsPerFrame,
+    bool? flashlight,
+    double? flashlightHalfDeg,
+    bool? lodMasterEnabled,
+    int? lodStepBlocks,
+    int? lodSampleBase,
+    int? lodMaxChunks,
+    int? fullBandChunks,
+    int? lodBuildBudget,
+    bool? aoEnabled,
+    bool? shadowRender,
   }) {
     return RenderConfig(
       renderDistance: renderDistance ?? this.renderDistance,

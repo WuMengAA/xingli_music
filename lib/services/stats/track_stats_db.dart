@@ -1,18 +1,17 @@
-/// 全局播放统计 / 收藏 / 歌单 / 听歌历史 的 SQLite 数据层（cl46）。
+﻿/// 鍏ㄥ眬鎾斁缁熻 / 鏀惰棌 / 姝屽崟 / 鍚瓕鍘嗗彶 鐨?SQLite 鏁版嵁灞傦紙cl46锛夈€?
 ///
-/// 单文件 `music_stats.db`（应用文档目录）承载五张表：
-/// - `play_stats`：单曲播放次数与累计时长（收录信息 / 排行榜数据源）
-/// - `listen_history`：每次播放的听歌历史（自动收录机制的数据源）
-/// - `favorites`：全局收藏
-/// - `playlists` + `playlist_tracks`：全局歌单
-/// - `track_aliases`：自动归类的别名映射（相似曲目归并到主键）
+/// 鍗曟枃浠?`music_stats.db`锛堝簲鐢ㄦ枃妗ｇ洰褰曪級鎵胯浇浜斿紶琛細
+/// - `play_stats`锛氬崟鏇叉挱鏀炬鏁颁笌绱鏃堕暱锛堟敹褰曚俊鎭?/ 鎺掕姒滄暟鎹簮锛?
+/// - `listen_history`锛氭瘡娆℃挱鏀剧殑鍚瓕鍘嗗彶锛堣嚜鍔ㄦ敹褰曟満鍒剁殑鏁版嵁婧愶級
+/// - `favorites`锛氬叏灞€鏀惰棌
+/// - `playlists` + `playlist_tracks`锛氬叏灞€姝屽崟
+/// - `track_aliases`锛氳嚜鍔ㄥ綊绫荤殑鍒悕鏄犲皠锛堢浉浼兼洸鐩綊骞跺埌涓婚敭锛?
 library;
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import '../../core/paths.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -38,7 +37,7 @@ class TrackStatsDb {
   }
 
   Future<void> _upgrade(Database db, int oldVersion, int newVersion) async {
-    // v1 → v2：新增「已解析直链缓存」表（重播加速 / 失效重匹配）。
+    // v1 鈫?v2锛氭柊澧炪€屽凡瑙ｆ瀽鐩撮摼缂撳瓨銆嶈〃锛堥噸鎾姞閫?/ 澶辨晥閲嶅尮閰嶏級銆?
     if (oldVersion < 2) {
       await db.execute('''
         CREATE TABLE resolved_links(
@@ -49,7 +48,7 @@ class TrackStatsDb {
         )
       ''');
     }
-    // v2 → v3：listen_history 补全可重播字段（uri/cover/album/songId/extras）。
+    // v2 鈫?v3锛歭isten_history 琛ュ叏鍙噸鎾瓧娈碉紙uri/cover/album/songId/extras锛夈€?
     if (oldVersion < 3) {
       await db.execute('ALTER TABLE listen_history ADD COLUMN uri TEXT');
       await db.execute('ALTER TABLE listen_history ADD COLUMN cover_url TEXT');
@@ -124,7 +123,7 @@ class TrackStatsDb {
         dismissed_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
-    // v2：已解析直链缓存（重播加速 / 失效自动重匹配）。
+    // v2锛氬凡瑙ｆ瀽鐩撮摼缂撳瓨锛堥噸鎾姞閫?/ 澶辨晥鑷姩閲嶅尮閰嶏級銆?
     await db.execute('''
       CREATE TABLE resolved_links(
         track_key TEXT PRIMARY KEY,
@@ -133,14 +132,14 @@ class TrackStatsDb {
         updated_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
-    // 常用索引：历史按时间倒序、歌单内排序。
+    // 甯哥敤绱㈠紩锛氬巻鍙叉寜鏃堕棿鍊掑簭銆佹瓕鍗曞唴鎺掑簭銆?
     await db.execute(
         'CREATE INDEX idx_history_played_at ON listen_history(played_at)');
     await db.execute(
         'CREATE INDEX idx_pl_sort ON playlist_tracks(playlist_id, sort_index)');
   }
 
-  /// 把 trackKey 归一到它的正典 key（自动归类后指向主条目）。
+  /// 鎶?trackKey 褰掍竴鍒板畠鐨勬鍏?key锛堣嚜鍔ㄥ綊绫诲悗鎸囧悜涓绘潯鐩級銆?
   Future<String> canonicalKey(Database db, String trackKey) async {
     final List<Map<String, dynamic>> rows = await db.query(
       'track_aliases',
@@ -152,9 +151,9 @@ class TrackStatsDb {
     return rows.isEmpty ? trackKey : rows.first['canonical_key'] as String;
   }
 
-  /// ── 播放统计 ──────────────────────────────────────────────────────────
+  /// 鈹€鈹€ 鎾斁缁熻 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  /// 记录一次播放结算：次数 +1、时长累加、更新时间。
+  /// 璁板綍涓€娆℃挱鏀剧粨绠楋細娆℃暟 +1銆佹椂闀跨疮鍔犮€佹洿鏂版椂闂淬€?
   Future<void> addPlay(
     String trackKey,
     String title,
@@ -185,7 +184,7 @@ class TrackStatsDb {
     );
   }
 
-  /// 全部播放统计（按次数降序，排行用）。
+  /// 鍏ㄩ儴鎾斁缁熻锛堟寜娆℃暟闄嶅簭锛屾帓琛岀敤锛夈€?
   Future<List<TrackStats>> allStats() async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query(
@@ -207,7 +206,7 @@ class TrackStatsDb {
     return rows.isEmpty ? null : TrackStats.fromRow(rows.first);
   }
 
-  /// 全局听歌总时长（毫秒）。
+  /// 鍏ㄥ眬鍚瓕鎬绘椂闀匡紙姣锛夈€?
   Future<int> totalPlayMs() async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db
@@ -215,7 +214,7 @@ class TrackStatsDb {
     return rows.isEmpty ? 0 : rows.first['t'] as int;
   }
 
-  // ── 听歌历史（自动收录数据源）─────────────────────────────────────────
+  // 鈹€鈹€ 鍚瓕鍘嗗彶锛堣嚜鍔ㄦ敹褰曟暟鎹簮锛夆攢鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   Future<void> addHistory(
     String trackKey,
@@ -245,7 +244,7 @@ class TrackStatsDb {
     });
   }
 
-  /// 「听过的歌」：按 track_key 去重（取最近一次播放），供自动入曲库。
+  /// 銆屽惉杩囩殑姝屻€嶏細鎸?track_key 鍘婚噸锛堝彇鏈€杩戜竴娆℃挱鏀撅級锛屼緵鑷姩鍏ユ洸搴撱€?
   Future<List<ListenEntry>> heardTracks({int limit = 1000}) async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.rawQuery('''
@@ -270,7 +269,7 @@ class TrackStatsDb {
     return rows.map(ListenEntry.fromRow).toList();
   }
 
-  // ── 全局收藏 ──────────────────────────────────────────────────────────
+  // 鈹€鈹€ 鍏ㄥ眬鏀惰棌 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   Future<void> toggleFavorite(
     String trackKey,
@@ -315,7 +314,7 @@ class TrackStatsDb {
     return rows.map(FavoriteEntry.fromRow).toList();
   }
 
-  // ── 全局歌单 ──────────────────────────────────────────────────────────
+  // 鈹€鈹€ 鍏ㄥ眬姝屽崟 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
   Future<int> createPlaylist(String name,
       {PlaylistBgType bgType = PlaylistBgType.none, String? bgPath}) async {
@@ -362,7 +361,7 @@ class TrackStatsDb {
     return rows.map(Playlist.fromRow).toList();
   }
 
-  /// 把歌曲加入歌单（去重）。
+  /// 鎶婃瓕鏇插姞鍏ユ瓕鍗曪紙鍘婚噸锛夈€?
   Future<void> addToPlaylist(
     int playlistId,
     String trackKey,
@@ -415,7 +414,7 @@ class TrackStatsDb {
     });
   }
 
-  /// 按排序方式取歌单内曲目。
+  /// 鎸夋帓搴忔柟寮忓彇姝屽崟鍐呮洸鐩€?
   Future<List<PlaylistTrack>> playlistTracks(int playlistId,
       {PlaylistSortMode sortMode = PlaylistSortMode.manual}) async {
     final Database db = await database;
@@ -439,9 +438,9 @@ class TrackStatsDb {
     return rows.map(PlaylistTrack.fromRow).toList();
   }
 
-  // ── 自动收录（别名归并）───────────────────────────────────────────────
+  // 鈹€鈹€ 鑷姩鏀跺綍锛堝埆鍚嶅綊骞讹級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  /// 记录一条别名映射：相似曲目归并到正典 key。
+  /// 璁板綍涓€鏉″埆鍚嶆槧灏勶細鐩镐技鏇茬洰褰掑苟鍒版鍏?key銆?
   Future<void> addAlias(String trackKey, String canonicalKey) async {
     final Database db = await database;
     await db.insert('track_aliases', <String, Object?>{
@@ -451,7 +450,7 @@ class TrackStatsDb {
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
-  /// 标记「跳过归并询问」：该曲不再作为归并候选打扰用户。
+  /// 鏍囪銆岃烦杩囧綊骞惰闂€嶏細璇ユ洸涓嶅啀浣滀负褰掑苟鍊欓€夋墦鎵扮敤鎴枫€?
   Future<void> dismissMerge(String trackKey) async {
     final Database db = await database;
     await db.insert('merge_dismissed', <String, Object?>{
@@ -472,9 +471,9 @@ class TrackStatsDb {
     return rows.isNotEmpty;
   }
 
-  // ── 已解析直链缓存（v2：重播加速 / 失效重匹配）──────────────────────
+  // 鈹€鈹€ 宸茶В鏋愮洿閾剧紦瀛橈紙v2锛氶噸鎾姞閫?/ 澶辨晥閲嶅尮閰嶏級鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 
-  /// 保存某曲最近一次成功解析出的直链与失效时间（upsert）。
+  /// 淇濆瓨鏌愭洸鏈€杩戜竴娆℃垚鍔熻В鏋愬嚭鐨勭洿閾句笌澶辨晥鏃堕棿锛坲psert锛夈€?
   Future<void> saveResolvedLink(
     String trackKey,
     String url, {
@@ -493,7 +492,7 @@ class TrackStatsDb {
     );
   }
 
-  /// 读取某曲的直链缓存（无则返回 null）。
+  /// 璇诲彇鏌愭洸鐨勭洿閾剧紦瀛橈紙鏃犲垯杩斿洖 null锛夈€?
   Future<ResolvedLink?> resolvedLinkOf(String trackKey) async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query(
@@ -505,10 +504,11 @@ class TrackStatsDb {
     return rows.isEmpty ? null : ResolvedLink.fromRow(rows.first);
   }
 
-  /// 全部直链缓存（供批量失效判断 / 调试）。
+  /// 鍏ㄩ儴鐩撮摼缂撳瓨锛堜緵鎵归噺澶辨晥鍒ゆ柇 / 璋冭瘯锛夈€?
   Future<List<ResolvedLink>> allResolvedLinks() async {
     final Database db = await database;
     final List<Map<String, dynamic>> rows = await db.query('resolved_links');
     return rows.map(ResolvedLink.fromRow).toList();
   }
 }
+

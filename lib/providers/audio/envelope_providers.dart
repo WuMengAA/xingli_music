@@ -1,7 +1,6 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 import '../../core/paths.dart';
 
 import '../../models/track.dart';
@@ -11,11 +10,11 @@ import '../../services/audio/envelope_analyzer.dart';
 import '../../services/audio/envelope_cache.dart';
 import '../../services/audio/music_envelope.dart';
 
-/// 当前曲目（随切换更新）。
+/// 褰撳墠鏇茬洰锛堥殢鍒囨崲鏇存柊锛夈€?
 final currentTrackProvider = StreamProvider<Track?>((ref) =>
     ref.watch(audioServiceProvider).trackStream);
 
-/// 当前曲目本地文件路径（仅 `file://` 可离线分析；流媒体/网络 → null → 降级合成）。
+/// 褰撳墠鏇茬洰鏈湴鏂囦欢璺緞锛堜粎 `file://` 鍙绾垮垎鏋愶紱娴佸獟浣?缃戠粶 鈫?null 鈫?闄嶇骇鍚堟垚锛夈€?
 final currentTrackLocalPathProvider = Provider<String?>((ref) {
   final Track? t =
       ref.watch(currentTrackProvider).value ?? ref.watch(audioServiceProvider).currentTrack;
@@ -25,9 +24,9 @@ final currentTrackLocalPathProvider = Provider<String?>((ref) {
   return u!.toFilePath();
 });
 
-/// 当前曲目的 [MusicEnvelope]（异步分析 + 磁盘缓存）。
+/// 褰撳墠鏇茬洰鐨?[MusicEnvelope]锛堝紓姝ュ垎鏋?+ 纾佺洏缂撳瓨锛夈€?
 ///
-/// 流媒体/无 ffmpeg/解码失败 → 返回 null，调用方应降级到合成 [VisualizerService]。
+/// 娴佸獟浣?鏃?ffmpeg/瑙ｇ爜澶辫触 鈫?杩斿洖 null锛岃皟鐢ㄦ柟搴旈檷绾у埌鍚堟垚 [VisualizerService]銆?
 final currentEnvelopeProvider = FutureProvider<MusicEnvelope?>((ref) async {
   final String? path = ref.watch(currentTrackLocalPathProvider);
   if (path == null || !File(path).existsSync()) return null;
@@ -40,9 +39,9 @@ final currentEnvelopeProvider = FutureProvider<MusicEnvelope?>((ref) async {
   }
 });
 
-/// 按播放进度从 [MusicEnvelope] 采样 bands/beat（真实数据），供 2.5D 渲染消费。
+/// 鎸夋挱鏀捐繘搴︿粠 [MusicEnvelope] 閲囨牱 bands/beat锛堢湡瀹炴暟鎹級锛屼緵 2.5D 娓叉煋娑堣垂銆?
 ///
-/// 镜像 [VisualizerService] 的驱动方式，但数据来自离线预分析而非合成。
+/// 闀滃儚 [VisualizerService] 鐨勯┍鍔ㄦ柟寮忥紝浣嗘暟鎹潵鑷绾块鍒嗘瀽鑰岄潪鍚堟垚銆?
 class EnvelopePlaybackSampler {
   EnvelopePlaybackSampler(this._audio, this._envelope) {
     _posSub = _audio.positionStream.listen((d) => _pos = d);
@@ -74,8 +73,8 @@ class EnvelopePlaybackSampler {
   }
 }
 
-/// 当前曲目的播放采样器（envelope 就绪时创建，离页自动释放）。
-/// null 表示当前无可用真实包络（流媒体/未分析）→ 上层降级合成源。
+/// 褰撳墠鏇茬洰鐨勬挱鏀鹃噰鏍峰櫒锛坋nvelope 灏辩华鏃跺垱寤猴紝绂婚〉鑷姩閲婃斁锛夈€?
+/// null 琛ㄧず褰撳墠鏃犲彲鐢ㄧ湡瀹炲寘缁滐紙娴佸獟浣?鏈垎鏋愶級鈫?涓婂眰闄嶇骇鍚堟垚婧愩€?
 final envelopeSamplerProvider = Provider<EnvelopePlaybackSampler?>((ref) {
   final MusicEnvelope? env = ref.watch(currentEnvelopeProvider).value;
   if (env == null) return null;
@@ -84,3 +83,4 @@ final envelopeSamplerProvider = Provider<EnvelopePlaybackSampler?>((ref) {
   ref.onDispose(s.dispose);
   return s;
 });
+
