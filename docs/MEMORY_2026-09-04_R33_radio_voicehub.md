@@ -106,8 +106,22 @@
   补回 app_shell 误删的 `settings_layout_provider` 导入（loadSettingsLayoutAsset 调用点，
   因 provider 损坏被误判 unused）。
 - **铁律**：所有文件编辑只用 `edit`/`write` 工具，**禁用 PowerShell 写文件**（WriteAllText/Replace 是事故根因）。
-- **结果**：analyze 0 error，warning 34→11（剩 11 个 voxel_world_view3d 未用字段：_idleDelay/_idle/
-  _mcSelected/_brokeInHold/_autoOrbit/_entitiesFor/_bodyWaterRatio/_press/_release/_openSaveMenu/_LiftPad，
-  均有写入历史、删除风险高，需逐个判断）。
+- **结果**：analyze 0 error 0 warning（后续已全部清完，见下）。
 - **voxel_world_view3d 历史遗留**：曾有 botched edit（删 _idleDelay 且叠两个 @visibleForTesting），已 revert。
-- 新增：station_room_page DJ 卡 LIVE 标旁音源指示 chip（本地/网易/B站/环境音，只读指示，切换 UI 未做）。
+- 新增：station_room_page DJ 卡 LIVE 标旁音源指示 chip（本地/网易/B站/环境音）。
+
+## 后续清理（444ca67 / ab8bb7d，2026-09-04）
+- **444ca67** voxel_world_view3d 死代码大扫除：11 个未用字段/方法全清（-183 行）→ warning 11→0。
+  - 纯死声明：`_idleDelay` / `_autoOrbit` / `_entitiesFor` / `_bodyWaterRatio` / `_queueJump` / `_LiftPad` / `_HoldButton`
+  - 旧输入处理器 `_press`/`_release`（被 `_onKey`/`_onJumpButtonDown` 取代，跳跃由 `_fpJumpQueued`/`_held` 实现）
+  - 写了从未读字段：`_idle`(+8 写入) / `_mcSelected`(+2 写入) / `_brokeInHold`(+1 写入)
+  - `_openSaveMenu` 保留备用——修好 `// ignore: unused_element`（原规则名被中文吃掉失效；须紧贴声明上一行）
+  - 移除因删 `_entitiesFor` 变未用的 `companion_models` import
+- **ab8bb7d** info 级清理 32 处：5 unused import / 7 prefer_final / 4 const / 重命名(p_extension→pExtension,
+  _sumFaces→sumFaces, _rot→rot) / 闭包改函数声明 / 字符串插值&花括号 / 文档注释尖括号。
+  info 84→52。
+- **01e5bdd** VoiceHub 多音源显式切换：`dj_audio_source_provider.dart`（DjAudioSource{local,netease,bilibili}，
+  SharedPreferences 键 `dj_audio_source`）；DJ 卡源 chip 仅 host 可点（PopupMenu 切换 + toast）；听众仍只读指示；
+  TrackPicker 加 `initialSource`（默认 local 保持听众行为）——在线按偏好平台过滤（网易只出网易/B站只出B站）。
+- **当前状态**：analyze 0 error 0 warning；剩 52 条 info（19 use_build_context_synchronously / 18 deprecated /
+  10 voxel_world_view3d curly_braces 等，非阻塞，后续可清）。
