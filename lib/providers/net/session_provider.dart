@@ -1019,7 +1019,24 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     return id;
   }
 
-  /// DJ 端：广播当前权威队列快照给全体。
+  /// DJ 端：把自选曲目直接加入待播队列（approved 状态，无需审批）。
+  /// 只允许 host 调用；非 host 静默返回空字符串。
+  String djAddToQueue(Track track, {String message = ''}) {
+    if (state.role != NetRole.host) return '';
+    final String id = _genOrderId();
+    final OrderItem item = OrderItem(
+      id: id,
+      track: track,
+      fromId: state.localId ?? '',
+      fromName: state.localName,
+      message: message,
+      anonymous: false,
+      status: OrderStatus.approved,
+    );
+    state = state.copyWith(orderQueue: <OrderItem>[...state.orderQueue, item]);
+    _broadcastOrderQueue();
+    return id;
+  }
   void _broadcastOrderQueue() {
     if (state.role != NetRole.host) return;
     _node?.send(NetMessage(

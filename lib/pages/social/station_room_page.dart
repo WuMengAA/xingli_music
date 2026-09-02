@@ -24,6 +24,7 @@ import '../../models/track.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
 import '../../widgets/liquid_glass.dart';
+import '../../widgets/social/track_picker.dart';
 import 'order_queue_page.dart';
 import 'station_lobby_page.dart';
 
@@ -86,7 +87,7 @@ class StationRoomPage extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 children: <Widget>[
                   if (isHost) _buildRoomCode(context, c, s),
-                  _buildDjCard(c, s),
+                  _buildDjCard(context, ref, c, s),
                   const SizedBox(height: 14),
                   _buildNowPlayingBar(context, ref, c),
                   const SizedBox(height: 14),
@@ -203,7 +204,8 @@ class StationRoomPage extends ConsumerWidget {
   );
 
   /// DJ 卡片（VoiceHub 风格）—— 玻璃质感 + 脉冲徽章 + 在线状态。
-  Widget _buildDjCard(AppThemeColors c, NetSessionState s) {
+  Widget _buildDjCard(BuildContext context, WidgetRef ref,
+      AppThemeColors c, NetSessionState s) {
     final PeerInfo? dj = s.peers.where((p) => p.isHost).firstOrNull ??
         (s.role == NetRole.host
             ? PeerInfo(id: s.localId ?? '', isHost: true, name: s.localName)
@@ -259,6 +261,21 @@ class StationRoomPage extends ConsumerWidget {
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5)),
                     ),
+                    if (s.role == NetRole.host) ...<Widget>[
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: () => _djSelfPick(context, ref),
+                        icon: const Icon(Icons.tune, size: 14),
+                        label: const Text('DJ 自选'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(0, 26),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          textStyle:
+                              const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -291,6 +308,26 @@ class StationRoomPage extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// DJ 自选播放：开选曲弹层 → 选中曲目后直接塞入 approved 待播队列
+  /// （无需审批，VoiceHub「排期管理」核心能力）。
+  Future<void> _djSelfPick(
+      BuildContext context, WidgetRef ref) async {
+    final Track? t = await showModalBottomSheet<Track?>(
+      context: context,
+      backgroundColor: context.appColors.bgCard,
+      builder: (_) => const TrackPicker(),
+    );
+    if (t != null && context.mounted) {
+      ref.read(netSessionProvider.notifier).djAddToQueue(t);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('DJ 自选：${t.title} 已加入待播'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   /// 正在播放 LIVE mini bar（VoiceHub Player 风格）。
