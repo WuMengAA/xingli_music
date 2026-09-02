@@ -1037,6 +1037,41 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
     _broadcastOrderQueue();
     return id;
   }
+
+  /// DJ 端：任意改一条点歌状态（playing/played/rejected）。
+  /// 覆盖决定逻辑，供「推入播放/下架/完成」等细粒度操作复用。
+  void setOrderStatus(String id, OrderStatus status) {
+    if (state.role != NetRole.host) return;
+    final OrderItem? target =
+        state.orderQueue.where((it) => it.id == id).firstOrNull;
+    if (target == null) return;
+    if (target.status == status) return;
+    state = state.copyWith(
+      orderQueue: state.orderQueue
+          .map((it) => it.id == id ? it.copyWith(status: status) : it)
+          .toList(),
+    );
+    _broadcastOrderQueue();
+  }
+
+  /// DJ 端：把一条 approved 点歌推入播放（状态 → playing），返回条目 id
+  /// 或空串（找不到 / 状态不符）。
+  String playOrder(String id) {
+    final OrderItem? target =
+        state.orderQueue.where((it) => it.id == id).firstOrNull;
+    if (target == null || target.status != OrderStatus.approved) return '';
+    setOrderStatus(id, OrderStatus.playing);
+    return id;
+  }
+
+  /// DJ 端：把当前播放项标记为已播（playing → played）。
+  void markPlayed() {
+    if (state.role != NetRole.host) return;
+    final OrderItem? playing = state.orderQueue
+        .where((it) => it.status == OrderStatus.playing)
+        .firstOrNull;
+    if (playing != null) setOrderStatus(playing.id, OrderStatus.played);
+  }
   void _broadcastOrderQueue() {
     if (state.role != NetRole.host) return;
     _node?.send(NetMessage(

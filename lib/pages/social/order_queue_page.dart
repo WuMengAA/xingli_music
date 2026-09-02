@@ -96,19 +96,23 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
                   onReject: () => ref
                       .read(netSessionProvider.notifier)
                       .decideOrder(it.id, false),
-                  onPlay: () => _playAsDj(it.track),
+                  onPlay: () => _playAsDj(it.track, it.id),
                 )),
         ],
       ),
     );
   }
 
-  Future<void> _playAsDj(Track track) async {
-    // DJ 端：把点歌推入当前播放（复用音频服务），并标记 playing。
+  Future<void> _playAsDj(Track track, String orderId) async {
+    final NetSessionNotifier notifier =
+        ref.read(netSessionProvider.notifier);
+    // 先标记当前 playing 项为 played，避免丢失播放记录。
+    notifier.markPlayed();
+    // 把 approved → playing。
+    notifier.playOrder(orderId);
+    // DJ 端：把点歌推入当前播放（复用音频服务）。
     final AudioService svc = ref.read(audioServiceProvider);
     await svc.playMusic(track, fade: const Duration(milliseconds: 300));
-    // cl16：电台模式已统一为 校园广播/一起听（均支持一起听+点歌），
-    // 纯点歌台（orderOnly）已移除，DJ 播放后由审批流程管理队列状态。
   }
 
   Widget _buildSubmitCard(AppThemeColors c) => Container(
