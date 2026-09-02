@@ -3875,7 +3875,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                 if (c.mounted) _snack('新建失败');
                 return;
               }
-              if (!c.mounted || id == null) return;
+              if (!c.mounted) return;
               Navigator.of(sheetContext).pop();
               if (mounted) {
                 _snack('已新建世界「$finalName」（种子 $seed）');
@@ -5478,7 +5478,6 @@ class _VoxelFramePainter extends CustomPainter {
 /// 核心元素（退出 / 标题 / 底部物品栏 / 顶部控制条）不包此组件 = 锁定。
 class _HudWrap extends ConsumerWidget {
   const _HudWrap({
-    super.key,
     required this.id,
     required this.defaultPos,
     required this.child,

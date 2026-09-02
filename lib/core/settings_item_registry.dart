@@ -26,10 +26,8 @@ import '../pages/settings/server_settings_page.dart';
 import '../pages/settings/auth_page.dart';
 import '../pages/settings/voxel_save_manager_page.dart';
 import '../pages/world/world_page.dart';
-import '../providers/voxel/graphics_quality_provider.dart';
 import '../providers/voxel/hud_layout_provider.dart';
 import '../providers/voxel/world_audio_provider.dart';
-import '../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../widgets/common/experiment_consent_gate.dart';
 import '../providers/audio/audio_providers.dart';
 import '../providers/audio/audio_scheme.dart';
@@ -251,77 +249,6 @@ Widget _chips<T>({
         ),
     ],
   );
-}
-
-/// cl46：画质预设卡片（名称 + 参数摘要预览，点击选择）。
-class _QualityPresetCard extends StatelessWidget {
-  const _QualityPresetCard({
-    required this.quality,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final GraphicsQuality quality;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color accent = context.appColors.accent;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: selected ? accent : context.appColors.border,
-            width: selected ? 2 : 1,
-          ),
-          color: selected
-              ? accent.withValues(alpha: 0.08)
-              : Colors.transparent,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(
-                  Icons.high_quality_rounded,
-                  size: 16,
-                  color: selected ? accent : context.appColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    quality.label,
-                    style: context.appText.body
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (selected)
-                  Icon(Icons.check_circle_rounded,
-                      size: 16, color: accent),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _summary(quality),
-              style: context.appText.caption,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _summary(GraphicsQuality g) => g == GraphicsQuality.auto
-      ? '自动：按真实帧率调节（目标 ≥30fps）\n'
-          '${g.viewDistanceChunks + g.lodMaxChunks} 区块基线 · ≤60fps'
-      : '视距 ${g.viewDistanceChunks} 区块 + LOD ${g.lodMaxChunks} 区块\n'
-          '共 ${g.viewDistanceChunks + g.lodMaxChunks} 区块 · ${g.fpsCap}fps';
 }
 
 /// cl46：自定义世界机制——偏移率滑块行（0.0~1.0）。
@@ -2012,28 +1939,4 @@ Future<void> _autoPlayBilibiliForCurrent(
 /// 帧率）一次设齐，避免「画质档、性能预设、视距、LOD、渲染参数各自独立
 /// 叠加生效、出了问题不知道是哪一层」的混乱。
 ///
-/// cl76：四档预设——省电(2+32·24fps) / 流畅(4+64·60fps) /
-/// 地平线(4+64·60fps) / 自动(基线 4+64·≤60fps，FPS 监测降档)。
-void _applyQualityPreset(WidgetRef ref, GraphicsQuality q) {
-  applyGraphicsQuality(ref, q);
-  ref.read(performanceModeProvider.notifier).state =
-      q == GraphicsQuality.powerSave || q == GraphicsQuality.smooth
-          ? PerformanceMode.performance
-          : PerformanceMode.quality;
-  // 渲染分辨率倍率重置为 1.0（painter = q.renderScale × 手动倍率；不再双乘）。
-  ref.read(renderPrecisionScaleProvider.notifier).state = 1.0;
-  ref.read(renderPrecisionProvider.notifier).state = 1.0;
-  // 画面预设重置为标准（跟随档位）。
-  ref.read(picturePresetProvider.notifier).state = PicturePreset.standard;
-  // 省电档「所有剔除拉满」——视锥剔除也开（其他档位默认关）。
-  ref.read(frustumCullEnabledProvider.notifier).state =
-      q == GraphicsQuality.powerSave;
-  ref.read(faceCullEnabledProvider.notifier).state = true;
-  ref.read(occlusionCullEnabledProvider.notifier).state = true;
-  ref.read(backFaceCullEnabledProvider.notifier).state = true;
-  final bool low = q == GraphicsQuality.powerSave || q == GraphicsQuality.smooth;
-  ref.read(noiseOverrideProvider.notifier).state = low ? false : null;
-  ref.read(glassBlurOverrideProvider.notifier).state = low ? 0.0 : null;
-  ref.read(bgAnimationOverrideProvider.notifier).state = low ? false : null;
-  ref.read(liquidGlassOverrideProvider.notifier).state = low ? false : null;
 }

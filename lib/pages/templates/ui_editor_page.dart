@@ -117,8 +117,6 @@ class _UiEditorPageState extends State<UiEditorPage> {
     });
   }
 
-  void _updateRoot(UiNode next) => _commit(next);
-
   void _updateSelected(UiNode newNode) {
     final String? id = _selectedId;
     if (id == null) return;
@@ -170,6 +168,7 @@ class _UiEditorPageState extends State<UiEditorPage> {
           _CutIntent: CallbackAction<_CutIntent>(onInvoke: (_) {
             _copySelected();
             _deleteSelected();
+            return null;
           }),
           _DeleteIntent:
               CallbackAction<_DeleteIntent>(onInvoke: (_) => _deleteSelected()),

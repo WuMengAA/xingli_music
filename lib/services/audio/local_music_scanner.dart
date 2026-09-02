@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path/path.dart' as p;
@@ -65,9 +65,8 @@ class LocalMusicScanner {
         // R33锛歁ediaStore 涓嶅悓瀹炵幇杩斿洖绫诲瀷涓嶄竴鑷达紙Android 渚у父涓?int锛岄儴鍒嗕负 String锛夛紝
         // 瀹归敊澶勭悊閬垮厤 "int is not a subtype of String?" 寮鸿浆宕╂簝銆?
         final int? durMs = switch (s.duration) {
-          String ds => int.tryParse(ds),
           int di => di,
-          _ => null,
+          _ => int.tryParse(s.duration.toString()),
         };
         final Duration? duration =
             durMs != null ? Duration(milliseconds: durMs) : null;

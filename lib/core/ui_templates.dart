@@ -599,7 +599,6 @@ class UiMainMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const Color ink = Color(0xFFF2F5FA);
-    final Color accent = context.appColors.accent;
     return Container(
       width: 300,
       padding: const EdgeInsets.all(AppSpace.lg),

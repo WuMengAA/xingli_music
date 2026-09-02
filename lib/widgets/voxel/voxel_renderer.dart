@@ -1231,11 +1231,11 @@ abstract final class VoxelRenderer {
                 cf.by + cf.ny * 0.5, cf.bz + cf.nz * 0.5, sd.x, sd.z);
           }
           // R26fx：AO 开关——关闭时所有 ao 因子置 1（均匀亮度更省）。
-          if (!config.aoEnabled && cf.ao != null) {
-            cf.ao![0] = 1;
-            cf.ao![1] = 1;
-            cf.ao![2] = 1;
-            cf.ao![3] = 1;
+          if (!config.aoEnabled) {
+            cf.ao[0] = 1;
+            cf.ao[1] = 1;
+            cf.ao[2] = 1;
+            cf.ao[3] = 1;
           }
           if (clippedFace.n == 4) {
             // R25：拼入批量缓冲（画家一次性提交，GPU 加速）。
@@ -1550,40 +1550,6 @@ abstract final class VoxelRenderer {
   }
 
   // ── 内部工具 ─────────────────────────────────────────────
-
-  static void _trimFarthest(List<RenderFace> faces, int budget) {
-    if (faces.length > budget) faces.removeRange(0, faces.length - budget);
-  }
-
-  /// 128 桶桶排序（R23q）：按相机深度从远到近分桶，桶内保序。
-  ///
-  /// 面少（<64）直接 sort；面多时分桶 O(n)，同桶深度近似、绘制顺序
-  /// 不影响画家算法结果（技术文档 §排序优化，省 ~60% 排序开销）。
-  static void _bucketSortByDepth(List<RenderFace> faces, double far) {
-    final int n = faces.length;
-    if (n < 64) {
-      faces.sort((RenderFace a, RenderFace b) => b.depth.compareTo(a.depth));
-      return;
-    }
-    const int buckets = 128;
-    final List<List<RenderFace>> bs =
-        List<List<RenderFace>>.generate(
-            buckets, (_) => <RenderFace>[]);
-    final double span = math.max(1e-6, far / buckets);
-    for (final RenderFace f in faces) {
-      int bi = (f.depth / span).floor();
-      if (bi < 0) {
-        bi = 0;
-      } else if (bi >= buckets) {
-        bi = buckets - 1;
-      }
-      bs[buckets - 1 - bi].add(f); // 远桶在前
-    }
-    faces.clear();
-    for (final List<RenderFace> b in bs) {
-      if (b.isNotEmpty) faces.addAll(b);
-    }
-  }
 
   /// 单桶内逐面深度排序（R26q 语义）+ R26r5 零分配化：把同一深度桶里的面按
   /// 相机深度从远到近排序，**直接写入调用方提供的目标类型化缓冲**（[dstPos]/

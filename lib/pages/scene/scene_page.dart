@@ -201,7 +201,7 @@ class HomeSceneContent extends ConsumerWidget {
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       // 跟随当前场景主色（切场景时色渐变，不硬跳）。
-                                      color: (active?.visual.accent ?? c.accent)
+                                      color: active.visual.accent
                                           .withValues(alpha: 0.16),
                                     ),
                                   ),

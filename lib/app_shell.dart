@@ -24,7 +24,6 @@ import 'providers/settings/ota_download_provider.dart';
 import 'providers/settings/offline_providers.dart';
 import 'providers/settings/performance_providers.dart';
 import 'providers/settings/settings_persistence_providers.dart';
-import 'providers/settings/settings_layout_provider.dart';
 import 'providers/shell/liquid_glass_capture_provider.dart';
 import 'providers/shell/shell_providers.dart';
 import 'repositories/settings_repository.dart';

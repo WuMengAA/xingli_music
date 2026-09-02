@@ -641,7 +641,6 @@ class StationRoomPage extends ConsumerWidget {
 /// 可嵌入任意位置（DJ 头像光环、LIVE 标等）。
 class _LivePulse extends StatefulWidget {
   const _LivePulse({
-    super.key,
     required this.color,
     this.size = 20,
   });

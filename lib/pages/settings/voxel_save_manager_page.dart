@@ -268,7 +268,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
       _snack('新建失败');
       return;
     }
-    if (!mounted || id == null) return;
+    if (!mounted) return;
     _snack('已进入空白世界「$finalName」（种子 $seed）');
     // cl05：非作弊下默认创造且不可生存；作弊开默认创造（游戏内可切生存）。
     await Navigator.of(context).push(
@@ -473,7 +473,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         // 仅保留带配对快照的场景照片，过滤掉非取景 PNG。
         final String jsonPath =
             p.replaceFirst(RegExp(r'\.png$', caseSensitive: false), '.json');
-        if (await File(jsonPath).exists()) files.add(e as File);
+        if (await File(jsonPath).exists()) files.add(e);
       }
     }
     files.sort((File a, File b) => b.path.compareTo(a.path)); // 新→旧

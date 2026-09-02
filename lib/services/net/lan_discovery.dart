@@ -72,7 +72,7 @@ class LanDiscovery {
         StreamController<LanHost>.broadcast(onCancel: () => socket.close());
     final Set<String> seen = <String>{};
 
-    final Timer timer = Timer(timeout, () => ctrl.close());
+    Timer(timeout, () => ctrl.close());
 
     socket.listen((RawSocketEvent event) {
       if (event != RawSocketEvent.read) return;

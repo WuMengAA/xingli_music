@@ -173,45 +173,17 @@ class SettingsOrganizerPage extends ConsumerWidget {
     ref.read(settingsLayoutProvider.notifier).state =
         SettingsLayout(collections: cols);
   }
-
-  /// 从布局中移除某设置项（拖出池 = 从原位置移除）。
-  void _removeItem(WidgetRef ref, SettingsLayout layout, SettingItem item) {
-    final List<SettingCollection> cols = <SettingCollection>[
-      for (final SettingCollection c in layout.collections)
-        SettingCollection(
-          id: c.id,
-          name: c.name,
-          groups: <SettingGroup>[
-            for (final SettingGroup g in c.groups)
-              SettingGroup(
-                id: g.id,
-                name: g.name,
-                items: <SettingItem>[
-                  for (final SettingItem i in g.items)
-                    if (i.id != item.id) i,
-                ],
-              ),
-          ],
-        ),
-    ];
-    ref.read(settingsLayoutProvider.notifier).state =
-        SettingsLayout(collections: cols);
-  }
 }
 
 /// 可拖拽的设置项（左侧池 / 右侧组内复用）。
 class _DraggableItem extends StatelessWidget {
   const _DraggableItem({
     required this.item,
-    this.onMoved,
     this.inPool = false,
     this.used = false,
   });
 
   final SettingItem item;
-
-  /// 拖拽结束回调（把项从原位置移除）；null = 保留原位置。
-  final void Function(SettingItem)? onMoved;
 
   /// 处于左侧可用池（只读来源，拖走不移除）。
   final bool inPool;
@@ -230,7 +202,7 @@ class _DraggableItem extends StatelessWidget {
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         ),
       ),
-      onDragEnd: (_) => onMoved?.call(item),
+      onDragEnd: (_) {},
       childWhenDragging: Opacity(opacity: 0.3, child: _tile(context)),
       child: _tile(context),
     );
