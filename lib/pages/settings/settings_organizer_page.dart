@@ -99,7 +99,7 @@ class SettingsOrganizerPage extends ConsumerWidget {
               padding: const EdgeInsets.all(AppSpace.md),
               buildDefaultDragHandles: false,
               itemCount: layout.collections.length,
-              onReorder: (int a, int b) =>
+              onReorderItem: (int a, int b) =>
                   _reorderCollections(ref, layout, a, b),
               itemBuilder: (BuildContext context, int ci) {
                 final SettingCollection c = layout.collections[ci];
@@ -169,7 +169,8 @@ class SettingsOrganizerPage extends ConsumerWidget {
     final List<SettingCollection> cols = <SettingCollection>[...layout.collections];
     if (a < 0 || a >= cols.length || b < 0 || b > cols.length) return;
     final SettingCollection moved = cols.removeAt(a);
-    cols.insert((b > a ? b - 1 : b).clamp(0, cols.length), moved);
+    // onReorderItem 的 newIndex 已减去 oldIndex 移除的偏移，直接插入即可。
+    cols.insert(b.clamp(0, cols.length), moved);
     ref.read(settingsLayoutProvider.notifier).state =
         SettingsLayout(collections: cols);
   }
@@ -549,7 +550,7 @@ class _GroupCard extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               buildDefaultDragHandles: false,
               itemCount: group.items.length,
-              onReorder: (int a, int b) => _reorder(ref, a, b),
+              onReorderItem: (int a, int b) => _reorder(ref, a, b),
               itemBuilder: (BuildContext context, int i) {
                 final SettingItem item = group.items[i];
                 return DragTarget<SettingItem>(
@@ -637,8 +638,8 @@ class _GroupCard extends ConsumerWidget {
     final List<SettingItem> items = <SettingItem>[...group.items];
     if (a < 0 || a >= items.length || b < 0 || b > items.length) return;
     final SettingItem moved = items.removeAt(a);
-    final int insert = b > a ? b - 1 : b;
-    items.insert(insert.clamp(0, items.length), moved);
+    // onReorderItem 的 newIndex 已偏移，直接插入。
+    items.insert(b.clamp(0, items.length), moved);
     _updateGroup(ref, items: items);
   }
 

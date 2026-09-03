@@ -482,6 +482,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   /// cl29·③：选场景截图 PNG 当存档背景；'__clear__' 清除；返回 null 取消。
   Future<void> _pickBackground(VoxelManualSaveMeta s) async {
     final List<File> files = await _listScenePhotos();
+    if (!mounted) return;
     final String? picked = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: context.appColors.bgSurface,
@@ -502,6 +503,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   /// '__clear__' 清除；返回 null 取消。
   Future<void> _pickThumbnail(VoxelManualSaveMeta s) async {
     final List<File> files = await _listScenePhotos();
+    if (!mounted) return;
     final String? picked = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: context.appColors.bgSurface,
@@ -529,10 +531,12 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         _snack('文件不存在');
         return;
       }
-      await Share.shareXFiles(
-        <XFile>[XFile(f.path)],
-        subject: name,
-        text: '星璃音乐 · 体素世界存档「$name」',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(f.path)],
+          subject: name,
+          text: '星璃音乐 · 体素世界存档「$name」',
+        ),
       );
     } catch (_) {
       _snack('导出失败');
@@ -548,10 +552,12 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         _snack('文件不存在');
         return;
       }
-      await Share.shareXFiles(
-        <XFile>[XFile(f.path)],
-        subject: name,
-        text: '星璃音乐 · 体素世界备份「$name」',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(f.path)],
+          subject: name,
+          text: '星璃音乐 · 体素世界备份「$name」',
+        ),
       );
     } catch (_) {
       _snack('导出失败');

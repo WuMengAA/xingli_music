@@ -426,12 +426,12 @@ Widget buildTransportRow(
   final double playSize = fullscreen ? 40 : 32;
   final double sideSize = fullscreen ? 28 : 24;
 
-  final Future<void> Function() onToggle = () async {
+  Future<void> onToggle() async {
     final String msg = await ref.read(playbackActionsProvider).toggle();
     if (msg.isNotEmpty && context.mounted) {
       showPlaybackToast(context, msg);
     }
-  };
+  }
 
   return PlaybackTransportRow(
     spacing: fullscreen ? 12 : 6,

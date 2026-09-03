@@ -73,7 +73,7 @@ class _MusicQualitySheet extends ConsumerWidget {
                     label: Text(
                       q.label +
                           (q == MusicQuality.lossless
-                              ? (neVip ? "" : " · 需VIP")
+                              ? (neVip ? '' : ' · 需VIP')
                               : ''),
                       style: context.appText.caption,
                     ),

@@ -463,10 +463,12 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
     if (channel == null || !mounted) return; // 用户取消
     try {
       final XFile x = await sceneToTempXFile(scene);
-      await Share.shareXFiles(
-        <XFile>[x],
-        subject: scene.name,
-        text: '星璃音乐 2.5D 音效场景：${scene.name}',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[x],
+          subject: scene.name,
+          text: '星璃音乐 2.5D 音效场景：${scene.name}',
+        ),
       );
     } catch (e) {
       if (mounted) _toast('分享失败，请稍后重试');

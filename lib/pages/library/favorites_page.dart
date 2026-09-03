@@ -250,6 +250,7 @@ class _FavoriteTile extends ConsumerWidget {
       ref.invalidate(favoritesProvider);
       ref.invalidate(isFavoriteProvider(key));
     } else {
+      if (!context.mounted) return;
       await _addToPlaylist(context, ref);
     }
   }

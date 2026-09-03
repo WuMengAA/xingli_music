@@ -2971,7 +2971,7 @@ abstract final class VoxelRenderer {
           }
           final int rgi = (gx0 / rcell).round();
           final int rgj = (gz0 / rcell).round();
-          _LodCell? cell = cache?.lodCellGet(resolved, rgi, rgj);
+          _LodCell? cell = cache?._lodCellGet(resolved, rgi, rgj);
           if (cell == null) {
             if (built >= budget) continue; // 本帧预算用完 → 下帧补建
             built++;
@@ -2980,7 +2980,7 @@ abstract final class VoxelRenderer {
             cell = rcell >= 32
                 ? _buildHorizonImpostor(world, gx0, gz0, rcell)
                 : _buildLodCell(world, gx0, gz0, rcell);
-            cache?.lodCellPut(resolved, rgi, rgj, cell);
+            cache?._lodCellPut(resolved, rgi, rgj, cell);
           }
           _emitLodCell(cell, gx0, gz0, rcell, b, proj, sky, config,
               fogStart, fogSpan, far, sunWeight, sunX, sunY, sunZ, lights,
@@ -3523,7 +3523,7 @@ bool _cellInFrustum(
 
 /// R26r20：远景 LOD 马赛克单元（缓存，相机无关）——DH 风格逐列立方体。
 /// 内 g×g 列（列宽 2）：顶高 hGrid + 顶方块 vGrid + 侧方块 vSide；外环 (g+2)²
-/// hPad 供边界列 4 邻高度（无缝接邻单元）。按 tier 键入缓存（VoxelChunkCache.lodCellGet）。
+/// hPad 供边界列 4 邻高度（无缝接邻单元）。按 tier 键入缓存（VoxelChunkCache._lodCellGet）。
 class _LodCell {
   _LodCell({
     required this.g,
@@ -3697,10 +3697,10 @@ class VoxelChunkCache {
   }
 
   /// R26r18·P1：取 / 存 LOD 马赛克单元（tier: 0..3 档；ci/cj 为该档粗格索引）。
-  _LodCell? lodCellGet(int tier, int ci, int cj) =>
+  _LodCell? _lodCellGet(int tier, int ci, int cj) =>
       _lodCells[_lodKey(tier, ci, cj)];
 
-  void lodCellPut(int tier, int ci, int cj, _LodCell cell) {
+  void _lodCellPut(int tier, int ci, int cj, _LodCell cell) {
     final (int, int, int) k = _lodKey(tier, ci, cj);
     if (_lodCells.length >= maxLodCells && !_lodCells.containsKey(k)) {
       _lodCells.remove(_lodCells.keys.first);

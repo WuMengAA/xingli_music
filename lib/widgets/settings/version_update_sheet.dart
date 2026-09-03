@@ -371,10 +371,7 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                 ),
                 Radio<int>(
                   value: index,
-                  groupValue: _selected,
                   activeColor: colors.accent,
-                  onChanged: (int? i) =>
-                      setState(() => _selected = i ?? _selected),
                 ),
               ],
             ),
@@ -408,9 +405,9 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: c.withOpacity(0.12),
+        color: c.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(AppRadius.pill),
-        border: Border.all(color: c.withOpacity(0.35), width: 1),
+        border: Border.all(color: c.withValues(alpha: 0.35), width: 1),
       ),
       child: Text(label, style: context.appText.caption.copyWith(color: c)),
     );
@@ -556,9 +553,20 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
               if (_checked && _versions.isNotEmpty) ...<Widget>[
                 Text('选择版本（默认最新）', style: context.appText.subtitle),
                 const SizedBox(height: AppSpace.sm),
-                ..._versions.asMap().entries.map(
-                  (MapEntry<int, OtaTagInfo> e) =>
-                      _buildVersionTile(e.key, e.value),
+                RadioGroup<int>(
+                  groupValue: _selected,
+                  onChanged: (int? i) {
+                    if (i != null) setState(() => _selected = i);
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      ..._versions.asMap().entries.map(
+                        (MapEntry<int, OtaTagInfo> e) =>
+                            _buildVersionTile(e.key, e.value),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpace.md),
               ] else if (_checked) ...<Widget>[

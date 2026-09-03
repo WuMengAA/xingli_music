@@ -35,6 +35,8 @@ void showPlaybackToast(BuildContext context, String message) {
 void _toast(BuildContext context, String message) {
   // 经 Riverpod 全局通知（需 context 的 ProviderScope——调用点均在 widget 树内）。
   try {
+    // （containerOf 在非 widget/测试上下文可能返回 null，下方空守卫是兜底而非死代码）
+    // ignore: unnecessary_nullable_for_final_variable_declarations
     final ProviderContainer? c = ProviderScope.containerOf(context,
         listen: false);
     if (c != null) {

@@ -143,11 +143,9 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
           }
           return ReorderableListView.builder(
             itemCount: list.length,
-            onReorder: _sortMode == PlaylistSortMode.manual
+            onReorderItem: _sortMode == PlaylistSortMode.manual
                 ? (int oldIndex, int newIndex) {
-                    final int target =
-                        newIndex > oldIndex ? newIndex - 1 : newIndex;
-                    _move(list, oldIndex, target);
+                    _move(list, oldIndex, newIndex);
                   }
                 : null,
             itemBuilder: (BuildContext c, int i) {

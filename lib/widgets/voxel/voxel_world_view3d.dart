@@ -2974,6 +2974,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
       _snack('暂无可用备份（自动/手动备份都会出现在这里）');
       return;
     }
+    if (!mounted || !context.mounted) return;
     final String? pick = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: context.appColors.bgSurface,
@@ -3575,10 +3576,12 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
         if (mounted) _snack('文件不存在');
         return;
       }
-      await Share.shareXFiles(
-        <XFile>[XFile(f.path)],
-        subject: name,
-        text: '星璃音乐 · 体素世界存档「$name」',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[XFile(f.path)],
+          subject: name,
+          text: '星璃音乐 · 体素世界存档「$name」',
+        ),
       );
     } catch (_) {
       if (mounted) _snack('导出失败');
@@ -4231,7 +4234,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
 
     // R26h：顶部居中「音乐卡片」——进入世界默认折叠常驻顶部，状态不受 UI
     // 变化影响（独立于左右面板）。maxWidth 由播放器自带，Align 居中。
-    if (_started)
+    if (_started) {
       controls.add(
         Positioned(
           top: 0,
@@ -4263,6 +4266,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // R26h：右上角芯片列【菜单 / 聚合相机 / 2.5D沉浸画布(占位禁用) / 更多】。
     // 顶栏精简为四枚固定芯片；视角切换收进「更多」折叠面板。
@@ -4320,7 +4324,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     // R26h：折叠面板（坐标 / 模式 / 自动跳 / 画质 / 沉浸），开合时显示在顶栏下方。
     // P2（用户确认）：改用可拖拽 _HudWrap——固定 top:66 在窄屏顶栏折行时会
     // 压住第二行 chips（UI 重叠）。拖拽 HUD 位置持久化，任何屏宽都不重叠。
-    if (_foldOpen)
+    if (_foldOpen) {
       controls.add(
         _HudWrap(
           id: HudIds.foldPanel,
@@ -4358,13 +4362,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // G9：联机 HUD（同伴列表 + 一起听 + 离开），仅联机模式显示。
     if (widget.multiplayer) controls.add(_buildMultiplayerHud());
 
     // 左侧：FP/TP 摇杆；观景 LiftPad（R26d：位置可自定义）。
     // 坐标/群系已并入左上「信息显示」面板，不再单独渲染坐标 HUD。
-    if (_started)
+    if (_started) {
       controls.add(
         _HudWrap(
           id: HudIds.joystick,
@@ -4379,10 +4384,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // R26h：左下「疾跑」按钮（触屏切换 _sprinting；键盘 Ctrl 仍可用）。
     // 置于摇杆右上方，独立可拖拽（id=sprint）。
-    if (_started && fp && !_cameraMode)
+    if (_started && fp && !_cameraMode) {
       controls.add(
         _HudWrap(
           id: HudIds.sprint,
@@ -4394,6 +4400,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // R26skel-b3：动作键拆 4 个**独立**元素（攻击/放置/蹲/跳 各自可拖拽调位），
     // 不再连成一体——布局编辑模式（hudEditProvider）下可自由分开摆放。
@@ -4488,7 +4495,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
     if (_started &&
         fp &&
         _viewMode == _ViewMode.thirdPerson &&
-        !_cameraMode)
+        !_cameraMode) {
       controls.add(
         _HudWrap(
           id: 'tpCamOrbit',
@@ -4509,9 +4516,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // 底部居中：生命/饱食度（上）+ 物品栏（下）
-    if (_started)
+    if (_started) {
       controls.add(
         Positioned(
           left: 0,
@@ -4578,9 +4586,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // 相机面板
-    if (_cameraMode)
+    if (_cameraMode) {
       controls.add(
         Positioned(
           top: 56,
@@ -4597,9 +4606,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // 背包面板（Cl29_hotfix：完整 3×9 背包 + 1×9 物品栏，MC 式点选交互）
-    if (_bagOpen)
+    if (_bagOpen) {
       controls.add(
         Positioned.fill(
           child: VoxelInventoryPanel(
@@ -4610,6 +4620,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ),
         ),
       );
+    }
 
     // 折叠态：仅留展开按钮
     if (_uiCollapsed) {
@@ -5253,7 +5264,9 @@ class _VoxelFramePainter extends CustomPainter {
         for (int i = 0; i < tF.length; i++) {
           final Offset p = Offset(sx + dx * tF[i], sy + dy * tF[i]);
           if (p.dx < -90 || p.dx > size.width + 90 ||
-              p.dy < -90 || p.dy > size.height + 90) continue;
+              p.dy < -90 || p.dy > size.height + 90) {
+            continue;
+          }
           canvas.drawCircle(
             p,
             r * fr[i],
@@ -5922,7 +5935,7 @@ class _VoxelWorld3DPageState extends State<VoxelWorld3DPage> {
                           await ref
                               .read(voxelSoundScenesProvider.notifier)
                               .save(r.scene);
-                          if (!mounted) return;
+                          if (!ctx.mounted) return;
                           await Navigator.of(ctx).push(
                             MaterialPageRoute<void>(
                               builder: (_) =>

@@ -161,7 +161,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       if (!mounted) return;
       // 延迟片刻，避免与冷启动动画抢屏。
       await Future<void>.delayed(const Duration(milliseconds: 600));
-      if (!mounted) return;
+      if (!context.mounted) return;
       final bool? go = await AppConfirmDialog.show(
         context: context,
         title: Terms.updated,
@@ -181,7 +181,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       // cl58：无论用户选跳过还是重走，都记录「当前版本已处理过」，
       // 避免下次启动再次弹窗打扰。
       repo.setOobeLastBuild(AppVersion.buildCount);
-      if (!mounted || go != true) return;
+      if (!context.mounted || go != true) return;
       await Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => const OobePage()),
       );
@@ -199,7 +199,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       final UpdateChannel ch = repo.updateChannel;
       if (!mounted) return;
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
+      if (!context.mounted) return;
       await AppConfirmDialog.show(
         context: context,
         title: Terms.channelSwitched,

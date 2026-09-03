@@ -84,7 +84,7 @@ class _Row extends StatelessWidget {
       title: Text(title, style: context.appText.body),
       subtitle: Text(sub, style: context.appText.artist),
       value: value,
-      activeColor: context.appColors.accent,
+      activeThumbColor: context.appColors.accent,
       onChanged: onChanged,
     );
   }

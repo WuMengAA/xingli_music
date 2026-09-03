@@ -131,18 +131,25 @@ Future<void> _pickUpdateChannel(BuildContext context, WidgetRef ref) async {
               ],
             ),
           ),
-          for (final UpdateChannel ch in UpdateChannel.values)
-            RadioListTile<UpdateChannel>(
-              title: Text(ch.label),
-              subtitle: Text(
-                ch == UpdateChannel.beta
-                    ? '较稳定，默认推荐'
-                    : '尝鲜，功能更新更早',
-              ),
-              value: ch,
-              groupValue: current,
-              onChanged: (_) => Navigator.of(c).pop(ch),
+          RadioGroup<UpdateChannel>(
+            groupValue: current,
+            onChanged: (UpdateChannel? ch) => Navigator.of(c).pop(ch),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final UpdateChannel ch in UpdateChannel.values)
+                  RadioListTile<UpdateChannel>(
+                    title: Text(ch.label),
+                    subtitle: Text(
+                      ch == UpdateChannel.beta
+                          ? '较稳定，默认推荐'
+                          : '尝鲜，功能更新更早',
+                    ),
+                    value: ch,
+                  ),
+              ],
             ),
+          ),
           const SizedBox(height: 8),
         ],
       ),
@@ -1917,6 +1924,7 @@ Future<void> _autoPlayBilibiliForCurrent(
     final BiliMatchCandidate? c = await ref
         .read(bilibiliSourceProvider)
         .autoMatch(cur.title, artist: cur.artist, targetDuration: cur.duration);
+    if (!context.mounted) return;
     if (c == null) {
       appNotify(context, '未找到时长相近的 B站视频（差 ${cur.duration?.inSeconds ?? 0}s 内）');
       return;
@@ -1924,13 +1932,17 @@ Future<void> _autoPlayBilibiliForCurrent(
     // 默认静音：先静音再播放，避免匹配到非原曲时突然出声。
     await ref.read(audioServiceProvider).setMusicMuted(true);
     await ref.read(audioServiceProvider).playMusic(c.track);
+    if (!context.mounted) return;
     appNotify(context,
         '已自动匹配 B站：${c.track.title}（${c.delta}s 差）· 默认静音，可手动取消');
   } on BilibiliApiException catch (e) {
+    if (!context.mounted) return;
     appNotify(context, bilibiliErrorText(e));
   } on BilibiliResolveException catch (e) {
+    if (!context.mounted) return;
     appNotify(context, e.message);
   } catch (e) {
+    if (!context.mounted) return;
     appNotify(context, 'B站自动匹配失败，请稍后重试');
   }
 }

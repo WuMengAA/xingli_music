@@ -196,9 +196,8 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
 
   Future<void> _playTrack(Track t) async {
     final String msg = await ref.read(playbackActionsProvider).playTrack(t);
-    if (msg.isNotEmpty && context.mounted) {
-      appNotify(context, msg);
-    }
+    if (!mounted || msg.isEmpty) return;
+    appNotify(context, msg);
   }
 }
 
