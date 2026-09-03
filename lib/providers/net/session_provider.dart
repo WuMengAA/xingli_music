@@ -1092,6 +1092,26 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         .firstOrNull;
     if (playing != null) setOrderStatus(playing.id, OrderStatus.played);
   }
+
+  /// DJ 端：排期拖拽——调整「待播」（approved）项的顺序。
+  /// [oldIndex]/[newIndex] 均为 approved 子列表下标（与 UI 拖拽列表一致，
+  /// newIndex 已按移除项偏移，无需再 -1）；非 approved 项保持原相对顺序，
+  /// approved 段按新序排在其后，随后全量广播给听众。
+  void reorderApproved(int oldIndex, int newIndex) {
+    if (state.role != NetRole.host) return;
+    final List<OrderItem> approved = state.orderQueue
+        .where((it) => it.status == OrderStatus.approved)
+        .toList();
+    if (oldIndex < 0 || oldIndex >= approved.length) return;
+    final int target = newIndex.clamp(0, approved.length - 1);
+    final OrderItem moved = approved.removeAt(oldIndex);
+    approved.insert(target, moved);
+    final List<OrderItem> rest = state.orderQueue
+        .where((it) => it.status != OrderStatus.approved)
+        .toList();
+    state = state.copyWith(orderQueue: <OrderItem>[...rest, ...approved]);
+    _broadcastOrderQueue();
+  }
   void _broadcastOrderQueue() {
     if (state.role != NetRole.host) return;
     _node?.send(NetMessage(

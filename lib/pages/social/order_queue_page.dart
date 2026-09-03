@@ -86,18 +86,7 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
           if (s.orderQueue.isEmpty)
             _EmptyHint(c: c)
           else
-            ...s.orderQueue.map((it) => _OrderTile(
-                  c: c,
-                  item: it,
-                  isHost: isHost,
-                  onApprove: () => ref
-                      .read(netSessionProvider.notifier)
-                      .decideOrder(it.id, true),
-                  onReject: () => ref
-                      .read(netSessionProvider.notifier)
-                      .decideOrder(it.id, false),
-                  onPlay: () => _playAsDj(it.track, it.id),
-                )),
+            ..._buildQueueItems(c, s, isHost),
         ],
       ),
       // 听众端 toast 通知：监听 notifyId 变化，弹出并立即清空，避免重复弹窗。
@@ -119,6 +108,110 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
         },
       ),
     );
+  }
+
+  /// 队列渲染（R33 排期管理）：非 approved 项按原序平铺；approved 组独立小节——
+  /// DJ 端可拖拽排序（VoiceHub「排期管理」），听众端只读展示。
+  List<Widget> _buildQueueItems(
+      AppThemeColors c, NetSessionState s, bool isHost) {
+    final List<OrderItem> rest = s.orderQueue
+        .where((it) => it.status != OrderStatus.approved)
+        .toList();
+    final List<OrderItem> approved = s.orderQueue
+        .where((it) => it.status == OrderStatus.approved)
+        .toList();
+    final List<Widget> items = <Widget>[
+      for (final it in rest)
+        _OrderTile(
+          c: c,
+          item: it,
+          isHost: isHost,
+          onApprove: () => ref
+              .read(netSessionProvider.notifier)
+              .decideOrder(it.id, true),
+          onReject: () => ref
+              .read(netSessionProvider.notifier)
+              .decideOrder(it.id, false),
+          onPlay: () => _playAsDj(it.track, it.id),
+        ),
+    ];
+    if (approved.isEmpty) return items;
+    items.add(Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 6),
+      child: Row(
+        children: <Widget>[
+          Text('待播（${approved.length}）',
+              style: TextStyle(
+                  color: c.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+          const Spacer(),
+          if (isHost)
+            Text('按住 ≡ 拖拽排序',
+                style: TextStyle(color: c.textSecondary, fontSize: 11)),
+        ],
+      ),
+    ));
+    if (isHost) {
+      items.add(ReorderableListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: approved.length,
+        onReorderItem: (int oldIndex, int newIndex) => ref
+            .read(netSessionProvider.notifier)
+            .reorderApproved(oldIndex, newIndex),
+        itemBuilder: (BuildContext context, int i) {
+          final OrderItem it = approved[i];
+          return Padding(
+            key: ValueKey<String>(it.id),
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: ReorderableDragStartListener(
+                    index: i,
+                    child: Icon(Icons.drag_indicator_rounded,
+                        size: 20, color: c.textTertiary),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: _OrderTile(
+                    c: c,
+                    item: it,
+                    isHost: isHost,
+                    onApprove: () => ref
+                        .read(netSessionProvider.notifier)
+                        .decideOrder(it.id, true),
+                    onReject: () => ref
+                        .read(netSessionProvider.notifier)
+                        .decideOrder(it.id, false),
+                    onPlay: () => _playAsDj(it.track, it.id),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ));
+    } else {
+      items.addAll(approved.map((it) => _OrderTile(
+            c: c,
+            item: it,
+            isHost: isHost,
+            onApprove: () => ref
+                .read(netSessionProvider.notifier)
+                .decideOrder(it.id, true),
+            onReject: () => ref
+                .read(netSessionProvider.notifier)
+                .decideOrder(it.id, false),
+            onPlay: () => _playAsDj(it.track, it.id),
+          )));
+    }
+    return items;
   }
 
   Future<void> _playAsDj(Track track, String orderId) async {
