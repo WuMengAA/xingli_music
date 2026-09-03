@@ -235,6 +235,9 @@ class ClassIslandNotifier extends StateNotifier<ClassIslandState> {
     }
   }
 
+  /// 单例（供无 ref 的音频层直调上报；Riverpod provider 委托给它）。
+  static final ClassIslandNotifier instance = ClassIslandNotifier();
+
   @override
   void dispose() {
     _stopTimer();
@@ -242,7 +245,9 @@ class ClassIslandNotifier extends StateNotifier<ClassIslandState> {
   }
 }
 
+/// ClassIsland 联动 provider（委托单例实例，保持同一状态源；
+/// 音频层可用 [ClassIslandNotifier.instance] 直接上报）。
 final classislandProvider =
     StateNotifierProvider<ClassIslandNotifier, ClassIslandState>(
-  (ref) => ClassIslandNotifier(),
+  (ref) => ClassIslandNotifier.instance,
 );

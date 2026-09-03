@@ -30,6 +30,7 @@ import 'providers/shell/shell_providers.dart';
 import 'repositories/settings_repository.dart';
 import 'services/ota_service.dart';
 import 'services/ota_install.dart';
+import 'services/tools/control_server.dart';
 import 'widgets/companion/companion_global_fab.dart';
 import 'widgets/notification/app_notify.dart';
 import 'widgets/shell/app_dock.dart';
@@ -121,6 +122,8 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       unawaited(ref.read(audioServiceProvider).switchSoundscape(scene));
       // R10：冷启动恢复用户设置（音量/主题/EQ/场景/上次曲目等）
       unawaited(restoreSettings(ref));
+      // 集控插件：本地控制服务（ClassIsland 集控被控端，localhost:43218）。
+      unawaited(ControlServer.instance.start(ref));
       // 布局整理：尝试读 assets/settings_layout.json 覆盖默认布局（随包分发）。
       unawaited(loadSettingsLayoutAsset(ref));
       // F4：版本升级后弹询问是否重走初始化流程（仅当已完成为 true 且版本变高）。

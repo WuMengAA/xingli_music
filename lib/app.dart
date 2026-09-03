@@ -26,6 +26,7 @@ import 'services/audio/audio_handler.dart';
 import 'services/audio/audio_service.dart';
 import 'services/log_service.dart';
 import 'services/permission_service.dart';
+import 'services/tools/control_server.dart';
 
 /// 星璃 · 无限音乐空间 —— 应用根组件
 class StelarithMusicApp extends ConsumerStatefulWidget {
@@ -154,6 +155,7 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
       navigatorKey: _navKey,
+      scaffoldMessengerKey: kControlMessengerKey,
       // cl07 i18n：语言 provider 驱动（中文/英文），即时生效 + 持久化。
       locale: ref.watch(localeProvider),
       supportedLocales: const <Locale>[Locale('zh'), Locale('en')],

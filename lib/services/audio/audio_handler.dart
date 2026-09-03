@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart' as asvc;
 
 import '../../models/track.dart';
+import '../../providers/tools/classisland_provider.dart';
 import 'audio_service.dart';
 import 'playback_controller.dart';
 import 'smtc_bridge.dart';
@@ -22,6 +23,10 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
   Duration _position = Duration.zero;
   Duration? _duration;
   PlaybackState _state = PlaybackState.idle;
+
+  // ClassIsland 上报去重：仅播放态/曲目变化时上报，避免位置流高频刷。
+  bool _lastReportedPlaying = false;
+  String _lastReportedTrack = '';
 
   StelarithAudioHandler(this._ctrl) {
     // R33：Windows SMTC 桥——系统媒体键/进度拖动 → 播放控制器。
@@ -91,6 +96,18 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
       positionMs: _position.inMilliseconds.toDouble(),
       durationMs: (_duration ?? Duration.zero).inMilliseconds.toDouble(),
     );
+    // R33：ClassIsland 集控上报（播放态变化才报，去重）。
+    final Track? t = _ctrl.audio.currentTrack;
+    final String trackKey = t == null ? '' : t.uri;
+    if (_playing != _lastReportedPlaying || trackKey != _lastReportedTrack) {
+      _lastReportedPlaying = _playing;
+      _lastReportedTrack = trackKey;
+      unawaited(ClassIslandNotifier.instance.report(
+        playing: _playing ? '1' : '0',
+        title: t?.title ?? '',
+        artist: t?.artist ?? '',
+      ));
+    }
   }
 
   asvc.AudioProcessingState _mapState(PlaybackState s) {

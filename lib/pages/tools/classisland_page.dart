@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/classisland_provider.dart';
+import '../../services/tools/control_server.dart';
 
 /// ClassIsland 联动页。
 class ClassIslandPage extends ConsumerStatefulWidget {
@@ -86,7 +87,64 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
           const SizedBox(height: 16),
           _configCard(c, s),
           const SizedBox(height: 16),
+          _controlCard(c),
+          const SizedBox(height: 16),
           _todayClasses(c, s),
+        ],
+      ),
+    );
+  }
+
+  /// 集控插件（被控端）状态卡：本机 localhost 控制服务。
+  Widget _controlCard(AppThemeColors c) {
+    final ControlServer svc = ControlServer.instance;
+    final bool running = svc.running;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: c.bgCard,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: running ? c.accent : c.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(
+                running ? Icons.memory : Icons.memory_outlined,
+                size: 18,
+                color: running ? c.accent : c.textTertiary,
+              ),
+              const SizedBox(width: 6),
+              Text('集控插件（被控端）',
+                  style: c.textPrimary.style(fontSize: 14, w700: true)),
+              const Spacer(),
+              if (running)
+                Text('运行中', style: TextStyle(color: c.accent, fontSize: 12))
+              else
+                Text('未启动',
+                    style: c.textTertiary.style(fontSize: 12)),
+            ],
+          ),
+          if (svc.error.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(svc.error,
+                  style: TextStyle(color: c.accent, fontSize: 12)),
+            ),
+          if (running) ...<Widget>[
+            const SizedBox(height: 8),
+            SelectableText(
+              'http://127.0.0.1:${svc.port}/api/control',
+              style: c.textSecondary.style(fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '动作：report / set_weather / set_volume / play / pause / notice',
+              style: c.textTertiary.style(fontSize: 11),
+            ),
+          ],
         ],
       ),
     );
