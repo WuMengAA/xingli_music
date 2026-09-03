@@ -2,6 +2,8 @@ package com.stelarith.xingli_music;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -10,6 +12,8 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.Manifest;
+import android.os.Bundle;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.FileProvider;
@@ -46,10 +50,81 @@ public class MainActivity extends AudioServiceActivity {
     private static final String OPEN_URL_CHANNEL = "com.stelarith.xingli_music/open_url";
     private static final String APP_INFO_CHANNEL = "com.stelarith.xingli_music/app_info";
     private static final String DEVICE_CHANNEL = "com.stelarith.xingli_music/device";
+    private static final String TAG = "XingliMain";
     private static final int REQ_WEBVIEW_LOGIN = 0x101;
 
     private SensorManager sensorManager;
     private MethodChannel.Result pendingWebViewResult;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        // R33：Mali/旧 GPU 黑渲染防护——在 Flutter 引擎构造前按设备/用户设置
+        // 动态决定 Impeller 开关（FlutterLoader 首次构造引擎时读取
+        // ApplicationInfo.metaData 的 EnableImpeller，改 Bundle 即生效）。
+        applyEngineBackendOverride();
+        super.onCreate(savedInstanceState);
+    }
+
+    /**
+     * 反射改写 ApplicationInfo.metaData 的 EnableImpeller：
+     * - 用户「图形后端」选了 Skia(OpenGL) / 软件渲染 → 禁用 Impeller（回退 Skia，Mali 黑渲染修复）
+     * - 默认（auto）且设备为 Mali GPU → 自动禁用 Impeller（旧 GPU 上 Impeller 渲染黑）
+     * - 其余保持 manifest 默认（Impeller 开）
+     * metaData 是 PackageManager 缓存的 Bundle 引用，putBoolean 后 FlutterLoader 读到新值。
+     */
+    private void applyEngineBackendOverride() {
+        try {
+            // shared_preferences 插件：文件名 FlutterSharedPreferences，key 前缀 flutter.
+            final SharedPreferences prefs =
+                    getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE);
+            final String backend =
+                    prefs.getString("flutter.settings.engineBackend", "auto");
+            final boolean userSkia = "skiaOpengl".equals(backend) || "software".equals(backend);
+            final boolean disableImpeller = userSkia || (!userSkia && "auto".equals(backend) && isMaliGpu());
+            if (!disableImpeller) return;
+
+            final ApplicationInfo ai = getPackageManager()
+                    .getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
+            if (ai.metaData != null) {
+                ai.metaData.putBoolean("io.flutter.embedding.android.EnableImpeller", false);
+                Log.i(TAG, "Impeller 已按设备/设置禁用（回退 Skia）：backend=" + backend
+                        + " mali=" + isMaliGpu());
+            }
+        } catch (Throwable t) {
+            // 改写失败不阻塞启动（保持 manifest 默认）。
+            Log.w(TAG, "applyEngineBackendOverride 失败: " + t);
+        }
+    }
+
+    /** 是否 Mali GPU：系统属性 ro.hardware.egl / Mali 驱动库文件 / Build.HARDWARE 综合判断。 */
+    private static boolean isMaliGpu() {
+        try {
+            // 1) 系统属性 ro.hardware.egl（常见 "mali"）
+            final Class<?> sp = Class.forName("android.os.SystemProperties");
+            final java.lang.reflect.Method get =
+                    sp.getMethod("get", String.class, String.class);
+            final String egl = (String) get.invoke(null, "ro.hardware.egl", "");
+            if (egl.toLowerCase().contains("mali")) return true;
+            // 2) Mali 驱动库文件存在（多种路径/架构）
+            final String[] candidates = {
+                "/system/lib/egl/libGLES_mali.so",
+                "/system/lib64/egl/libGLES_mali.so",
+                "/vendor/lib/egl/libGLES_mali.so",
+                "/vendor/lib64/egl/libGLES_mali.so",
+                "/system/lib/libGLES_mali.so",
+                "/system/lib64/libGLES_mali.so",
+            };
+            for (String p : candidates) {
+                if (new File(p).exists()) return true;
+            }
+            // 3) Build.HARDWARE 含 mali
+            if (Build.HARDWARE != null && Build.HARDWARE.toLowerCase().contains("mali")) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
 
     @Override
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
