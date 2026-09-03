@@ -19,6 +19,7 @@ import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
+import '../../pages/tools/calendar_page.dart';
 import '../../pages/tools/weather_page.dart';
 import '../../pages/world/world_page.dart';
 import '../../widgets/common/scene_eval_sheet.dart';
@@ -95,6 +96,14 @@ class HomeSceneContent extends ConsumerWidget {
           tooltip: '天气',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
+          ),
+        ),
+        // R33：星璃日历——月视图 + 事件管理 + 节日标注。
+        _SceneIconButton(
+          icon: Icons.calendar_month_outlined,
+          tooltip: '日历',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
           ),
         ),
       ],
