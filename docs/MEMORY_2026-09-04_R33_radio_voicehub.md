@@ -206,3 +206,15 @@
   且 sha256 从 manifest（Pages）或 .sha256 资产（Releases）取
 - **publish_pages_ota.ps1 已修**（fb94edd/e3877f2）：EAP Stop→Continue + flutter build 2>&1 透传 +
   raw 拉取失败 API 兜底 + UTF-8 BOM（edit 工具重写 .ps1 会丢 BOM → 字节级补回 EF BB BF）
+
+## 安卓黑屏修复 + 性能优化（2026-09-03，6fe4c00/baee4a8/5268bc9）
+用户反馈：安卓启动/开机就黑屏 + 间歇性偶发黑。三处根因修复：
+- **6fe4c00** ① `ThrottledWidgetsBinding` 加 500ms 看门狗——节流 Timer 挂起/帧丢失时强制补帧
+  （R22 曾因 Timer 无限挂起致双端开机黑屏；R33 再加兜底防帧饿死）；
+  ② `LiquidGlassWidgets.initialize()` 预热 try-catch + 4s 超时——预热抛异常不再卡死启动（降级继续）
+- **baee4a8** `NormalTheme` 窗口底色 `?android:colorBackground`（深色=纯黑）→ `@color/launch_background_color`
+  品牌深紫——splash → Flutter 首帧之间不再是黑屏（values + values-night 两处）
+- **5268bc9** 性能：低端机自动性能档——`isLowEndDevice()`（Android CPU≤4 核 或 /proc/meminfo MemTotal<3GB），
+  新用户（`oobeDoneProvider==false`）首启默认进「性能」档（特效关/帧率 24/动画最快），
+  老用户已持久化选择优先不受影响；放在 `restoreSettings` 里、`_mapLegacyPerformance` 前
+- **发布更新**：黑屏/性能修复后需**重新构建并更新** release 资产（zip/APK）+ gh-pages manifest
