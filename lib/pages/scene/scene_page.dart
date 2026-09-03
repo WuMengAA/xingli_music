@@ -20,6 +20,7 @@ import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
 import '../../pages/tools/calendar_page.dart';
+import '../../pages/tools/classisland_page.dart';
 import '../../pages/tools/weather_page.dart';
 import '../../pages/world/world_page.dart';
 import '../../widgets/common/scene_eval_sheet.dart';
@@ -104,6 +105,14 @@ class HomeSceneContent extends ConsumerWidget {
           tooltip: '日历',
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
+          ),
+        ),
+        // R33：ClassIsland 集控联动——课表/时间表展示 + 播放状态上报。
+        _SceneIconButton(
+          icon: Icons.school_outlined,
+          tooltip: 'ClassIsland 联动',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const ClassIslandPage()),
           ),
         ),
       ],
