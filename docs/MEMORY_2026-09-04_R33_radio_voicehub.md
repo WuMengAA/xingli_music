@@ -147,3 +147,21 @@
     WCAG computeLuminance 阈值 0.5）；落地 voxel_world_view3d `_drawNameTag`（玩家名标签底色=实体色可深可浅，
     底亮深字/底暗白字，修复浅色实体名白字看不清）
 - **返回原点**：push 后 `git fetch <token-url> main` + `update-ref refs/remotes/origin/main FETCH_HEAD` 同步 tracking。
+
+## R33 收尾⑤（4016ff1 / 15bbabb，2026-09-04）
+- **4016ff1** VoiceHub 排期管理拖拽：
+  - `session_provider.reorderApproved(oldIndex,newIndex)`（approved 子列表内移动，newIndex 已按移除项偏移；
+    非 approved 保持原序、approved 段排后，全量广播 orderQueue）
+  - `order_queue_page` 队列按状态分组：非 approved 平铺 + approved「待播」独立小节；
+    DJ 端 ReorderableListView.builder + ReorderableDragStartListener（仅手柄可拖，提示「按住 ≡ 拖拽排序」），听众只读
+- **15bbabb** OOBE 改版走查（widget test 驱动的真实修复）：
+  - **2 处 ListTile debug 断言修复**：`_contractTile`(ExpansionTile)/`_switchRow`(SwitchListTile) 外层
+    DecoratedBox 改 **Material**(color+shape+clip)——ListTile 家族必须在 Material 上画背景/波纹，
+    DecoratedBox 触发 "ListTile background color or ink splashes may be invisible"（真机 debug 也崩）
+  - `_capCard` 宽度改 LayoutBuilder 按父约束算（原按全屏宽，桌面宽屏溢出 420 窄栏）
+  - 新增 `test/oobe_layout_test.dart`：1280×800 前 6 页 + 360×720 品牌页无溢出冒烟测试
+    （要点：`prefsProvider` 必须 override（default 抛 UnimplementedError）；品牌页徽章无限动画
+    → 禁 pumpAndSettle 用固定时长 pump）
+  - 验证：`flutter build windows --debug` 通过；`flutter test test/` 2/2 通过
+- **测试基建备注**：项目此前无 test/；OOBE 冒烟测试是首个，全流程
+  `SharedPreferences.setMockInitialValues` → `prefsProvider.overrideWithValue` → pump。
