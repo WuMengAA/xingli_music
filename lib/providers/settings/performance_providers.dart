@@ -35,6 +35,33 @@ enum PerformanceMode {
 FpsLimit defaultFpsFor(PerformanceMode m) =>
     m == PerformanceMode.performance ? FpsLimit.fps24 : FpsLimit.fps60;
 
+/// 低端机检测（R33 性能优化）：Android 上 CPU ≤4 核或总内存 <3GB 视为低端。
+///
+/// 用途：**新用户**首次启动时自动进「性能」档（特效默认关 / 帧率 24 /
+/// 动画最快），避免低端机默认质量档导致卡顿、发热与掉帧观感；老用户
+/// 已持久化的选择不受影响（仅在无用户记录时生效）。
+bool isLowEndDevice() {
+  if (kIsWeb || !Platform.isAndroid) return false;
+  final int cores = Platform.numberOfProcessors;
+  int memKb = 0;
+  try {
+    final File f = File('/proc/meminfo');
+    if (f.existsSync()) {
+      for (final String line in f.readAsLinesSync()) {
+        if (line.startsWith('MemTotal:')) {
+          final int? v = int.tryParse(line.split(RegExp(r'\s+'))[1]);
+          if (v != null) memKb = v;
+          break;
+        }
+      }
+    }
+  } catch (_) {
+    // 读不到内存信息 → 只看核数。
+  }
+  // MemTotal 单位 kB；3GB = 3*1024*1024 kB。
+  return cores <= 4 || (memKb > 0 && memKb < 3 * 1024 * 1024);
+}
+
 /// 当前性能档位，默认「质量」。
 final performanceModeProvider = StateProvider<PerformanceMode>(
   (ref) => PerformanceMode.quality,

@@ -84,9 +84,14 @@ Future<void> restoreSettings(WidgetRef ref) async {
       repo.balanceMode == 'hifi' ? BalanceMode.hifi : BalanceMode.normal;
 
   // 性能与质量体系（R21 两档；旧三档值自动迁移）
+  // R33 低端机默认性能档：新用户（OOBE 未完成）在 Android 低端机首次启动
+  // 自动进「性能」档（特效默认关/帧率 24/动画最快），避免默认质量档卡顿掉帧；
+  // 老用户已完成 OOBE、已持久化的选择优先，不受影响。
+  final bool lowEndNewUser =
+      !ref.read(oobeDoneProvider) && isLowEndDevice();
   final String perf = repo.performanceMode;
   ref.read(performanceModeProvider.notifier).state =
-      _mapLegacyPerformance(perf);
+      lowEndNewUser ? PerformanceMode.performance : _mapLegacyPerformance(perf);
   ref.read(fpsLimitProvider.notifier).state = FpsLimit.values.firstWhere(
     (FpsLimit f) => '${f.value}' == repo.fpsLimit,
     orElse: () => FpsLimit.fps60,
