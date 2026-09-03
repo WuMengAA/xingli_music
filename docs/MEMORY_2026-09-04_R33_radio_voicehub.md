@@ -218,3 +218,20 @@
   新用户（`oobeDoneProvider==false`）首启默认进「性能」档（特效关/帧率 24/动画最快），
   老用户已持久化选择优先不受影响；放在 `restoreSettings` 里、`_mapLegacyPerformance` 前
 - **发布更新**：黑屏/性能修复后需**重新构建并更新** release 资产（zip/APK）+ gh-pages manifest
+
+## Mali/旧 GPU 黑渲染降级（2026-09-03，1872cc3）
+用户反馈：Mali/旧 GPU 设备仍有黑渲染。根因：AndroidManifest 强制 `EnableImpeller=true`，
+FlutterLoader 在引擎构造时读 `ApplicationInfo.metaData` 的该值决定 Impeller 开关——**静态且无法
+运行时改**（`dartVmArgs` 是 VM 参数、`getFlutterShellArgs` 仅 FlutterActivity 自建引擎路径用，
+AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
+- **修复**：MainActivity `onCreate` 在 `super.onCreate` 前调 `applyEngineBackendOverride()`——
+  **反射改写 metaData 的 `io.flutter.embedding.android.EnableImpeller`**（metaData 是 PackageManager
+  缓存的 Bundle 引用，putBoolean 持久生效，FlutterLoader 构造引擎时读到新值）：
+  - 用户「图形后端」选 `skiaOpengl`/`software` → 禁用 Impeller（回退 Skia）
+  - 默认 `auto` 且 **Mali GPU**（`ro.hardware.egl` 含 mali / `libGLES_mali.so` 驱动库存在 /
+    `Build.HARDWARE` 含 mali）→ 自动禁用 Impeller
+  - 其余保持 manifest 默认（Impeller 开）
+- **设置链路**：设置页 `engineBackend` chips 安卓也可选 → `repo.setEngineBackend` 写 prefs
+  （shared_preferences 文件名 `FlutterSharedPreferences`、key 前缀 `flutter.`）→ MainActivity
+  读 `flutter.settings.engineBackend` 判断。**需重启生效**（引擎构造时定）。
+- **构建验证**：`flutter build apk --release --split-per-abi` 通过（Java 编译 OK）；APK 已重传 release
