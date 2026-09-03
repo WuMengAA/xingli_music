@@ -5,6 +5,7 @@ import 'package:audio_service/audio_service.dart' as asvc;
 import '../../models/track.dart';
 import 'audio_service.dart';
 import 'playback_controller.dart';
+import 'smtc_bridge.dart';
 
 /// 系统媒体处理器：把星璃的播放状态桥接到 Android/iOS 的锁屏、通知栏与媒体键。
 ///
@@ -23,6 +24,29 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
   PlaybackState _state = PlaybackState.idle;
 
   StelarithAudioHandler(this._ctrl) {
+    // R33：Windows SMTC 桥——系统媒体键/进度拖动 → 播放控制器。
+    smtcInit((String action, double positionMs) {
+      switch (action) {
+        case 'play':
+          unawaited(_ctrl.play());
+          break;
+        case 'pause':
+          unawaited(_ctrl.pause());
+          break;
+        case 'next':
+          unawaited(_ctrl.skip(1));
+          break;
+        case 'previous':
+          unawaited(_ctrl.skip(-1));
+          break;
+        case 'stop':
+          unawaited(_ctrl.audio.pauseOnly());
+          break;
+        case 'seek':
+          unawaited(_ctrl.seek(Duration(milliseconds: positionMs.round())));
+          break;
+      }
+    });
     _subs.add(_ctrl.audio.playingStream.listen((p) {
       _playing = p;
       _publishState();
@@ -61,6 +85,12 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
       playing: _playing,
       updatePosition: _position,
     ));
+    // R33：SMTC 镜像播放状态（Windows 任务栏媒体卡片 + 全局媒体键）。
+    smtcUpdatePlayback(
+      playing: _playing,
+      positionMs: _position.inMilliseconds.toDouble(),
+      durationMs: (_duration ?? Duration.zero).inMilliseconds.toDouble(),
+    );
   }
 
   asvc.AudioProcessingState _mapState(PlaybackState s) {
@@ -78,6 +108,7 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
   void _publishMediaItem(Track? t) {
     if (t == null) {
       mediaItem.add(const asvc.MediaItem(id: '', title: '星璃'));
+      smtcUpdateMediaItem(title: '星璃');
       return;
     }
     Uri? artUri;
@@ -94,6 +125,15 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
       duration: _duration ?? t.duration,
       artUri: artUri,
     ));
+    // R33：SMTC 镜像媒体项（Windows 任务栏媒体卡片的标题/歌手/封面）。
+    smtcUpdateMediaItem(
+      title: t.title,
+      artist: t.artist,
+      album: t.album ?? '',
+      durationMs: (_duration ?? t.duration ?? Duration.zero).inMilliseconds
+          .toDouble(),
+      artPath: t.coverPath ?? '',
+    );
   }
 
   @override

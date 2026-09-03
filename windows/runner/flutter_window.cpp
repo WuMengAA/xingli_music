@@ -3,11 +3,14 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "smtc_bridge.h"
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() {
+  smtc_bridge::Dispose();
+}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -25,6 +28,8 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  smtc_bridge::Register(flutter_controller_->engine()->messenger(),
+                        flutter_controller_->view()->GetNativeWindow());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
