@@ -235,3 +235,34 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   （shared_preferences 文件名 `FlutterSharedPreferences`、key 前缀 `flutter.`）→ MainActivity
   读 `flutter.settings.engineBackend` 判断。**需重启生效**（引擎构造时定）。
 - **构建验证**：`flutter build apk --release --split-per-abi` 通过（Java 编译 OK）；APK 已重传 release
+
+## 功能拓展五项（2026-09-03，a69015d/662291a/e4d5b97/73fdc4b/64f8f65）
+- **SMTC（a69015d）**：Windows 任务栏媒体控件+全局媒体键桥
+  - `windows/runner/smtc_bridge.cpp`：WinRT `SystemMediaTransportControls` 经
+    `ISystemMediaTransportControlsInterop::GetForWindow(hwnd)` 获取（**Win32 桌面无 CoreWindow，
+    `GetForCurrentView` 不可用**；interop 头是 `um\SystemMediaTransportControlsInterop.h` 不是
+    `winrt/Windows.Media.Interop.h`）；同步标题/歌手/专辑/本地封面缩略图 + 播放态/进度/时长；
+    媒体键 play/pause/next/previous/stop + 进度拖动回 Dart（MethodChannel
+    `com.stelarith.xingli_music/smtc`）
+  - `lib/services/audio/smtc_bridge.dart`：非 Windows no-op；`audio_handler` 媒体项/状态流镜像 +
+    系统键转发 PlaybackController
+  - **CMake 三要素**：新源文件 + `target_compile_features(... cxx_std_20)`（指定初始化器）+ 链接
+    `windowsapp.lib`（RoGetActivationFactory 等 WinRT 符号）；`Thumbnail` 收
+    `RandomAccessStreamReference`（投影签名）；`std::string→hstring` 需自写 UTF-8 转换
+- **星璃天气（662291a）**：Open-Meteo（免费无 key）——Geocoding 城市搜索（中文）+ Forecast
+  实时/7 日；`weatherProvider` 城市列表/默认城市 SharedPreferences 持久化；`weather_page`
+  当前天气大卡+7 日横滚+城市管理；场景页 AppBar 加入口（相机/评估旁）
+- **星璃日历（e4d5b97）**：`calendarProvider`（CalendarEvent+SharedPreferences+公历固定节日表）；
+  `calendar_page` 月视图（今天高亮/节日徽标）+点日增删事件；场景页入口
+- **ClassIsland 联动（73fdc4b）**：`classislandProvider` 集控客户端——配置服务器 URL+班级
+  （SharedPreferences）；2min 周期 GET `/api/classisland/status`（约定 JSON
+  `{code,data:{date,classes:[{start,end,name,teacher,room}]}}`）；当前课/下一节判定；
+  播放上报 POST `/api/classisland/report`；`classisland_page` 课表+配置
+- **集控插件（64f8f65）**：`services/tools/control_server.dart` 本地被控端
+  `http://127.0.0.1:43218/api/control`（POST JSON `{action,payload}`）：
+  report/set_weather/set_volume/play/pause/notice（全局横幅，`kControlMessengerKey` 注入
+  MaterialApp）；仅绑 loopbackIPv4；`ClassIslandNotifier.instance` 单例（audio_handler 无 ref
+  直调上报，StateNotifierProvider 委托同实例）；app_shell 启动段挂载；classisland_page 加被控端状态卡
+- **注意事项**：`c.textPrimary` 是 Color 不是 TextStyle——页面用 `.style(...)` 需在文件内自建
+  Color 扩展；天气/日历/集控共用「场景页 AppBar 图标入口」模式；页面内 `ref.watch(...)` 时
+  无状态变化也要刷新当前课判定（每 build 取 `DateTime.now()`）
