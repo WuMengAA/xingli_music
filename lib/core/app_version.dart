@@ -71,11 +71,11 @@ abstract final class AppVersion {
   static const int year = 26;
 
   /// 月份。
-  static const int month = 8;
+  static const int month = 9;
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 31;
+  static const int day = 4;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -438,9 +438,10 @@ abstract final class AppVersion {
 /// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
 /// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
 /// buildCount 2→3（0.26.8.31_beta_cl03）。
-/// buildCount 3→4（0.26.8.31_beta_cl04）：R33 电台模块深度完善——VoiceHub 风格 UI 美化、
-/// DJ 自选播放、点歌状态机补全、已播历史持久化、队列分色统计、听众 toast 通知、代码清理。
-static const int buildCount = 4;
+/// buildCount 4→5（0.26.9.4_beta_cl05）：R33 收尾全量——多音源显式切换、
+/// 排期管理拖拽、analyze 全零告警清理、白噪音默认关闭、OOBE 改版、字体背景
+/// 颜色自适应、严重回归（源文件损坏 0 编译）修复、OOBE 布局冒烟测试。
+static const int buildCount = 5;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -505,6 +506,20 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.4',
+    cl: 'beta_cl05',
+    title: 'R33 收尾：多音源切换 + 排期拖拽 + 全面代码整顿（R33 全量）',
+    details: <String>[
+      '严重回归修复：4 个源文件上轮 PowerShell 批编损坏（UTF-8↔GBK 双重编码 + 注释/代码合并行）致全项目 0 编译，已从历史干净版本恢复并补回被误删的导入；立铁律——文件编辑只用 edit/write 工具，禁 PowerShell 写文件',
+      'VoiceHub 多音源显式切换：DJ 卡源 chip 可点切换本地/网易云/哔哩哔哩并持久化（dj_audio_source_provider），DJ 自选弹层默认选中偏好平台、在线按平台过滤',
+      'VoiceHub 排期管理拖拽：DJ 在点歌队列页拖拽调整待播（approved）顺序（reorderApproved 全量广播），听众端实时跟动',
+      '代码全面整顿：analyze 0 error / 0 warning / 0 info（全项目零告警）——死代码大扫除（voxel 11 个未用字段/方法）、52 条 info 全清（RadioGroup/SharePlus/onReorderItem 等新 API 迁移）、19 处 use_build_context 守卫',
+      '白噪音默认关闭：全局/持久化/场景默认均改为关闭（老用户已开启的不受影响）',
+      'OOBE 改版：窄栏聚焦布局（maxWidth 420）+ 标题层级升级 + 进度点光晕 + 品牌页版本标识；走查修复 2 处 ListTile debug 断言 + 新增布局冒烟测试（test/, 2/2 通过）',
+      '字体背景颜色自适应：新增 adaptiveForeground 共享工具，玩家名字标签底色亮时自动切深色文字',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.8.31',
     cl: 'beta_cl04',
