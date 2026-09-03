@@ -71,8 +71,12 @@ if (Test-Path $staleRegistrant) {
 if (-not $SkipBuild) {
     Write-Step '构建 release APK（--release --split-per-abi）…'
     Push-Location $repoRoot
-    try { flutter build apk --release --split-per-abi | Out-Host } 
-    finally { Pop-Location }
+    try {
+        # 2>&1 显式透传：flutter 的 stderr 镜像提示若不重定向会被 PS 当
+        # NativeCommandError，配合 $ErrorActionPreference='Stop' 中断脚本。
+        flutter build apk --release --split-per-abi 2>&1 | ForEach-Object { $_.ToString() }
+        if ($LASTEXITCODE -ne 0) { throw "flutter build apk 失败（exit=$LASTEXITCODE）" }
+    } finally { Pop-Location }
     if (-not (Test-Path (Join-Path $ApkDir 'app-arm64-v8a-release.apk'))) {
         throw "构建产物缺失：$ApkDir\app-arm64-v8a-release.apk"
     }

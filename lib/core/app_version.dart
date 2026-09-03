@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 4;
+  static const int day = 3;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -438,7 +438,7 @@ abstract final class AppVersion {
 /// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
 /// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
 /// buildCount 2→3（0.26.8.31_beta_cl03）。
-/// buildCount 4→5（0.26.9.4_beta_cl05）：R33 收尾全量——多音源显式切换、
+/// buildCount 4→5（0.26.9.3_beta_cl05）：R33 收尾全量——多音源显式切换、
 /// 排期管理拖拽、analyze 全零告警清理、白噪音默认关闭、OOBE 改版、字体背景
 /// 颜色自适应、严重回归（源文件损坏 0 编译）修复、OOBE 布局冒烟测试。
 static const int buildCount = 5;
@@ -507,7 +507,7 @@ class ChangelogEntry {
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
-    version: '0.26.9.4',
+    version: '0.26.9.3',
     cl: 'beta_cl05',
     title: 'R33 收尾：多音源切换 + 排期拖拽 + 全面代码整顿（R33 全量）',
     details: <String>[
