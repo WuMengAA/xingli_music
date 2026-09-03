@@ -36,7 +36,9 @@ param(
     [switch]$SkipBuild
 )
 
-$ErrorActionPreference = 'Stop'
+# 'Stop' 会把外部命令（flutter/git）的 stderr 输出也转成 NativeCommandError 终止脚本；
+# 关键失败点（APK 产物缺失 / git push exit / 构建 exit）都有显式检查，用 Continue 即可。
+$ErrorActionPreference = 'Continue'
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 
 function Write-Step($msg) { Write-Host "==> $msg" -ForegroundColor Cyan }
