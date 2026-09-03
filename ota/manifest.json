@@ -1,33 +1,14 @@
 {
-    "schema":  1,
-    "source":  "github-pages",
-    "updatedAt":  "2026-09-01T23:40:35+08:00",
-    "channels":  {
-                     "beta":  {
-                                  "latest":  {
-                                                 "tag":  "0.26.8.31_beta_cl03",
-                                                 "dateKey":  260831,
-                                                 "build":  3,
-                                                 "hotfix":  null,
-                                                 "notes":  "clOTA：正式签名切换（release-key.jks），Android OTA + Windows 双端"
-                                             }
-                              }
-                 },
     "assets":  {
-                   "0.26.8.31_beta_cl01":  {
-                                               "android":  {
-                                                               "arm64-v8a":  {
-                                                                                 "sha256":  "c5c82952a27e38b5cacb97239b46087b54b9d91f603618de5aac4a80c4bbacb1",
-                                                                                 "name":  "app-arm64-v8a-release.apk",
-                                                                                 "size":  44878711
-                                                                             },
-                                                               "armeabi-v7a":  {
-                                                                                   "sha256":  "d3376f0b1ccc6cde4541ca42d7662f6952a4a6e3599837a5dd7a7ecd7a69dd09",
-                                                                                   "name":  "app-armeabi-v7a-release.apk",
-                                                                                   "size":  42271429
-                                                                               }
-                                                           }
-                                           },
+                   "0.26.9.3_beta_cl05":  {
+                                              "windows":  {
+                                                              "x64":  {
+                                                                          "sha256":  "edd2153c55af54831765be690f48b829803745f96646e3b7a053824da261f5fa",
+                                                                          "name":  "xingli_music_windows_x64.zip",
+                                                                          "size":  38732776
+                                                                      }
+                                                          }
+                                          },
                    "0.26.8.31_beta_cl03":  {
                                                "android":  {
                                                                "arm64-v8a":  {
@@ -48,10 +29,39 @@
                                                                            "size":  38664541
                                                                        }
                                                            }
+                                           },
+                   "0.26.8.31_beta_cl01":  {
+                                               "android":  {
+                                                               "arm64-v8a":  {
+                                                                                 "sha256":  "c5c82952a27e38b5cacb97239b46087b54b9d91f603618de5aac4a80c4bbacb1",
+                                                                                 "name":  "app-arm64-v8a-release.apk",
+                                                                                 "size":  44878711
+                                                                             },
+                                                               "armeabi-v7a":  {
+                                                                                   "sha256":  "d3376f0b1ccc6cde4541ca42d7662f6952a4a6e3599837a5dd7a7ecd7a69dd09",
+                                                                                   "name":  "app-armeabi-v7a-release.apk",
+                                                                                   "size":  42271429
+                                                                               }
+                                                           }
                                            }
                },
+    "source":  "github-pages",
+    "schema":  1,
+    "channels":  {
+                     "beta":  {
+                                  "latest":  {
+                                                 "hotfix":  null,
+                                                 "build":  5,
+                                                 "dateKey":  260903,
+                                                 "tag":  "0.26.9.3_beta_cl05",
+                                                 "notes":  "R33收尾全量: 多音源切换/排期拖拽/analyze全零/白噪音默认关/OOBE改版/字体背景自适应/回归修复"
+                                             }
+                              }
+                 },
     "versions":  [
+                     "0.26.9.3_beta_cl05",
                      "0.26.8.31_beta_cl03",
                      "0.26.8.31_beta_cl01"
-                 ]
+                 ],
+    "updatedAt":  "2026-09-03T14:16:51+08:00"
 }
