@@ -19,6 +19,7 @@ import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
+import '../../pages/tools/weather_page.dart';
 import '../../pages/world/world_page.dart';
 import '../../widgets/common/scene_eval_sheet.dart';
 
@@ -87,6 +88,14 @@ class HomeSceneContent extends ConsumerWidget {
           icon: Icons.analytics_outlined,
           tooltip: '场景评估',
           onTap: () => _showEvalSheet(context, ref),
+        ),
+        // R33：星璃天气——Open-Meteo 实时 + 7 日预报。
+        _SceneIconButton(
+          icon: Icons.wb_sunny_outlined,
+          tooltip: '天气',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
+          ),
         ),
       ],
       body: Stack(
