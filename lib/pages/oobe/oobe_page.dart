@@ -444,13 +444,15 @@ class _OobePageState extends ConsumerState<OobePage> {
     ValueChanged<bool> onChanged,
     String title,
     String subtitle,
-  ) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-    decoration: BoxDecoration(
-      color: const Color(0x14FFFFFF),
+  ) => Material(
+    // Material（而非 DecoratedBox）：SwitchListTile 内部是 ListTile，
+    // 需在 Material 上绘制背景/水墨波纹（同 _contractTile 修复）。
+    color: const Color(0x14FFFFFF),
+    shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(AppRadius.sm),
-      border: Border.all(color: const Color(0x22FFFFFF)),
+      side: const BorderSide(color: Color(0x22FFFFFF)),
     ),
+    clipBehavior: Clip.antiAlias,
     child: SwitchListTile(
       value: value,
       onChanged: onChanged,
@@ -656,24 +658,34 @@ class _OobePageState extends ConsumerState<OobePage> {
     IconData icon,
     String title,
     String desc,
-  ) => Container(
-    width: (MediaQuery.of(context).size.width - 28 * 2 - 12) / 2,
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: const Color(0x14FFFFFF),
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      border: Border.all(color: const Color(0x22FFFFFF)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Icon(icon, size: 24, color: accent),
-        const SizedBox(height: 10),
-        Text(title, style: const TextStyle(fontSize: 14, color: Colors.white)),
-        const SizedBox(height: 4),
-        Text(desc, style: const TextStyle(fontSize: 11, color: Colors.white70)),
-      ],
-    ),
+  ) =>
+      LayoutBuilder(
+    builder: (BuildContext context, BoxConstraints constraints) {
+      // R33 改版：内容收进 ≤420 窄栏后必须按父约束算宽（原按全屏宽计算，
+      // 桌面宽屏下会溢出窄栏）。两卡一行：各占 (可用宽 - 间距) / 2。
+      final double w = (constraints.maxWidth - 12) / 2;
+      return Container(
+        width: w,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0x14FFFFFF),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Icon(icon, size: 24, color: accent),
+            const SizedBox(height: 10),
+            Text(title,
+                style: const TextStyle(fontSize: 14, color: Colors.white)),
+            const SizedBox(height: 4),
+            Text(desc,
+                style: const TextStyle(fontSize: 11, color: Colors.white70)),
+          ],
+        ),
+      );
+    },
   );
 
   // ── 第 4 页：体验开关 ─────────────────────────────
@@ -922,12 +934,16 @@ class _OobePageState extends ConsumerState<OobePage> {
 
   Widget _contractTile(Color accent, String title, String body,
       [String? sourceNote]) =>
-    Container(
-      decoration: BoxDecoration(
-        color: const Color(0x14FFFFFF),
+    // Material（而非 DecoratedBox）：ExpansionTile 内部是 ListTile，
+    // 需在 Material 上绘制背景/水墨波纹；DecoratedBox 会触发
+    // "ListTile background color or ink splashes may be invisible" 断言。
+    Material(
+      color: const Color(0x14FFFFFF),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0x22FFFFFF)),
+        side: const BorderSide(color: Color(0x22FFFFFF)),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
