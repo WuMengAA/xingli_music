@@ -165,3 +165,15 @@
   - 验证：`flutter build windows --debug` 通过；`flutter test test/` 2/2 通过
 - **测试基建备注**：项目此前无 test/；OOBE 冒烟测试是首个，全流程
   `SharedPreferences.setMockInitialValues` → `prefsProvider.overrideWithValue` → pump。
+
+## 发布：0.26.9.4_beta_cl05（2026-09-04，7bec661 + GitHub Release）
+- 版本号：month 8→9、day 31→4（今天 2026-09-04）、buildCount 4→5；changelog 顶部加 cl05 条目
+- 构建：`flutter build windows --release` 通过；`tools/publish_windows_ota.ps1` 里 **tar 打包失败
+  （系统无 tar.exe）** → 手动 `Compress-Archive`（平铺 Release 目录）+ `Get-FileHash` 生成 sha256
+- GitHub Release：tag `0.26.9.4_beta_cl05`（gh CLI 未装 → 走 REST API：POST /releases →
+  uploads.github.com 传 asset）。
+  注意：body 必须用 `[System.IO.File]::ReadAllText(path, UTF8)` 读字符串（`Get-Content -Raw`
+  会被 ConvertTo-Json 整形对象而 422）；请求体用 UTF-8 字节数组防中文乱码
+- 资产：`xingli_music_windows_x64.zip`（36.9 MB，平铺 exe+dll+data）+
+  `xingli_music_windows_x64.zip.sha256`（`<hash>  xingli_music_windows_x64.zip`，ascii 无换行）
+- 发布地址：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.4_beta_cl05
