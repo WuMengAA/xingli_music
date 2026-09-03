@@ -3,7 +3,7 @@
                    "0.26.9.3_beta_cl05":  {
                                               "windows":  {
                                                               "x64":  {
-                                                                          "sha256":  "edd2153c55af54831765be690f48b829803745f96646e3b7a053824da261f5fa",
+                                                                          "sha256":  "b33f869f8a66c052163e01d7b3626b1a125af3e696f866545bd17f4a09a6d1f7",
                                                                           "name":  "xingli_music_windows_x64.zip",
                                                                           "size":  38732776
                                                                       }
@@ -63,5 +63,5 @@
                      "0.26.8.31_beta_cl03",
                      "0.26.8.31_beta_cl01"
                  ],
-    "updatedAt":  "2026-09-03T14:16:51+08:00"
+    "updatedAt":  "2026-09-03T22:10:04+08:00"
 }
