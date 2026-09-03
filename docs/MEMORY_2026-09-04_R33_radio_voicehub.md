@@ -166,14 +166,23 @@
 - **测试基建备注**：项目此前无 test/；OOBE 冒烟测试是首个，全流程
   `SharedPreferences.setMockInitialValues` → `prefsProvider.overrideWithValue` → pump。
 
-## 发布：0.26.9.4_beta_cl05（2026-09-04，7bec661 + GitHub Release）
-- 版本号：month 8→9、day 31→4（今天 2026-09-04）、buildCount 4→5；changelog 顶部加 cl05 条目
+## 发布：0.26.9.3_beta_cl05（2026-09-03，7bec661 + 35c8092 + GitHub Release）
+- ⚠️ 版本日期教训：首版误写成 9 月 4 日（0.26.9.4_beta_cl05）并建了 GitHub Release，
+  用户纠正「今天是 9 月 3」→ 修正 app_version day 4→3 + changelog 版本串，删掉错误
+  release/tag（API DELETE），重建 0.26.9.3_beta_cl05 并重新上传资产。**发版前先跟用户
+  确认今天日期**，勿按会话假设推版本号
+- 版本号：month 8→9、day 31→3（今天 2026-09-03）、buildCount 4→5；changelog 顶部加 cl05 条目
 - 构建：`flutter build windows --release` 通过；`tools/publish_windows_ota.ps1` 里 **tar 打包失败
   （系统无 tar.exe）** → 手动 `Compress-Archive`（平铺 Release 目录）+ `Get-FileHash` 生成 sha256
-- GitHub Release：tag `0.26.9.4_beta_cl05`（gh CLI 未装 → 走 REST API：POST /releases →
-  uploads.github.com 传 asset）。
-  注意：body 必须用 `[System.IO.File]::ReadAllText(path, UTF8)` 读字符串（`Get-Content -Raw`
-  会被 ConvertTo-Json 整形对象而 422）；请求体用 UTF-8 字节数组防中文乱码
+- **publish_pages_ota.ps1 两个坑**（已修复并提交 35c8092）：
+  ① `flutter build apk | Out-Host` 的 stderr 镜像提示被 PS 当 NativeCommandError → 配合
+  `$ErrorActionPreference='Stop'` 中断脚本 → 改 `2>&1 | ForEach-Object { $_.ToString() }` + 显式查 exit
+  ② **edit 工具重写 .ps1 会丢 UTF-8 BOM** → PS 按 ANSI 解析中文 → 括号/引号错配语法错；
+  修完必须字节级补回 EF BB BF（`ReadAllBytes` + 前置 3 字节，勿走文本解码）
+  ③ raw.githubusercontent 被墙 → 旧 manifest 拉取加 GitHub API 兜底（contents API base64 解码）
+- GitHub Release：gh CLI 未装 → REST API（POST /releases → uploads.github.com 传 asset）。
+  body 用 `[System.IO.File]::ReadAllText(path, UTF8)` 读字符串（`Get-Content -Raw` 会被
+  ConvertTo-Json 整形对象而 422）；请求体 UTF-8 字节数组防中文乱码
 - 资产：`xingli_music_windows_x64.zip`（36.9 MB，平铺 exe+dll+data）+
   `xingli_music_windows_x64.zip.sha256`（`<hash>  xingli_music_windows_x64.zip`，ascii 无换行）
-- 发布地址：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.4_beta_cl05
+- 发布地址：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.3_beta_cl05
