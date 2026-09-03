@@ -125,3 +125,25 @@
   TrackPicker 加 `initialSource`（默认 local 保持听众行为）——在线按偏好平台过滤（网易只出网易/B站只出B站）。
 - **当前状态**：analyze 0 error 0 warning；剩 52 条 info（19 use_build_context_synchronously / 18 deprecated /
   10 voxel_world_view3d curly_braces 等，非阻塞，后续可清）。
+
+## R33 收尾四项（ab3c6cb / 958ea35，2026-09-04）
+- **ab3c6cb** 剩余 52 条 info 全清 → **analyze 0 error 0 warning 0 info（全项目零告警）**：
+  - curly_braces×9（voxel_world_view3d if 块补花括号）
+  - use_build_context_synchronously×19：await gap 后补 mounted/context.mounted 守卫
+    （教训：State.context 用 `mounted` 检查；其他 BuildContext（参数/闭包捕获）用 `context.mounted`/`ctx.mounted`；
+    守卫被其他条件 `&&` 组合时拆成独立 exit 守卫）
+  - deprecated×18：Radio→**RadioGroup 祖先**（`RadioGroup<T>(groupValue,onChanged,child)`，Radio 去掉
+    groupValue/onChanged；注意 flutter widgets/radio_group.dart）；`Share.shareXFiles`→
+    `SharePlus.instance.share(ShareParams(files:...,subject:...,text:...))`；`onReorder`→`onReorderItem`
+    **（onReorderItem 的 newIndex 已预偏移，回调内绝不能再手动 `b-1`，否则双重偏移）**；
+    activeColor→activeThumbColor；withOpacity→withValues
+  - library_private_types：`lodCellGet/lodCellPut` 改 `_lodCellGet/_lodCellPut`
+- **958ea35** 三项功能收尾：
+  - **白噪音默认关闭**：`whiteNoiseEnabledProvider` 默认 false；settings_repository 持久化默认 false
+    （老用户已开启不受影响）；Scene.whiteNoise 构造默认 + json 解析默认均 false
+  - **OOBE 改版**（原生极简方向）：内容窄栏聚焦（maxWidth 420 居中）、标题 22→26/w700、副题行高 1.5、
+    进度点 active 光晕、品牌页锚定 `AppVersion.displayShort`
+  - **字体背景颜色自适应**：新增共享工具 `core/theme/adaptive_text_color.dart`（`adaptiveForeground(bg)`，
+    WCAG computeLuminance 阈值 0.5）；落地 voxel_world_view3d `_drawNameTag`（玩家名标签底色=实体色可深可浅，
+    底亮深字/底暗白字，修复浅色实体名白字看不清）
+- **返回原点**：push 后 `git fetch <token-url> main` + `update-ref refs/remotes/origin/main FETCH_HEAD` 同步 tracking。
