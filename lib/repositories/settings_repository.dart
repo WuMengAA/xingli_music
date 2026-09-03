@@ -129,7 +129,8 @@ class SettingsRepository {
       _prefs.setBool(kSoundscapeMuted, v);
 
   // ── 白噪音 ───────────────────────────────────────
-  bool get whiteNoiseEnabled => _prefs.getBool(kWhiteNoiseEnabled) ?? true;
+  /// 默认关闭（2026-09-04 用户要求默认不播白噪；老用户已开启的不受影响）。
+  bool get whiteNoiseEnabled => _prefs.getBool(kWhiteNoiseEnabled) ?? false;
   Future<void> setWhiteNoiseEnabled(bool v) =>
       _prefs.setBool(kWhiteNoiseEnabled, v);
 

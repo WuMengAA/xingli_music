@@ -311,8 +311,8 @@ final musicMutedProvider = StateProvider<bool>((ref) => false);
 final soundscapeMutedProvider = StateProvider<bool>((ref) => false);
 
 /// 白噪音是否开启（R4，全局开关，独立于场景音景）
-/// 默认开启：用户反馈希望默认就有环境白噪底噪。
-final whiteNoiseEnabledProvider = StateProvider<bool>((ref) => true);
+/// 默认关闭：用户明确要求默认不播放白噪底噪（需要时手动开启）。
+final whiteNoiseEnabledProvider = StateProvider<bool>((ref) => false);
 
 /// 白噪音音量（R26skel-b5：**全局**模式默认 10%；局部/场景模式见
 /// `Scene.whiteNoiseVolume` 默认 25%）

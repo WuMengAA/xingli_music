@@ -27,6 +27,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../core/utils/app_motion.dart';
 import '../../models/companion_action.dart';
+import '../../core/theme/adaptive_text_color.dart';
 import '../../providers/companion/companion_providers.dart';
 import '../../pages/canvas/photo_gallery_page.dart';
 import '../../pages/now_playing/now_playing_page.dart';
@@ -5339,11 +5340,14 @@ class _VoxelFramePainter extends CustomPainter {
   void _drawNameTag(Canvas canvas, VoxelNameLabel lb) {
     // 设备字号恒定（scaled 空间绘制，乘 renderScale 抵消 1/renderScale 放大）。
     final double fontPx = 14 * renderScale;
+    // R33：字体背景颜色自适应——标签底色胶囊用玩家实体色（可深可浅），
+    // 底亮用深字、底暗用白字，避免浅色实体名白字看不清。
+    final ui.Color textColor = adaptiveForeground(lb.color);
     final ui.ParagraphBuilder pb = ui.ParagraphBuilder(
       ui.ParagraphStyle(textAlign: TextAlign.center),
     )
       ..pushStyle(ui.TextStyle(
-        color: const Color(0xFFFFFFFF),
+        color: textColor,
         fontSize: fontPx,
         fontWeight: FontWeight.w600,
       ))

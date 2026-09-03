@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
@@ -232,7 +233,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                       return AnimatedContainer(
                         duration: const Duration(milliseconds: 250),
                         margin: const EdgeInsets.symmetric(horizontal: 2),
-                        width: active ? 18 : 6,
+                        width: active ? 20 : 6,
                         height: 6,
                         decoration: BoxDecoration(
                           color: active
@@ -241,6 +242,15 @@ class _OobePageState extends ConsumerState<OobePage> {
                                     ? accent.withValues(alpha: 0.5)
                                     : const Color(0x44FFFFFF)),
                           borderRadius: BorderRadius.circular(3),
+                          boxShadow: active
+                              ? <BoxShadow>[
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.55),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
                       );
                     }),
@@ -332,21 +342,37 @@ class _OobePageState extends ConsumerState<OobePage> {
 
   // ── 通用构件 ─────────────────────────────────────
 
+  /// cl05 布局：内容窄栏聚焦（≤420dp，一页只做一件事）。R33 改版：
+  /// 原全宽卡片平铺 → 窄栏居中，视觉层级更集中，对齐「原生极简」基底。
   Widget _scroll(Widget child) => SingleChildScrollView(
-    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-    child: child,
+    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: child,
+      ),
+    ),
   );
 
   Widget _title(Color accent, String t) => Text(
     t,
-    style: AppTextStyles.title.copyWith(color: Colors.white, fontSize: 22),
+    style: AppTextStyles.title.copyWith(
+      color: Colors.white,
+      fontSize: 26,
+      fontWeight: FontWeight.w700,
+      height: 1.25,
+    ),
     textAlign: TextAlign.center,
   );
 
   Widget _sub(String t) => Text(
     t,
     textAlign: TextAlign.center,
-    style: AppTextStyles.body.copyWith(color: const Color(0xFFB8C4D8)),
+    style: AppTextStyles.body.copyWith(
+      color: const Color(0xFFC3CFE3),
+      fontSize: 14,
+      height: 1.5,
+    ),
   );
 
   Widget _chip(Color accent, String label, bool selected, VoidCallback onTap) =>
@@ -467,6 +493,16 @@ class _OobePageState extends ConsumerState<OobePage> {
           _title(accent, _welcomeTitle!),
           const SizedBox(height: 10),
           _sub(_welcomeSub!),
+          const SizedBox(height: 10),
+          // R33：品牌页锚定版本标识（底部操作栏上方小字）。
+          Text(
+            AppVersion.displayShort,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.white38,
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 18),
         ],
       ),

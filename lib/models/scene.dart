@@ -141,7 +141,7 @@ class Scene {
     this.bgmArtist,
     this.sourceShareId,
     this.voxelCapture,
-    this.whiteNoise = true,
+    this.whiteNoise = false,
     this.whiteNoiseVolume = 0.25,
   });
 
@@ -325,7 +325,7 @@ class Scene {
           ? VoxelSceneCapture.fromJson(json['voxelCapture'] as Map<String, dynamic>)
           : null,
       // #167：场景专属白噪音（缺失即全局默认，向后兼容 R-02）
-      whiteNoise: json['whiteNoise'] as bool? ?? true,
+      whiteNoise: json['whiteNoise'] as bool? ?? false,
       whiteNoiseVolume:
           (json['whiteNoiseVolume'] as num?)?.toDouble() ?? 0.15,
     );
