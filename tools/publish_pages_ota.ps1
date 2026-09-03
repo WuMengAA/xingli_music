@@ -1,4 +1,4 @@
-﻿# ════════════════════════════════════════════════════════════════════════
+# ════════════════════════════════════════════════════════════════════════
 # clOTA 发布到 GitHub Pages（gh-pages 分支静态分发源）
 # ════════════════════════════════════════════════════════════════════════
 # 用法：
@@ -124,8 +124,28 @@ $rawOldUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/gh-pages/ot
 $oldChannels = [ordered]@{}
 $oldAssets = [ordered]@{}
 $oldVersions = New-Object System.Collections.Generic.List[string]
+$oldBody = $null
 try {
     $oldBody = (Invoke-WebRequest -Uri $rawOldUrl -UseBasicParsing -TimeoutSec 15).Content
+} catch {
+    Write-Warn 'raw.githubusercontent 拉取失败，改用 GitHub API 兜底…'
+}
+if (-not $oldBody) {
+    try {
+        $apiHeaders = @{ 'User-Agent' = 'xingli-ota' }
+        if ($env:DSH_PAT) { $apiHeaders['Authorization'] = "Bearer $($env:DSH_PAT)" }
+        $r = Invoke-RestMethod -Uri (
+            "https://api.github.com/repos/$RepoOwner/$RepoName/contents/ota/manifest.json?ref=gh-pages"
+        ) -Headers $apiHeaders -TimeoutSec 25
+        if ($r.content) {
+            $oldBody = [System.Text.Encoding]::UTF8.GetString(
+                [System.Convert]::FromBase64String($r.content))
+        }
+    } catch {
+        Write-Warn "API 兜底也失败：$($_.Exception.Message)"
+    }
+}
+if ($oldBody) {
     $old = $oldBody | ConvertFrom-Json
     Write-Ok '拉取到 gh-pages 现有 manifest，将合并历史'
     if ($old.channels) {
@@ -140,7 +160,7 @@ try {
         foreach ($p in $old.assets.PSObject.Properties) { $oldAssets[$p.Name] = $p.Value }
     }
     if ($old.versions) { foreach ($v in $old.versions) { $oldVersions.Add([string]$v) } }
-} catch {
+} else {
     Write-Ok 'gh-pages 尚未发布过 manifest（或拉取失败），从零开始'
 }
 
