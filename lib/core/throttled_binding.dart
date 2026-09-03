@@ -34,11 +34,36 @@ class ThrottledWidgetsBinding extends WidgetsFlutterBinding {
   bool _pending = false;
   Timer? _timer;
 
+  /// 看门狗（R33）：防止节流 Timer 挂起导致永不出帧（黑屏）。
+  ///
+  /// 极端情况：Timer 回调执行时引擎已暂停 / 帧被丢弃，之后若无新的
+  /// scheduleFrame 请求，屏幕永远停在黑/旧帧。这里兜底：pending 期间
+  /// 每 [kWatchdogInterval] 强制补一帧，确保渲染永不饿死。
+  static const Duration kWatchdogInterval = Duration(milliseconds: 500);
+  Timer? _watchdog;
+
+  void _cancelWatchdog() {
+    _watchdog?.cancel();
+    _watchdog = null;
+  }
+
+  void _armWatchdog() {
+    _cancelWatchdog();
+    _watchdog = Timer(kWatchdogInterval, () {
+      // 兜底出帧：真实节流 timer 未在期限内出帧（引擎暂停/回调丢失）时，
+      // 强制补一帧，防止屏幕永久停在黑/旧帧。
+      _pending = false;
+      _last..reset()..start();
+      super.scheduleFrame();
+    });
+  }
+
   @override
   void scheduleFrame() {
     final int fps = throttledFps;
     // 120 及以上视为不限帧（引擎 vsync 上限）；无效值（<=0）防御直通。
     if (fps >= 120 || fps <= 0) {
+      _cancelWatchdog();
       super.scheduleFrame();
       return;
     }
@@ -47,6 +72,7 @@ class ThrottledWidgetsBinding extends WidgetsFlutterBinding {
     if (elapsedUs >= intervalUs) {
       // 距上一帧已够久：立即出帧
       _pending = false;
+      _cancelWatchdog();
       _last..reset()..start();
       super.scheduleFrame();
       return;
@@ -61,9 +87,12 @@ class ThrottledWidgetsBinding extends WidgetsFlutterBinding {
       final int waitUs = intervalUs - elapsedUs;
       _timer = Timer(Duration(microseconds: waitUs), () {
         _pending = false;
+        _cancelWatchdog();
         _last..reset()..start();
         super.scheduleFrame();
       });
+      // R33：看门狗兜底，极端情况下强制出帧（防黑屏）。
+      _armWatchdog();
     }
   }
 }

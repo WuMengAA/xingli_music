@@ -64,8 +64,15 @@ Future<void> main() async {
   // Android GLES 下 glCompileShader+glLinkProgram 是同步编译（100~800ms），
   // 必须在 native splash 背后完成，否则 nativeSurfaceChanged 竞争 → ANR
   // （GitHub #187）。仅 Android 生效，iOS/macOS Metal 预编译零成本，跳过。
-  await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false);
-  debugPrint('[startup] LiquidGlass 预热完成（shader + Impeller 管线）');
+  // R33 黑屏防护：预热抛异常/超时不阻塞启动——失败仅降级（液态玻璃由
+  // AdaptiveGlass 自身 FakeGlass 兜底，不渲染不等于黑屏）。
+  try {
+    await LiquidGlassWidgets.initialize(enablePerformanceMonitor: false)
+        .timeout(const Duration(seconds: 4));
+    debugPrint('[startup] LiquidGlass 预热完成（shader + Impeller 管线）');
+  } catch (e) {
+    LogService.instance.w('startup', 'LiquidGlass 预热失败（降级继续）: $e');
+  }
 
   // 根应用启动（初始 + 「崩溃界面」重新启动共用）。
   void runRoot() {
