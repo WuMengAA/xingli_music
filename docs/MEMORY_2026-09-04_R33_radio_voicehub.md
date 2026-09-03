@@ -186,3 +186,23 @@
 - 资产：`xingli_music_windows_x64.zip`（36.9 MB，平铺 exe+dll+data）+
   `xingli_music_windows_x64.zip.sha256`（`<hash>  xingli_music_windows_x64.zip`，ascii 无换行）
 - 发布地址：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.3_beta_cl05
+
+## OTA（gh-pages）发布实战（2026-09-03，0.26.9.3_beta_cl05）
+- **网络现状**：github.com API/Releases 上传通；raw.githubusercontent 被墙；git 协议 clone/push
+  大对象（gh-pages 分支 121MB 历史）持续超时 → `publish_pages_ota.ps1` 全自动流程跑不通
+- **最终方案（API 重建分支，绕开 git 协议）**：
+  ① 大文件（APK/zip）**不上 gh-pages**，全放 **Releases**（uploads.github.com 通，zip 37MB/APK 43MB 均成功）
+  ② gh-pages manifest 新 tag **只列 Windows zip**（安卓资产缺失 → 客户端 `assetFor` 为 null →
+     自动回退 Releases URL 下载 APK——正是 ota_service.downloadAndVerify 的设计）
+  ③ 分支更新走 git trees/commits API：`base_tree=旧root tree` + 增量 tree 条目（新 zip blob +
+     新 manifest blob）→ POST /git/commits（parent=旧 tip）→ PATCH /git/refs/heads/gh-pages
+  ④ blob 上传：<40MB 可 API（zip 37MB 成功）；>40MB（APK 43MB）报 "input too large" 422 → 只能走 Releases
+- **API 重建分支要点**：blob sha 由内容决定（本地 `git hash-object` 与 API 一致——zip 实测 f2237aae 相同）；
+  无需本地 clone/旧 blob，tree 里直接引用远端已有 blob sha 即可
+- **验证**：`https://wumengaa.github.io/xingli_music/ota/manifest.json` 200，latest=0.26.9.3_beta_cl05，
+  新 zip 可下载且 sha256 与本地一致；versions 保留历史（cl03/cl01）
+- **客户端约定**（ota_service.dart）：Pages URL = `wumengaa.github.io/xingli_music/ota/<tag>/<asset>`；
+  manifest 无该平台资产 → Releases URL `github.com/<owner>/<repo>/releases/download/<tag>/<asset>`
+  且 sha256 从 manifest（Pages）或 .sha256 资产（Releases）取
+- **publish_pages_ota.ps1 已修**（fb94edd/e3877f2）：EAP Stop→Continue + flutter build 2>&1 透传 +
+  raw 拉取失败 API 兜底 + UTF-8 BOM（edit 工具重写 .ps1 会丢 BOM → 字节级补回 EF BB BF）
