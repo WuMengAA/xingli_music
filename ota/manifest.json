@@ -1,11 +1,20 @@
 {
   "assets": {
+    "0.26.9.3_beta_cl09": {
+      "windows": {
+        "x64": {
+          "sha256": "340a237ae18f9bb08b08750dfb93a277a7bea0d4649480173d475971536c2a37",
+          "name": "xingli_music_windows_x64.zip",
+          "size": 38848243
+        }
+      }
+    },
     "0.26.9.3_beta_cl08": {
       "windows": {
         "x64": {
           "sha256": "77edc28c773345625a296b3f3b60eb3c21daadab75a323c6a3fa3bc4f137bf11",
           "name": "xingli_music_windows_x64.zip",
-          "size": 38830545
+          "size": 38841329
         }
       }
     },
@@ -43,14 +52,15 @@
     "beta": {
       "latest": {
         "hotfix": null,
-        "build": 8,
+        "build": 9,
         "dateKey": 260903,
-        "tag": "0.26.9.3_beta_cl08",
-        "notes": "持续修复一批(OTA镜像重试/自动加载/输入保护/残留清理)"
+        "tag": "0.26.9.3_beta_cl09",
+        "notes": "VoiceHub 校园广播站点歌对接闭环(点歌/排期/播放/提交/入口)"
       }
     }
   },
   "versions": [
+    "0.26.9.3_beta_cl09",
     "0.26.9.3_beta_cl08",
     "0.26.9.3_beta_cl07",
     "0.26.9.3_beta_cl06",
@@ -58,5 +68,5 @@
     "0.26.8.31_beta_cl03",
     "0.26.8.31_beta_cl01"
   ],
-  "updatedAt": "2026-09-04T01:00:00+08:00"
+  "updatedAt": "2026-09-04T02:00:00+08:00"
 }
