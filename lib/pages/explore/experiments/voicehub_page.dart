@@ -27,6 +27,7 @@ class VoiceHubPage extends ConsumerStatefulWidget {
 class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
   late final TextEditingController _urlCtrl;
   late final TextEditingController _keyCtrl;
+  late final TextEditingController _cookieCtrl;
   late final TextEditingController _searchCtrl;
   bool _searching = false;
 
@@ -35,12 +36,14 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     super.initState();
     _urlCtrl = TextEditingController();
     _keyCtrl = TextEditingController();
+    _cookieCtrl = TextEditingController();
     _searchCtrl = TextEditingController();
     Future<void>.microtask(() {
       if (!mounted) return;
       final VoiceHubConfig cfg = ref.read(voiceHubProvider).config;
       _urlCtrl.text = cfg.baseUrl;
       _keyCtrl.text = cfg.apiKey;
+      _cookieCtrl.text = cfg.cookie;
     });
   }
 
@@ -48,13 +51,18 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
   void dispose() {
     _urlCtrl.dispose();
     _keyCtrl.dispose();
+    _cookieCtrl.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     await ref.read(voiceHubProvider.notifier).configure(
-          VoiceHubConfig(baseUrl: _urlCtrl.text, apiKey: _keyCtrl.text),
+          VoiceHubConfig(
+            baseUrl: _urlCtrl.text,
+            apiKey: _keyCtrl.text,
+            cookie: _cookieCtrl.text,
+          ),
         );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +138,16 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
                     decoration: const InputDecoration(
                       hintText: 'API Key（开放接口使用）',
                       isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _cookieCtrl,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      hintText: '登录 cookie（点歌提交用，浏览器登录后复制）',
+                      isDense: true,
+                      prefixIcon: Icon(Icons.lock_outline, size: 16),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -258,12 +276,59 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          trailing: hot > 0
-              ? Text('🔥$hot',
-                  style: TextStyle(color: c.textTertiary, fontSize: 11))
-              : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              if (hot > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text('🔥$hot',
+                      style: TextStyle(
+                          color: c.textTertiary, fontSize: 11)),
+                ),
+              TextButton(
+                onPressed: () => _submitSong(song),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('点歌', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  /// 提交点歌到 VoiceHub（需配置登录 cookie，未配置/失败明确提示）。
+  Future<void> _submitSong(VoiceHubSong song) async {
+    if (!mounted) return;
+    if (ref.read(voiceHubProvider).config.cookie.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('点歌需先在配置卡填入 VoiceHub 登录 cookie'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final bool ok = await ref
+        .read(voiceHubProvider.notifier)
+        .submitSong(
+          title: song.title,
+          artist: song.artist,
+          coverUrl: song.coverUrl,
+          musicPlatform: song.platform,
+          musicId: song.musicId,
+        );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? '已提交点歌：${song.title}' : '点歌失败：${ref.read(voiceHubProvider).error}'),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 

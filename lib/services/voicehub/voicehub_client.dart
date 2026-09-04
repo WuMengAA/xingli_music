@@ -128,18 +128,36 @@ class VoiceHubException implements Exception {
 
 /// VoiceHub 客户端（无状态，URL + apiKey 由调用方/provider 提供）。
 class VoiceHubClient {
-  VoiceHubClient({required this.baseUrl, String? apiKey, http.Client? client})
-      : _apiKey = apiKey ?? '',
+  VoiceHubClient({
+    required this.baseUrl,
+    String? apiKey,
+    String? cookie,
+    http.Client? client,
+  })  : _apiKey = apiKey ?? '',
+        _cookie = cookie ?? '',
         _client = client ?? http.Client();
 
   final String baseUrl;
   final String _apiKey;
+  final String _cookie;
   final http.Client _client;
+
+  /// 浏览器 cookie 串（`name=value; name2=value2`）→ Map。
+  static Map<String, String> parseCookie(String raw) {
+    final Map<String, String> out = <String, String>{};
+    for (final String pair in raw.split(';')) {
+      final int eq = pair.indexOf('=');
+      if (eq <= 0) continue;
+      out[pair.substring(0, eq).trim()] = pair.substring(eq + 1).trim();
+    }
+    return out;
+  }
 
   String get _root => baseUrl.replaceAll(RegExp(r'/+$'), '');
 
   Map<String, String> get _headers => <String, String>{
         if (_apiKey.isNotEmpty) 'X-API-Key': _apiKey,
+        if (_cookie.isNotEmpty) 'Cookie': _cookie,
         'Content-Type': 'application/json; charset=utf-8',
       };
 
@@ -201,16 +219,19 @@ class VoiceHubClient {
     String? musicId,
     Map<String, String>? cookies,
   }) async {
+    // 优先客户端配置的 cookie（_headers 已含）；若显式传入 cookies 则覆盖
+    //（浏览器粘贴的完整串 vs 手拆 Map 两种入口都支持）。
+    final Map<String, String> headers = <String, String>{
+      ..._headers,
+      if (cookies != null && cookies.isNotEmpty)
+        'Cookie': cookies.entries
+            .map((MapEntry<String, String> e) => '${e.key}=${e.value}')
+            .join('; '),
+    };
     final http.Response resp = await _client
         .post(
           Uri.parse('$_root/api/songs/request.post'),
-          headers: <String, String>{
-            ..._headers,
-            if (cookies != null && cookies.isNotEmpty)
-              'Cookie': cookies.entries
-                  .map((MapEntry<String, String> e) => '${e.key}=${e.value}')
-                  .join('; '),
-          },
+          headers: headers,
           body: jsonEncode(<String, dynamic>{
             'title': title,
             'artist': artist,

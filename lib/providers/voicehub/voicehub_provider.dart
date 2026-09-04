@@ -14,17 +14,22 @@ import '../../services/voicehub/voicehub_client.dart';
 
 /// VoiceHub 配置（空 baseUrl = 未启用）。
 class VoiceHubConfig {
-  const VoiceHubConfig({this.baseUrl = '', this.apiKey = ''});
+  const VoiceHubConfig({this.baseUrl = '', this.apiKey = '', this.cookie = ''});
 
   final String baseUrl;
   final String apiKey;
 
+  /// VoiceHub 登录 cookie（用户名密码/WebAuthn 登录后从浏览器复制；
+  /// 点歌提交 submitSong 需要登录态）。
+  final String cookie;
+
   bool get enabled => baseUrl.trim().isNotEmpty;
 
-  VoiceHubConfig copyWith({String? baseUrl, String? apiKey}) =>
+  VoiceHubConfig copyWith({String? baseUrl, String? apiKey, String? cookie}) =>
       VoiceHubConfig(
         baseUrl: baseUrl ?? this.baseUrl,
         apiKey: apiKey ?? this.apiKey,
+        cookie: cookie ?? this.cookie,
       );
 }
 
@@ -69,6 +74,7 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
 
   static const String _kBaseUrl = 'voicehub.baseUrl';
   static const String _kApiKey = 'voicehub.apiKey';
+  static const String _kCookie = 'voicehub.cookie';
 
   /// 首 watch 自动加载配置（与天气/日历/ClassIsland 一致的约定）。
   Future<void> load() async {
@@ -77,6 +83,7 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
       config: VoiceHubConfig(
         baseUrl: prefs.getString(_kBaseUrl) ?? '',
         apiKey: prefs.getString(_kApiKey) ?? '',
+        cookie: prefs.getString(_kCookie) ?? '',
       ),
     );
   }
@@ -86,9 +93,11 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kBaseUrl, cfg.baseUrl.trim());
     await prefs.setString(_kApiKey, cfg.apiKey.trim());
+    await prefs.setString(_kCookie, cfg.cookie.trim());
     state = state.copyWith(config: cfg.copyWith(
       baseUrl: cfg.baseUrl.trim(),
       apiKey: cfg.apiKey.trim(),
+      cookie: cfg.cookie.trim(),
     ));
     if (cfg.enabled) await refresh();
   }
@@ -96,7 +105,11 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
   VoiceHubClient? get _client {
     final VoiceHubConfig c = state.config;
     if (!c.enabled) return null;
-    return VoiceHubClient(baseUrl: c.baseUrl, apiKey: c.apiKey);
+    return VoiceHubClient(
+      baseUrl: c.baseUrl,
+      apiKey: c.apiKey,
+      cookie: c.cookie,
+    );
   }
 
   /// 拉取点歌 + 排期（任一端点失败仅记 error，不抛）。
@@ -133,6 +146,46 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
     } catch (e) {
       state = state.copyWith(error: '搜索失败：$e');
       return const <VoiceHubSong>[];
+    }
+  }
+
+  /// 点歌提交（需 VoiceHub 登录 cookie；成功返回 true，失败抛/记 error）。
+  /// 未配置 cookie 时明确报错提示先登录。
+  Future<bool> submitSong({
+    required String title,
+    required String artist,
+    String? coverUrl,
+    String? musicPlatform,
+    String? musicId,
+  }) async {
+    final VoiceHubClient? client = _client;
+    if (client == null) {
+      state = state.copyWith(error: '未配置 VoiceHub 服务器');
+      return false;
+    }
+    if (state.config.cookie.isEmpty) {
+      state = state.copyWith(error: '点歌需先配置 VoiceHub 登录 cookie');
+      return false;
+    }
+    try {
+      final bool ok = await client.submitSong(
+        title: title,
+        artist: artist,
+        coverUrl: coverUrl,
+        musicPlatform: musicPlatform,
+        musicId: musicId,
+      );
+      if (ok) {
+        state = state.copyWith(error: '');
+        await refresh();
+      }
+      return ok;
+    } on VoiceHubException catch (e) {
+      state = state.copyWith(error: e.message);
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: '点歌失败：$e');
+      return false;
     }
   }
 }
