@@ -45,7 +45,10 @@ class NetMessage {
   final Map<String, dynamic> payload;
 
   factory NetMessage.fromJson(Map<String, dynamic> j) => NetMessage(
-        type: NetMsgType.values[(j['t'] as int?) ?? 0],
+        // ⚠️ clamp 防越界：外部消息 t 字段越界 → values[] 抛 IndexError 崩。
+        type: NetMsgType.values[
+            ((j['t'] as num?)?.toInt() ?? 0)
+                .clamp(0, NetMsgType.values.length - 1)],
         from: j['f'] as String? ?? '',
         to: j['to'] as String?,
         payload:

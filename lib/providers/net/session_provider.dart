@@ -186,7 +186,9 @@ class OrderItem {
         fromName: j['fromName'] as String? ?? '听众',
         message: j['msg'] as String? ?? '',
         anonymous: j['anon'] as bool? ?? false,
-        status: OrderStatus.values[(j['st'] as int?) ?? 0],
+        status: OrderStatus.values[
+            ((j['st'] as num?)?.toInt() ?? 0)
+                .clamp(0, OrderStatus.values.length - 1)],
         at: DateTime.fromMillisecondsSinceEpoch(
           (j['at'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
         ),
@@ -901,8 +903,12 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
       case NetMsgType.orderDecision:
         // 提交者端：DJ 对某条点歌的审批结果。
         final String id = msg.payload['id'] as String? ?? '';
-        final OrderStatus decision =
-            OrderStatus.values[(msg.payload['decision'] as int?) ?? 0];
+        // ⚠️ clamp 防越界：恶意/损坏消息可使 decision 超出枚举 → values[] 抛
+        // IndexError 崩（网络输入不能信任）。
+        final int decisionRaw =
+            ((msg.payload['decision'] as num?)?.toInt() ?? 0)
+                .clamp(0, OrderStatus.values.length - 1);
+        final OrderStatus decision = OrderStatus.values[decisionRaw];
         final List<OrderItem> updated =
             state.orderQueue
                 .map((it) => it.id == id ? it.copyWith(status: decision) : it)

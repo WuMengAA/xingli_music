@@ -84,11 +84,15 @@ void main() {
       expect(() => NetMessage.decode('not-json'), throwsFormatException);
     });
 
-    test('t 越界（非 0..13）抛 RangeError，由传输层捕获', () {
-      expect(
-        () => NetMessage.fromJson(<String, dynamic>{'t': 99, 'f': 'x'}),
-        throwsRangeError,
-      );
+    test('t 越界（非 0..13）被 clamp 到合法范围，不再抛错（网络输入防崩）', () {
+      // 修复前：values[99] 直接索引抛 RangeError 崩（恶意/损坏包）；
+      // 修复后：clamp 到最后一个类型，安全解析。
+      final NetMessage m =
+          NetMessage.fromJson(<String, dynamic>{'t': 99, 'f': 'x'});
+      expect(m.type, NetMsgType.values.last);
+      final NetMessage mNeg =
+          NetMessage.fromJson(<String, dynamic>{'t': -3, 'f': 'x'});
+      expect(mNeg.type, NetMsgType.values.first);
     });
   });
 
