@@ -679,19 +679,22 @@ Widget buildBottomActions(
         // cl52-B：均衡器（视听右边，图标形式）。
         Tooltip(
           message: '音效',
-          child: InkWell(
-            onTap: () => showEqualizerSheet(context),
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.equalizer_rounded,
-                      size: 18, color: colors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text('音效', style: context.appText.caption),
-                ],
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: () => showEqualizerSheet(context),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.equalizer_rounded,
+                        size: 18, color: colors.textSecondary),
+                    const SizedBox(width: 4),
+                    Text('音效', style: context.appText.caption),
+                  ],
+                ),
               ),
             ),
           ),
@@ -982,24 +985,28 @@ class _SpeedButton extends ConsumerWidget {
     final Color accent = context.appColors.accent;
     final double spd = ref.watch(musicSpeedProvider);
     final bool active = (spd - 1.0).abs() > 0.001;
+    // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 环境无则崩）。
     return Tooltip(
       message: '播放速度',
-      child: InkWell(
-        onTap: () => showSpeedSheet(context, ref),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.speed_rounded,
-                  size: 18,
-                  color: active ? accent : context.appColors.textSecondary),
-              const SizedBox(width: 4),
-              Text('${_fmtSpeed(spd)}×',
-                  style: context.appText.caption
-                      .copyWith(color: active ? accent : null)),
-            ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => showSpeedSheet(context, ref),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.speed_rounded,
+                    size: 18,
+                    color: active ? accent : context.appColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('${_fmtSpeed(spd)}×',
+                    style: context.appText.caption
+                        .copyWith(color: active ? accent : null)),
+              ],
+            ),
           ),
         ),
       ),
@@ -1019,24 +1026,28 @@ class _SleepTimerButton extends ConsumerWidget {
         : st.remaining != null
             ? _fmtCountdown(st.remaining!)
             : '定时';
+    // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 环境无则崩）。
     return Tooltip(
       message: '定时关闭',
-      child: InkWell(
-        onTap: () => showSleepTimerSheet(context, ref),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.bedtime_rounded,
-                  size: 18,
-                  color: st.active ? accent : context.appColors.textSecondary),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: context.appText.caption
-                      .copyWith(color: st.active ? accent : null)),
-            ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => showSleepTimerSheet(context, ref),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.bedtime_rounded,
+                    size: 18,
+                    color: st.active ? accent : context.appColors.textSecondary),
+                const SizedBox(width: 4),
+                Text(label,
+                    style: context.appText.caption
+                        .copyWith(color: st.active ? accent : null)),
+              ],
+            ),
           ),
         ),
       ),
@@ -1057,32 +1068,36 @@ class _WhiteNoiseLabeledButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = context.appColors.accent;
+    // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 环境无则崩）。
     return Tooltip(
       message: active ? '关闭场景白噪音' : '开启场景白噪音',
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: active ? accent.withValues(alpha: 0.12) : null,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                active ? Icons.graphic_eq_rounded : Icons.graphic_eq_outlined,
-                size: 18,
-                color: active ? accent : context.appColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '白噪音',
-                style: context.appText.caption
-                    .copyWith(color: active ? accent : null),
-              ),
-            ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: active ? accent.withValues(alpha: 0.12) : null,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  active ? Icons.graphic_eq_rounded : Icons.graphic_eq_outlined,
+                  size: 18,
+                  color: active ? accent : context.appColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '白噪音',
+                  style: context.appText.caption
+                      .copyWith(color: active ? accent : null),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1096,38 +1111,42 @@ class _BiliVisualToggleButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final bool on = ref.watch(biliVisualEnabledProvider);
     final Color accent = context.appColors.accent;
+    // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 环境无则崩）。
     return Tooltip(
       message: on
           ? '关闭视频背景（长按设置模糊/同步/变速）'
           : '开启视频背景（B站）',
-      child: InkWell(
-        onTap: () =>
-            ref.read(biliVisualEnabledProvider.notifier).state = !on,
-        onLongPress: on ? () => showBiliVisualOptionsSheet(context) : null,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          decoration: BoxDecoration(
-            color: on ? accent.withValues(alpha: 0.12) : null,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                on
-                    ? Icons.play_circle_fill_rounded
-                    : Icons.play_circle_outline_rounded,
-                size: 18,
-                color: on ? accent : context.appColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '视频背景',
-                style: context.appText.caption
-                    .copyWith(color: on ? accent : null),
-              ),
-            ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () =>
+              ref.read(biliVisualEnabledProvider.notifier).state = !on,
+          onLongPress: on ? () => showBiliVisualOptionsSheet(context) : null,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: on ? accent.withValues(alpha: 0.12) : null,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  on
+                      ? Icons.play_circle_fill_rounded
+                      : Icons.play_circle_outline_rounded,
+                  size: 18,
+                  color: on ? accent : context.appColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '视频背景',
+                  style: context.appText.caption
+                      .copyWith(color: on ? accent : null),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1147,34 +1166,38 @@ class _WhiteNoiseSourceToggle extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Color accent = context.appColors.accent;
+    // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 环境无则崩）。
     return Tooltip(
       message: follows
           ? '白噪音跟随场景：每个场景独立记忆，点击改为全局播放'
           : '白噪音全局播放：忽略场景设置，点击改为跟随场景',
-      child: InkWell(
-        onTap: () {
-          ref.read(whiteNoiseFollowsSceneProvider.notifier).state = !follows;
-          unawaited(ref
-              .read(audioServiceProvider)
-              .playCategoryCue(AudioCategory.uiCue));
-        },
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(
-                follows ? Icons.landscape_rounded : Icons.public_rounded,
-                size: 12,
-                color: accent,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                follows ? '跟随场景' : '全局播放',
-                style: TextStyle(fontSize: 11, color: accent),
-              ),
-            ],
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () {
+            ref.read(whiteNoiseFollowsSceneProvider.notifier).state = !follows;
+            unawaited(ref
+                .read(audioServiceProvider)
+                .playCategoryCue(AudioCategory.uiCue));
+          },
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  follows ? Icons.landscape_rounded : Icons.public_rounded,
+                  size: 12,
+                  color: accent,
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  follows ? '跟随场景' : '全局播放',
+                  style: TextStyle(fontSize: 11, color: accent),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1437,32 +1460,36 @@ class _FullscreenPlaybackOverlayState
         const SizedBox(height: 8),
         Align(
           alignment: Alignment.centerLeft,
-          child: InkWell(
-            onTap: _toggleWhiteNoise,
-            borderRadius: BorderRadius.circular(AppRadius.pill),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  PlaybackIconButton(
-                    icon: whiteNoise
-                        ? Icons.graphic_eq_rounded
-                        : Icons.graphic_eq_outlined,
-                    size: 22,
-                    tint: true,
-                    active: whiteNoise,
-                    tooltip: whiteNoise ? '关闭白噪音' : '开启白噪音',
-                    onTap: _toggleWhiteNoise,
-                  ),
-                  const SizedBox(width: 8),
-                  Text('白噪音', style: context.appText.body),
-                  const SizedBox(width: 8),
-                  // #167：来源切换（跟随场景 / 全局播放）
-                  _WhiteNoiseSourceToggle(
-                    follows: ref.watch(whiteNoiseFollowsSceneProvider),
-                  ),
-                ],
+          // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 无则崩）。
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: _toggleWhiteNoise,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    PlaybackIconButton(
+                      icon: whiteNoise
+                          ? Icons.graphic_eq_rounded
+                          : Icons.graphic_eq_outlined,
+                      size: 22,
+                      tint: true,
+                      active: whiteNoise,
+                      tooltip: whiteNoise ? '关闭白噪音' : '开启白噪音',
+                      onTap: _toggleWhiteNoise,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('白噪音', style: context.appText.body),
+                    const SizedBox(width: 8),
+                    // #167：来源切换（跟随场景 / 全局播放）
+                    _WhiteNoiseSourceToggle(
+                      follows: ref.watch(whiteNoiseFollowsSceneProvider),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -130,7 +130,10 @@ class _PlaybackIconButtonState extends ConsumerState<PlaybackIconButton> {
     if (widget.tooltip != null) {
       btn = Tooltip(message: widget.tooltip!, child: btn);
     }
-    return btn;
+    // ⚠️ 透明 Material 兜底：InkWell 需要 Material 祖先，若本组件被放进
+    // Overlay/Hero 等无 Material 的环境会崩（debug 断言）。透明 Material
+    // 不改变视觉与命中，纯作祖先兜底——M2 集成测试 render 用。
+    return Material(type: MaterialType.transparency, child: btn);
   }
 }
 
