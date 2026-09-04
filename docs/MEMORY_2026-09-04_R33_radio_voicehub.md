@@ -342,3 +342,22 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   可代理网页/下载/Raw/API；git clone 也可走
   `git clone https://gh.245959623.xyz/WuMengAA/xingli_music.git`
   （raw.githubusercontent 被墙时下载资产走此代理）
+
+## 持续自主修复循环（2026-09-04，cl08 发布 4e590c3）
+用户要求「就不能一直修吗」——持续主动审计修复，不等报 bug。本轮（cl08）修复 9 项：
+- **OTA 下载（552b87b/451b623）**：候选源列表主源→镜像代理 gh.245959623.xyz 重试
+  （`_download` 接受 List 候选逐个试）；下载前删残留、校验失败/下载失败清坏文件
+- **SMTC 网络封面（dea68a9）**：临时目录泄漏——原每首都 `createTempSync` 新建目录
+  从不清理 → 改固定 `smtc_art` 目录 + URL hash 文件名 + 缓存上限 8 淘汰最旧
+- **Provider 自动加载（977a272/28545f6）**：weather/calendar/classisland 三个
+  provider 首 watch 时 `microtask(load)`——工具面板/主页今日行冷启动即显示，
+  不必先进各页；页面 initState 的手动 load 删除（避免重复请求）
+- **天气 JSON 空安全（977a272）**：`data['current'] as Map` 在结构异常时抛强转
+  → 缺失时降级报"数据异常"不清旧数据
+- **集控 _respond 防双写（9b327de）**：`_route` 内部已回包后再抛异常会 double-close
+  → 响应头已设置则直接忽略
+- **ClassIsland 配置输入被清（8f8966d）**：`_configCard` 在 build 里给 controller
+  赋值，任何 rebuild（如进度刷新）清空用户输入 → 改 initState `microtask` 预填
+- **发布**：cl08 Release 4 资产 + gh-pages manifest（build=8）
+- **Issue 规范**：新问题开 issue（#2 歌单报错/#3 天气添加查询已修；将来修复完
+  更新 issue 状态）
