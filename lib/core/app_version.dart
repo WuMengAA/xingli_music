@@ -451,7 +451,10 @@ abstract final class AppVersion {
 /// 重试 + 下载残留清理、SMTC 网络封面临时目录泄漏、天气 JSON 空安全、
 /// 天气/日历/ClassIsland provider 首 watch 自动加载、集控响应防双写、
 /// 工具面板输入不被 rebuild 清空。
-static const int buildCount = 8;
+/// buildCount 8→9（0.26.9.3_beta_cl09）：VoiceHub 对接闭环——客户端(songs/
+/// schedules/request)+点歌/排期展示+网易云/B站通道播放+登录 cookie 点歌提交
+/// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
+static const int buildCount = 9;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -516,6 +519,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.3',
+    cl: 'beta_cl09',
+    title: 'VoiceHub 校园广播站点歌对接闭环',
+    details: <String>[
+      'VoiceHub 接入：/api/open/songs+schedules 点歌/排期拉取、热度/投稿人/封面字段对齐真实页面',
+      '播放一条龙：网易云（netease://song）与 B站（bilibili://video）通道，未登录明确提示',
+      '点歌提交：配置 VoiceHub 登录 cookie 后一键投稿（自动刷新列表）',
+      '探索页 + 设置页双入口；播放控件 InkWell Material 兜底 ×6',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.3',
     cl: 'beta_cl08',
