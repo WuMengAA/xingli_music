@@ -11,6 +11,8 @@ import '../../providers/scene/scene_providers.dart';
 import '../../providers/session/session_providers.dart';
 import '../../providers/settings/performance_providers.dart';
 import '../../providers/sources/bilibili_provider.dart';
+import '../../providers/tools/calendar_provider.dart';
+import '../../providers/tools/weather_provider.dart';
 import '../../providers/voxel/world_audio_provider.dart';
 import '../../core/motion/motion.dart';
 import '../../widgets/card_stack.dart';
@@ -19,9 +21,7 @@ import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/scene/voxel_scene_background.dart';
 import '../../widgets/scene/scene_video_background.dart';
 import '../../pages/scene/custom_scene_edit_page.dart';
-import '../../pages/tools/calendar_page.dart';
-import '../../pages/tools/classisland_page.dart';
-import '../../pages/tools/weather_page.dart';
+import '../../pages/tools/tools_panel_page.dart';
 import '../../pages/world/world_page.dart';
 import '../../widgets/common/scene_eval_sheet.dart';
 
@@ -91,28 +91,13 @@ class HomeSceneContent extends ConsumerWidget {
           tooltip: '场景评估',
           onTap: () => _showEvalSheet(context, ref),
         ),
-        // R33：星璃天气——Open-Meteo 实时 + 7 日预报。
+        // R33：工具面板——天气/日历/ClassIsland 整合归类单入口
+        // （原三个独立图标收敛为一个，面板内嵌迷你卡直达详情）。
         _SceneIconButton(
-          icon: Icons.wb_sunny_outlined,
-          tooltip: '天气',
+          icon: Icons.grid_view_outlined,
+          tooltip: '工具',
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
-          ),
-        ),
-        // R33：星璃日历——月视图 + 事件管理 + 节日标注。
-        _SceneIconButton(
-          icon: Icons.calendar_month_outlined,
-          tooltip: '日历',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
-          ),
-        ),
-        // R33：ClassIsland 集控联动——课表/时间表展示 + 播放状态上报。
-        _SceneIconButton(
-          icon: Icons.school_outlined,
-          tooltip: 'ClassIsland 联动',
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const ClassIslandPage()),
+            MaterialPageRoute<void>(builder: (_) => const ToolsPanelPage()),
           ),
         ),
       ],
@@ -189,6 +174,11 @@ class HomeSceneContent extends ConsumerWidget {
                           fontWeight: FontWeight.w700,
                           color: c.textPrimary,
                         ),
+                      ),
+                      const SizedBox(height: 2),
+                      // 今日信息行：星期 · 农历 · 天气（信息密度↑，即开即见）。
+                      _TodayInfoLine(
+                        weather: ref.watch(weatherProvider),
                       ),
                     ],
                   ),
@@ -551,4 +541,42 @@ String _timeGreeting(DateTime now) {
   if (h >= 14 && h < 18) return '下午好，听点什么？';
   if (h >= 18 && h < 23) return '晚上好，听点什么？';
   return '夜深了，听点什么？';
+}
+
+/// 主页今日信息行：星期 · 农历（干支/月日/节日）· 天气摘要。
+/// 复用日历/天气 provider，不发起请求；一行承载多信息（信息密度↑）。
+class _TodayInfoLine extends StatelessWidget {
+  const _TodayInfoLine({required this.weather});
+
+  final WeatherState weather;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    final DateTime now = DateTime.now();
+    final LunarDate lunar = solarToLunar(now);
+
+    final StringBuffer parts = StringBuffer();
+    parts
+      ..write('周${'一二三四五六日'[now.weekday - 1]}')
+      ..write(' · 农历${lunar.monthName}${lunar.dayName}');
+    if (lunar.isFestival) {
+      parts.write(' · ${lunar.festivalName}');
+    }
+    if (weather.city != null && weather.current != null) {
+      parts.write(' · ${weather.city!.name} '
+          '${weather.current!.temperature.round()}°'
+          ' ${weatherMeta(weather.current!.weatherCode).icon}');
+    }
+
+    return Text(
+      parts.toString(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: context.appText.caption.copyWith(
+        fontSize: 11,
+        color: c.textTertiary,
+      ),
+    );
+  }
 }
