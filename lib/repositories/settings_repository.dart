@@ -224,8 +224,9 @@ class SettingsRepository {
       _prefs.setInt(kLodStepChunks, v);
 
   /// P6·R26r18：LOD 质量档位（int 索引持久化；R26r33 默认 off，见性能 provider）。
-  LodQuality get lodQuality =>
-      LodQuality.values[_prefs.getInt(kLodQuality) ?? LodQuality.off.index];
+  LodQuality get lodQuality => LodQuality.values[
+      (_prefs.getInt(kLodQuality) ?? LodQuality.off.index)
+          .clamp(0, LodQuality.values.length - 1)];
   Future<void> setLodQuality(LodQuality v) =>
       _prefs.setInt(kLodQuality, v.index);
 
