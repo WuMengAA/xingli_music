@@ -133,10 +133,13 @@ class CalendarNotifier extends StateNotifier<List<CalendarEvent>> {
       state.where((e) => e.date.year == year && e.date.month == month).toList();
 }
 
+/// 日历 provider（首次 watch 自动加载——工具面板事件计数无需先进日历页）。
 final calendarProvider =
-    StateNotifierProvider<CalendarNotifier, List<CalendarEvent>>(
-  (ref) => CalendarNotifier(),
-);
+    StateNotifierProvider<CalendarNotifier, List<CalendarEvent>>((ref) {
+  final CalendarNotifier n = CalendarNotifier();
+  Future<void>.microtask(n.load);
+  return n;
+});
 
 // ════════════════════════════════════════════════════════════════════════
 // 农历（Lunar）转换 · 标准农历数据表 1900–2100

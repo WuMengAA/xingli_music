@@ -365,7 +365,11 @@ class WeatherNotifier extends StateNotifier<WeatherState> {
   }
 }
 
+/// 天气 provider（首次 watch 自动加载默认城市——主页今日信息行/工具面板等
+/// 只读页面也能显示，不必先进天气页）。
 final weatherProvider =
-    StateNotifierProvider<WeatherNotifier, WeatherState>(
-  (ref) => WeatherNotifier(),
-);
+    StateNotifierProvider<WeatherNotifier, WeatherState>((ref) {
+  final WeatherNotifier n = WeatherNotifier();
+  Future<void>.microtask(n.loadDefault);
+  return n;
+});
