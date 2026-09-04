@@ -394,5 +394,16 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
     **点歌点击即播**：网易云曲目 `netease://song/<musicId>` 占位 URI 走既有解析链
 - **测试**：test/voicehub_client_test.dart 5/5（songs/schedules 解析含嵌套、
   401 认证失败、submitSong 成功/未登录、请求体字段对齐）
-- **待办**：①VoiceHub 登录（cookie/OAuth）让 submitSong 可用 ②B站 CID 解析对齐
-  ③设置页入口（目前只在探索页）
+- **完成闭环（897797a/26430cc）**：
+  - **点歌提交**：配置卡加「登录 cookie」输入（浏览器登录 VoiceHub 后复制，
+    `voicehub.cookie` 持久化）；点歌列表 trailing「点歌」按钮 → provider
+    `submitSong`（未配 cookie 明确报错；成功自动 refresh）
+  - **网易云播放**：`sourceId='netease'`（`buildStreamResolver` 按 sourceId
+    反查源，`voicehub:xxx` 找不到源就会回落默认分支播不了——曾因此只见本地
+    列表）；需先登录网易云（`NeteaseSource.enabled && api.isLoggedIn`）
+  - **B站播放**：VoiceHub 曲目 `musicId` 即 bvid（可能带 `:cid` 后缀，
+    `split(':')` 截断）→ `bilibili://video/<bvid>` 占位 URI + `sourceId=
+    'bilibili'` + extras.bvid；需先登录哔哩哔哩
+  - **设置页入口（180b37e）**：内容服务地址同区新增「VoiceHub 点歌」，点击
+    直达；探索页也有 `_UtilityItem` 入口（两处）
+- **遗留**：B站源 `resolveStreamUrl` 需 `_fetchCid(bvid)`（bvid→cid 转换）
