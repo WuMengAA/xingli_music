@@ -14,7 +14,8 @@
 ///   play / pause    → 播放 / 暂停（payload 可省略）
 ///   notice          → 应用内横幅通知 { payload:{ text } }
 ///
-/// 安全性：仅绑定 127.0.0.1（本机），不对外网开放；无鉴权（本机信任边界）。
+/// 安全性：仅绑定 127.0.0.1（本机），不对外网开放；可选鉴权——配置 token 后
+/// 请求需带 `X-Control-Token` 头（未配置 = 免鉴权本机信任边界）。
 /// ════════════════════════════════════════════════════════════════════════
 library;
 
@@ -24,6 +25,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/tools/weather_provider.dart';
@@ -35,6 +37,10 @@ const int kControlPort = 43218;
 /// 在 app 根 MaterialApp 注入 navigatorKey 时生效）。
 final GlobalKey<ScaffoldMessengerState> kControlMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
+
+/// 集控鉴权：请求头 `X-Control-Token` 需匹配本机配置的 token（未配置则免鉴权）。
+const String kControlTokenHeader = 'X-Control-Token';
+const String _kTokenPrefsKey = 'control.token';
 
 /// 集控服务状态（是否已监听 + 端口）。
 class ControlServerState {
@@ -58,17 +64,35 @@ class ControlServer {
   HttpServer? _server;
   bool _running = false;
   String _error = '';
+  String _token = '';
   WidgetRef? _ref;
 
   bool get running => _running;
   int get port => kControlPort;
   String get error => _error;
 
+  /// 当前鉴权 token（空 = 未启用鉴权）。集控端请求需带 `X-Control-Token`。
+  String get token => _token;
+
+  /// 设置鉴权 token 并持久化（空串 = 关闭鉴权）。
+  Future<void> setToken(String value) async {
+    _token = value.trim();
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kTokenPrefsKey, _token);
+  }
+
+  /// 启动时恢复鉴权 token。
+  Future<void> _loadToken() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(_kTokenPrefsKey) ?? '';
+  }
+
   /// 启动服务并挂上 Riverpod 引用（处理命令用）。
   /// 可在 app 启动后（ProviderScope 就绪）调用；幂等。
   Future<void> start(WidgetRef ref) async {
     _ref = ref;
     if (_running) return;
+    await _loadToken();
     try {
       _server = await HttpServer.bind(InternetAddress.loopbackIPv4,
           kControlPort, shared: true);
@@ -89,6 +113,12 @@ class ControlServer {
 
   Future<void> _handle(HttpRequest req) async {
     try {
+      // 鉴权：配置了 token 时校验请求头，避免本机其它进程乱调集控接口。
+      if (_token.isNotEmpty &&
+          req.headers.value(kControlTokenHeader) != _token) {
+        _respond(req, 401, '{"ok":false,"error":"unauthorized"}');
+        return;
+      }
       if (req.method == 'POST' &&
           req.uri.path == '/api/control') {
         final String body = await utf8.decoder.bind(req).join();

@@ -10,6 +10,8 @@
 /// ════════════════════════════════════════════════════════════════════════
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,12 +30,14 @@ class ClassIslandPage extends ConsumerStatefulWidget {
 class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
   late final TextEditingController _urlCtrl;
   late final TextEditingController _classCtrl;
+  late final TextEditingController _tokenCtrl;
 
   @override
   void initState() {
     super.initState();
     _urlCtrl = TextEditingController();
     _classCtrl = TextEditingController();
+    _tokenCtrl = TextEditingController();
     Future<void>.delayed(
         Duration.zero, () => ref.read(classislandProvider.notifier).load());
   }
@@ -42,6 +46,7 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
   void dispose() {
     _urlCtrl.dispose();
     _classCtrl.dispose();
+    _tokenCtrl.dispose();
     super.dispose();
   }
 
@@ -144,8 +149,73 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
               '动作：report / set_weather / set_volume / play / pause / notice',
               style: c.textTertiary.style(fontSize: 11),
             ),
+            const SizedBox(height: 10),
+            // 鉴权 token 状态 + 设置入口。
+            Row(
+              children: <Widget>[
+                Icon(
+                  svc.token.isEmpty
+                      ? Icons.lock_open_outlined
+                      : Icons.lock_outline,
+                  size: 16,
+                  color: svc.token.isEmpty ? c.textTertiary : c.accent,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    svc.token.isEmpty ? '未启用鉴权' : '鉴权已启用',
+                    style: c.textSecondary.style(fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => _setToken(svc),
+                  child: Text(
+                    svc.token.isEmpty ? '设置' : '修改',
+                    style: TextStyle(color: c.accent, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// 设置集控鉴权 token（空串 = 关闭）。
+  Future<void> _setToken(ControlServer svc) async {
+    _tokenCtrl.text = svc.token;
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext dctx) => AlertDialog(
+        title: const Text('集控鉴权 token'),
+        content: TextField(
+          controller: _tokenCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: '留空 = 关闭鉴权',
+            helperText: '集控端请求需带 X-Control-Token 头',
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dctx).pop(_tokenCtrl.text.trim()),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (result == null || !mounted) return;
+    unawaited(svc.setToken(result));
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.isEmpty ? '已关闭鉴权' : '鉴权 token 已保存'),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
