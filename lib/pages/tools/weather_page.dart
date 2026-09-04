@@ -28,14 +28,6 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
   List<WeatherCity> _results = const <WeatherCity>[];
 
   @override
-  void initState() {
-    super.initState();
-    // 启动时加载默认城市（无城市则静默）。
-    Future<void>.delayed(Duration.zero,
-        () => ref.read(weatherProvider.notifier).loadDefault());
-  }
-
-  @override
   void dispose() {
     _q.dispose();
     super.dispose();

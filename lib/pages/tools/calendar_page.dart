@@ -31,8 +31,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     super.initState();
     final DateTime now = DateTime.now();
     _shown = DateTime(now.year, now.month);
-    Future<void>.delayed(
-        Duration.zero, () => ref.read(calendarProvider.notifier).load());
+    // 事件加载由 calendarProvider 首 watch 自动完成（无需手动 load）。
   }
 
   void _shift(int delta) {

@@ -38,8 +38,15 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
     _urlCtrl = TextEditingController();
     _classCtrl = TextEditingController();
     _tokenCtrl = TextEditingController();
-    Future<void>.delayed(
-        Duration.zero, () => ref.read(classislandProvider.notifier).load());
+    // 配置填充与加载统一放这里：不能用 build 里给 controller 赋值
+    // （每次 rebuild 会把用户正输入的文本清空 —— cl07 bug）。
+    // 配置加载由 classislandProvider 首 watch 自动完成，这里只预填当前值。
+    Future<void>.microtask(() {
+      if (!mounted) return;
+      final ClassIslandState s = ref.read(classislandProvider);
+      _urlCtrl.text = s.baseUrl;
+      _classCtrl.text = s.classId;
+    });
   }
 
   @override
@@ -308,8 +315,6 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
   }
 
   Widget _configCard(AppThemeColors c, ClassIslandState s) {
-    _urlCtrl.text = s.baseUrl;
-    _classCtrl.text = s.classId;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
