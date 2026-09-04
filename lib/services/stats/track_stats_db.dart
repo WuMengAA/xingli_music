@@ -1,4 +1,4 @@
-﻿/// 鍏ㄥ眬鎾斁缁熻 / 鏀惰棌 / 姝屽崟 / 鍚瓕鍘嗗彶 鐨?SQLite 鏁版嵁灞傦紙cl46锛夈€?
+/// 鍏ㄥ眬鎾斁缁熻 / 鏀惰棌 / 姝屽崟 / 鍚瓕鍘嗗彶 鐨?SQLite 鏁版嵁灞傦紙cl46锛夈€?
 ///
 /// 鍗曟枃浠?`music_stats.db`锛堝簲鐢ㄦ枃妗ｇ洰褰曪級鎵胯浇浜斿紶琛細
 /// - `play_stats`锛氬崟鏇叉挱鏀炬鏁颁笌绱鏃堕暱锛堟敹褰曚俊鎭?/ 鎺掕姒滄暟鎹簮锛?
@@ -419,20 +419,21 @@ class TrackStatsDb {
       {PlaylistSortMode sortMode = PlaylistSortMode.manual}) async {
     final Database db = await database;
     final String orderBy = switch (sortMode) {
-      PlaylistSortMode.manual => 'sort_index ASC, added_at ASC',
-      PlaylistSortMode.titleAsc => 'title COLLATE NOCASE ASC',
-      PlaylistSortMode.titleDesc => 'title COLLATE NOCASE DESC',
-      PlaylistSortMode.playCountDesc => 'play_count DESC',
-      PlaylistSortMode.addedDesc => 'added_at DESC',
-    };
-    final String sortJoin = switch (sortMode) {
-      PlaylistSortMode.playCountDesc =>
-        'LEFT JOIN play_stats s ON s.track_key = t.track_key',
-      _ => '',
+      PlaylistSortMode.manual => 't.sort_index ASC, t.added_at ASC',
+      PlaylistSortMode.titleAsc => 's.title COLLATE NOCASE ASC',
+      PlaylistSortMode.titleDesc => 's.title COLLATE NOCASE DESC',
+      PlaylistSortMode.playCountDesc => 's.play_count DESC',
+      PlaylistSortMode.addedDesc => 't.added_at DESC',
     };
     final List<Map<String, dynamic>> rows = await db.rawQuery(
-      'SELECT t.*, $sortJoin '
-      'FROM playlist_tracks t $sortJoin WHERE t.playlist_id = ? ORDER BY $orderBy',
+      // ⚠️ 修复：playlist_tracks 只存 playlist_id/track_key/sort_index/added_at，
+      // 必须 LEFT JOIN play_stats 取 title/artist/source_id/play_count；
+      // COALESCE 兜底未播过的歌单曲（play_stats 无行 → NULL 列防崩）。
+      'SELECT t.*, COALESCE(s.title, t.track_key) AS title, '
+      's.artist, s.source_id, s.play_count '
+      'FROM playlist_tracks t '
+      'LEFT JOIN play_stats s ON s.track_key = t.track_key '
+      'WHERE t.playlist_id = ? ORDER BY $orderBy',
       <Object>[playlistId],
     );
     return rows.map(PlaylistTrack.fromRow).toList();

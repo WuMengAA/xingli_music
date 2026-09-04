@@ -41,17 +41,6 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
     super.dispose();
   }
 
-  Future<void> _search(String q) async {
-    setState(() => _searching = true);
-    final List<WeatherCity> r =
-        await ref.read(weatherProvider.notifier).search(q);
-    if (!mounted) return;
-    setState(() {
-      _results = r;
-      _searching = false;
-    });
-  }
-
   Future<void> _pickCity(WeatherCity city) async {
     await ref.read(weatherProvider.notifier).setDefaultCity(city);
     if (!mounted) return;
@@ -59,32 +48,6 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
       _results = const <WeatherCity>[];
       _q.clear();
     });
-  }
-
-  /// 自动定位（IP 定位）：成功设默认城市并刷新，失败提示。
-  Future<void> _locate() async {
-    setState(() => _locating = true);
-    final WeatherCity? city =
-        await ref.read(weatherProvider.notifier).locate();
-    if (!mounted) return;
-    setState(() => _locating = false);
-    if (city == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('定位失败（可能网络受限），请手动搜索城市'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-    await _pickCity(city);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已定位到 ${city.label}'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -244,83 +207,134 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (BuildContext sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('搜索城市', style: c.textPrimary.style(fontSize: 16, w700: true)),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _q,
-              autofocus: true,
-              onSubmitted: _search,
-              decoration: InputDecoration(
-                hintText: '输入城市名（支持中文）',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _searching
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 10),
-            // 自动定位（IP 定位，无权限弹窗）。
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                onPressed: _locate,
-                icon: const Icon(Icons.my_location, size: 16),
-                label: Text(
-                  _locating ? '定位中…' : '自动定位当前城市',
-                  style: const TextStyle(fontSize: 13),
+      // ⚠️ 必须用 StatefulBuilder：showModalBottomSheet 的 builder 是独立路由，
+      // 页面 setState 不会重建它——否则搜索结果永远不显示（天气无法添加查询 bug）。
+      builder: (BuildContext sheetContext) => StatefulBuilder(
+        builder: (BuildContext sheetCtx, StateSetter setSheet) {
+          Future<void> doSearch(String q) async {
+            setSheet(() => _searching = true);
+            final List<WeatherCity> r =
+                await ref.read(weatherProvider.notifier).search(q);
+            if (!sheetCtx.mounted) return;
+            setSheet(() {
+              _results = r;
+              _searching = false;
+            });
+          }
+
+          Future<void> doLocate() async {
+            setSheet(() => _locating = true);
+            final WeatherCity? city =
+                await ref.read(weatherProvider.notifier).locate();
+            if (!sheetCtx.mounted) return;
+            setSheet(() => _locating = false);
+            if (city == null) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('定位失败（可能网络受限），请手动搜索城市'),
+                  duration: Duration(seconds: 2),
                 ),
+              );
+              return;
+            }
+            await ref
+                .read(weatherProvider.notifier)
+                .setDefaultCity(city);
+            if (!sheetCtx.mounted) return;
+            Navigator.of(sheetContext).pop();
+            if (!mounted) return;
+            setState(() {
+              _results = const <WeatherCity>[];
+              _q.clear();
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('已定位到 ${city.label}'),
+                duration: const Duration(seconds: 2),
               ),
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16,
             ),
-            const SizedBox(height: 10),
-            if (_results.isNotEmpty)
-              SizedBox(
-                height: 240,
-                child: ListView.builder(
-                  itemCount: _results.length,
-                  itemBuilder: (BuildContext context, int i) {
-                    final WeatherCity city = _results[i];
-                    return ListTile(
-                      dense: true,
-                      title: Text(city.label,
-                          style: c.textPrimary.style(fontSize: 14)),
-                      subtitle: Text(city.country,
-                          style: c.textSecondary.style(fontSize: 12)),
-                      trailing: const Icon(Icons.add_location_alt_outlined,
-                          size: 18),
-                      onTap: () {
-                        Navigator.of(sheetContext).pop();
-                        _pickCity(city);
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text('搜索城市', style: c.textPrimary.style(fontSize: 16, w700: true)),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _q,
+                  autofocus: true,
+                  onSubmitted: doSearch,
+                  decoration: InputDecoration(
+                    hintText: '输入城市名（支持中文）',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searching
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // 自动定位（IP 定位，无权限弹窗）。
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: doLocate,
+                    icon: const Icon(Icons.my_location, size: 16),
+                    label: Text(
+                      _locating ? '定位中…' : '自动定位当前城市',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_results.isNotEmpty)
+                  SizedBox(
+                    height: 240,
+                    child: ListView.builder(
+                      itemCount: _results.length,
+                      itemBuilder: (BuildContext context, int i) {
+                        final WeatherCity city = _results[i];
+                        return ListTile(
+                          dense: true,
+                          title: Text(city.label,
+                              style: c.textPrimary.style(fontSize: 14)),
+                          subtitle: Text(city.country,
+                              style: c.textSecondary.style(fontSize: 12)),
+                          trailing: const Icon(Icons.add_location_alt_outlined,
+                              size: 18),
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            _pickCity(city);
+                          },
+                        );
                       },
-                    );
-                  },
-                ),
-              )
-            else if (!_searching)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('输入城市名后回车搜索，或点上方自动定位',
-                    style: c.textTertiary.style(fontSize: 12)),
-              ),
-          ],
-        ),
+                    ),
+                  )
+                else if (!_searching)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('输入城市名后回车搜索，或点上方自动定位',
+                        style: c.textTertiary.style(fontSize: 12)),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
