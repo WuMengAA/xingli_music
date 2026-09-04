@@ -209,6 +209,9 @@ class ControlServer {
   }
 
   void _respond(HttpRequest req, int code, String body) {
+    // 防双写：若响应已关闭（例如 _route 内部已回包后又抛异常），直接忽略，
+    // 避免 double-close 抛错把 500 响应变成连接错误。
+    if (req.response.headers.contentType != null) return;
     req.response
       ..statusCode = code
       ..headers.contentType = ContentType.json
