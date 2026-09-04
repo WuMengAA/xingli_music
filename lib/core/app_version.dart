@@ -447,7 +447,11 @@ abstract final class AppVersion {
 /// 天气自动定位/SMTC 网络封面/播放页大封面/ip 定位降级）。
 /// buildCount 6→7（0.26.9.3_beta_cl07）：修歌单报错（JOIN 取元数据+未播曲
 /// 兜底）+ 修天气城市管理无法添加查询（面板本地刷新）+ 曲库顶部工具快捷入口。
-static const int buildCount = 7;
+/// buildCount 7→8（0.26.9.3_beta_cl08）：持续修复一批——OTA 下载镜像代理
+/// 重试 + 下载残留清理、SMTC 网络封面临时目录泄漏、天气 JSON 空安全、
+/// 天气/日历/ClassIsland provider 首 watch 自动加载、集控响应防双写、
+/// 工具面板输入不被 rebuild 清空。
+static const int buildCount = 8;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -512,6 +516,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.3',
+    cl: 'beta_cl08',
+    title: '持续修复一批（OTA 镜像重试 / 自动加载 / 输入保护）',
+    details: <String>[
+      'OTA 下载：主源失败自动切代理镜像（gh.245959623.xyz），下载前清残留、校验失败清坏文件',
+      'SMTC 网络封面不再每首都建临时目录（固定目录 + 缓存上限淘汰）',
+      '天气/日历/ClassIsland 首次打开即自动加载（工具面板/主页今日行冷启动可见）',
+      '集控响应防双写、天气数据异常不崩、输入框不被重建清空',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.3',
     cl: 'beta_cl07',
