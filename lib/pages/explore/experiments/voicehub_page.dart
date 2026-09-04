@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme_colors.dart';
 import '../../../models/track.dart';
 import '../../../providers/audio/playback_notifier.dart';
+import '../../../providers/sources/netease_provider.dart';
 import '../../../providers/voicehub/voicehub_provider.dart';
 import '../../../services/voicehub/voicehub_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
@@ -119,7 +120,7 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
                   TextField(
                     controller: _urlCtrl,
                     decoration: const InputDecoration(
-                      hintText: 'https://voicehub.example.com',
+                      hintText: 'https://voicehub.245959623.xyz',
                       isDense: true,
                     ),
                   ),
@@ -314,6 +315,17 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
   Future<void> _playSong(VoiceHubSong song) async {
     final String platform = song.platform.toLowerCase();
     if (platform.contains('netease') && song.musicId.isNotEmpty) {
+      // ⚠️ 网易云源 enabled = 登录态（NeteaseSource.enabled && api.isLoggedIn）；
+      // 未登录时占位 URI 解析拿不到地址 → 播不了（只见本地列表）。
+      if (!ref.read(neteaseAuthProvider).isLoggedIn) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('播放网易云曲目需先登录网易云（设置 → 账号）'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
       final String msg = await ref
           .read(playbackActionsProvider)
           .playTrack(
@@ -322,7 +334,11 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               artist: song.artist,
               uri: 'netease://song/${song.musicId}',
               source: TrackSource.stream,
-              sourceId: 'voicehub:${song.id}',
+              // ⚠️ 必须对齐网易云源 id 'netease'：buildStreamResolver 按
+              // sourceId 在 activeSourcesProvider 里反查源做懒解析；
+              // 用 'voicehub:xxx' 找不到源 → 回落默认分支 → 播不了
+              //（只能播本地列表的直接原因）。
+              sourceId: 'netease',
               extras: <String, dynamic>{'coverUrl': song.coverUrl},
             ),
           );
