@@ -305,3 +305,21 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
 - **注意**：`ClassIslandNotifier.instance.state` 直接访问会触发 lint
   （invalid_use_of_visible_for_testing_member）——面板/页面读状态一律
   `ref.watch(classislandProvider)`（StateNotifierProvider 委托单例）
+
+## cl06 发布 + 后续可做项全落地（2026-09-03，6cf16be）
+- **版本**：buildCount 5→6（0.26.9.3_beta_cl06）；pubspec +116→+117（versionCode）；
+  **gradle versionName 曾过期**（0.26.8.31_beta_cl03 → 0.26.9.3_beta_cl06，发版必同步）
+- **后续可做项落地**：
+  - 播放页大封面 320→380（沉浸）
+  - IP 定位双源降级：ip-api.com 失败 → ipapi.co（https 备用，`_locateVia` 泛化 parse）
+  - 集控 notice 改走**全局通知弹条**（`appNotifyRef`，右上角 ≤1/3 宽），替代底部
+    SnackBar；移除 `kControlMessengerKey`/`scaffoldMessengerKey`（MaterialApp 干净了）
+  - 工具面板加快捷跳转：最近在听→曲库 Tab、常用设置→设置 Tab
+    （`_jumpToTab`：popUntil 首路由 + `shellPageIndexProvider` 设 Tab）
+  - 曲库列表紧凑化：`_TrackRowCard` 垂直 padding 8→6、行间距 12→8、排行行 16→10
+- **安卓产出（用户问"为什么没有安卓产出"）**：前几轮只验证了 Windows 构建（analyze+
+  build windows），未重建上传 APK——本轮 `flutter build apk --release --split-per-abi`
+  产出 arm64(43.2MB)+arm32(40.7MB)，连同 Windows zip(37MB)+sha256 上传
+  Release `0.26.9.3_beta_cl06`（id 382763961）；gh-pages manifest 更新
+  （API 流程：blob→tree→commit d34d6d3→ref，cl06 仅列 Windows 资产，安卓走 Releases 回退）
+- **发布地址**：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.3_beta_cl06
