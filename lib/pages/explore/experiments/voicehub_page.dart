@@ -179,23 +179,55 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     );
   }
 
+  /// 内容区：点歌 / 排期两个 Tab（排期数据 fetchSchedules 已取，此前未展示）。
   Widget _buildBody(AppThemeColors c, VoiceHubState s) {
     if (!s.config.enabled) {
       return const EmptyView(title: '未配置 VoiceHub', message: '填入服务器地址与 API Key 后点「保存并同步」');
     }
-    if (s.loading && s.songs.isEmpty) {
+    if (s.loading && s.songs.isEmpty && s.schedules.isEmpty) {
       return const LoadingView(label: '同步中…');
     }
     if (s.error.isNotEmpty) {
       return ErrorView(message: s.error, onRetry: () => ref.read(voiceHubProvider.notifier).refresh());
     }
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          TabBar(
+            labelColor: c.accent,
+            unselectedLabelColor: c.textSecondary,
+            indicatorColor: c.accent,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            tabs: <Widget>[
+              Tab(text: '点歌（${s.songs.length}）'),
+              Tab(text: '排期（${s.schedules.length}）'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: <Widget>[
+                _songList(c, s),
+                _scheduleList(c, s),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 点歌列表（关键词搜索优先于同步结果）。
+  Widget _songList(AppThemeColors c, VoiceHubState s) {
     final List<VoiceHubSong> songs =
         _searchResults.isNotEmpty ? _searchResults : s.songs;
     if (songs.isEmpty) {
       return const EmptyView(title: '暂无点歌', message: 'VoiceHub 歌库为空或等待排期');
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       itemCount: songs.length,
       itemBuilder: (BuildContext context, int i) {
         final VoiceHubSong song = songs[i];
@@ -220,6 +252,48 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               style: TextStyle(color: c.textSecondary, fontSize: 12)),
           trailing: song.playCount > 0
               ? Text('${song.playCount} 次',
+                  style: TextStyle(color: c.textTertiary, fontSize: 11))
+              : null,
+        );
+      },
+    );
+  }
+
+  /// 排期列表（按播放日期展示）。
+  Widget _scheduleList(AppThemeColors c, VoiceHubState s) {
+    final List<VoiceHubSchedule> list = s.schedules;
+    if (list.isEmpty) {
+      return const EmptyView(title: '暂无排期', message: 'VoiceHub 暂无播种排期');
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      itemCount: list.length,
+      itemBuilder: (BuildContext context, int i) {
+        final VoiceHubSchedule sch = list[i];
+        return ListTile(
+          dense: true,
+          leading: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: c.bgSurfaceSunken,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.schedule, size: 18, color: c.textSecondary),
+          ),
+          title: Text(sch.songTitle.isEmpty ? '未命名曲目' : sch.songTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: c.textPrimary, fontSize: 14)),
+          subtitle: Text([
+            if (sch.playDate.isNotEmpty) sch.playDate,
+            if (sch.songArtist.isNotEmpty) sch.songArtist,
+          ].join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: c.textSecondary, fontSize: 12)),
+          trailing: sch.status.isNotEmpty
+              ? Text(sch.status,
                   style: TextStyle(color: c.textTertiary, fontSize: 11))
               : null,
         );

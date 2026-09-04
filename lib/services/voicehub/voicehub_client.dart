@@ -95,11 +95,13 @@ class VoiceHubException implements Exception {
 
 /// VoiceHub 客户端（无状态，URL + apiKey 由调用方/provider 提供）。
 class VoiceHubClient {
-  VoiceHubClient({required this.baseUrl, String? apiKey})
-      : _apiKey = apiKey ?? '';
+  VoiceHubClient({required this.baseUrl, String? apiKey, http.Client? client})
+      : _apiKey = apiKey ?? '',
+        _client = client ?? http.Client();
 
   final String baseUrl;
   final String _apiKey;
+  final http.Client _client;
 
   String get _root => baseUrl.replaceAll(RegExp(r'/+$'), '');
 
@@ -166,7 +168,7 @@ class VoiceHubClient {
     String? musicId,
     Map<String, String>? cookies,
   }) async {
-    final http.Response resp = await http
+    final http.Response resp = await _client
         .post(
           Uri.parse('$_root/api/songs/request.post'),
           headers: <String, String>{
@@ -195,8 +197,9 @@ class VoiceHubClient {
 
   /// GET JSON 公共路径：401 → 明确报错；其余非 200 → 通用异常。
   Future<dynamic> _getJson(Uri uri) async {
-    final http.Response resp =
-        await http.get(uri, headers: _headers).timeout(const Duration(seconds: 12));
+    final http.Response resp = await _client
+        .get(uri, headers: _headers)
+        .timeout(const Duration(seconds: 12));
     if (resp.statusCode == 401) {
       throw const VoiceHubException('VoiceHub API 认证失败（API Key 无效或未配置）');
     }
