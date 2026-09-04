@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme_colors.dart';
 import '../../../models/track.dart';
 import '../../../providers/audio/playback_notifier.dart';
+import '../../../providers/sources/bilibili_provider.dart';
 import '../../../providers/sources/netease_provider.dart';
 import '../../../providers/voicehub/voicehub_provider.dart';
 import '../../../services/voicehub/voicehub_client.dart';
@@ -375,8 +376,9 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     );
   }
 
-  /// 播放 VoiceHub 歌曲：网易云走既有 `netease://song/<id>` 占位解析链；
-  /// B站/未知平台暂不支持直接播（VoiceHub 侧 CID 解析未对齐）。
+  /// 播放 VoiceHub 歌曲：网易云走 `netease://song/<id>`、B站走
+  /// `bilibili://video/<bvid>`（musicId 即 bvid，可能带 :cid 后缀需截断）；
+  /// 未知平台明确提示。
   Future<void> _playSong(VoiceHubSong song) async {
     final String platform = song.platform.toLowerCase();
     if (platform.contains('netease') && song.musicId.isNotEmpty) {
@@ -405,6 +407,41 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               //（只能播本地列表的直接原因）。
               sourceId: 'netease',
               extras: <String, dynamic>{'coverUrl': song.coverUrl},
+            ),
+          );
+      if (!mounted) return;
+      if (msg.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+        );
+      }
+      return;
+    }
+    // B站：musicId 即 bvid（BV...，VoiceHub 可能拼 `BV..:cid`，取冒号前）。
+    if (platform.contains('bilibili') && song.musicId.isNotEmpty) {
+      if (!ref.read(bilibiliAuthProvider).isLoggedIn) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('播放 B站曲目需先登录哔哩哔哩（设置 → 账号）'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      final String bvid = song.musicId.split(':').first;
+      final String msg = await ref
+          .read(playbackActionsProvider)
+          .playTrack(
+            Track(
+              title: song.title,
+              artist: song.artist,
+              uri: 'bilibili://video/$bvid',
+              source: TrackSource.stream,
+              sourceId: 'bilibili',
+              extras: <String, dynamic>{
+                'bvid': bvid,
+                'coverUrl': song.coverUrl,
+              },
             ),
           );
       if (!mounted) return;
