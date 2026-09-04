@@ -1103,7 +1103,11 @@ class NetSessionNotifier extends StateNotifier<NetSessionState> {
         .where((it) => it.status == OrderStatus.approved)
         .toList();
     if (oldIndex < 0 || oldIndex >= approved.length) return;
-    final int target = newIndex.clamp(0, approved.length - 1);
+    // ⚠️ newIndex 可能 == length（拖到列表末尾时 ReorderableListView 传入
+    // 越界下标），clamp 到 [0, length-1]，否则 insert 抛 RangeError 崩。
+    final int target = (newIndex < 0)
+        ? 0
+        : (newIndex >= approved.length ? approved.length - 1 : newIndex);
     final OrderItem moved = approved.removeAt(oldIndex);
     approved.insert(target, moved);
     final List<OrderItem> rest = state.orderQueue
