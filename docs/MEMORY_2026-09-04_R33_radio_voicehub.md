@@ -419,3 +419,17 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
 - **发布流程复用**（几次发版沉淀）：zip 平铺 Compress-Archive → Release API 建 ->
   uploads.github.com 传 4 资产 → manifest PUT contents API（base64 + old sha）→
   校验 readback；flutter.bat exit 1 恒为 stderr 镜像误报（看 stderr 里有没有 Built）
+
+## 持续修复 round（2026-09-04，adf2ae5/be88855/b5b1c16）
+主动审计发现的**索引越界崩溃**防崩（网络/持久化/表格输入一律 clamp）：
+- **枚举越界 ×4（adf2ae5/be88855）**：`OrderItem.fromJson`（st）、`orderDecision`
+  消息（decision）、`NetMessage.fromJson`（t，外部包）、`settings_repository.lodQuality`
+  （损坏 prefs）——`Enum.values[...]` 直接索引，越界抛 IndexError 崩；统一
+  `clamp(0, len-1)`；net_message 测试更新为 clamp 行为（9/9）+ relay 26/26
+- **农历越界（b5b1c16）**：`solarToLunar` 对 1900 前/2100 后 offset 越界 →
+  `_cnDays[负]`/`_lunarInfo[>200]` 崩；修复夹紧到表范围 [1900-01-31, 2100-12-31]
+  且日历 `_shift` 限制翻月；加 2 个越界测试（农历 7/7 全过）
+- **审计确认安全**：classisland/voicehub provider（全 try-catch+dispose 定时器）、
+  ControlServer/CastStreamServer/net_node HttpServer（懒启动或 FLUTTER_TEST 守卫）、
+  各 StateNotifier Timer dispose 规范（_posTimer/_reconnectTimer/_tick cancel）、
+  4 个工具 provider 首 watch 自动 load 且页面无重复手动 load
