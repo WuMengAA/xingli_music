@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../pages/explore/experiments/equalizer_page.dart';
+import '../pages/explore/experiments/voicehub_page.dart';
 import '../pages/library/favorites_page.dart';
 import '../pages/library/top_list_page.dart';
 import '../pages/oobe/oobe_page.dart';
@@ -46,6 +47,7 @@ import '../providers/security/cert_policy_provider.dart';
 import '../providers/auth/user_provider.dart';
 import '../providers/sources/netease_provider.dart';
 import '../providers/sources/bilibili_provider.dart';
+import '../providers/voicehub/voicehub_provider.dart';
 import '../services/audio/sources/bilibili/bilibili_api.dart';
 import '../services/audio/sources/bilibili/bilibili_source.dart';
 import '../providers/theme/theme_providers.dart';
@@ -1727,6 +1729,24 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         title: '内容服务地址',
         subtitle: base,
         onTap: () => _editContentBase(context, ref),
+      );
+    },
+  ),
+  // VoiceHub 校园广播站点歌（可选数据源；配置服务器 + API Key）。
+  'voiceHub': SettingItemDef(
+    title: 'VoiceHub 点歌',
+    builder: (context, ref) {
+      final String base =
+          ref.watch(voiceHubProvider).config.baseUrl;
+      return _entry(
+        context,
+        ref,
+        icon: Icons.voice_chat_rounded,
+        title: 'VoiceHub 点歌',
+        subtitle: base.isEmpty ? '配置服务器地址与 API Key' : base,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const VoiceHubPage()),
+        ),
       );
     },
   ),
