@@ -26,20 +26,34 @@ final bool _supported = !kIsWeb && Platform.isWindows;
 MethodChannel? _channel;
 
 /// 网络封面下载缓存：URL → 临时文件路径（避免切歌重复下载）。
+/// 固定目录 + 上限淘汰，防止切歌长时间累积垃圾文件（曾每首都新建目录）。
 final Map<String, String> _artCache = <String, String>{};
+const int _kArtCacheMax = 8;
 
 /// 把网络封面 URL 下载到临时文件（原生侧 SMTC 只接受本地文件路径）。
-/// 返回本地路径；失败/超时返回空串。带内存缓存。
+/// 返回本地路径；失败/超时返回空串。带内存缓存（超出上限淘汰最旧的）。
 Future<String> _downloadArt(String url) async {
   final String? cached = _artCache[url];
-  if (cached != null) return cached;
+  if (cached != null && File(cached).existsSync()) return cached;
   try {
     final http.Response resp =
         await http.get(Uri.parse(url)).timeout(const Duration(seconds: 8));
     if (resp.statusCode != 200 || resp.bodyBytes.isEmpty) return '';
-    final Directory dir = Directory.systemTemp.createTempSync('smtc_art');
-    final String path = '${dir.path}${Platform.pathSeparator}cover.jpg';
-    File(path).writeAsBytesSync(resp.bodyBytes);
+    // 固定目录（launch 参数隔离），文件名按 URL 哈希，避免无界建目录。
+    final Directory dir = Directory(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}smtc_art');
+    if (!dir.existsSync()) dir.createSync(recursive: true);
+    final String path = '${dir.path}${Platform.pathSeparator}'
+        '${url.hashCode.toRadixString(16)}.jpg';
+    File(path).writeAsBytesSync(resp.bodyBytes, flush: true);
+    // 淘汰最旧条目（超出上限）。
+    if (_artCache.length >= _kArtCacheMax) {
+      final String oldest = _artCache.keys.first;
+      final String? oldPath = _artCache.remove(oldest);
+      if (oldPath != null && oldPath != path) {
+        try { File(oldPath).deleteSync(); } catch (_) { /* 忽略 */ }
+      }
+    }
     _artCache[url] = path;
     return path;
   } catch (_) {
