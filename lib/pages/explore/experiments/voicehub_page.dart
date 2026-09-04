@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme_colors.dart';
+import '../../../models/track.dart';
+import '../../../providers/audio/playback_notifier.dart';
 import '../../../providers/voicehub/voicehub_provider.dart';
 import '../../../services/voicehub/voicehub_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
@@ -234,6 +236,7 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
         final int hot = song.voteCount > 0 ? song.voteCount : song.playCount;
         return ListTile(
           dense: true,
+          onTap: () => _playSong(song),
           leading: Container(
             width: 36,
             height: 36,
@@ -303,6 +306,39 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               : null,
         );
       },
+    );
+  }
+
+  /// 播放 VoiceHub 歌曲：网易云走既有 `netease://song/<id>` 占位解析链；
+  /// B站/未知平台暂不支持直接播（VoiceHub 侧 CID 解析未对齐）。
+  Future<void> _playSong(VoiceHubSong song) async {
+    final String platform = song.platform.toLowerCase();
+    if (platform.contains('netease') && song.musicId.isNotEmpty) {
+      final String msg = await ref
+          .read(playbackActionsProvider)
+          .playTrack(
+            Track(
+              title: song.title,
+              artist: song.artist,
+              uri: 'netease://song/${song.musicId}',
+              source: TrackSource.stream,
+              sourceId: 'voicehub:${song.id}',
+              extras: <String, dynamic>{'coverUrl': song.coverUrl},
+            ),
+          );
+      if (!mounted) return;
+      if (msg.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+        );
+      }
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('暂不支持该平台直播（${song.platform.isEmpty ? '未知' : song.platform}）'),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
