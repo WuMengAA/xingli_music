@@ -7,6 +7,10 @@ import '../../core/terms/naming_dict.dart';
 import '../../models/track.dart';
 import '../../models/track_stats.dart';
 import '../../pages/sources/aggregate_search_page.dart';
+import '../../pages/tools/calendar_page.dart';
+import '../../pages/tools/classisland_page.dart';
+import '../../pages/tools/tools_panel_page.dart';
+import '../../pages/tools/weather_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/library/library_view_providers.dart';
@@ -70,7 +74,11 @@ class LibraryPage extends ConsumerWidget {
                 const SizedBox(height: 8),
                 // 四栏切换（歌曲 / 歌单 / 专辑 / 歌手）。
                 const _CategoryTabs(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+                // 工具快捷入口（天气/日历/ClassIsland/工具面板）——
+                // 曲库与新增功能联动：不切页即可直达各工具。
+                const _ToolsQuickRow(),
+                const SizedBox(height: 12),
                 // 当前栏内容。
                 switch (tab) {
                   LibraryTab.tracks => _TracksTab(query: query),
@@ -82,6 +90,72 @@ class LibraryPage extends ConsumerWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 曲库工具快捷入口：天气/日历/ClassIsland/工具面板 ——
+/// 曲库与新增功能联动，不切 Tab 直达各工具。
+class _ToolsQuickRow extends StatelessWidget {
+  const _ToolsQuickRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: <Widget>[
+          _toolChip(context, c, Icons.wb_sunny_outlined, '天气',
+              () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
+                  )),
+          const SizedBox(width: 8),
+          _toolChip(context, c, Icons.calendar_month_outlined, '日历',
+              () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
+                  )),
+          const SizedBox(width: 8),
+          _toolChip(context, c, Icons.school_outlined, 'ClassIsland',
+              () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const ClassIslandPage()),
+                  )),
+          const SizedBox(width: 8),
+          _toolChip(context, c, Icons.grid_view_outlined, '全部工具',
+              () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => const ToolsPanelPage()),
+                  )),
+        ],
+      ),
+    );
+  }
+
+  Widget _toolChip(BuildContext context, AppThemeColors c, IconData icon,
+      String label, VoidCallback onTap) {
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: c.bgSurface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: c.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, size: 14, color: c.accent),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: context.appText.caption
+                      .copyWith(color: c.textSecondary)),
+            ],
+          ),
         ),
       ),
     );
