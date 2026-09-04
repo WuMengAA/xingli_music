@@ -323,3 +323,22 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   Release `0.26.9.3_beta_cl06`（id 382763961）；gh-pages manifest 更新
   （API 流程：blob→tree→commit d34d6d3→ref，cl06 仅列 Windows 资产，安卓走 Releases 回退）
 - **发布地址**：https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.3_beta_cl06
+
+## Bug 修复 + 曲库联动（2026-09-03/04，4a00604/5c760c8）
+- **歌单报错根因**：`track_stats_db.playlistTracks` 原 SQL `SELECT t.*` 只取
+  `playlist_tracks` 四列（playlist_id/track_key/sort_index/added_at），但
+  `PlaylistTrack.fromRow` 读 title/artist/source_id → **必然报错**。修复：
+  LEFT JOIN `play_stats`（按 track_key）取元数据 + `COALESCE(s.title, t.track_key)`
+  兜底未播过的歌单曲（play_stats 无行防 NULL）；orderBy 全部加表限定
+  （s.title/s.play_count/t.sort_index 等）。**教训：JOIN 查询的 SELECT 列必须
+  覆盖 fromRow 所需字段**
+- **天气无法添加查询根因**：`showModalBottomSheet` 的 builder 是**独立路由**，
+  页面 `setState` 不重建已弹出的 modal sheet → 搜索结果/定位状态永远不显示。
+  修复：sheet 内用 `StatefulBuilder` + `setSheet` 本地刷新（doSearch/doLocate），
+  await 后按 `sheetCtx.mounted` / State `mounted` 分别守卫
+- **曲库-工具联动（5c760c8）**：曲库页分类切换条下新增 `_ToolsQuickRow`——
+  天气/日历/ClassIsland/全部工具 四个胶囊图标入口，不切 Tab 直达工具页
+- **GitHub 代理域名（用户提供）**：`https://gh.245959623.xyz/WuMengAA/xingli_music`
+  可代理网页/下载/Raw/API；git clone 也可走
+  `git clone https://gh.245959623.xyz/WuMengAA/xingli_music.git`
+  （raw.githubusercontent 被墙时下载资产走此代理）
