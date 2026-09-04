@@ -1,67 +1,77 @@
 {
-    "assets":  {
-                   "0.26.9.3_beta_cl05":  {
-                                              "windows":  {
-                                                              "x64":  {
-                                                                          "sha256":  "b33f869f8a66c052163e01d7b3626b1a125af3e696f866545bd17f4a09a6d1f7",
-                                                                          "name":  "xingli_music_windows_x64.zip",
-                                                                          "size":  38732776
-                                                                      }
-                                                          }
-                                          },
-                   "0.26.8.31_beta_cl03":  {
-                                               "android":  {
-                                                               "arm64-v8a":  {
-                                                                                 "sha256":  "4b428d7e12253b92aed49c89120deb12395a1cd4483926a7d35f71c5a6a03af6",
-                                                                                 "name":  "app-arm64-v8a-release.apk",
-                                                                                 "size":  45543027
-                                                                             },
-                                                               "armeabi-v7a":  {
-                                                                                   "sha256":  "e5538029564393bff9cb627642355ac0ebfe286b1d74efb7563fe67a49c4f9e8",
-                                                                                   "name":  "app-armeabi-v7a-release.apk",
-                                                                                   "size":  42919361
-                                                                               }
-                                                           },
-                                               "windows":  {
-                                                               "x64":  {
-                                                                           "sha256":  "b14ed449449289efab132b6967c6a869c6b79877052a68a56b71478cf2c27a41",
-                                                                           "name":  "xingli_music_windows_x64.zip",
-                                                                           "size":  38664541
-                                                                       }
-                                                           }
-                                           },
-                   "0.26.8.31_beta_cl01":  {
-                                               "android":  {
-                                                               "arm64-v8a":  {
-                                                                                 "sha256":  "c5c82952a27e38b5cacb97239b46087b54b9d91f603618de5aac4a80c4bbacb1",
-                                                                                 "name":  "app-arm64-v8a-release.apk",
-                                                                                 "size":  44878711
-                                                                             },
-                                                               "armeabi-v7a":  {
-                                                                                   "sha256":  "d3376f0b1ccc6cde4541ca42d7662f6952a4a6e3599837a5dd7a7ecd7a69dd09",
-                                                                                   "name":  "app-armeabi-v7a-release.apk",
-                                                                                   "size":  42271429
-                                                                               }
-                                                           }
-                                           }
-               },
-    "source":  "github-pages",
-    "schema":  1,
-    "channels":  {
-                     "beta":  {
-                                  "latest":  {
-                                                 "hotfix":  null,
-                                                 "build":  5,
-                                                 "dateKey":  260903,
-                                                 "tag":  "0.26.9.3_beta_cl05",
-                                                 "notes":  "R33收尾全量: 多音源切换/排期拖拽/analyze全零/白噪音默认关/OOBE改版/字体背景自适应/回归修复"
-                                             }
-                              }
-                 },
-    "versions":  [
-                     "0.26.9.3_beta_cl05",
-                     "0.26.8.31_beta_cl03",
-                     "0.26.8.31_beta_cl01"
-                 ],
-    "updatedAt":  "2026-09-03T22:10:04+08:00"
+    "assets": {
+        "0.26.9.3_beta_cl06": {
+            "windows": {
+                "x64": {
+                    "sha256": "aff06bcd2c1e16e205792093b05b2871debea145539bc1fbcab13100e59c0b92",
+                    "name": "xingli_music_windows_x64.zip",
+                    "size": 38826978
+                }
+            }
+        },
+        "0.26.9.3_beta_cl05": {
+            "windows": {
+                "x64": {
+                    "sha256": "b33f869f8a66c052163e01d7b3626b1a125af3e696f866545bd17f4a09a6d1f7",
+                    "name": "xingli_music_windows_x64.zip",
+                    "size": 38732776
+                }
+            }
+        },
+        "0.26.8.31_beta_cl03": {
+            "android": {
+                "arm64-v8a": {
+                    "sha256": "4b428d7e12253b92aed49c89120deb12395a1cd4483926a7d35f71c5a6a03af6",
+                    "name": "app-arm64-v8a-release.apk",
+                    "size": 45543027
+                },
+                "armeabi-v7a": {
+                    "sha256": "e5538029564393bff9cb627642355ac0ebfe286b1d74efb7563fe67a49c4f9e8",
+                    "name": "app-armeabi-v7a-release.apk",
+                    "size": 42919361
+                }
+            },
+            "windows": {
+                "x64": {
+                    "sha256": "b14ed449449289efab132b6967c6a869c6b79877052a68a56b71478cf2c27a41",
+                    "name": "xingli_music_windows_x64.zip",
+                    "size": 38664541
+                }
+            }
+        },
+        "0.26.8.31_beta_cl01": {
+            "android": {
+                "arm64-v8a": {
+                    "sha256": "c5c82952a27e38b5cacb97239b46087b54b9d91f603618de5aac4a80c4bbacb1",
+                    "name": "app-arm64-v8a-release.apk",
+                    "size": 44878711
+                },
+                "armeabi-v7a": {
+                    "sha256": "d3376f0b1ccc6cde4541ca42d7662f6952a4a6e3599837a5dd7a7ecd7a69dd09",
+                    "name": "app-armeabi-v7a-release.apk",
+                    "size": 42271429
+                }
+            }
+        }
+    },
+    "source": "github-pages",
+    "schema": 1,
+    "channels": {
+        "beta": {
+            "latest": {
+                "hotfix": null,
+                "build": 6,
+                "dateKey": 260903,
+                "tag": "0.26.9.3_beta_cl06",
+                "notes": "功能拓展五件套(SMTC/天气/日历/ClassIsland/集控)+UI选型(Spotify深色)+即开即用优化+后续可做项(鉴权/农历/定位/SMTC封面)"
+            }
+        }
+    },
+    "versions": [
+        "0.26.9.3_beta_cl06",
+        "0.26.9.3_beta_cl05",
+        "0.26.8.31_beta_cl03",
+        "0.26.8.31_beta_cl01"
+    ],
+    "updatedAt": "2026-09-03T23:30:00+08:00"
 }
