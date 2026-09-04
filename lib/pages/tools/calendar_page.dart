@@ -77,12 +77,17 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   Widget _monthHeader(AppThemeColors c) {
+    // 农历年（取该月 1 日的农历干支年）。
+    final LunarDate anchor = solarToLunar(DateTime(_shown.year, _shown.month, 1));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(
         children: <Widget>[
           Text('${_shown.year} 年 ${_shown.month} 月',
               style: c.textPrimary.style(fontSize: 18, w700: true)),
+          const SizedBox(width: 8),
+          Text('${anchor.yearName}年 ${anchor.zodiac}年',
+              style: c.textSecondary.style(fontSize: 12)),
           const Spacer(),
           IconButton(
             icon: const Icon(Icons.chevron_left),
@@ -138,6 +143,9 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         day.month == today.month &&
         day.day == today.day;
     final String holiday = fixedHolidayOf(day);
+    final LunarDate lunar = solarToLunar(day);
+    final String lunarLabel =
+        lunar.isFestival ? lunar.festivalName : lunar.dayName;
     final int eventCount = events
         .where((e) =>
             e.date.year == day.year &&
@@ -173,6 +181,14 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     color: isToday ? Colors.white70 : c.accent,
                     fontSize: 8,
                   ))
+            else if (lunar.isFestival)
+              Text(lunarLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isToday ? Colors.white70 : c.accent,
+                    fontSize: 8,
+                  ))
             else if (eventCount > 0)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -186,7 +202,13 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                 ],
               )
             else
-              const SizedBox(height: 8),
+              Text(lunarLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isToday ? Colors.white70 : c.textTertiary,
+                    fontSize: 8,
+                  )),
           ],
         ),
       ),
@@ -204,6 +226,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       ),
       builder: (BuildContext sheetContext) {
         final String holiday = fixedHolidayOf(day);
+        final LunarDate lunar = solarToLunar(day);
         final List<CalendarEvent> dayEvents =
             ref.read(calendarProvider.notifier).eventsOn(day);
         return StatefulBuilder(
@@ -241,6 +264,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                         }),
                       ),
                     ],
+                  ),
+                  // 农历信息：干支年 / 生肖 / 农历日期（含节日）。
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      '${lunar.yearName}年（${lunar.zodiac}年） · '
+                      '农历${lunar.monthName}${lunar.dayName}'
+                      '${lunar.isFestival ? ' · ${lunar.festivalName}' : ''}',
+                      style: c.textTertiary.style(fontSize: 12),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   if (dayEvents.isEmpty)
