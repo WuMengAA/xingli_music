@@ -23,6 +23,7 @@ class WeatherPage extends ConsumerStatefulWidget {
 
 class _WeatherPageState extends ConsumerState<WeatherPage> {
   bool _searching = false;
+  bool _locating = false;
   final TextEditingController _q = TextEditingController();
   List<WeatherCity> _results = const <WeatherCity>[];
 
@@ -58,6 +59,32 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
       _results = const <WeatherCity>[];
       _q.clear();
     });
+  }
+
+  /// 自动定位（IP 定位）：成功设默认城市并刷新，失败提示。
+  Future<void> _locate() async {
+    setState(() => _locating = true);
+    final WeatherCity? city =
+        await ref.read(weatherProvider.notifier).locate();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    if (city == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('定位失败（可能网络受限），请手动搜索城市'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    await _pickCity(city);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已定位到 ${city.label}'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -250,6 +277,19 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
               ),
             ),
             const SizedBox(height: 10),
+            // 自动定位（IP 定位，无权限弹窗）。
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: _locate,
+                icon: const Icon(Icons.my_location, size: 16),
+                label: Text(
+                  _locating ? '定位中…' : '自动定位当前城市',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             if (_results.isNotEmpty)
               SizedBox(
                 height: 240,
@@ -276,7 +316,7 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
             else if (!_searching)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text('输入城市名后回车搜索',
+                child: Text('输入城市名后回车搜索，或点上方自动定位',
                     style: c.textTertiary.style(fontSize: 12)),
               ),
           ],

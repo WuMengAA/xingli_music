@@ -247,6 +247,32 @@ class WeatherNotifier extends StateNotifier<WeatherState> {
     }
   }
 
+  /// 自动定位（IP 定位，免费无权限）：经 ip-api.com 拿当前城市+经纬度。
+  /// 失败返回 null（页面提示）；成功返回城市供 [setDefaultCity] 使用。
+  Future<WeatherCity?> locate() async {
+    try {
+      final http.Response resp = await http
+          .get(Uri.parse('http://ip-api.com/json/?lang=zh-CN&fields=status,country,regionName,city,lat,lon'))
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) return null;
+      final dynamic data = jsonDecode(utf8.decode(resp.bodyBytes));
+      if (data is! Map<String, dynamic> || data['status'] != 'success') {
+        return null;
+      }
+      final String city = data['city'] as String? ?? '';
+      if (city.isEmpty) return null;
+      return WeatherCity(
+        name: city,
+        latitude: (data['lat'] as num?)?.toDouble() ?? 0,
+        longitude: (data['lon'] as num?)?.toDouble() ?? 0,
+        country: data['country'] as String? ?? '',
+        admin1: data['regionName'] as String? ?? '',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// 拉取实时 + 7 日预报。
   Future<void> refresh({WeatherCity? city}) async {
     final WeatherCity? target = city ?? state.city;
