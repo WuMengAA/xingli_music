@@ -247,7 +247,10 @@ class ClassIslandNotifier extends StateNotifier<ClassIslandState> {
 
 /// ClassIsland 联动 provider（委托单例实例，保持同一状态源；
 /// 音频层可用 [ClassIslandNotifier.instance] 直接上报）。
+/// 首次 watch 时自动 load（工具面板等只读页面也能拉到配置，不会永远"未连接"）。
 final classislandProvider =
-    StateNotifierProvider<ClassIslandNotifier, ClassIslandState>(
-  (ref) => ClassIslandNotifier.instance,
-);
+    StateNotifierProvider<ClassIslandNotifier, ClassIslandState>((ref) {
+  final ClassIslandNotifier n = ClassIslandNotifier.instance;
+  Future<void>.microtask(n.load);
+  return n;
+});

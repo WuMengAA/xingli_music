@@ -322,8 +322,15 @@ class WeatherNotifier extends StateNotifier<WeatherState> {
         return;
       }
       final dynamic data = jsonDecode(utf8.decode(resp.bodyBytes));
-      final dynamic cur = data['current'] as Map<String, dynamic>;
-      final dynamic daily = data['daily'] as Map<String, dynamic>;
+      // 空安全：current/daily 缺失或非对象时降级（不崩、不清旧数据）。
+      final Map<String, dynamic> cur =
+          data is Map<String, dynamic> && data['current'] is Map<String, dynamic>
+              ? data['current'] as Map<String, dynamic>
+              : const <String, dynamic>{};
+      final Map<String, dynamic> daily = data is Map<String, dynamic> &&
+              data['daily'] is Map<String, dynamic>
+          ? data['daily'] as Map<String, dynamic>
+          : const <String, dynamic>{};
       final List<DailyWeather> days = <DailyWeather>[];
       final List<dynamic> dates = daily['time'] as List<dynamic>? ?? const [];
       final List<dynamic> codes = daily['weather_code'] as List<dynamic>? ?? const [];
@@ -339,17 +346,19 @@ class WeatherNotifier extends StateNotifier<WeatherState> {
           precipProb: (probs[i] as num?)?.toInt() ?? 0,
         ));
       }
-      state = state.copyWith(
-        loading: false,
-        current: CurrentWeather(
-          temperature: (cur['temperature_2m'] as num?)?.toDouble() ?? 0,
-          weatherCode: (cur['weather_code'] as num?)?.toInt() ?? 0,
-          windSpeed: (cur['wind_speed_10m'] as num?)?.toDouble() ?? 0,
-          isDay: (cur['is_day'] as num?)?.toInt() == 1,
-        ),
-        daily: days,
-        lastUpdated: DateTime.now(),
-      );
+      state = cur.isEmpty
+          ? state.copyWith(loading: false, error: '天气数据异常（无 current）')
+          : state.copyWith(
+              loading: false,
+              current: CurrentWeather(
+                temperature: (cur['temperature_2m'] as num?)?.toDouble() ?? 0,
+                weatherCode: (cur['weather_code'] as num?)?.toInt() ?? 0,
+                windSpeed: (cur['wind_speed_10m'] as num?)?.toDouble() ?? 0,
+                isDay: (cur['is_day'] as num?)?.toInt() == 1,
+              ),
+              daily: days,
+              lastUpdated: DateTime.now(),
+            );
     } catch (e) {
       state = state.copyWith(loading: false, error: '获取天气失败：$e');
     }
