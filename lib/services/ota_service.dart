@@ -528,10 +528,18 @@ class OtaService {
     final PagesAssetItem? pageAsset = pages?.assetFor(tag, abiKey, windows: windows);
 
     final bool usePages = pageAsset != null;
-    final String baseUrl = usePages
+    // 下载候选 URL（顺序尝试）：主源 → 镜像代理（用户提供 gh.245959623.xyz，
+    // 解决 GitHub/Pages CDN 被墙或大文件下载超时）。
+    final String primaryBase = usePages
         ? '$kOtaPagesBase/ota/$tag'
         : 'https://github.com/$kOtaRepoOwner/$kOtaRepoName/releases/download/$tag';
-    final String url = '$baseUrl/$asset';
+    final List<String> candidateBases = <String>[
+      primaryBase,
+      // 镜像：github.com/... → gh.245959623.xyz/...；Pages 域名也换代理前缀。
+      primaryBase
+          .replaceFirst('https://github.com/', 'https://gh.245959623.xyz/')
+          .replaceFirst('https://wumengaa.github.io/', 'https://gh.245959623.xyz/wumengaa.github.io/'),
+    ];
 
     final Directory dir = await appDataDir();
     final String apkPath = p.join(dir.path, 'ota_${tag}_$asset');
@@ -539,10 +547,10 @@ class OtaService {
     // 1) 期望哈希：Pages 用 manifest 内 sha256（少一次请求）；Releases 拉资产。
     final String expected = usePages && pageAsset.sha256.isNotEmpty
         ? pageAsset.sha256
-        : await _fetchSha256('$baseUrl/$shaAsset');
+        : await _fetchSha256('$primaryBase/$shaAsset');
 
-    // 2) 资产下载（流式，回调进度）。
-    await _download(url, apkPath, onProgress: onProgress);
+    // 2) 资产下载（流式，回调进度；主源失败自动重试镜像）。
+    await _download(candidateBases, asset, apkPath, onProgress: onProgress);
 
     // 3) 校验。
     final String actual = await _sha256OfFile(apkPath);
@@ -570,7 +578,29 @@ class OtaService {
   }
 
   /// 流式下载到文件，边下边回调进度（已下载 / 总量 / 实时网速）。
+  /// [bases] 为候选源（主源 → 镜像代理），逐个尝试，全部失败抛错。
   Future<void> _download(
+    List<String> bases,
+    String asset,
+    String path, {
+    void Function(OtaProgress progress)? onProgress,
+  }) async {
+    Object? lastError;
+    for (final String base in bases) {
+      final String url = '$base/$asset';
+      try {
+        await _downloadOnce(url, path, onProgress: onProgress);
+        return;
+      } catch (e) {
+        lastError = e;
+        LogService.instance.w(
+            'ota', '下载失败，切换候选源重试: $url error=$e');
+      }
+    }
+    throw OtaException('下载失败：$lastError');
+  }
+
+  Future<void> _downloadOnce(
     String url,
     String path, {
     void Function(OtaProgress progress)? onProgress,
