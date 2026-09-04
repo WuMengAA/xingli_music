@@ -24,15 +24,18 @@ import 'light_tokens.dart';
 /// 这里**不再独立手调紫色皮肤**：强调色固定 systemBlue。切换皮肤时由
 /// [AppThemeColors.withSkin] 仅重算强调色族，中性色阶与状态色保持本表不变。
 abstract final class AppDarkColors {
-  // ── 中性色阶（iOS 深色系统层级）────────────────
+  // ── 中性色阶（Spotify 式内容优先深色沉浸，2026-09-03 选型）──
+  // 设计依据：design-md/spotify —— UI 退后到近黑炭层，让专辑封面/内容发光；
+  // 三级表面（#121212→#1f1f1f）替代 iOS 纯黑，避免"死黑"，同时保留系统蓝默认
+  // accent（由 withSkin 按皮肤主色覆盖）。
   /// systemBackground（一级页面底）。
-  static const Color bg = Color(0xFF000000);
+  static const Color bg = Color(0xFF121212);
 
   /// secondarySystemBackground（二级容器 / 列表组底）。
-  static const Color surface = Color(0xFF1C1C1E);
+  static const Color surface = Color(0xFF1A1A1A);
 
   /// tertiarySystemBackground（三级容器 / 选中态底）。
-  static const Color surfaceHigh = Color(0xFF2C2C2E);
+  static const Color surfaceHigh = Color(0xFF242424);
 
   /// label（主文字）。
   static const Color text = Color(0xFFFFFFFF);
@@ -47,7 +50,7 @@ abstract final class AppDarkColors {
   static const Color border = Color(0x9954585C);
 
   /// 占位图 / 骨架屏 / 进度条底轨 = tertiarySystemBackground。
-  static const Color placeholder = Color(0xFF2C2C2E);
+  static const Color placeholder = Color(0xFF242424);
 
   /// 深色下的错误浅底（systemRed 14% 混黑）。
   static const Color dangerSoft = Color(0xFF3A1C1E);
