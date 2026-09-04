@@ -288,3 +288,20 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
 - **天气自动定位（6039c4f）**：IP 定位 `http://ip-api.com/json/?lang=zh-CN`（免费无权限弹窗）
   → 城市/经纬度/省份 → setDefaultCity；天气页城市管理 sheet 加「自动定位当前城市」按钮，
   失败 SnackBar 提示手动搜索（注意 ip-api.com 是 http 明文，仅取经纬度无隐私敏感）
+
+## 即开即用/少步骤/高密度/功能整合（2026-09-03，a2f6d8d）
+- **工具面板（功能整合归类）**：`pages/tools/tools_panel_page.dart`——天气/日历/ClassIsland
+  三个 AppBar 独立图标收敛为一个「工具」(grid_view) 图标；面板内嵌三工具迷你卡
+  （天气:城市+温度+图标 / 日历:今日事件数 / ClassIsland:当前课+下一节）+ 顶部今日概览条
+  （公历+农历干支+节日+生肖），点卡片 push 对应详情页——一屏多信息、入口集中、步骤少
+- **主页今日信息行（信息密度）**：问候区「星璃音乐」下加一行
+  `周X · 农历M月D日 · 节日 · 城市温度°图标`（`_TodayInfoLine`，复用 weather/calendar
+  provider 只读，不触发请求）；场景页 AppBar 从 6 图标降到 4
+- **启动即用侦查结论**：启动 postFrame 的 reOOBE/渠道引导/OTA 检查均为**条件触发**
+  （版本升级/切渠道/有更新才弹），非频繁打扰——不砍保留
+- **高频操作路径现状**：音乐卡（UnifiedPlayer 传输行 prev/play/next/volume）常驻底部，
+  任何 Tab 一步控制播放/切歌；「最近在听」在曲库 Tab 顶部（Terms.recentlyPlayed）一步可达——
+  均无需再改
+- **注意**：`ClassIslandNotifier.instance.state` 直接访问会触发 lint
+  （invalid_use_of_visible_for_testing_member）——面板/页面读状态一律
+  `ref.watch(classislandProvider)`（StateNotifierProvider 委托单例）
