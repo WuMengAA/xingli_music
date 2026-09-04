@@ -359,5 +359,17 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
 - **ClassIsland 配置输入被清（8f8966d）**：`_configCard` 在 build 里给 controller
   赋值，任何 rebuild（如进度刷新）清空用户输入 → 改 initState `microtask` 预填
 - **发布**：cl08 Release 4 资产 + gh-pages manifest（build=8）
-- **Issue 规范**：新问题开 issue（#2 歌单报错/#3 天气添加查询已修；将来修复完
-  更新 issue 状态）
+- **Issue 规范**：新问题开 issue（#2 歌单报错/#3 天气添加查询已修并 closed；
+  将来修复完更新 issue 状态）
+
+## 持续修复 round 2（2026-09-04，89b788b）
+- **reorderApproved 越界（89b788b）**：拖到列表末尾时 `newIndex == approved.length`
+  → `insert` 抛 RangeError 崩。修复：`newIndex<0→0`、`>=length→length-1`（老 clamp
+  只夹下限不夹上限）。教训：ReorderableListView 的 onReorderItem newIndex 在拖到
+  末尾时可能等于 itemCount，**必须夹上限**
+- **审计结论（无 bug 项）**：`album_detail tracks[i-1]`（i==0 返回头部安全）、
+  `voxel_save` 时间解析（tryParse 前置 + try/catch）、农历闰月循环（测试 6 锚点证明）、
+  `_ToolsQuickRow` 横向滚动防溢出、now_playing 封面 clamp、TrackPicker 空/loading/error
+  三态齐全、聚合搜索 Riverpod 按 keyword 重建无竞态、OTA staging 清理、日志上传器
+  缓冲/重试/丢弃/健康摘要齐全、`_switchBackend` 状态机、队列操作 firstOrNull 空态安全
+- **issue 收口**：#2/#3 已标 closed（注明修复版本 cl08）
