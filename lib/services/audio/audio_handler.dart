@@ -143,6 +143,7 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
       artUri: artUri,
     ));
     // R33：SMTC 镜像媒体项（Windows 任务栏媒体卡片的标题/歌手/封面）。
+    // 本地封面直接给路径；网络封面经 smtc_bridge 异步下载后补发。
     smtcUpdateMediaItem(
       title: t.title,
       artist: t.artist,
@@ -150,6 +151,7 @@ class StelarithAudioHandler extends asvc.BaseAudioHandler
       durationMs: (_duration ?? t.duration ?? Duration.zero).inMilliseconds
           .toDouble(),
       artPath: t.coverPath ?? '',
+      artUrl: t.coverUrl ?? '',
     );
   }
 
