@@ -35,7 +35,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   void _shift(int delta) {
-    setState(() => _shown = DateTime(_shown.year, _shown.month + delta));
+    // ⚠️ 限制翻月范围 [1900, 2100]：农历表只覆盖该区间，越过会下标越界。
+    final DateTime next = DateTime(_shown.year, _shown.month + delta);
+    if (next.year < 1900 || next.year > 2100) return;
+    setState(() => _shown = next);
   }
 
   void _goToday() {

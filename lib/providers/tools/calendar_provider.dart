@@ -246,9 +246,17 @@ int _monthDays(int year, int month, {bool leap = false}) {
 }
 
 /// 公历 → 农历。基准：1900-01-31 = 农历 1900 年正月初一。
+/// ⚠️ 支持范围 1900-01-31 ~ 2100-12-31：越界日期夹紧到边界（否则农历表
+/// 下标越界崩——日历页翻月可越过范围，必须兜底）。
 LunarDate solarToLunar(DateTime solar) {
   final DateTime base = DateTime(1900, 1, 31);
-  int offset = DateTime(solar.year, solar.month, solar.day)
+  final DateTime max = DateTime(2100, 12, 31);
+  final DateTime clamped = solar.isBefore(base)
+      ? base
+      : solar.isAfter(max)
+          ? max
+          : solar;
+  int offset = DateTime(clamped.year, clamped.month, clamped.day)
       .difference(base)
       .inDays;
   int year = 1900;

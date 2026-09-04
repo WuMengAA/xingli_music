@@ -55,5 +55,16 @@ void main() {
       expect(l.day, 22);
       expect(l.monthName, '七月');
     });
+
+    test('越界日期不崩（1900 前 / 2100 后夹紧到边界）', () {
+      // 1900-01-31 之前 → 夹到 1900 年正月初一。
+      final LunarDate early = solarToLunar(DateTime(1899, 1, 1));
+      expect(early.year, 1900);
+      expect(early.day, 1);
+      // 2100-12-31 之后 → 夹到 2100 年末（表末），不越界。
+      final LunarDate late = solarToLunar(DateTime(2101, 6, 1));
+      expect(late.year, 2100);
+      expect(late.day, greaterThanOrEqualTo(1));
+    });
   });
 }
