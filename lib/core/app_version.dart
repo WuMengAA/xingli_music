@@ -441,7 +441,11 @@ abstract final class AppVersion {
 /// buildCount 4→5（0.26.9.3_beta_cl05）：R33 收尾全量——多音源显式切换、
 /// 排期管理拖拽、analyze 全零告警清理、白噪音默认关闭、OOBE 改版、字体背景
 /// 颜色自适应、严重回归（源文件损坏 0 编译）修复、OOBE 布局冒烟测试。
-static const int buildCount = 5;
+/// buildCount 5→6（0.26.9.3_beta_cl06）：功能拓展五件套（SMTC/天气/日历/
+/// ClassIsland 联动/集控插件）+ UI 选型（Spotify 深色沉浸）+ 即开即用优化
+/// （工具面板整合/主页今日信息行/列表紧凑）+ 后续可做项（集控鉴权/农历/
+/// 天气自动定位/SMTC 网络封面/播放页大封面/ip 定位降级）。
+static const int buildCount = 6;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -506,6 +510,19 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.3',
+    cl: 'beta_cl06',
+    title: '功能拓展五件套 + UI 选型 + 即开即用优化',
+    details: <String>[
+      '微软 SMTC：Windows 任务栏媒体卡片 + 全局媒体键（原生 C++/WinRT 桥，支持网络封面自动下载）',
+      '星璃天气/日历：Open-Meteo 实时+7 日预报+城市搜索+IP 自动定位；月视图+事件管理+农历（干支/生肖/节日）',
+      'ClassIsland 联动 + 集控插件：课表展示/播放上报 + 本地被控端 localhost:43218（可配 X-Control-Token 鉴权）',
+      'UI 选型（design-md）：Spotify 式内容优先深色沉浸，深色表面改炭黑三级',
+      '即开即用：场景页 6 图标收敛为 4（工具面板单入口）+ 主页今日信息行 + 曲库列表紧凑化',
+      '播放页大封面、ip 定位双源降级（ip-api→ipapi.co）、集控通知走全局弹条',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.3',
     cl: 'beta_cl05',

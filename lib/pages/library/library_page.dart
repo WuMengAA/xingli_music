@@ -183,7 +183,7 @@ class _TracksTab extends ConsumerWidget {
               children: <Widget>[
                 for (int i = 0; i < shown.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: _TrackRowCard(
                       track: shown[i],
                       onTap: () => _playTrack(ref, context, shown[i]),
@@ -220,7 +220,7 @@ class _TracksTab extends ConsumerWidget {
                 for (int i = 0; i < top.length; i++)
                   Padding(
                     padding: EdgeInsets.only(
-                      bottom: i < top.length - 1 ? 16 : 0,
+                      bottom: i < top.length - 1 ? 10 : 0,
                     ),
                     child: _RankRowCard(
                       rank: i + 1,
@@ -288,7 +288,7 @@ class _PlaylistsTab extends ConsumerWidget {
               children: <Widget>[
                 for (int i = 0; i < shown.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 8),
                     child: _PlaylistCard(
                       playlist: shown[i],
                       onTap: () => Navigator.of(context).push(
@@ -776,7 +776,7 @@ class _TrackRowCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+            padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
             child: Row(
               children: <Widget>[
                 _RowCover(track: track),

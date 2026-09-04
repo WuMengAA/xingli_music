@@ -23,20 +23,15 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/tools/weather_provider.dart';
+import '../../widgets/notification/app_notify.dart';
 
 /// 集控本地服务端口（固定，便于集控端插件接入）。
 const int kControlPort = 43218;
-
-/// 全局导航/通知 key（供无 context 的集控服务弹通知用；
-/// 在 app 根 MaterialApp 注入 navigatorKey 时生效）。
-final GlobalKey<ScaffoldMessengerState> kControlMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
 
 /// 集控鉴权：请求头 `X-Control-Token` 需匹配本机配置的 token（未配置则免鉴权）。
 const String kControlTokenHeader = 'X-Control-Token';
@@ -167,15 +162,12 @@ class ControlServer {
         _respond(req, 200, '{"ok":true}');
         break;
       case 'notice':
+        // 集控横幅：走全局通知条（右上角 ≤1/3 宽弹条，AppShell 常驻渲染），
+        // 样式与 App 内通知统一，不再用底部 SnackBar。
         if (payload is Map<String, dynamic> &&
             payload['text'] is String &&
-            kControlMessengerKey.currentState != null) {
-          kControlMessengerKey.currentState!.showSnackBar(
-            SnackBar(
-              content: Text(payload['text'] as String),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+            ref != null) {
+          appNotifyRef(ref, payload['text'] as String, title: '集控');
         }
         _respond(req, 200, '{"ok":true}');
         break;

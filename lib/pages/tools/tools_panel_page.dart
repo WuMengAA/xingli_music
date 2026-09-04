@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
+import '../../providers/shell/shell_providers.dart';
 import '../../providers/tools/calendar_provider.dart';
 import '../../providers/tools/classisland_provider.dart';
 import '../../providers/tools/weather_provider.dart';
@@ -117,6 +118,24 @@ class ToolsPanelPage extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
 
+          // ── 快捷跳转（少步骤：pop 后直达 Tab）────────
+          Text('快捷跳转', style: c.textTertiary.style(fontSize: 11)),
+          const SizedBox(height: 6),
+          _ToolTile(
+            icon: Icons.history_rounded,
+            title: '最近在听',
+            subtitle: '曲库 Tab · 按播放次数排行',
+            onTap: () => _jumpToTab(context, ref, ShellPage.library),
+          ),
+          const SizedBox(height: 8),
+          _ToolTile(
+            icon: Icons.settings_outlined,
+            title: '常用设置',
+            subtitle: '设置 Tab · 播放/界面/性能',
+            onTap: () => _jumpToTab(context, ref, ShellPage.settings),
+          ),
+          const SizedBox(height: 16),
+
           // ── 操作提示（少步骤：说明快捷路径）──────────
           Text(
             '提示：以上工具也已聚合在场景页顶部「工具」按钮；'
@@ -132,6 +151,12 @@ class ToolsPanelPage extends ConsumerWidget {
     unawaited(Navigator.of(context).push(
       MaterialPageRoute<void>(builder: (_) => page),
     ));
+  }
+
+  /// 快捷跳转：pop 工具面板 → 切到指定 Shell Tab。
+  void _jumpToTab(BuildContext context, WidgetRef ref, int tab) {
+    Navigator.of(context).popUntil((r) => r.isFirst);
+    ref.read(shellPageIndexProvider.notifier).state = tab;
   }
 }
 

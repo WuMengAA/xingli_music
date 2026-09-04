@@ -125,7 +125,7 @@ class NowPlayingPage extends ConsumerWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final double coverSize =
-            (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 320.0);
+            (constraints.maxWidth - AppSpace.lg * 2).clamp(0.0, 380.0);
         return SingleChildScrollView(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpace.lg,

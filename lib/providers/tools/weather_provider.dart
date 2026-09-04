@@ -247,27 +247,57 @@ class WeatherNotifier extends StateNotifier<WeatherState> {
     }
   }
 
-  /// 自动定位（IP 定位，免费无权限）：经 ip-api.com 拿当前城市+经纬度。
-  /// 失败返回 null（页面提示）；成功返回城市供 [setDefaultCity] 使用。
+  /// 自动定位（IP 定位，免费无权限）：优先 ip-api.com，失败降级 ipapi.co。
+  /// 返回 null 表示全部源失败（页面提示手动搜索）；成功返回城市供
+  /// [setDefaultCity] 使用。
   Future<WeatherCity?> locate() async {
+    // 源 1：ip-api.com（字段精简、免费无 key，但 http 明文）。
+    final WeatherCity? c1 = await _locateVia(
+      Uri.parse(
+          'http://ip-api.com/json/?lang=zh-CN&fields=status,country,regionName,city,lat,lon'),
+      parse: (Map<String, dynamic> d) {
+        if (d['status'] != 'success') return null;
+        final String city = d['city'] as String? ?? '';
+        if (city.isEmpty) return null;
+        return WeatherCity(
+          name: city,
+          latitude: (d['lat'] as num?)?.toDouble() ?? 0,
+          longitude: (d['lon'] as num?)?.toDouble() ?? 0,
+          country: d['country'] as String? ?? '',
+          admin1: d['regionName'] as String? ?? '',
+        );
+      },
+    );
+    if (c1 != null) return c1;
+
+    // 源 2：ipapi.co（https 明文备用，字段结构不同）。
+    return _locateVia(
+      Uri.parse('https://ipapi.co/json/'),
+      parse: (Map<String, dynamic> d) {
+        final String city = d['city'] as String? ?? '';
+        if (city.isEmpty) return null;
+        return WeatherCity(
+          name: city,
+          latitude: (d['latitude'] as num?)?.toDouble() ?? 0,
+          longitude: (d['longitude'] as num?)?.toDouble() ?? 0,
+          country: d['country_name'] as String? ?? '',
+          admin1: d['region'] as String? ?? '',
+        );
+      },
+    );
+  }
+
+  Future<WeatherCity?> _locateVia(
+    Uri uri, {
+    required WeatherCity? Function(Map<String, dynamic>) parse,
+  }) async {
     try {
-      final http.Response resp = await http
-          .get(Uri.parse('http://ip-api.com/json/?lang=zh-CN&fields=status,country,regionName,city,lat,lon'))
-          .timeout(const Duration(seconds: 8));
+      final http.Response resp =
+          await http.get(uri).timeout(const Duration(seconds: 8));
       if (resp.statusCode != 200) return null;
       final dynamic data = jsonDecode(utf8.decode(resp.bodyBytes));
-      if (data is! Map<String, dynamic> || data['status'] != 'success') {
-        return null;
-      }
-      final String city = data['city'] as String? ?? '';
-      if (city.isEmpty) return null;
-      return WeatherCity(
-        name: city,
-        latitude: (data['lat'] as num?)?.toDouble() ?? 0,
-        longitude: (data['lon'] as num?)?.toDouble() ?? 0,
-        country: data['country'] as String? ?? '',
-        admin1: data['regionName'] as String? ?? '',
-      );
+      if (data is! Map<String, dynamic>) return null;
+      return parse(data);
     } catch (_) {
       return null;
     }
