@@ -407,3 +407,15 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   - **设置页入口（180b37e）**：内容服务地址同区新增「VoiceHub 点歌」，点击
     直达；探索页也有 `_UtilityItem` 入口（两处）
 - **遗留**：B站源 `resolveStreamUrl` 需 `_fetchCid(bvid)`（bvid→cid 转换）
+
+## cl09 发布（2026-09-04，c299e40）
+- **版本**：buildCount 8→9（0.26.9.3_beta_cl09）；pubspec +119→+120（versionCode 120）；
+  gradle versionName 同步
+- **内容**：VoiceHub 对接闭环全量——客户端/点歌/排期/网易云+B站播放/登录 cookie
+  点歌提交/设置页+探索页双入口；播放控件 InkWell Material 兜底 ×6；changelog 简洁 4 点
+- **发布**：Release `0.26.9.3_beta_cl09`（id 382994727）4 资产（Windows zip 37MB +
+  sha256 + arm64/arm32 APK）；gh-pages manifest 更新（commit 5046824，build=9）→
+  https://github.com/WuMengAA/xingli_music/releases/tag/0.26.9.3_beta_cl09
+- **发布流程复用**（几次发版沉淀）：zip 平铺 Compress-Archive → Release API 建 ->
+  uploads.github.com 传 4 资产 → manifest PUT contents API（base64 + old sha）→
+  校验 readback；flutter.bat exit 1 恒为 stderr 镜像误报（看 stderr 里有没有 Built）
