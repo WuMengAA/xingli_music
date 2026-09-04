@@ -550,14 +550,27 @@ class OtaService {
         : await _fetchSha256('$primaryBase/$shaAsset');
 
     // 2) 资产下载（流式，回调进度；主源失败自动重试镜像）。
-    await _download(candidateBases, asset, apkPath, onProgress: onProgress);
+    // 下载前清残留（上次失败/校验失败留下的半成品），避免磁盘堆积与误用。
+    final File target = File(apkPath);
+    if (target.existsSync()) {
+      try { target.deleteSync(); } catch (_) { /* 忽略占用 */ }
+    }
+    try {
+      await _download(candidateBases, asset, apkPath, onProgress: onProgress);
 
-    // 3) 校验。
-    final String actual = await _sha256OfFile(apkPath);
-    if (expected.isNotEmpty && actual != expected) {
-      throw OtaException(
-        '哈希校验失败\n期望 $expected\n实际 $actual\n请勿安装，可能被篡改。',
-      );
+      // 3) 校验。
+      final String actual = await _sha256OfFile(apkPath);
+      if (expected.isNotEmpty && actual != expected) {
+        // 校验失败：清掉坏文件，避免下次更新误用旧半成品。
+        try { target.deleteSync(); } catch (_) { /* 忽略 */ }
+        throw OtaException(
+          '哈希校验失败\n期望 $expected\n实际 $actual\n请勿安装，可能被篡改。',
+        );
+      }
+    } catch (_) {
+      // 下载/校验失败时同样清理残留。
+      try { target.deleteSync(); } catch (_) { /* 忽略 */ }
+      rethrow;
     }
     return apkPath;
   }
