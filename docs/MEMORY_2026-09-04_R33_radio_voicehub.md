@@ -373,3 +373,26 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   三态齐全、聚合搜索 Riverpod 按 keyword 重建无竞态、OTA staging 清理、日志上传器
   缓冲/重试/丢弃/健康摘要齐全、`_switchBackend` 状态机、队列操作 firstOrNull 空态安全
 - **issue 收口**：#2/#3 已标 closed（注明修复版本 cl08）
+
+## VoiceHub 合并接入（2026-09-04，4c504b0/a58c42d/6bc830c/8657a7c）
+用户要求「两个合二为一，不单独实现电台功能」+ **relay/P2P 自研层保留**。
+方案：星璃作为 VoiceHub 开放 API 客户端（Nuxt 4 全栈系统，Postgres+Docker）。
+- **正式部署地址**：`https://voicehub.245959623.xyz`（用户确认；页面默认 hint）
+- **开放 API**（X-API-Key 头认证）：
+  - GET `/api/open/songs.get` —— 点歌列表：search/semester/grade/page/limit/sortBy/sortOrder
+  - GET `/api/open/schedules.get` —— 排期列表：semester/date/playTimeId/search/分页
+  - POST `/api/songs/request.post` —— 点歌提交（**需登录用户 cookie**；body：
+    title/artist/cover(http 前缀校验)/musicPlatform/musicId/bilibiliCid/bilibiliPage…）
+- **数据字段对齐（真实页面确认）**：歌/排期卡片显示封面(coverUrl) + 「曲名-歌手」+ 投稿人(requester) + 热度 🔥（voteCount/votes/vote_count 三字段兼容）；schedules 的 song 可嵌套或平铺两形态
+- **代码**：
+  - `services/voicehub/voicehub_client.dart`：可注入 http.Client（MockClient 测试）；
+    fetchSongs/fetchSchedules/submitSong(cookies 可选)；401 明确报错
+  - `providers/voicehub/voicehub_provider.dart`：baseUrl+apiKey 持久化（voicehub.*），
+    首 watch 自动 load，refresh/search 失败记 error 不抛
+  - `pages/explore/experiments/voicehub_page.dart`：探索页「VoiceHub 点歌」入口
+    （_UtilityItem voice_chat_rounded）→ 配置卡 + 点歌/排期双 Tab + 搜索；
+    **点歌点击即播**：网易云曲目 `netease://song/<musicId>` 占位 URI 走既有解析链
+- **测试**：test/voicehub_client_test.dart 5/5（songs/schedules 解析含嵌套、
+  401 认证失败、submitSong 成功/未登录、请求体字段对齐）
+- **待办**：①VoiceHub 登录（cookie/OAuth）让 submitSong 可用 ②B站 CID 解析对齐
+  ③设置页入口（目前只在探索页）
