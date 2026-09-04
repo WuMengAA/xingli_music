@@ -231,6 +231,7 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
       itemCount: songs.length,
       itemBuilder: (BuildContext context, int i) {
         final VoiceHubSong song = songs[i];
+        final int hot = song.voteCount > 0 ? song.voteCount : song.playCount;
         return ListTile(
           dense: true,
           leading: Container(
@@ -246,12 +247,15 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.textPrimary, fontSize: 14)),
-          subtitle: Text(song.artist,
+          subtitle: Text([
+            song.artist,
+            if (song.requester.isNotEmpty) '投稿 ${song.requester}',
+          ].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          trailing: song.playCount > 0
-              ? Text('${song.playCount} 次',
+          trailing: hot > 0
+              ? Text('🔥$hot',
                   style: TextStyle(color: c.textTertiary, fontSize: 11))
               : null,
         );
@@ -259,7 +263,7 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     );
   }
 
-  /// 排期列表（按播放日期展示）。
+  /// 排期列表（按播放日期展示，贴近 VoiceHub 真实卡片：封面+标题+投稿人+热度）。
   Widget _scheduleList(AppThemeColors c, VoiceHubState s) {
     final List<VoiceHubSchedule> list = s.schedules;
     if (list.isEmpty) {
@@ -279,21 +283,22 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
               color: c.bgSurfaceSunken,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.schedule, size: 18, color: c.textSecondary),
+            child: clipCover(sch.coverUrl, c),
           ),
           title: Text(sch.songTitle.isEmpty ? '未命名曲目' : sch.songTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.textPrimary, fontSize: 14)),
           subtitle: Text([
+            sch.songArtist,
+            if (sch.requester.isNotEmpty) '投稿 ${sch.requester}',
             if (sch.playDate.isNotEmpty) sch.playDate,
-            if (sch.songArtist.isNotEmpty) sch.songArtist,
           ].join(' · '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          trailing: sch.status.isNotEmpty
-              ? Text(sch.status,
+          trailing: sch.voteCount > 0
+              ? Text('🔥${sch.voteCount}',
                   style: TextStyle(color: c.textTertiary, fontSize: 11))
               : null,
         );

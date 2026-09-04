@@ -26,6 +26,8 @@ class VoiceHubSong {
     this.platform = '',
     this.musicId = '',
     this.playCount = 0,
+    this.voteCount = 0,
+    this.requester = '',
     this.status = '',
   });
 
@@ -36,6 +38,8 @@ class VoiceHubSong {
   final String platform;
   final String musicId;
   final int playCount;
+  final int voteCount;
+  final String requester;
   final String status;
 
   factory VoiceHubSong.fromJson(Map<String, dynamic> j) => VoiceHubSong(
@@ -46,6 +50,13 @@ class VoiceHubSong {
         platform: j['musicPlatform'] as String? ?? '',
         musicId: j['musicId'] as String? ?? '',
         playCount: (j['playCount'] as num?)?.toInt() ?? 0,
+        // 真实接口给的是热度/投票数（voteCount/votes 字段），两字段兼容。
+        voteCount: (j['voteCount'] as num?)?.toInt() ??
+            (j['votes'] as num?)?.toInt() ??
+            (j['vote_count'] as num?)?.toInt() ??
+            0,
+        requester: j['requester'] as String? ??
+            (j['requestedBy'] as String? ?? ''),
         status: j['status'] as String? ?? '',
       );
 }
@@ -58,6 +69,9 @@ class VoiceHubSchedule {
     required this.playTimeId,
     this.songTitle = '',
     this.songArtist = '',
+    this.coverUrl,
+    this.requester = '',
+    this.voteCount = 0,
     this.status = '',
   });
 
@@ -66,20 +80,39 @@ class VoiceHubSchedule {
   final int playTimeId;
   final String songTitle;
   final String songArtist;
+  final String? coverUrl;
+  final String requester;
+  final int voteCount;
   final String status;
 
   factory VoiceHubSchedule.fromJson(Map<String, dynamic> j) {
     final dynamic song = j['song'];
+    if (song is Map<String, dynamic>) {
+      return VoiceHubSchedule(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        playDate: j['playDate'] as String? ?? '',
+        playTimeId: (j['playTimeId'] as num?)?.toInt() ?? 0,
+        songTitle: song['title'] as String? ?? '',
+        songArtist: song['artist'] as String? ?? '',
+        coverUrl: song['coverUrl'] as String?,
+        requester: song['requester'] as String? ?? '',
+        voteCount: (song['voteCount'] as num?)?.toInt() ??
+            (song['votes'] as num?)?.toInt() ??
+            0,
+        status: j['status'] as String? ?? '',
+      );
+    }
     return VoiceHubSchedule(
       id: (j['id'] as num?)?.toInt() ?? 0,
       playDate: j['playDate'] as String? ?? '',
       playTimeId: (j['playTimeId'] as num?)?.toInt() ?? 0,
-      songTitle: song is Map<String, dynamic>
-          ? (song['title'] as String? ?? '')
-          : (j['songTitle'] as String? ?? ''),
-      songArtist: song is Map<String, dynamic>
-          ? (song['artist'] as String? ?? '')
-          : (j['songArtist'] as String? ?? ''),
+      songTitle: j['songTitle'] as String? ?? '',
+      songArtist: j['songArtist'] as String? ?? '',
+      coverUrl: j['coverUrl'] as String?,
+      requester: j['requester'] as String? ?? '',
+      voteCount: (j['voteCount'] as num?)?.toInt() ??
+          (j['votes'] as num?)?.toInt() ??
+          0,
       status: j['status'] as String? ?? '',
     );
   }

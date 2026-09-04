@@ -26,6 +26,8 @@ void main() {
                   'musicPlatform': 'netease',
                   'musicId': '123',
                   'playCount': 3,
+                  'voteCount': 7,
+                  'requester': 'shaoze',
                   'status': 'pending',
                 },
               ],
@@ -40,10 +42,12 @@ void main() {
       expect(songs.first.title, '夜曲');
       expect(songs.first.artist, '周杰伦');
       expect(songs.first.playCount, 3);
+      expect(songs.first.voteCount, 7);
+      expect(songs.first.requester, 'shaoze');
       expect(songs.first.musicId, '123');
     });
 
-    test('fetchSchedules 解析排期（song 嵌套）', () async {
+    test('fetchSchedules 解析排期（song 嵌套 + 封面/投稿人）', () async {
       final client = VoiceHubClient(
         baseUrl: 'https://vh.example.com',
         apiKey: 'k',
@@ -59,6 +63,8 @@ void main() {
                   'song': <String, dynamic>{
                     'title': '晴天',
                     'artist': '周杰伦',
+                    'coverUrl': 'https://x/q.jpg',
+                    'votes': 5,
                   },
                   'status': 'confirmed',
                 },
@@ -74,6 +80,8 @@ void main() {
       expect(list.first.songTitle, '晴天');
       expect(list.first.songArtist, '周杰伦');
       expect(list.first.playDate, '2026-09-10');
+      expect(list.first.coverUrl, 'https://x/q.jpg');
+      expect(list.first.voteCount, 5);
     });
 
     test('fetchSongs 401 → VoiceHubException 认证失败', () async {
