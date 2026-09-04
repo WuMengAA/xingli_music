@@ -266,3 +266,25 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
 - **注意事项**：`c.textPrimary` 是 Color 不是 TextStyle——页面用 `.style(...)` 需在文件内自建
   Color 扩展；天气/日历/集控共用「场景页 AppBar 图标入口」模式；页面内 `ref.watch(...)` 时
   无状态变化也要刷新当前课判定（每 build 取 `DateTime.now()`）
+
+## UI 选型 + 后续可做项（2026-09-03，bdc13fe/6039c4f）
+- **UI 选型（bdc13fe）**：用 `D:\Stellara\.md\design-md`（70+ 品牌设计库）对比
+  Spotify/Apple/Linear/Notion/Raycast → 音乐 App 选 **Spotify 式「内容优先深色沉浸」**
+  （UI 退后/封面发光/单一 accent/pill 几何）。落地：`AppDarkColors` 深色表面改炭黑三级
+  （bg #000→#121212、surface #1C1C1E→#1A1A1A、surfaceHigh/placeholder #2C2C2E→#242424）。
+  确认 **accent 已跟皮肤**（`themeSkinColorProvider`→`withSkin` 深色提亮 +0.12 lightness，
+  非写死 iOS 蓝）。选型文档：`docs/UI_DESIGN_2026-09-03.md`
+- **集控鉴权（b252e57）**：`ControlServer.setToken` + SharedPreferences 持久化（control.token）；
+  `_handle` 校验 `X-Control-Token` 头（配置了则必须匹配否则 401，空=免鉴权）；classisland_page
+  被控端卡显示 token 状态+设置对话框
+- **SMTC 网络封面（25b5ad9）**：`smtc_bridge.dart` 加 artUrl——网络封面异步下载到临时文件
+  （`Directory.systemTemp/smtc_art`，内存缓存 URL→path 避免切歌重下），下载成功补发媒体项
+  （原生侧以最后一次为准）；audio_handler 传 coverUrl
+- **日历农历（7f21bf3）**：`solarToLunar()` 标准农历数据表 1900-2100（`_lunarInfo` 位编码：
+  位4-15 大小月 0=29/1=30、位1-4 闰月位置、位16 闰月大）——闰月/干支/生肖/农历节日
+  （春节/元宵/龙抬头/端午/七夕/中元/中秋/重阳/腊八/除夕 12-29/30）；月标题干支年+生肖、
+  日期格农历日名（节日优先）、详情 sheet 完整农历。**测试 test/lunar_calendar_test.dart
+  6 锚点全过**（2023-2026 春节+中秋+2026-09-03=七月廿二）
+- **天气自动定位（6039c4f）**：IP 定位 `http://ip-api.com/json/?lang=zh-CN`（免费无权限弹窗）
+  → 城市/经纬度/省份 → setDefaultCity；天气页城市管理 sheet 加「自动定位当前城市」按钮，
+  失败 SnackBar 提示手动搜索（注意 ip-api.com 是 http 明文，仅取经纬度无隐私敏感）
