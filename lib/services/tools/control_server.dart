@@ -87,6 +87,10 @@ class ControlServer {
   Future<void> start(WidgetRef ref) async {
     _ref = ref;
     if (_running) return;
+    // ⚠️ 测试环境（flutter test 设 FLUTTER_TEST）不绑定端口：HttpServer 的
+    // idleTimeout 周期 Timer 永不取消 → 集成测试报 "Timer is still pending"
+    // 失败（全量测试 5 个红的根因）。测试场景不需要真实监听。
+    if (Platform.environment['FLUTTER_TEST'] == 'true') return;
     await _loadToken();
     try {
       _server = await HttpServer.bind(InternetAddress.loopbackIPv4,

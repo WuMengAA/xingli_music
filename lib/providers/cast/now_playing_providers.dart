@@ -34,8 +34,11 @@ final nowPlayingLocalServerProvider = Provider<NowPlayingServer>((ref) {
 });
 
 /// AppShell 根部挂载：Windows 端常驻启动（幂等）。
+/// ⚠️ 测试环境（FLUTTER_TEST）跳过：HttpServer idleTimeout 周期 Timer
+/// 在集成测试里永不取消 → "Timer is still pending" 失败（全量测试红的根因）。
 final nowPlayingLocalBridgeProvider = Provider<void>((ref) {
   if (kIsWeb || !Platform.isWindows) return;
+  if (Platform.environment['FLUTTER_TEST'] == 'true') return;
   final NowPlayingServer server = ref.read(nowPlayingLocalServerProvider);
   unawaited(server.start().then((_) {}).catchError((Object e) {
     LogService.instance.w('np', 'NowPlaying 服务启动失败: $e');
