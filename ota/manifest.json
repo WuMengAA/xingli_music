@@ -1,11 +1,20 @@
 {
   "assets": {
+    "0.26.9.3_beta_cl08": {
+      "windows": {
+        "x64": {
+          "sha256": "77edc28c773345625a296b3f3b60eb3c21daadab75a323c6a3fa3bc4f137bf11",
+          "name": "xingli_music_windows_x64.zip",
+          "size": 38830545
+        }
+      }
+    },
     "0.26.9.3_beta_cl07": {
       "windows": {
         "x64": {
           "sha256": "1784bf61d49e60d37d9e8fa97ccb20d30d57ccb41951542705f52841037b1d2a",
           "name": "xingli_music_windows_x64.zip",
-          "size": 38826723
+          "size": 38826706
         }
       }
     },
@@ -34,19 +43,20 @@
     "beta": {
       "latest": {
         "hotfix": null,
-        "build": 7,
+        "build": 8,
         "dateKey": 260903,
-        "tag": "0.26.9.3_beta_cl07",
-        "notes": "修歌单报错/修天气添加查询/曲库工具快捷入口"
+        "tag": "0.26.9.3_beta_cl08",
+        "notes": "持续修复一批(OTA镜像重试/自动加载/输入保护/残留清理)"
       }
     }
   },
   "versions": [
+    "0.26.9.3_beta_cl08",
     "0.26.9.3_beta_cl07",
     "0.26.9.3_beta_cl06",
     "0.26.9.3_beta_cl05",
     "0.26.8.31_beta_cl03",
     "0.26.8.31_beta_cl01"
   ],
-  "updatedAt": "2026-09-04T00:30:00+08:00"
+  "updatedAt": "2026-09-04T01:00:00+08:00"
 }
