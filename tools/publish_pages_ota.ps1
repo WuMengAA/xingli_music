@@ -180,7 +180,9 @@ $oldAssets[$Tag] = $tagAssets
 if (-not $oldVersions.Contains($Tag)) { $oldVersions.Insert(0, $Tag) }
 function Get-Rank($t) {
     $v = ($t -split '_')[0] -split '\.'
-    $dk = ([int]$v[1]) * 10000 + ([int]$v[2]) * 100 + [int]$v[3]
+    # 规范 2026-09-05 起版本号不再带前导大版本「0.」，故取 parts[0..2]
+    # （旧格式 0.YY.MM.DD 取 parts[1..3]，已弃用）。
+    $dk = ([int]$v[0]) * 10000 + ([int]$v[1]) * 100 + [int]$v[2]
     $cl = 0; if ($t -match '_cl(\d+)') { $cl = [int]$Matches[1] }
     return $dk * 10000 + $cl
 }
@@ -230,7 +232,9 @@ Write-Step "组装完成：$otaDir（$($versions.Count) 个版本记录）"
 # ── 5. 推送 gh-pages ────────────────────────────────────────────────────
 $pat = $env:DSH_PAT
 if (-not $pat) { throw '缺少推送凭据：请先 $env:DSH_PAT = ''github_pat_...''（用完 Remove-Item Env:DSH_PAT）' }
-$pushUrl = "https://x-access-token:$pat@github.com/$RepoOwner/$RepoName.git"
+# 用仓库所有者用户名承载 token（与 ~/.git-credentials 的 `WuMengAA:gho_xxx` 形式一致，
+# 经典 OAuth token 走用户名口令而非 x-access-token: 前缀，否则 push 鉴权失败 exit 128）。
+$pushUrl = "https://${RepoOwner}:$pat@github.com/$RepoOwner/$RepoName.git"
 
 # 优先 clone 远端 gh-pages（保留历史后快进推送）；分支不存在（首次）则建孤儿仓库。
 $gitDir = Join-Path $env:TEMP ("pages_ota_git_" + [guid]::NewGuid().ToString('N'))
@@ -245,8 +249,8 @@ git -C $gitDir config user.email 'xingli-bot@users.noreply.github.com'
 Copy-Item -Recurse -Force $otaDir (Join-Path $gitDir 'ota')
 git -C $gitDir add -A
 git -C $gitDir commit -q -m "ota(pages): publish $Tag"
-git -C $gitDir push -q $pushUrl HEAD:refs/heads/gh-pages
-if ($LASTEXITCODE -ne 0) { throw "推送 gh-pages 失败（exit=$LASTEXITCODE）" }
+$pushOut = git -C $gitDir push $pushUrl HEAD:refs/heads/gh-pages 2>&1
+if ($LASTEXITCODE -ne 0) { throw "推送 gh-pages 失败（exit=$LASTEXITCODE）: $pushOut" }
 Write-Ok "已推送 gh-pages：$Tag"
 
 Remove-Item -Recurse -Force $tmp
