@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 3;
+  static const int day = 5;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -450,11 +450,15 @@ abstract final class AppVersion {
 /// buildCount 7→8（0.26.9.3_beta_cl08）：持续修复一批——OTA 下载镜像代理
 /// 重试 + 下载残留清理、SMTC 网络封面临时目录泄漏、天气 JSON 空安全、
 /// 天气/日历/ClassIsland provider 首 watch 自动加载、集控响应防双写、
+/// buildCount 9→1（0.26.9.5_beta_cl01）：M2 收尾修复——
+/// 探索页 ConsentGate 双重滚动（Gate 嵌长页 SingleChildScrollView 被挤出首屏，
+/// 整页渲染 ConsentGate 拿有界高度）+ 进度条 Slider 缺 Material 祖先崩溃
+/// （unified_player 外包 Material(type:transparency)）。
 /// 工具面板输入不被 rebuild 清空。
 /// buildCount 8→9（0.26.9.3_beta_cl09）：VoiceHub 对接闭环——客户端(songs/
 /// schedules/request)+点歌/排期展示+网易云/B站通道播放+登录 cookie 点歌提交
 /// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
-static const int buildCount = 9;
+static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -519,6 +523,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.5',
+    cl: 'beta_cl01',
+    title: 'M2 收尾：探索 Gate 双重滚动 + 进度条缺 Material 崩溃',
+    details: <String>[
+      '探索页未同意时整页渲染 ConsentGate，拿 PageScaffold 有界高度正常滚动',
+      '修复 ConsentGate 嵌长页 SingleChildScrollView 致"同意并进入"被挤出首屏（y≈1151）不可点',
+      'unified_player 进度条 Slider 外包 Material(type:transparency)，修复无 Material 祖先崩溃',
+      '全量 flutter test 454 通过；flutter analyze 无 error/warning',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.3',
     cl: 'beta_cl09',

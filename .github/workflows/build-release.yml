@@ -20,7 +20,7 @@ on:
     tags:
       - 'cl*'
       - 'v*'
-      - '0.26.8.*'
+      - '0.26.*'
   workflow_dispatch:
 
 jobs:

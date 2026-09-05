@@ -1563,6 +1563,10 @@ class ProgressSliderState extends ConsumerState<ProgressSlider> {
               inactiveTrackColor: context.appColors.progressTrack,
               thumbColor: context.appColors.accent,
             ),
+            // M2 / Bug A：Slider 必须由 Material 祖先包裹——其内部的 ink/tap
+            // 反馈通道依赖 Material 上下文，缺失会抛 `No Material widget found`
+            // （此前底部 mini-player 因此整体 pump 失败）。此处用透明 Material
+            // 仅提供祖先约束，视觉与交互完全不变。
             child: Material(
               type: MaterialType.transparency,
               child: Slider(
