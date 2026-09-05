@@ -59,13 +59,7 @@
       }
     },
     "alpha": {
-      "latest": {
-        "tag": "26.09.05_alpha_cl01",
-        "dateKey": 260905,
-        "build": 1,
-        "hotfix": null,
-        "notes": "版本号格式兼容性补救首版（YY.MM.DD / YYMMDDNN）；保持单 applicationId，不拆三套 flavor"
-      }
+      "latest": "26.09.05_alpha_cl02"
     }
   },
   "versions": [
