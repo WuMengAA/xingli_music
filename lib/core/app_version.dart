@@ -460,7 +460,11 @@ abstract final class AppVersion {
 /// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
 /// buildCount 1→2（26.09.05_alpha_cl02）：VoiceHub 内嵌为底部第 5 个 Tab
 /// 「校园电台」（原仅设置入口 + 探索胶囊）；一级可达、一键点歌/排期/播放。
-static const int buildCount = 2;
+/// buildCount 2→3（26.09.05_alpha_cl03）：校园电台改为**整页 WebView 嵌入**
+/// 真实 VoiceHub 站点（webview_flutter 4.14.1）+ 原生播放器双向 JS 桥联动
+/// （页面 postMessage→播放/点歌；拦截 netease://、bilibili://、xingli://）；
+/// Windows/Linux 无官方 WebView 实现→fallback 系统浏览器打开（url_launcher）。
+static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

@@ -79,6 +79,11 @@ web/.dart_tool/
 .env
 .env.*
 !.env.example
+# 根目录中继服务器密钥备份（含 GitHub issue 同步 token，绝不入库）
+/relay_server.secret
+/relay_server.secret.old
+# 中继服务器旧 exe 备份（含编译产物，非源码）
+tools/relay_server/*.bak
 
 # ─────────────────────────────────────────────
 # 一次性分析输出 / 临时产物
@@ -116,6 +121,7 @@ tools/relay_server/admin/audit.jsonl
 # 发布产物目录（本地留档用，不入库）
 # ─────────────────────────────────────────────
 release/
+release_artifacts/
 *.apk.patch
 
 # ─────────────────────────────────────────────

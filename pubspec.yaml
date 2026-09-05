@@ -2,7 +2,7 @@ name: xingli_music
 description: "星璃（Stelarith）· 无限音乐画布 —— 一个可以无限滑动、场景随音乐与心情变化的沉浸式个人音乐空间。"
 publish_to: 'none'
 
-version: 26.9.5+26090502
+version: 26.9.5+26090503
 
 environment:
   sdk: ^3.9.0
@@ -53,6 +53,11 @@ dependencies:
 
   # ── 外部流媒体：HTTP 请求 ────────────────────────────
   http: ^1.2.2
+
+  # ── 网页嵌入（校园电台 VoiceHub 真实站点 WebView，双向 JS 桥联动）──
+  webview_flutter: ^4.10.0
+  # Windows/Linux 端 webview_flutter 无官方实现， fallback 用系统浏览器打开站点
+  url_launcher: ^6.3.0
 
   # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──
   crypto: ^3.0.6

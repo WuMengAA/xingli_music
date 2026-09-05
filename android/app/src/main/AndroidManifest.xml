@@ -15,6 +15,20 @@
     <!-- cl74：OTA 应用内安装未知来源 APK（Android 8+ 必需） -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- url_launcher：Android 11+ 包可见性，允许解析系统浏览器打开校园电台 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+
     <!-- 后台播放（audio_service）所需权限 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -23,7 +37,8 @@
     <application
         android:label="星璃音乐"
         android:name="${applicationName}"
-        android:icon="@drawable/ic_launcher">
+        android:icon="@drawable/ic_launcher"
+        android:usesCleartextTraffic="true">
 
         <!-- R25：显式开启 Impeller（Android 优先走 Vulkan 硬件渲染），加速体素绘制 -->
         <meta-data

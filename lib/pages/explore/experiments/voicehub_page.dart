@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/theme/app_theme_colors.dart';
 import '../../../models/track.dart';
@@ -9,15 +14,32 @@ import '../../../providers/audio/playback_notifier.dart';
 import '../../../providers/sources/bilibili_provider.dart';
 import '../../../providers/sources/netease_provider.dart';
 import '../../../providers/voicehub/voicehub_provider.dart';
-import '../../../services/voicehub/voicehub_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 
-/// VoiceHub 校园广播站点歌对接页（底部「校园电台」Tab；自研 relay 电台保留不动）。
+/// VoiceHub 校园广播站 —— 底部「校园电台」Tab。
 ///
-/// - 配置：服务器地址 + API Key（持久化）
-/// - 点歌列表（open/songs.get）与排期（open/schedules.get）展示
-/// - 关键词搜索点歌
+/// 不是原生重写的列表页，而是**整页 WebView 嵌入真实的 VoiceHub 站点**
+/// （[VoiceHubConfig.baseUrl]），并和 App 原生播放器**联动**：
+///
+/// - 网页 → App：页面通过 JS 桥 `window.xingli.postMessage(JSON)` 调起播放/点歌；
+///   或点击 `netease://` / `bilibili://` / `xingli://` 链接，由 WebView 拦截后转交原生播放器。
+/// - App → 网页：播放成功后向页面回推 `window.xingliState({...})`（页面可选监听）。
+///
+/// 联动协议（页面侧）：
+/// ```js
+/// xingli.postMessage(JSON.stringify({ action:'play', platform:'netease',
+///   id:'123', title:'...', artist:'...', coverUrl:'...' }));
+/// xingli.postMessage(JSON.stringify({ action:'submit', platform:'netease',
+///   musicId:'123', title:'...', artist:'...', coverUrl:'...' }));
+/// ```
+/// 便捷封装（页面注入）：`window.xingliPlay({...})` / `window.xingliSubmit({...})`。
+///
+/// 平台支持：Flutter 官方 `webview_flutter` 4.14.1 仅声明 android / ios / macos
+/// 实现，**Windows / Linux 无内置 WebView**。因此：
+/// - 支持的平台：整页 WebView 嵌入 + 双向 JS 桥联动（如上）。
+/// - 不支持的平台（Windows / Linux）：不构造 WebViewWidget（避免运行时崩溃），
+///   改为「在系统浏览器打开校园电台」的 fallback 卡片。
 class VoiceHubPage extends ConsumerStatefulWidget {
   const VoiceHubPage({super.key});
 
@@ -29,8 +51,15 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
   late final TextEditingController _urlCtrl;
   late final TextEditingController _keyCtrl;
   late final TextEditingController _cookieCtrl;
-  late final TextEditingController _searchCtrl;
-  bool _searching = false;
+
+  WebViewController? _controller;
+  bool _webReady = false;
+  String? _loadError;
+  bool _showConfig = false;
+
+  /// webview_flutter 4.14.1 仅官方支持 android / ios / macos，Windows/Linux 无实现。
+  bool get _webSupported =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
 
   @override
   void initState() {
@@ -38,55 +67,278 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     _urlCtrl = TextEditingController();
     _keyCtrl = TextEditingController();
     _cookieCtrl = TextEditingController();
-    _searchCtrl = TextEditingController();
-    Future<void>.microtask(() {
-      if (!mounted) return;
-      final VoiceHubConfig cfg = ref.read(voiceHubProvider).config;
-      _urlCtrl.text = cfg.baseUrl;
-      _keyCtrl.text = cfg.apiKey;
-      _cookieCtrl.text = cfg.cookie;
-    });
+    final VoiceHubConfig cfg = ref.read(voiceHubProvider).config;
+    _urlCtrl.text = cfg.baseUrl;
+    _keyCtrl.text = cfg.apiKey;
+    _cookieCtrl.text = cfg.cookie;
+
+    // Windows / Linux：官方 webview_flutter 无该平台实现，直接走 fallback。
+    if (!_webSupported) {
+      _showConfig = true;
+      return;
+    }
+
+    _showConfig = !cfg.enabled;
+
+    // 联动桥：一次性配置控制器（JS 模式 + 频道 + 导航拦截）。
+    final WebViewController controller = WebViewController();
+    controller
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..addJavaScriptChannel('xingli', onMessageReceived: _onXingli)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: _onNavigate,
+          onPageStarted: (_) => setState(() => _webReady = false),
+          onPageFinished: (_) {
+            setState(() => _webReady = true);
+            _injectBridge();
+          },
+          onWebResourceError: (WebResourceError e) {
+            // 仅主框架出错才提示（子资源失败不阻断网页）。
+            if (e.isForMainFrame == true) {
+              setState(() => _loadError = e.description);
+            }
+          },
+        ),
+      );
+    _controller = controller;
+    if (cfg.enabled) {
+      controller.loadRequest(Uri.parse(cfg.baseUrl));
+    }
   }
+
+  /// 网页 → App：JS 桥消息（play / submit）。
+  void _onXingli(JavaScriptMessage message) => _onXingliMessage(message.message);
+
+  void _onXingliMessage(String message) {
+    try {
+      final Map<String, dynamic> p =
+          Map<String, dynamic>.from(jsonDecode(message) as Map);
+      final String action = (p['action'] ?? '').toString();
+      if (action == 'play' || action == 'requestPlay') {
+        _playByFields(
+          platform: _str(p['platform']),
+          id: _str(p['id']),
+          title: _str(p['title']),
+          artist: _str(p['artist']),
+          coverUrl: _str(p['coverUrl']),
+        );
+      } else if (action == 'submit') {
+        _submitByFields(
+          platform: _str(p['platform']),
+          musicId: _str(p['musicId']),
+          title: _str(p['title']),
+          artist: _str(p['artist']),
+          coverUrl: _str(p['coverUrl']),
+        );
+      }
+    } catch (_) {
+      // 非 JSON / 未知消息：忽略，不中断 WebView。
+    }
+  }
+
+  /// WebView 拦截 `netease://` / `bilibili://` / `xingli://` 链接 → 原生播放/点歌。
+  NavigationDecision _onNavigate(NavigationRequest request) {
+    final String url = request.url;
+    if (url.startsWith('netease://') ||
+        url.startsWith('bilibili://') ||
+        url.startsWith('xingli://')) {
+      _handleSchemeUrl(url);
+      return NavigationDecision.prevent;
+    }
+    return NavigationDecision.navigate;
+  }
+
+  void _handleSchemeUrl(String url) {
+    final Uri? uri = Uri.tryParse(url);
+    if (uri == null) return;
+    if (uri.scheme == 'netease') {
+      final String id = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+      _playByFields(
+        platform: 'netease',
+        id: id,
+        title: uri.queryParameters['title'] ?? '',
+        artist: uri.queryParameters['artist'] ?? '',
+        coverUrl: uri.queryParameters['coverUrl'] ?? '',
+      );
+    } else if (uri.scheme == 'bilibili') {
+      final String id = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : '';
+      _playByFields(
+        platform: 'bilibili',
+        id: id,
+        title: uri.queryParameters['title'] ?? '',
+        artist: uri.queryParameters['artist'] ?? '',
+        coverUrl: uri.queryParameters['coverUrl'] ?? '',
+      );
+    } else if (uri.scheme == 'xingli') {
+      if (uri.host == 'play') {
+        _playByFields(
+          platform: uri.queryParameters['platform'] ?? '',
+          id: uri.queryParameters['id'] ?? '',
+          title: uri.queryParameters['title'] ?? '',
+          artist: uri.queryParameters['artist'] ?? '',
+          coverUrl: uri.queryParameters['coverUrl'] ?? '',
+        );
+      } else if (uri.host == 'submit') {
+        _submitByFields(
+          platform: uri.queryParameters['platform'] ?? '',
+          musicId: uri.queryParameters['id'] ?? uri.queryParameters['musicId'] ?? '',
+          title: uri.queryParameters['title'] ?? '',
+          artist: uri.queryParameters['artist'] ?? '',
+          coverUrl: uri.queryParameters['coverUrl'] ?? '',
+        );
+      }
+    }
+  }
+
+  /// 联动核心：把网页请求的曲目交给 App 原生播放器（网易云 / B站）。
+  Future<void> _playByFields({
+    required String platform,
+    required String id,
+    String title = '',
+    String artist = '',
+    String coverUrl = '',
+  }) async {
+    if (!mounted) return;
+    final String p = platform.toLowerCase();
+    if (p.contains('netease') && id.isNotEmpty) {
+      if (!ref.read(neteaseAuthProvider).isLoggedIn) {
+        _toast('播放网易云曲目需先登录网易云（设置 → 账号）');
+        return;
+      }
+      final String msg = await ref.read(playbackActionsProvider).playTrack(
+            Track(
+              title: title,
+              artist: artist,
+              uri: 'netease://song/$id',
+              source: TrackSource.stream,
+              sourceId: 'netease',
+              extras: <String, dynamic>{'coverUrl': coverUrl},
+            ),
+          );
+      if (!mounted) return;
+      if (msg.isNotEmpty) _toast(msg);
+      _pushNowPlaying(title: title, artist: artist, coverUrl: coverUrl);
+      return;
+    }
+    if (p.contains('bilibili') && id.isNotEmpty) {
+      if (!ref.read(bilibiliAuthProvider).isLoggedIn) {
+        _toast('播放 B站曲目需先登录哔哩哔哩（设置 → 账号）');
+        return;
+      }
+      final String bvid = id.split(':').first;
+      final String msg = await ref.read(playbackActionsProvider).playTrack(
+            Track(
+              title: title,
+              artist: artist,
+              uri: 'bilibili://video/$bvid',
+              source: TrackSource.stream,
+              sourceId: 'bilibili',
+              extras: <String, dynamic>{'bvid': bvid, 'coverUrl': coverUrl},
+            ),
+          );
+      if (!mounted) return;
+      if (msg.isNotEmpty) _toast(msg);
+      _pushNowPlaying(title: title, artist: artist, coverUrl: coverUrl);
+      return;
+    }
+    _toast('暂不支持该平台播放（${platform.isEmpty ? '未知' : platform}）');
+  }
+
+  /// 联动核心：把网页请求的点歌提交到 VoiceHub（需登录 cookie）。
+  Future<void> _submitByFields({
+    required String platform,
+    required String musicId,
+    required String title,
+    required String artist,
+    required String coverUrl,
+  }) async {
+    if (!mounted) return;
+    if (ref.read(voiceHubProvider).config.cookie.isEmpty) {
+      _toast('点歌需先在配置卡填入 VoiceHub 登录 cookie');
+      return;
+    }
+    final bool ok = await ref.read(voiceHubProvider.notifier).submitSong(
+          title: title,
+          artist: artist,
+          coverUrl: coverUrl,
+          musicPlatform: platform,
+          musicId: musicId,
+        );
+    if (!mounted) return;
+    _toast(ok ? '已提交点歌：$title' : '点歌失败：${ref.read(voiceHubProvider).error}');
+  }
+
+  /// App → 网页：回推当前播放状态（页面可选监听 `window.xingliState`）。
+  Future<void> _pushNowPlaying({
+    required String title,
+    required String artist,
+    required String coverUrl,
+  }) async {
+    final String payload = jsonEncode(<String, dynamic>{
+      'title': title,
+      'artist': artist,
+      'coverUrl': coverUrl,
+      'ts': DateTime.now().millisecondsSinceEpoch,
+    });
+    // 忽略 runJavaScript 在页面未就绪时的异常。
+    try {
+      await _controller?.runJavaScript(
+          'window.xingliState && window.xingliState($payload);');
+    } catch (_) {}
+  }
+
+  /// 注入便捷封装：页面可调用 `window.xingliPlay` / `window.xingliSubmit`。
+  void _injectBridge() {
+    const String script = '''
+(function(){
+  if(window.__xingliBridgeReady) return;
+  window.__xingliBridgeReady = true;
+  window.xingliPlay = function(p){ try{ xingli.postMessage(JSON.stringify(Object.assign({action:'play'}, p||{})); }catch(e){} };
+  window.xingliSubmit = function(p){ try{ xingli.postMessage(JSON.stringify(Object.assign({action:'submit'}, p||{})); }catch(e){} };
+})();
+''';
+    _controller?.runJavaScript(script).catchError((_) {});
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
+    );
+  }
+
+  Future<void> _save() async {
+    final String url = _urlCtrl.text.trim();
+    await ref.read(voiceHubProvider.notifier).configure(
+          VoiceHubConfig(
+            baseUrl: url,
+            apiKey: _keyCtrl.text.trim(),
+            cookie: _cookieCtrl.text,
+          ),
+        );
+    if (!mounted) return;
+    _toast(url.isEmpty ? '已清除 VoiceHub 配置' : '已保存并打开网页');
+    if (url.isNotEmpty) {
+      // 保存后切到网页视图并加载新地址。
+      setState(() {
+        _showConfig = false;
+        _webReady = false;
+        _loadError = null;
+      });
+      _controller?.loadRequest(Uri.parse(url));
+    }
+  }
+
+  String _str(Object? v) => v == null ? '' : v.toString();
 
   @override
   void dispose() {
     _urlCtrl.dispose();
     _keyCtrl.dispose();
     _cookieCtrl.dispose();
-    _searchCtrl.dispose();
     super.dispose();
   }
-
-  Future<void> _save() async {
-    await ref.read(voiceHubProvider.notifier).configure(
-          VoiceHubConfig(
-            baseUrl: _urlCtrl.text,
-            apiKey: _keyCtrl.text,
-            cookie: _cookieCtrl.text,
-          ),
-        );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(_urlCtrl.text.trim().isEmpty ? '已清除 VoiceHub 配置' : '已保存并同步'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  Future<void> _search() async {
-    final String kw = _searchCtrl.text.trim();
-    setState(() => _searching = true);
-    final List<VoiceHubSong> r =
-        await ref.read(voiceHubProvider.notifier).search(kw);
-    if (!mounted) return;
-    setState(() {
-      _searching = false;
-      _searchResults = r;
-    });
-  }
-
-  List<VoiceHubSong> _searchResults = const <VoiceHubSong>[];
 
   @override
   Widget build(BuildContext context) {
@@ -94,386 +346,184 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     final VoiceHubState s = ref.watch(voiceHubProvider);
 
     return PageScaffold(
-      title: 'VoiceHub 点歌',
+      title: '校园电台',
       actions: <Widget>[
-        IconButton(
-          tooltip: '刷新',
-          icon: const Icon(Icons.refresh),
-          onPressed: s.config.enabled
-              ? () => ref.read(voiceHubProvider.notifier).refresh()
-              : null,
-        ),
+        if (_webSupported && !_showConfig && s.config.enabled)
+          IconButton(
+            tooltip: '刷新',
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() => _webReady = false);
+              _controller?.reload();
+            },
+          ),
+        if (_webSupported)
+          IconButton(
+            tooltip: _showConfig ? '返回网页' : '编辑地址',
+            icon: Icon(_showConfig ? Icons.language : Icons.settings_outlined),
+            onPressed: () => setState(() => _showConfig = !_showConfig),
+          ),
       ],
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // ── 配置卡 ─────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: c.bgSurface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: c.border),
+      body: !_webSupported
+          ? _buildWebFallback(c)
+          : (_showConfig || !s.config.enabled
+              ? _buildConfigCard(c)
+              : _buildWebView(c)),
+    );
+  }
+
+  /// 配置卡：决定"嵌哪个网址"。保留，因 WebView 必须知道 baseUrl。
+  Widget _buildConfigCard(AppThemeColors c) {
+    final bool enabled = ref.watch(voiceHubProvider).config.enabled;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: c.bgSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('VoiceHub 服务器（嵌入的整个网页地址）',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _urlCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'https://voicehub.245959623.xyz',
+                  isDense: true,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 6),
+              TextField(
+                controller: _keyCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'API Key（开放接口使用）',
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _cookieCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  hintText: '登录 cookie（点歌提交用，浏览器登录后复制）',
+                  isDense: true,
+                  prefixIcon: Icon(Icons.lock_outline, size: 16),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
                 children: <Widget>[
-                  Text('VoiceHub 服务器',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _urlCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'https://voicehub.245959623.xyz',
-                      isDense: true,
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _save,
+                      icon: const Icon(Icons.cloud_sync_outlined, size: 16),
+                      label: const Text('保存并打开网页'),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _keyCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'API Key（开放接口使用）',
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _cookieCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: '登录 cookie（点歌提交用，浏览器登录后复制）',
-                      isDense: true,
-                      prefixIcon: Icon(Icons.lock_outline, size: 16),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: _save,
-                          icon: const Icon(Icons.cloud_sync_outlined, size: 16),
-                          label: const Text('保存并同步'),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              controller: _searchCtrl,
-              onSubmitted: (_) => _search(),
-              decoration: InputDecoration(
-                hintText: '搜索点歌（标题/歌手）',
-                isDense: true,
-                prefixIcon: const Icon(Icons.search, size: 18),
-                suffixIcon: _searching
-                    ? const Padding(
-                        padding: EdgeInsets.all(10),
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : IconButton(
-                        icon: const Icon(Icons.arrow_forward, size: 18),
-                        onPressed: _search,
-                      ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // ── 内容区 ─────────────────────────────
-          Expanded(child: _buildBody(c, s)),
-        ],
-      ),
-    );
-  }
-
-  /// 内容区：点歌 / 排期两个 Tab（排期数据 fetchSchedules 已取，此前未展示）。
-  Widget _buildBody(AppThemeColors c, VoiceHubState s) {
-    if (!s.config.enabled) {
-      return const EmptyView(title: '未配置 VoiceHub', message: '填入服务器地址与 API Key 后点「保存并同步」');
-    }
-    if (s.loading && s.songs.isEmpty && s.schedules.isEmpty) {
-      return const LoadingView(label: '同步中…');
-    }
-    if (s.error.isNotEmpty) {
-      return ErrorView(message: s.error, onRetry: () => ref.read(voiceHubProvider.notifier).refresh());
-    }
-    return DefaultTabController(
-      length: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          TabBar(
-            labelColor: c.accent,
-            unselectedLabelColor: c.textSecondary,
-            indicatorColor: c.accent,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-            tabs: <Widget>[
-              Tab(text: '点歌（${s.songs.length}）'),
-              Tab(text: '排期（${s.schedules.length}）'),
             ],
           ),
-          Expanded(
-            child: TabBarView(
-              children: <Widget>[
-                _songList(c, s),
-                _scheduleList(c, s),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 点歌列表（关键词搜索优先于同步结果）。
-  Widget _songList(AppThemeColors c, VoiceHubState s) {
-    final List<VoiceHubSong> songs =
-        _searchResults.isNotEmpty ? _searchResults : s.songs;
-    if (songs.isEmpty) {
-      return const EmptyView(title: '暂无点歌', message: 'VoiceHub 歌库为空或等待排期');
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: songs.length,
-      itemBuilder: (BuildContext context, int i) {
-        final VoiceHubSong song = songs[i];
-        final int hot = song.voteCount > 0 ? song.voteCount : song.playCount;
-        return ListTile(
-          dense: true,
-          onTap: () => _playSong(song),
-          leading: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: c.accentSoft,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: clipCover(song.coverUrl, c),
-          ),
-          title: Text(song.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: c.textPrimary, fontSize: 14)),
-          subtitle: Text([
-            song.artist,
-            if (song.requester.isNotEmpty) '投稿 ${song.requester}',
-          ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              if (hot > 0)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text('🔥$hot',
-                      style: TextStyle(
-                          color: c.textTertiary, fontSize: 11)),
-                ),
-              TextButton(
-                onPressed: () => _submitSong(song),
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  minimumSize: const Size(0, 30),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text('点歌', style: TextStyle(fontSize: 12)),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 提交点歌到 VoiceHub（需配置登录 cookie，未配置/失败明确提示）。
-  Future<void> _submitSong(VoiceHubSong song) async {
-    if (!mounted) return;
-    if (ref.read(voiceHubProvider).config.cookie.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('点歌需先在配置卡填入 VoiceHub 登录 cookie'),
-          duration: Duration(seconds: 2),
         ),
-      );
-      return;
-    }
-    final bool ok = await ref
-        .read(voiceHubProvider.notifier)
-        .submitSong(
-          title: song.title,
-          artist: song.artist,
-          coverUrl: song.coverUrl,
-          musicPlatform: song.platform,
-          musicId: song.musicId,
-        );
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? '已提交点歌：${song.title}' : '点歌失败：${ref.read(voiceHubProvider).error}'),
-        duration: const Duration(seconds: 2),
-      ),
+        const SizedBox(height: 12),
+        Text(
+          enabled
+              ? '已启用：点击右上「返回网页」查看嵌入的 VoiceHub 站点。'
+              : '填入服务器地址后点「保存并打开网页」，即可整页嵌入校园电台。',
+          style: TextStyle(color: c.textSecondary, fontSize: 12),
+        ),
+      ],
     );
   }
 
-  /// 排期列表（按播放日期展示，贴近 VoiceHub 真实卡片：封面+标题+投稿人+热度）。
-  Widget _scheduleList(AppThemeColors c, VoiceHubState s) {
-    final List<VoiceHubSchedule> list = s.schedules;
-    if (list.isEmpty) {
-      return const EmptyView(title: '暂无排期', message: 'VoiceHub 暂无播种排期');
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      itemCount: list.length,
-      itemBuilder: (BuildContext context, int i) {
-        final VoiceHubSchedule sch = list[i];
-        return ListTile(
-          dense: true,
-          leading: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: c.bgSurfaceSunken,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: clipCover(sch.coverUrl, c),
+  /// 整页 WebView 嵌入 + 双向联动桥（仅 android / ios / macos 调用）。
+  Widget _buildWebView(AppThemeColors c) {
+    return Stack(
+      children: <Widget>[
+        WebViewWidget(controller: _controller!),
+        if (!_webReady && _loadError == null)
+          const Positioned.fill(
+            child: LoadingView(label: '加载校园电台网页中…'),
           ),
-          title: Text(sch.songTitle.isEmpty ? '未命名曲目' : sch.songTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: c.textPrimary, fontSize: 14)),
-          subtitle: Text([
-            sch.songArtist,
-            if (sch.requester.isNotEmpty) '投稿 ${sch.requester}',
-            if (sch.playDate.isNotEmpty) sch.playDate,
-          ].join(' · '),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: c.textSecondary, fontSize: 12)),
-          trailing: sch.voteCount > 0
-              ? Text('🔥${sch.voteCount}',
-                  style: TextStyle(color: c.textTertiary, fontSize: 11))
-              : null,
-        );
-      },
-    );
-  }
-
-  /// 播放 VoiceHub 歌曲：网易云走 `netease://song/<id>`、B站走
-  /// `bilibili://video/<bvid>`（musicId 即 bvid，可能带 :cid 后缀需截断）；
-  /// 未知平台明确提示。
-  Future<void> _playSong(VoiceHubSong song) async {
-    final String platform = song.platform.toLowerCase();
-    if (platform.contains('netease') && song.musicId.isNotEmpty) {
-      // ⚠️ 网易云源 enabled = 登录态（NeteaseSource.enabled && api.isLoggedIn）；
-      // 未登录时占位 URI 解析拿不到地址 → 播不了（只见本地列表）。
-      if (!ref.read(neteaseAuthProvider).isLoggedIn) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('播放网易云曲目需先登录网易云（设置 → 账号）'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-      final String msg = await ref
-          .read(playbackActionsProvider)
-          .playTrack(
-            Track(
-              title: song.title,
-              artist: song.artist,
-              uri: 'netease://song/${song.musicId}',
-              source: TrackSource.stream,
-              // ⚠️ 必须对齐网易云源 id 'netease'：buildStreamResolver 按
-              // sourceId 在 activeSourcesProvider 里反查源做懒解析；
-              // 用 'voicehub:xxx' 找不到源 → 回落默认分支 → 播不了
-              //（只能播本地列表的直接原因）。
-              sourceId: 'netease',
-              extras: <String, dynamic>{'coverUrl': song.coverUrl},
-            ),
-          );
-      if (!mounted) return;
-      if (msg.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-        );
-      }
-      return;
-    }
-    // B站：musicId 即 bvid（BV...，VoiceHub 可能拼 `BV..:cid`，取冒号前）。
-    if (platform.contains('bilibili') && song.musicId.isNotEmpty) {
-      if (!ref.read(bilibiliAuthProvider).isLoggedIn) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('播放 B站曲目需先登录哔哩哔哩（设置 → 账号）'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-      final String bvid = song.musicId.split(':').first;
-      final String msg = await ref
-          .read(playbackActionsProvider)
-          .playTrack(
-            Track(
-              title: song.title,
-              artist: song.artist,
-              uri: 'bilibili://video/$bvid',
-              source: TrackSource.stream,
-              sourceId: 'bilibili',
-              extras: <String, dynamic>{
-                'bvid': bvid,
-                'coverUrl': song.coverUrl,
+        if (_loadError != null)
+          Positioned.fill(
+            child: ErrorView(
+              message: _loadError!,
+              onRetry: () {
+                setState(() => _loadError = null);
+                _controller?.reload();
               },
             ),
-          );
-      if (!mounted) return;
-      if (msg.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
-        );
-      }
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('暂不支持该平台直播（${song.platform.isEmpty ? '未知' : song.platform}）'),
-        duration: const Duration(seconds: 2),
-      ),
+          ),
+      ],
     );
   }
 
-  Widget clipCover(String? url, AppThemeColors c) {
-    if (url == null || url.isEmpty) {
-      return Icon(Icons.music_note, size: 18, color: c.textTertiary);
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: Image.network(
-        url,
-        width: 36,
-        height: 36,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) =>
-            Icon(Icons.music_note, size: 18, color: c.textTertiary),
-      ),
+  /// Windows / Linux fallback：官方 webview_flutter 无该平台实现，
+  /// 改为在系统浏览器打开校园电台站点（无法与原生播放器联动）。
+  Widget _buildWebFallback(AppThemeColors c) {
+    final String url = ref.watch(voiceHubProvider).config.baseUrl;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: c.bgSurface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: c.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('校园电台（系统浏览器打开）',
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary)),
+              const SizedBox(height: 8),
+              Text(
+                '当前 Windows / Linux 客户端暂无内置网页视图（Flutter 官方 '
+                'webview_flutter 未提供该平台实现）。点击下方按钮在系统浏览器打开'
+                '校园电台站点。整页嵌入与播放联动已在 Android / iOS 端上线。',
+                style: TextStyle(color: c.textSecondary, fontSize: 13),
+              ),
+              if (url.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () => _openExternal(url),
+                  icon: const Icon(Icons.open_in_browser_outlined, size: 16),
+                  label: const Text('在系统浏览器打开校园电台'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
+  }
+
+  Future<void> _openExternal(String url) async {
+    final Uri? uri = Uri.tryParse(url);
+    if (uri == null) {
+      _toast('地址无效：$url');
+      return;
+    }
+    try {
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        _toast('无法打开：$url');
+      }
+    } catch (e) {
+      _toast('打开失败：$e');
+    }
   }
 }
