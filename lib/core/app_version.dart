@@ -463,7 +463,9 @@ abstract final class AppVersion {
 /// buildCount 2→3（26.09.05_alpha_cl03）：校园电台改为**整页 WebView 嵌入**
 /// 真实 VoiceHub 站点（webview_flutter 4.14.1）+ 原生播放器双向 JS 桥联动
 /// （页面 postMessage→播放/点歌；拦截 netease://、bilibili://、xingli://）；
-/// Windows/Linux 无官方 WebView 实现→fallback 系统浏览器打开（url_launcher）。
+/// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
+/// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
+/// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
 static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。

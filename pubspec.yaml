@@ -56,8 +56,6 @@ dependencies:
 
   # ── 网页嵌入（校园电台 VoiceHub 真实站点 WebView，双向 JS 桥联动）──
   webview_flutter: ^4.10.0
-  # Windows/Linux 端 webview_flutter 无官方实现， fallback 用系统浏览器打开站点
-  url_launcher: ^6.3.0
 
   # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──
   crypto: ^3.0.6

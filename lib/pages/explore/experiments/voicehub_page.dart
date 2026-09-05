@@ -1,11 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, Process;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/theme/app_theme_colors.dart';
@@ -518,9 +517,19 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
       _toast('地址无效：$url');
       return;
     }
+    // 用系统默认程序打开（Windows/Linux 无内置 WebView，fallback 走系统浏览器）。
+    // 不引入 url_launcher：其 android 实现会拉 androidx.browser 1.9.0，要求 AGP
+    // 8.9.1+，与本项目固定 AGP 8.7.3 冲突，导致 Android 构建失败。
     try {
-      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-        _toast('无法打开：$url');
+      if (Platform.isWindows) {
+        await Process.run('cmd', <String>['/c', 'start', '', uri.toString()]);
+      } else if (Platform.isLinux) {
+        await Process.run('xdg-open', <String>[uri.toString()]);
+      } else if (Platform.isMacOS) {
+        await Process.run('open', <String>[uri.toString()]);
+      } else {
+        _toast('当前平台暂不支持直接打开浏览器');
+        return;
       }
     } catch (e) {
       _toast('打开失败：$e');
