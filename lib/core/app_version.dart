@@ -466,7 +466,7 @@ abstract final class AppVersion {
 /// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
 /// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
 /// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
-static const int buildCount = 1;
+static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -531,6 +531,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.6',
+    cl: 'alpha_cl02',
+    title: 'VoiceHub 整页内嵌真实站点（安卓 + Windows）',
+    details: <String>[
+      '改用 flutter_inappwebview 单包覆盖 Android/iOS/macOS/Windows/Linux，整页嵌入 voicehub.245959623.xyz，打开即加载站点（自带登录界面）',
+      '去掉 Windows 仅「系统浏览器打开」的 fallback 卡片，桌面端也能直接显示网页',
+      '注入 shim 桥接站点已有 window.xingli.postMessage，保留网页点歌→本地播放器联动；拦截 netease:// / bilibili:// / xingli:// 转原生播放',
+      'webview_flutter 保留供网易云网页登录使用；版本号三处同步：26.09.06_alpha_cl02 / 26090602 / 26.9.6+26090602',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.5',
     cl: 'alpha_cl02',
