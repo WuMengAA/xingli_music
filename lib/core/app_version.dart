@@ -464,16 +464,16 @@ static const int buildCount = 1;
   static const String codename = '星尘初聚';
 
   // ── 派生 ────────────────────────────────────────
-  /// 语义版本（pubspec version 的展示版）：`0.26.8+11`。
-  static String get semver => '$major.$year.$month+$day';
+  /// 语义版本（展示版，规范 2026-09-05 定版 = YY.MM.DD）：`26.09.05`。
+  static String get semver => '$_yy.$_mm.$_dd';
 
-  /// 完整展示串：`0.26.08.17_beta_cl01`（Windows 桌面渠道 cl 后加 `_pc`）。
-  /// 规范（用户 2026-08-16 定版 + 2026-08-17 渠道化）：日常更新用小版本号
-  /// （day 字段递增），渠道段 = 更新渠道（beta 默认 / alpha），构建号 clXX
-  /// 为**当天该渠道**的构建次数，热修复加 `_hotfixN` 后缀。
+  /// 完整展示串：`26.09.05_alpha_cl01`（Windows 桌面渠道 cl 后加 `_pc`）。
+  /// 规范（用户 2026-09-05 定版 + xingli-release-manager 终极版）：
+  /// 格式 = YY.MM.DD_channel_clNN，渠道段 = 更新渠道（beta 默认 / alpha），
+  /// 构建号 clNN 为**当天该渠道**的构建次数，热修复加 `_hotfixN` 后缀。
   static String get display {
     final String pcSuffix = Platform.isWindows ? '_pc' : '';
-    return '$major.$_yy.$_mm.$_dd$_channelSuffix'
+    return '$_yy.$_mm.$_dd$_channelSuffix'
         '_cl${buildCount.toString().padLeft(2, '0')}$pcSuffix'
         '${hotfix != null ? '_hotfix$hotfix' : ''}';
   }
@@ -481,8 +481,8 @@ static const int buildCount = 1;
   /// 品牌式展示：`星璃音乐·星尘初聚`。
   static String get brand => '星璃音乐·$codename';
 
-  /// 设置页/关于页短展示（无 cl）：`0.26.8.17_beta`。
-  static String get displayShort => '$major.$_yy.$_mm.$_dd$_channelSuffix';
+  /// 设置页/关于页短展示（无 cl）：`26.09.05_alpha`。
+  static String get displayShort => '$_yy.$_mm.$_dd$_channelSuffix';
 
   static String get _yy => year.toString().padLeft(2, '0');
   static String get _mm => month.toString().padLeft(2, '0');

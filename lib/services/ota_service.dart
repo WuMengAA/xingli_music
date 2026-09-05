@@ -115,7 +115,7 @@ class OtaCheckResult {
   );
 }
 
-/// 新格式 tag 解析结果：`0.26.8.17_beta_cl01` / `0.26.8.17_beta_cl01_hotfix1`。
+/// 新格式 tag 解析结果：`26.09.05_alpha_cl01` / `26.09.05_alpha_cl01_hotfix1`。
 class OtaTagInfo {
   OtaTagInfo({
     required this.tag,
@@ -155,11 +155,12 @@ class OtaTagInfo {
   }
 }
 
-/// 解析新格式 tag：`0.26.8.17_beta_cl01` / `0.26.8.17_beta_cl01_hotfix1`。
+/// 解析新格式 tag：`26.09.05_alpha_cl01` / `26.09.05_alpha_cl01_hotfix1`。
+/// 格式 = YY.MM.DD_channel_clNN（规范 2026-09-05 定版，无前导大版本号）。
 /// 非新格式（历史 `cl*`/`v*`、缺渠道段）返回 null。
 OtaTagInfo? parseOtaTag(String tag) {
   final RegExp re = RegExp(
-    r'^0\.(\d+)\.(\d+)\.(\d+)_(beta|alpha)_cl(\d+)(?:_hotfix(\d+))?$',
+    r'^(\d+)\.(\d+)\.(\d+)_(beta|alpha)_cl(\d+)(?:_hotfix(\d+))?$',
     caseSensitive: false,
   );
   final Match? m = re.firstMatch(tag.trim());
@@ -264,8 +265,8 @@ class OtaService {
 
   /// 检查是否有新版本（仅当前渠道）。
   ///
-  /// 新旧判断（2026-08-17 渠道化定版）：tag 需为新格式
-  /// `0.26.8.<day>_<channel>_cl<NN>`；**只比较 [channel] 渠道**的版本；
+  /// 新旧判断（2026-08-17 渠道化定版，2026-09-05 版本号格式升级）：tag 需为新格式
+  /// `YY.MM.DD_<channel>_cl<NN>`（如 `26.09.05_alpha_cl01`）；**只比较 [channel] 渠道**的版本；
   /// **先比日期、同日再比 cl**——cl 不再单独决定新旧，跨天 cl 清零不会误判
   /// （历史坑：cl78 > cl01 误判"有更新"）。历史 `cl*`/`v*` tag（无日期）忽略。
   /// 失败（网络 / 无版本 / 解析失败）返回 [OtaCheckResult.none]，不抛。

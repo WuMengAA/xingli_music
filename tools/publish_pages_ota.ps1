@@ -46,17 +46,18 @@ function Write-Ok($msg)   { Write-Host "    $msg" -ForegroundColor Green }
 function Write-Warn($msg) { Write-Host "    $msg" -ForegroundColor Yellow }
 
 # ── 0. 前置检查 ─────────────────────────────────────────────────────────
-$TagPattern = '^0\.\d+\.\d+\.\d+_(beta|alpha)_cl\d+(_hotfix\d+)?$'
+$TagPattern = '^\d+\.\d+\.\d+_(beta|alpha)_cl\d+(_hotfix\d+)?$'
 if ($Tag -notmatch $TagPattern) {
-    throw "Tag 不合法（需 0.YY.MM.DD_渠道_clNN[_hotfixN]）：$Tag"
+    throw "Tag 不合法（需 YY.MM.DD_渠道_clNN[_hotfixN]，如 26.09.05_alpha_cl01）：$Tag"
 }
 $channel = $Matches[1]
 $build = [int](($Tag -split '_cl')[1] -split '_')[0]
 $hotfix = $null
 if ($Tag -match '_hotfix(\d+)$') { $hotfix = [int]$Matches[1] }
-# dateKey = 0.YY.MM.DD → YYMMDD 数字（与客户端 OtaTagInfo 同构：year*1e4+month*1e2+day）。
+# dateKey = YY.MM.DD → YYMMDD 数字（与客户端 OtaTagInfo 同构：year*1e4+month*1e2+day）。
+# 规范 2026-09-05 起版本号不再带前导大版本「0.」，故取 parts[0..2]（旧格式取 parts[1..3]）。
 $verParts = ($Tag -split '_')[0] -split '\.'
-$dateKey = ([int]$verParts[1]) * 10000 + ([int]$verParts[2]) * 100 + [int]$verParts[3]
+$dateKey = ([int]$verParts[0]) * 10000 + ([int]$verParts[1]) * 100 + [int]$verParts[2]
 Write-Step "发布 $Tag （渠道=$channel dateKey=$dateKey cl=$build hotfix=$hotfix）"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot

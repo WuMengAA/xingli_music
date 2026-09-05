@@ -5,7 +5,8 @@
 #
 # 触发：
 #   - push tag `cl*` / `v*`（旧方案，如 cl55、v0.26.8.14）→ 发布 Release
-#   - push tag `0.26.8.*`（新渠道化方案，如 0.26.8.17_beta_cl01）→ 发布 Release
+#   - push tag `0.26.8.*`（旧渠道化方案，如 0.26.8.17_beta_cl01）→ 发布 Release
+#   - push tag `26.*`（规范 2026-09-05 新方案，如 26.09.05_alpha_cl01）→ 发布 Release
 #   - 手动 workflow_dispatch → 可选 tag 构建
 #
 # 产物：两拆分包（arm64-v8a / armeabi-v7a）+ 各自 sha256 校验文件。
@@ -21,6 +22,7 @@ on:
       - 'cl*'
       - 'v*'
       - '0.26.*'
+      - '26.*'
   workflow_dispatch:
 
 jobs:
