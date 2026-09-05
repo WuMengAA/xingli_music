@@ -46,6 +46,18 @@ jobs:
       - name: Enable Flutter
         run: flutter --version
 
+      - name: CI-only — drop flaky Aliyun Maven mirror
+        # 本地构建依赖 Aliyun 镜像（用户网络直连 Google/Maven Central 不稳），
+        # 但 CI 直连 Aliyun 会偶发 502 导致构建失败（run 33955278872 / 33961879585）。
+        # 这里仅修改 CI 检出副本：删 android/settings.gradle 与 android/build.gradle
+        # 中含 maven.aliyun.com 的行，保留已存在的 google()/mavenCentral()/
+        # gradlePluginPortal()，让 CI 直接走上游仓库。不改动仓库内已提交文件
+        # （每次 checkout 都是全新副本，本地构建完全不受影响）。
+        run: |
+          sed -i '/maven\.aliyun\.com/d' android/settings.gradle android/build.gradle
+          echo "--- settings.gradle repos ---"; grep -nE "maven|google|mavenCentral|gradlePluginPortal" android/settings.gradle || true
+          echo "--- build.gradle repos ---"; grep -nE "maven|google|mavenCentral" android/build.gradle || true
+
       - name: Get dependencies
         run: flutter pub get
 
