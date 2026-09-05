@@ -155,12 +155,15 @@ class OtaTagInfo {
   }
 }
 
-/// 解析新格式 tag：`26.09.05_alpha_cl01` / `26.09.05_alpha_cl01_hotfix1`。
-/// 格式 = YY.MM.DD_channel_clNN（规范 2026-09-05 定版，无前导大版本号）。
-/// 非新格式（历史 `cl*`/`v*`、缺渠道段）返回 null。
+/// 解析 tag：`26.09.05_alpha_cl01` / `26.09.05_alpha_cl01_hotfix1`（新格式，
+/// 规范 2026-09-05 定版，无前导大版本号），以及历史格式
+/// `0.26.9.3_beta_cl09`（前导 `0.` + YY.MM.DD）。两者 dateKey 同构
+/// （year*10000+month*100+day），故正则对前导 `0.` 取可选，让新旧 tag 都能识别，
+/// 避免历史版本在 OTA 版本列表/回退源被静默丢弃（"旧安装不孤立"）。
+/// 非 OTA 格式（`cl*`/`v*` 缺渠道段、非 beta|alpha）返回 null。
 OtaTagInfo? parseOtaTag(String tag) {
   final RegExp re = RegExp(
-    r'^(\d+)\.(\d+)\.(\d+)_(beta|alpha)_cl(\d+)(?:_hotfix(\d+))?$',
+    r'^(?:0\.)?(\d+)\.(\d+)\.(\d+)_(beta|alpha)_cl(\d+)(?:_hotfix(\d+))?$',
     caseSensitive: false,
   );
   final Match? m = re.firstMatch(tag.trim());
