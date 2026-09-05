@@ -75,6 +75,17 @@ class ExplorePage extends ConsumerWidget {
     // 每日推荐 / 漫游 / 电台房 已移入下方「实验室」网格，不再在此单列。
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
+    // M2（方向二）：未同意时整页渲染 ConsentGate，让 Gate 自带的
+    // SingleChildScrollView 拿到 PageScaffold 提供的有界高度正常滚动，
+    // 避免原实现把 ConsentGate 嵌进长页 SingleChildScrollView 内层造成的
+    // 双重滚动，使"同意并进入"按钮被挤出首屏视口外（y≈1151，不可点）。
+    if (!consent.agreed) {
+      return PageScaffold(
+        title: Terms.tabExplore,
+        body: const ConsentGate(),
+      );
+    }
+
     return PageScaffold(
       title: Terms.tabExplore,
       body: SingleChildScrollView(

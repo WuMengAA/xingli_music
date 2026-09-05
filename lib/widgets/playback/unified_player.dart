@@ -1563,26 +1563,29 @@ class ProgressSliderState extends ConsumerState<ProgressSlider> {
               inactiveTrackColor: context.appColors.progressTrack,
               thumbColor: context.appColors.accent,
             ),
-            child: Slider(
-              value: enabled ? curMs.clamp(0.0, durMs) : 0,
-              max: enabled ? durMs : 1,
-              onChanged: enabled
-                  ? (double v) {
-                      setState(() {
-                        _seeking = true;
-                        _seekMs = v;
-                      });
-                    }
-                  : null,
-              onChangeEnd: enabled
-                  ? (double v) {
-                      setState(() {
-                        _seeking = false;
-                        _seekMs = null;
-                      });
-                      widget.onSeek(v);
-                    }
-                  : null,
+            child: Material(
+              type: MaterialType.transparency,
+              child: Slider(
+                value: enabled ? curMs.clamp(0.0, durMs) : 0,
+                max: enabled ? durMs : 1,
+                onChanged: enabled
+                    ? (double v) {
+                        setState(() {
+                          _seeking = true;
+                          _seekMs = v;
+                        });
+                      }
+                    : null,
+                onChangeEnd: enabled
+                    ? (double v) {
+                        setState(() {
+                          _seeking = false;
+                          _seekMs = null;
+                        });
+                        widget.onSeek(v);
+                      }
+                    : null,
+              ),
             ),
           ),
         ),
