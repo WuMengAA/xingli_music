@@ -2,7 +2,7 @@
 /// 应用外壳导航状态
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 依据底部导航重构（主页 / 曲库 / 世界 / 探索 / 设置，共 5 Tab）：
+/// 依据底部导航重构（主页 / 曲库 / 世界 / 探索 / 校园电台 / 设置，共 6 Tab）：
 /// `IndexedStack` 有 5 个子页面、Dock 也有 5 个 Tab；**唯一真源是
 /// [shellPageIndexProvider]**，Tab 高亮由其派生。
 ///
@@ -22,7 +22,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// | 1     | `LibraryPage`  | Tab 1         |
 /// | 2     | `WorldPage`    | Tab 2         |
 /// | 3     | `ExplorePage`  | Tab 3         |
-/// | 4     | `SettingsPage` | Tab 4         |
+/// | 4     | `VoiceHubPage` | Tab 4（校园电台 · 点歌）|
+/// | 5     | `SettingsPage` | Tab 5         |
 abstract final class ShellPage {
   /// 主页 —— Tab 0，冷启动默认页（合并原场景页内容）。
   static const int home = 0;
@@ -36,14 +37,17 @@ abstract final class ShellPage {
   /// 探索页 —— Tab 3。
   static const int explore = 3;
 
-  /// 设置页 —— Tab 4。
-  static const int settings = 4;
+  /// VoiceHub 校园电台（点歌）—— Tab 4，内嵌的一级功能入口。
+  static const int voicehub = 4;
+
+  /// 设置页 —— Tab 5。
+  static const int settings = 5;
 
   /// `IndexedStack` 子页面总数。
-  static const int count = 5;
+  static const int count = 6;
 
-  /// Dock Tab 数量（重构后：主页 / 曲库 / 世界 / 探索 / 设置，共 5 个）。
-  static const int tabCount = 5;
+  /// Dock Tab 数量（重构后：主页 / 曲库 / 世界 / 探索 / 校园电台 / 设置，共 6 个）。
+  static const int tabCount = 6;
 
   /// 该页面索引是否对应一个 Dock Tab。
   static bool isTab(int index) => index >= 0 && index < tabCount;

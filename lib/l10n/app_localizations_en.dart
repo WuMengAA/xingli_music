@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tabSettings => 'Settings';
 
   @override
+  String get tabVoiceHub => 'VoiceHub';
+
+  @override
   String get play => 'Play';
 
   @override

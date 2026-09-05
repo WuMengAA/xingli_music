@@ -25,8 +25,8 @@ class DockItem {
   });
 }
 
-/// 5 个 Tab 的顺序 —— 必须与 `ShellPage` 的页面常量
-/// （`home=0 / library=1 / world=2 / explore=3 / settings=4`）严格一致。
+/// 6 个 Tab 的顺序 —— 必须与 `ShellPage` 的页面常量
+/// （`home=0 / library=1 / world=2 / explore=3 / voicehub=4 / settings=5`）严格一致。
 ///
 /// 注意 `ShellPage` 是 `abstract final class` 的 int 常量集合，**不是 Dart enum**，
 /// 因此没有 `.values`，两边顺序只能靠本注释与 code review 约束。
@@ -56,6 +56,11 @@ List<DockItem> buildDockItems(AppLocalizations l10n) => <DockItem>[
     icon: Icons.settings_outlined,
     selectedIcon: Icons.settings,
     label: l10n.tabSettings,
+  ),
+  DockItem(
+    icon: Icons.voice_chat_outlined,
+    selectedIcon: Icons.voice_chat,
+    label: l10n.tabVoiceHub,
   ),
 ];
 

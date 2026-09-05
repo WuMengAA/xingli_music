@@ -458,7 +458,9 @@ abstract final class AppVersion {
 /// buildCount 8→9（0.26.9.3_beta_cl09）：VoiceHub 对接闭环——客户端(songs/
 /// schedules/request)+点歌/排期展示+网易云/B站通道播放+登录 cookie 点歌提交
 /// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
-static const int buildCount = 1;
+/// buildCount 1→2（26.09.05_alpha_cl02）：VoiceHub 内嵌为底部第 5 个 Tab
+/// 「校园电台」（原仅设置入口 + 探索胶囊）；一级可达、一键点歌/排期/播放。
+static const int buildCount = 2;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -523,6 +525,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.5',
+    cl: 'alpha_cl02',
+    title: 'VoiceHub 校园电台内嵌为底部一级 Tab',
+    details: <String>[
+      '底部导航新增第 5 个 Tab「校园电台」（VoiceHub 点歌），从设置入口/探索胶囊提升为一级可达',
+      'Tab 内配置服务器 + API Key + 登录 cookie，点歌/排期双列表、搜索、一键播放（网易云/B站）',
+      'Dock 6 Tab 等分、选中态液态玻璃弹簧指示器；IndexedStack 保活滚动位置',
+      '版本号三处同步：26.09.05_alpha_cl02 / 26090502 / 26.9.5+26090502',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.5',
     cl: 'alpha_cl01',

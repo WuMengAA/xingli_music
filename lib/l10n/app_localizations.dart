@@ -134,6 +134,12 @@ abstract class AppLocalizations {
   /// **'设置'**
   String get tabSettings;
 
+  /// No description provided for @tabVoiceHub.
+  ///
+  /// In zh, this message translates to:
+  /// **'校园电台'**
+  String get tabVoiceHub;
+
   /// No description provided for @play.
   ///
   /// In zh, this message translates to:

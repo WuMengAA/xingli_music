@@ -27,6 +27,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tabSettings => '设置';
 
   @override
+  String get tabVoiceHub => '校园电台';
+
+  @override
   String get play => '播放';
 
   @override

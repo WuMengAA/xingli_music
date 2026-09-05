@@ -10,6 +10,7 @@ import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
 import 'models/track.dart';
 import 'pages/explore/explore_page.dart';
+import 'pages/explore/experiments/voicehub_page.dart';
 import 'pages/oobe/oobe_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
@@ -90,7 +91,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
   /// 软键盘弹出时，内容区至少保留的高度（低于此值不再继续压缩，
   /// 否则 `Padding` 会把 `IndexedStack` 约束成负高度）。
   static const double _minContentHeight = 120;
-  /// 5 个常驻页面，顺序**必须**与 [ShellPage] 常量一一对应。
+  /// 6 个常驻页面，顺序**必须**与 [ShellPage] 常量一一对应。
   ///
   /// 全部 `const`：配合 [IndexedStack] 实现「切 Tab 不重建、滚动位置不丢」
   /// （P0-B10 / 约定 C11）。
@@ -100,7 +101,8 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     LibraryPage(), //    1 · 曲库
     WorldPage(), //      2 · 世界（星璃世界入口）
     ExplorePage(), //    3 · 探索
-    SettingsPage(), //   4 · 设置
+    VoiceHubPage(), //   4 · 校园电台（VoiceHub 点歌，内嵌一级入口）
+    SettingsPage(), //   5 · 设置
   ];
 
   /// 切 Tab 的「上浮淡入」过渡（批3 #580 · B）。
