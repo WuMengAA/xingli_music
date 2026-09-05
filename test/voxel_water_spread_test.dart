@@ -1,7 +1,6 @@
 /// G4 水流动（8-14）：MC 式扩散，1s=20tick 驱动，四周 9 格范围。
 /// 验证：单 tick 扩散一步、水平限 9 格、向下流、遇实心方块停止、队列耗尽自然结束。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import '../lib/widgets/voxel/voxel_world.dart';
 import '../lib/widgets/voxel/voxel_world_types.dart';
 

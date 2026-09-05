@@ -1,7 +1,6 @@
 /// R23u 生物群系 + 垂直世界（GDD §2.1/§2.3）：验证 4 群系地表、水域、垂直高度。
 /// G6：世界高度重排 maxY=128、海平面=32。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import '../lib/widgets/voxel/voxel_world.dart';
 import '../lib/widgets/voxel/voxel_world_types.dart';
 

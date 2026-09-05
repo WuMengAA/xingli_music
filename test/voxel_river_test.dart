@@ -2,7 +2,6 @@
 /// 地转偏向力（z 正=北，北半球右偏/南半球左偏）。全部经 `terrainHeightAt`
 /// （纯函数）与 `get` 验证，Isolate 一致性由 voxel_isolate_test 锁死。
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
 import '../lib/widgets/voxel/voxel_world.dart';
 import '../lib/widgets/voxel/voxel_world_types.dart';
 

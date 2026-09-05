@@ -28,7 +28,7 @@ Iterable<(String, int, int)> _atoms(Uint8List b, int start, int end) sync* {
 
 /// 在 b[start..end] 里找指定 type 的 atom，返回 payloadStart（含 size 头）或 -1。
 int _find(Uint8List b, int start, int end, String type) {
-  for (final (String t, int size, int payload) in _atoms(b, start, end)) {
+  for (final (String t, _, int payload) in _atoms(b, start, end)) {
     if (t == type) return payload;
   }
   return -1;

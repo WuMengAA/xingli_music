@@ -8,10 +8,8 @@
 //       [--clients N] [--rounds M]
 // ════════════════════════════════════════════════════════════════════════
 import 'dart:async';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
 
 String _uri = 'ws://127.0.0.1:8092/ws';
 int _clients = 20; // 扇出/点歌并发听众数（campus 全量 100 可自行调大）
