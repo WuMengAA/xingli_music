@@ -61,6 +61,7 @@ import '../widgets/common/state_chip.dart';
 import '../widgets/notification/notification_center.dart';
 import '../widgets/settings/llm_settings_sheet.dart';
 import '../widgets/settings/log_upload_sheet.dart';
+import '../widgets/settings/feedback_sheet.dart';
 import '../widgets/settings/storage_usage_sheet.dart';
 import '../widgets/settings/version_update_sheet.dart';
 import '../widgets/sources/netease_login_sheet.dart';
@@ -1854,8 +1855,19 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       ref,
       icon: Icons.cloud_upload_outlined,
       title: '日志上报',
-      subtitle: '把已脱敏日志发到自建日志服务（默认关闭）',
+      subtitle: '把已脱敏日志发到官方 relay（崩溃自动建 issue）',
       onTap: () => showLogUploadSheet(context),
+    ),
+  ),
+  'feedback': SettingItemDef(
+    title: '反馈',
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.feedback_outlined,
+      title: '反馈',
+      subtitle: '崩溃/建议一键发给官方（自动建 issue）',
+      onTap: () => showFeedbackSheet(context),
     ),
   ),
 

@@ -79,7 +79,7 @@ abstract final class AppVersion {
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
-  static const UpdateChannel channel = UpdateChannel.beta;
+  static const UpdateChannel channel = UpdateChannel.alpha;
 
   /// 热修复序号（补丁发布用；日常/正式构建为 null，不显示后缀）。
   /// 格式后缀：`_hotfixN`（如 `_hotfix6`）。OTA 靠 hotfix 标记识别、不升构建号；
@@ -523,6 +523,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '0.26.9.5',
+    cl: 'alpha_cl01',
+    title: '日志自动建 issue + 应用内反馈界面（Alpha 尝鲜）',
+    details: <String>[
+      'relay 8092 新增 GitHub Issue 同步：崩溃/ERROR 日志自动建 issue（指纹去重 + 6h 节流）',
+      '新增「反馈」入口：类型选择 + 8 项快速预设 + 自由描述，一键发官方（自动建 issue）',
+      '日志上报默认指向官方 relay（https://relay.245959623.xyz/api/logs），Alpha 渠道默认开启',
+      '反馈/崩溃附带近期日志脱敏摘要；relay 持 GitHub token（env/secret 文件）未配则仅收日志',
+    ],
+  ),
   ChangelogEntry(
     version: '0.26.9.5',
     cl: 'beta_cl01',

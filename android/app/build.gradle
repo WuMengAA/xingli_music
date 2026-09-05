@@ -43,7 +43,7 @@ android {
         // "0.26.<month>"（flutter.versionName 只取 x.y.z，随 pubspec 的 version 走）。
         // 规范（用户 2026-08-16）：0.26.<month>.<day>_beta_clXXX[_hotfixX]。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion.display 同步更新！
-        versionName = "0.26.9.5_beta_cl01"
+        versionName = "0.26.9.5_alpha_cl01"
         // 架构裁剪改由 android 顶层 `splits { abi }` 统一处理（见本块下方），
         // 这里不再用 ndk.abiFilters：它与 splits / --split-per-abi 冲突，且实测
         // 管不住 Flutter 引擎 .so（多余）。x86_64 仍由文件末尾 androidComponents 排除。

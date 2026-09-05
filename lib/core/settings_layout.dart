@@ -380,6 +380,7 @@ const SettingsLayout kDefaultSettingsLayout = SettingsLayout(
             // F4：重新打开初始化流程（设置-关于-初始化流程）。
             SettingItem(id: 'initWizard', title: '初始化流程'),
             SettingItem(id: 'logUpload', title: '日志上报'),
+            SettingItem(id: 'feedback', title: '反馈'),
           ],
         ),
         SettingGroup(

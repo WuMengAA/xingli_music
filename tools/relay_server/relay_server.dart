@@ -651,6 +651,12 @@ Future<void> _handleApi(HttpRequest req) async {
     await _handleAdmin(req);
     return;
   }
+  // cl17：反馈限流（防止未鉴权端点被刷 GitHub issue）。
+  if (path == '/api/feedback' &&
+      !_rateLimit('$ip|feedback', _kFeedbackRateMax, _kFeedbackRateWindowSec)) {
+    await _jsonError(req, '请求过于频繁，请稍后再试', status: 429);
+    return;
+  }
   Map<String, dynamic>? payload;
   int status = 200;
   switch (path) {
@@ -767,6 +773,15 @@ Future<void> _handleApi(HttpRequest req) async {
         break;
       }
       payload = await _handleAppLogs(req);
+      if (payload['ok'] != true) status = 400;
+      break;
+    case '/api/feedback':
+      if (method != 'POST') {
+        status = 405;
+        payload = <String, dynamic>{'ok': false, 'error': 'method not allowed'};
+        break;
+      }
+      payload = await _handleFeedback(req);
       if (payload['ok'] != true) status = 400;
       break;
     default:
@@ -1164,6 +1179,8 @@ Future<Map<String, dynamic>> _handleAppLogs(HttpRequest req) async {
   }
   if (rows.isEmpty) return <String, dynamic>{'ok': false, 'error': 'no valid entries'};
   final int written = await _appendAppLogs(rows);
+  // cl17：崩溃/异常日志落盘后，异步建/同步 GitHub issue（不阻塞 HTTP 响应）。
+  unawaited(_syncCrashIssues(rows));
   return <String, dynamic>{'ok': true, 'received': rows.length, 'written': written};
 }
 
@@ -1243,6 +1260,265 @@ Future<int> _countAppLogFiles() async {
   }
 }
 
+// ═══ cl17：GitHub issue 自动同步（崩溃日志 + 用户反馈）══════════════════
+//
+// 把 App 上报的崩溃日志 / 用户反馈，自动建或同步到 GitHub issue，实现
+// 「日志上传自动处理，同步并处理 issue」。
+//
+// 安全边界（务必遵守）：
+// - token 仅从环境变量 `XINGLI_GITHUB_TOKEN` 或 gitignored 文件
+//   `relay_server.github_token` 读取，绝不随代码分发（同 `relay_server.secret` 模式）。
+// - 未配置 token 时本模块整体禁用，仅打 stderr 警告，不影响日志落盘等既有功能。
+// - 目标仓库默认 `WuMengAA/xingli_music`，可用环境变量 `GITHUB_REPO` 覆盖。
+// - 去重 + 节流：相同崩溃指纹 / 反馈签名归并到同一 issue（最小 6h 间隔），避免刷屏。
+
+const String _kGitHubApiBase = 'https://api.github.com';
+const String _kGitHubTokenFile = 'relay_server.github_token';
+const String _kIssueStateFile = 'issues_state.json';
+const Duration _kIssueMinInterval = Duration(hours: 6);
+
+String? _githubToken;
+String _githubRepo = 'WuMengAA/xingli_music';
+
+/// 崩溃/反馈 issue 去重状态：fingerprint/signature -> {number, updatedAt(ms)}。
+Map<String, dynamic> _issueState = <String, dynamic>{};
+
+Future<void> _loadGitHubConfig() async {
+  _githubRepo = (Platform.environment['GITHUB_REPO']?.trim().isNotEmpty == true)
+      ? Platform.environment['GITHUB_REPO']!.trim()
+      : _githubRepo;
+  final String? envTok = Platform.environment['XINGLI_GITHUB_TOKEN']?.trim();
+  if (envTok != null && envTok.isNotEmpty) {
+    _githubToken = envTok;
+  } else {
+    try {
+      final File f = File(_kGitHubTokenFile);
+      if (await f.exists()) {
+        final String t = (await f.readAsString()).trim();
+        if (t.isNotEmpty) _githubToken = t;
+      }
+    } catch (_) {}
+  }
+  _issueState = await _loadIssueState();
+  if (_githubToken == null || _githubToken!.isEmpty) {
+    stderr.writeln('[github] 未配置 token（env XINGLI_GITHUB_TOKEN 或文件 '
+        '$_kGitHubTokenFile），崩溃/反馈 issue 同步已禁用');
+  } else {
+    stderr.writeln('[github] issue 同步已启用 → $_githubRepo');
+  }
+}
+
+Future<Map<String, dynamic>> _loadIssueState() async {
+  try {
+    final File f = File(_kIssueStateFile);
+    if (await f.exists()) {
+      final Object? v = jsonDecode(await f.readAsString());
+      if (v is Map<String, dynamic>) return v;
+    }
+  } catch (_) {}
+  return <String, dynamic>{};
+}
+
+Future<void> _saveIssueState() async {
+  try {
+    await File(_kIssueStateFile).writeAsString(jsonEncode(_issueState));
+  } catch (_) {}
+}
+
+/// 归一化：抹掉地址/长数字/uuid，只保留结构用于指纹。
+String _normalizeForFingerprint(String s) => s
+    .replaceAll(RegExp(r'0x[0-9a-fA-F]+'), '0xADDR')
+    .replaceAll(RegExp(r'\b\d{4,}\b'), '#')
+    .replaceAll(RegExp(r'[a-f0-9]{8,}-[a-f0-9-]+'), 'UUID');
+
+/// 崩溃指纹：归一化首行 msg + 标签 + 前 3 行堆栈。
+String _crashFingerprint(Map<String, dynamic> row) {
+  final String msg = (row['msg'] as String? ?? '').split('\n').first;
+  final List<String> stack = (row['msg'] as String? ?? '')
+      .split('\n')
+      .skip(1)
+      .take(3)
+      .map((String l) => _normalizeForFingerprint(l))
+      .toList();
+  final String tag = row['tag'] as String? ?? '';
+  return 'crash|${(tag.isNotEmpty ? tag : "x")}|${_normalizeForFingerprint(msg)}|${stack.join(" / ")}';
+}
+
+/// 反馈签名：type|preset|归一化文本。
+String _feedbackSignature(String type, String preset, String text) =>
+    'fb|${type.toLowerCase()}|${preset.trim().toLowerCase()}|${_normalizeForFingerprint(text.trim())}';
+
+/// 调 GitHub Issues API（POST 创建 / POST 评论），返回响应 JSON 或 null（失败）。
+Future<Map<String, dynamic>?> _githubPost(String path, Map<String, dynamic> body) async {
+  if (_githubToken == null || _githubToken!.isEmpty) return null;
+  HttpClient? client;
+  try {
+    client = HttpClient();
+    final HttpClientRequest req = await client
+        .postUrl(Uri.parse('$_kGitHubApiBase/repos/$_githubRepo$path'))
+        .timeout(const Duration(seconds: 10));
+    req.headers.set('Authorization', 'Bearer $_githubToken');
+    req.headers.set('Accept', 'application/vnd.github+json');
+    req.headers.set('User-Agent', 'xingli-relay');
+    req.headers.contentType = ContentType.json;
+    req.write(jsonEncode(body));
+    final HttpClientResponse res = await req.close().timeout(const Duration(seconds: 10));
+    final String raw = await res.transform(utf8.decoder).join();
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final Object? v = jsonDecode(raw);
+      return v is Map<String, dynamic> ? v : <String, dynamic>{};
+    }
+    stderr.writeln('[github] POST $path 失败 ${res.statusCode}: $raw');
+    return null;
+  } catch (e) {
+    stderr.writeln('[github] POST $path 异常: $e');
+    return null;
+  } finally {
+    client?.close(force: true);
+  }
+}
+
+/// 去重创建或更新 issue：fp 命中已有且未过节流窗口 → 追加评论；否则新建。
+Future<void> _upsertIssue({
+  required String fp,
+  required String title,
+  required String body,
+  required List<String> labels,
+  required String commentIfDup,
+}) async {
+  if (_githubToken == null || _githubToken!.isEmpty) return;
+  final Map<String, dynamic>? existing = _issueState[fp] is Map<String, dynamic>
+      ? _issueState[fp] as Map<String, dynamic>
+      : null;
+  final int now = DateTime.now().millisecondsSinceEpoch;
+  if (existing != null) {
+    final int updated = existing['updatedAt'] as int? ?? 0;
+    if (now - updated < _kIssueMinInterval.inMilliseconds) return; // 节流
+    final int number = existing['number'] as int? ?? 0;
+    if (number > 0) {
+      final Map<String, dynamic>? r = await _githubPost(
+        '/issues/$number/comments',
+        <String, dynamic>{'body': commentIfDup},
+      );
+      if (r != null) {
+        existing['updatedAt'] = now;
+        _issueState[fp] = existing;
+        await _saveIssueState();
+      }
+      return;
+    }
+  }
+  final Map<String, dynamic>? created = await _githubPost('/issues', <String, dynamic>{
+    'title': title,
+    'body': body,
+    'labels': labels,
+  });
+  if (created != null && created['number'] is int) {
+    _issueState[fp] = <String, dynamic>{
+      'number': created['number'] as int,
+      'updatedAt': now,
+    };
+    await _saveIssueState();
+  }
+}
+
+/// 崩溃日志落盘后，扫描批次里的 ERROR/CRASH/FATAL 或 tag=crash，自动建/同步 issue。
+Future<void> _syncCrashIssues(List<Map<String, dynamic>> rows) async {
+  if (_githubToken == null || _githubToken!.isEmpty) return;
+  for (final Map<String, dynamic> row in rows) {
+    final String level = (row['level'] as String? ?? '').toUpperCase();
+    final String tag = (row['tag'] as String? ?? '').toLowerCase();
+    if (level != 'ERROR' && level != 'CRASH' && level != 'FATAL' && tag != 'crash') {
+      continue;
+    }
+    final String fp = _crashFingerprint(row);
+    final String msg = (row['msg'] as String? ?? '').split('\n').first;
+    final String title = '[崩溃/异常] ${msg.length > 80 ? '${msg.substring(0, 80)}…' : msg}';
+    final String detail = row['msg'] as String? ?? '';
+    final String body = '## 自动捕获的崩溃/异常日志\n'
+        '- 级别：$level\n'
+        '- 标签：${row['tag']}\n'
+        '- 时间：${row['ts']}\n\n'
+        '### 详情\n```\n$detail\n```\n\n'
+        '> 由官方 relay 自动同步，指纹：`$fp`';
+    await _upsertIssue(
+      fp: fp,
+      title: title,
+      body: body,
+      labels: <String>['crash', 'auto', 'from-relay'],
+      commentIfDup: '复现 @ ${row['ts']}：\n```\n$detail\n```',
+    );
+  }
+}
+
+/// 用户反馈 → issue（App POST /api/feedback）。
+Future<Map<String, dynamic>> _handleFeedback(HttpRequest req) async {
+  final Object? v = await _readJsonAny(req);
+  if (v is! Map) return <String, dynamic>{'ok': false, 'error': 'expected object'};
+  final Map<String, dynamic> m = v as Map<String, dynamic>;
+  final String type = (m['type'] as String? ?? '').toString().trim();
+  final String text = (m['text'] as String? ?? '').toString().trim();
+  if (type.isEmpty || text.isEmpty) {
+    return <String, dynamic>{'ok': false, 'error': 'type and text required'};
+  }
+  final String preset = (m['preset'] as String? ?? '').toString().trim();
+  final String version = (m['version'] as String? ?? '').toString().trim();
+  final String channel = (m['channel'] as String? ?? '').toString().trim();
+  final String os = (m['os'] as String? ?? '').toString().trim();
+  final bool attachLogs = m['attachLogs'] == true;
+  final String fp = _feedbackSignature(type, preset, text);
+  final String typeLabel = switch (type.toLowerCase()) {
+    'bug' => '缺陷',
+    'suggestion' => '建议',
+    'performance' => '性能',
+    'ui' => '界面',
+    _ => '其他',
+  };
+  final String rawHead = preset.isNotEmpty ? preset : text.split('\n').first;
+  final String head = rawHead.length > 60 ? '${rawHead.substring(0, 60)}…' : rawHead;
+  final StringBuffer body = StringBuffer();
+  body.writeln('## 用户反馈（$typeLabel）');
+  body.writeln('- 类型：$type');
+  if (preset.isNotEmpty) body.writeln('- 快速预设：$preset');
+  if (version.isNotEmpty) body.writeln('- 版本：$version');
+  if (channel.isNotEmpty) body.writeln('- 渠道：$channel');
+  if (os.isNotEmpty) body.writeln('- 系统：$os');
+  body.writeln('');
+  body.writeln('### 内容');
+  body.writeln(text);
+  if (attachLogs && m['logs'] is List) {
+    final List<dynamic> logs = m['logs'] as List<dynamic>;
+    if (logs.isNotEmpty) {
+      body.writeln('');
+      body.writeln('### 附带日志（最近 ${logs.length} 条）');
+      body.writeln('```');
+      for (final dynamic e in logs.take(50)) {
+        if (e is Map) {
+          body.writeln('[${e['ts']}] [${e['level']}] [${e['tag']}] ${e['msg']}');
+        }
+      }
+      body.writeln('```');
+    }
+  }
+  body.writeln('');
+  body.writeln('> 由官方 relay 自动同步，签名：`$fp`');
+  if (_githubToken == null || _githubToken!.isEmpty) {
+    return <String, dynamic>{
+      'ok': true,
+      'synced': false,
+      'note': 'relay 未配置 GitHub token，反馈已接收但未建 issue',
+    };
+  }
+  await _upsertIssue(
+    fp: fp,
+    title: '[用户反馈·$typeLabel] $head',
+    body: body.toString(),
+    labels: <String>['feedback', 'auto', 'from-relay', type.toLowerCase()],
+    commentIfDup: '追加反馈 @ ${DateTime.now().toIso8601String()}：\n$text',
+  );
+  return <String, dynamic>{'ok': true, 'synced': true};
+}
+
 Future<void> _listen(int port, {String? certPath, String? keyPath}) async {
   final HttpServer server;
   if (certPath != null && keyPath != null) {
@@ -1319,6 +1595,7 @@ Future<void> main(List<String> args) async {
     return;
   }
   _serverSecret = secret;
+  await _loadGitHubConfig(); // cl17：加载 GitHub issue 同步配置（token/repo）
   await _listen(port, certPath: cert, keyPath: key);
 }
 
@@ -1369,6 +1646,10 @@ const int _kAuthRateWindowSec = 60;
 /// admin 限流：每 IP 每窗口最多 [kAdminRateMax] 次（防滥用）。
 const int _kAdminRateMax = 120;
 const int _kAdminRateWindowSec = 60;
+
+/// 反馈限流：每 IP 每窗口最多 [kFeedbackRateMax] 次（防刷 issue）。
+const int _kFeedbackRateMax = 30;
+const int _kFeedbackRateWindowSec = 60;
 
 final Map<String, List<int>> _rateBuckets = <String, List<int>>{};
 

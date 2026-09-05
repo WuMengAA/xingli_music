@@ -100,6 +100,10 @@ tools/relay_server/.dart_tool/
 tools/relay_server/*.secret
 # 轮转前的旧密钥备份（含敏感密钥，绝不入库）
 tools/relay_server/*.secret.old
+# GitHub issue 同步 token（env XINGLI_GITHUB_TOKEN 或此文件；绝不入库）
+tools/relay_server/relay_server.github_token
+# issue 去重状态（运行时生成，指纹→issue 号映射）
+tools/relay_server/issues_state.json
 # 注册用户数据：运行时生成，含账号信息
 tools/relay_server/users/
 # 本地自测产物（curl 输出等）
