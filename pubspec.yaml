@@ -54,7 +54,10 @@ dependencies:
   # ── 外部流媒体：HTTP 请求 ────────────────────────────
   http: ^1.2.2
 
-  # ── 网页嵌入（校园电台 VoiceHub 真实站点 WebView，双向 JS 桥联动）──
+  # ── 网页嵌入（校园电台 VoiceHub 真实站点 WebView，整页嵌入 + 双向 JS 桥；
+  #      flutter_inappwebview 单包同时覆盖 Android / iOS / macOS / Windows / Linux）──
+  flutter_inappwebview: ^6.1.5
+  # ── 网易云网页登录仍用官方 webview_flutter（仅 Android 走该登录页）──
   webview_flutter: ^4.10.0
 
   # ── 哈希（Subsonic token 鉴权，Dart 已移除 dart:convert 的 md5）──

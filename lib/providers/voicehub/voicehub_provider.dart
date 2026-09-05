@@ -14,7 +14,11 @@ import '../../services/voicehub/voicehub_client.dart';
 
 /// VoiceHub 配置（空 baseUrl = 未启用）。
 class VoiceHubConfig {
-  const VoiceHubConfig({this.baseUrl = '', this.apiKey = '', this.cookie = ''});
+  const VoiceHubConfig({
+    this.baseUrl = 'https://voicehub.245959623.xyz',
+    this.apiKey = '',
+    this.cookie = '',
+  });
 
   final String baseUrl;
   final String apiKey;
@@ -79,9 +83,13 @@ class VoiceHubNotifier extends StateNotifier<VoiceHubState> {
   /// 首 watch 自动加载配置（与天气/日历/ClassIsland 一致的约定）。
   Future<void> load() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // 未配置（首次启动 / 之前清空）时默认指向真实站点，打开即整页嵌入。
+    final String savedBase = prefs.getString(_kBaseUrl) ?? '';
+    final String baseUrl =
+        savedBase.trim().isEmpty ? 'https://voicehub.245959623.xyz' : savedBase;
     state = state.copyWith(
       config: VoiceHubConfig(
-        baseUrl: prefs.getString(_kBaseUrl) ?? '',
+        baseUrl: baseUrl,
         apiKey: prefs.getString(_kApiKey) ?? '',
         cookie: prefs.getString(_kCookie) ?? '',
       ),
