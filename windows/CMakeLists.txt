@@ -32,6 +32,12 @@ set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS_RELEASE}")
 # Use Unicode for all projects.
 add_definitions(-DUNICODE -D_UNICODE)
 
+# 兼容 VS18(2026) BuildTools：其 MSVC 14.51 将 <experimental/coroutine> 视为
+# 硬错误(static_assert STL1011)，而 just_audio_windows / permission_handler_windows
+# 等插件用到 /await + experimental coroutine。定义此宏将其降为警告，恢复构建
+# （VS17 2022 仅警告，本宏无害；待上游插件迁移 C++20 <coroutine> 后可移除）。
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Compilation settings that should be applied to most targets.
 #
 # Be cautious about adding new options here, as plugins use this function by
