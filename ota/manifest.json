@@ -59,7 +59,13 @@
       }
     },
     "alpha": {
-      "latest": "26.09.05_alpha_cl02"
+      "latest": {
+        "hotfix": null,
+        "build": 2,
+        "dateKey": 260905,
+        "tag": "26.09.05_alpha_cl02",
+        "notes": "VoiceHub 校园电台内嵌为底部第 6 个一级 Tab「校园电台」；版本号格式兼容性补救（YY.MM.DD / YYMMDDNN，单 applicationId 不拆三套 flavor）"
+      }
     }
   },
   "versions": [
