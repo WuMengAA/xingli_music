@@ -466,7 +466,15 @@ abstract final class AppVersion {
 /// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
 /// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
 /// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
-static const int buildCount = 2;
+/// buildCount 2→3（26.09.06_alpha_cl03）：五处 bug 修复——
+/// ①dock Tab 顺序修正（voicehub/settings 对调，点击与高亮不再错位）+ 玻璃 dock
+/// 指示器 x 偏移去重（末 tab 高亮不再越出玻璃框）；②OOBE 冷启动门闸
+/// （bootRestoredProvider）：restoreSettings 帧后跑完才放行，消除每次启动闪欢迎页；
+/// ③白噪音解耦为独立第三音轨（whiteNoiseFollowsSceneProvider 默认 false，不再跟随
+/// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
+/// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
+/// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
+static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

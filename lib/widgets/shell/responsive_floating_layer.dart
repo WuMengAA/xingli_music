@@ -46,7 +46,9 @@ class ResponsiveFloatingLayer extends StatelessWidget {
     // 满宽贴底的直觉（cl13 用户裁决「始终满宽」）。窄屏保留少量安全边距。
     final double sideInset =
         (rl.isLandscape || rl.isLarge) ? 0.0 : AppSpace.sm;
-    const double maxWidth = double.infinity;
+    // 横向自适应：宽屏/横屏收窄并水平居中（对齐 dock 最大宽度），避免拉成
+    // 突兀长条；窄屏满宽贴边。原 double.infinity 忽略了 rl.dockMaxWidth。
+    final double maxWidth = rl.dockMaxWidth;
 
     return Positioned(
       left: sideInset,

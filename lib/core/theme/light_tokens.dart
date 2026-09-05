@@ -242,7 +242,7 @@ abstract final class AppSize {
 
   /// Dock / TabBar 高度（iOS 化后由 [AppDock.kTabBarHeight] 接管实际高度，
   /// 此处保留供 AppShell 悬浮预留计算）。
-  static const double heightDock = 76;
+  static const double heightDock = 50;
 
   /// Dock 离底悬浮间隙（R32：iOS26 悬浮 Dock——浮于底部之上，非贴底）。
   static const double dockFloatGap = 12;

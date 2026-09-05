@@ -53,14 +53,14 @@ List<DockItem> buildDockItems(AppLocalizations l10n) => <DockItem>[
     label: l10n.tabExplore,
   ),
   DockItem(
-    icon: Icons.settings_outlined,
-    selectedIcon: Icons.settings,
-    label: l10n.tabSettings,
-  ),
-  DockItem(
     icon: Icons.voice_chat_outlined,
     selectedIcon: Icons.voice_chat,
     label: l10n.tabVoiceHub,
+  ),
+  DockItem(
+    icon: Icons.settings_outlined,
+    selectedIcon: Icons.settings,
+    label: l10n.tabSettings,
   ),
 ];
 

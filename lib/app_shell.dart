@@ -123,7 +123,10 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       final Scene scene = ref.read(activeSceneProvider);
       unawaited(ref.read(audioServiceProvider).switchSoundscape(scene));
       // R10：冷启动恢复用户设置（音量/主题/EQ/场景/上次曲目等）
-      unawaited(restoreSettings(ref));
+      // whenComplete：无论成功或异常都置 bootRestored，避免恢复抛错时卡在 splash。
+      unawaited(restoreSettings(ref).whenComplete(
+        () => ref.read(bootRestoredProvider.notifier).state = true,
+      ));
       // 集控插件：本地控制服务（ClassIsland 集控被控端，localhost:43218）。
       unawaited(ControlServer.instance.start(ref));
       // 布局整理：尝试读 assets/settings_layout.json 覆盖默认布局（随包分发）。
@@ -262,6 +265,14 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    // 冷启动恢复完成前先挡一个极短 splash，避免 oobeDoneProvider 默认 false
+    // 导致首帧误弹 OOBE（restoreSettings 是帧后异步恢复，whenComplete 才置 true）。
+    if (!ref.watch(bootRestoredProvider)) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0B1220),
+        body: SizedBox.expand(),
+      );
+    }
     // R26fx：OOBE 首次启动引导——未完成时覆盖全屏，完成后进入主界面。
     if (!ref.watch(oobeDoneProvider)) {
       return const OobePage();
@@ -334,7 +345,12 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     // R32 一.1：移除 Dock 上方的空白边界限制区域。
     // 播放控件是玻璃焦点（半透明模糊），内容滑入其下自然透出、与浮层浑然
     // 一体，无需再为它强制留白；仅保留 Dock 高度（实底选中态）的底部防遮挡。
-    final double floatingReserve = dockH + dockFloatGap;
+    // 修正：悬浮层实际 = 音乐卡(80) + 间隙 + Dock，原预留漏算音乐卡高度，
+    // 导致有曲目时内容被音乐卡遮挡；仅当有曲目（音乐卡可见）才补其高度。
+    final bool hasTrack = ref.watch(nowPlayingProvider) != null;
+    final double musicCardH = hasTrack ? AppSize.heightMiniGroup : 0.0;
+    final double floatingReserve =
+        musicCardH + AppSpace.sm + dockH + dockFloatGap;
 
     // R10/R11：运行期同步写回持久化（唯一触发点）
     ref.watch(settingsSyncProvider);

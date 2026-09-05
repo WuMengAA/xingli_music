@@ -518,6 +518,11 @@ void applyPicturePreset(WidgetRef ref, PicturePreset p) {
 /// OOBE 完成标记（首次启动欢迎页；完成后不再显示）。
 final oobeDoneProvider = StateProvider<bool>((ref) => false);
 
+/// 冷启动恢复完成标记：restoreSettings 帧后异步跑完（成功或异常）后置 true。
+/// AppShell 用它在恢复完成前先挡一个极短 splash，避免 oobeDoneProvider
+/// 默认 false 导致每次启动首帧误弹 OOBE（根治「每次启动重弹 OOBE」）。
+final bootRestoredProvider = StateProvider<bool>((ref) => false);
+
 /// cl46：世界自动备份间隔（分钟：5 / 15 / 30 / 60）。
 final backupIntervalMinutesProvider = StateProvider<int>((ref) => 15);
 

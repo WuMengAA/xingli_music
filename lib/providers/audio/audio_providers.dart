@@ -341,13 +341,14 @@ final channelSchemeProvider = Provider<ChannelScheme>((ref) {
 
 // ── #167：白噪音跟随场景 / 全局播放 ───────────────────
 
-/// 白噪音是否**跟随当前场景**（#167，默认 true = 跟随）。
+/// 白噪音是否**跟随当前场景**（#167，默认 false = 独立全局轨道）。
 ///
+/// - `false`（默认·独立轨道）：白噪音是第三条独立音轨，开关与音量统一用
+///   [whiteNoiseEnabledProvider] / [whiteNoiseVolumeProvider]，不随场景
+///   音景(背景声)自动启停 —— 即「分三类音轨」（主音乐 / 背景声 / 白噪音）之一；
 /// - `true`（跟随场景）：白噪音开关与音量取自 [activeSceneProvider] 的
-///   `Scene.whiteNoise` / `Scene.whiteNoiseVolume`，换场景自动切换；
-/// - `false`（全局播放）：忽略场景设置，统一用
-///   [whiteNoiseEnabledProvider] / [whiteNoiseVolumeProvider]。
-final whiteNoiseFollowsSceneProvider = StateProvider<bool>((ref) => true);
+///   `Scene.whiteNoise` / `Scene.whiteNoiseVolume`，换场景自动切换。
+final whiteNoiseFollowsSceneProvider = StateProvider<bool>((ref) => false);
 
 /// 白噪音的**生效状态**（#167）：按跟随开关在「场景 / 全局」两个来源间取值。
 ///

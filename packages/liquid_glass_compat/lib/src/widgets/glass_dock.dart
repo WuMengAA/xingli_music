@@ -178,7 +178,9 @@ class _GlassDockState extends State<GlassDock> with TickerProviderStateMixin {
       // 忠实 LiquidBottomTabs.kt：indicator 是 56dp 胶囊（cornerRadius=28），
       // 用 G2 连续曲率角（capsuleShape on → useContinuousSdf）。
       final double indicatorW = tabW - 8; // padding(horizontal=4dp) 收窄
-      final double x = widget.horizontalPadding + 4 + _indicatorFrac * tabW;
+      // 指示器相对「已内缩 horizontalPadding 的内容区」定位，x 只需 4dp 起始
+      // 偏移 + 弹簧插值；不要再叠加 horizontalPadding，否则末位 Tab 会溢出玻璃右缘。
+      final double x = 4 + _indicatorFrac * tabW;
 
       final Widget indicator = Stack(
         children: [

@@ -44,7 +44,7 @@ android {
         // （如 26.09.05_alpha_cl01）；versionCode = YYMMDDNN（如 26090501），由
         // pubspec 的 buildNumber(+YYMMDDNN) 经下方 flutter.versionCode.toInteger() 同步。
         // ⚠️ 每次发版与 lib/core/app_version.dart 的 AppVersion.display 同步更新！
-        versionName = "26.09.06_alpha_cl02"
+        versionName = "26.09.06_alpha_cl03"
         // 架构裁剪改由 android 顶层 `splits { abi }` 统一处理（见本块下方），
         // 这里不再用 ndk.abiFilters：它与 splits / --split-per-abi 冲突，且实测
         // 管不住 Flutter 引擎 .so（多余）。x86_64 仍由文件末尾 androidComponents 排除。
