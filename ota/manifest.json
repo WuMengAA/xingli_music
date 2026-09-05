@@ -57,9 +57,19 @@
         "tag": "0.26.9.3_beta_cl09",
         "notes": "VoiceHub 校园广播站点歌对接闭环(点歌/排期/播放/提交/入口)"
       }
+    },
+    "alpha": {
+      "latest": {
+        "tag": "26.09.05_alpha_cl01",
+        "dateKey": 260905,
+        "build": 1,
+        "hotfix": null,
+        "notes": "版本号格式兼容性补救首版（YY.MM.DD / YYMMDDNN）；保持单 applicationId，不拆三套 flavor"
+      }
     }
   },
   "versions": [
+    "26.09.05_alpha_cl01",
     "0.26.9.3_beta_cl09",
     "0.26.9.3_beta_cl08",
     "0.26.9.3_beta_cl07",
@@ -68,5 +78,5 @@
     "0.26.8.31_beta_cl03",
     "0.26.8.31_beta_cl01"
   ],
-  "updatedAt": "2026-09-04T02:00:00+08:00"
+  "updatedAt": "2026-09-05"
 }
