@@ -69,7 +69,7 @@ String otaShaAssetForAbi(DeviceAbi abi) =>
 /// Windows 电脑版更新包资产名（cl77：电脑版 OTA 定版命名约定，与安卓
 /// `app-<abi>-release.apk` 同哲学：固定名，不随 tag 变）。
 /// 发布侧由 tools/publish_windows_ota.ps1 打同名字符串包上传。
-String otaWindowsAssetName() => 'xingli_music_windows_x64.zip';
+String otaWindowsAssetName() => 'xingli_music_windows_x64.exe';
 
 /// Windows 电脑版对应 sha256 资产名。
 String otaWindowsShaAssetName() => '${otaWindowsAssetName()}.sha256';
@@ -504,8 +504,8 @@ class OtaService {
   ///
   /// - 安卓：按设备架构选 `app-arm64-v8a-release.apk` /
   ///   `app-armeabi-v7a-release.apk` 拆分包（[abi] 不传自动检测）；
-  /// - Windows 电脑版：下载固定名 `xingli_music_windows_x64.zip`
-  ///   （cl77 电脑版 OTA；发布侧用 tools/publish_windows_ota.ps1 打包同名上传）。
+  /// - Windows 电脑版：下载固定名 `xingli_music_windows_x64.exe`（安装包程序，
+  ///   不再发便携 zip；发布侧由 build_release.sh 经 Inno Setup 编译同名安装包上传）。
   /// [onProgress] 在下载期间持续回调进度（字节 / 网速），供 UI 展示；
   /// 下载不依赖调用方生命周期（调用方销毁后 Future 继续跑，即「挂后台」）。
   /// 返回下载文件路径（校验通过）；失败抛 [OtaException]（消息可直接展示）。

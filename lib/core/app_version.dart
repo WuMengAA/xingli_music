@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 5;
+  static const int day = 6;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -466,7 +466,7 @@ abstract final class AppVersion {
 /// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
 /// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
 /// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
-static const int buildCount = 3;
+static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 星璃音乐 · 一键双平台 release 出包（Android APK + Windows 便携 zip）
+# 星璃音乐 · 一键双平台 release 出包（Android APK + Windows 安装包）
 #
 # 产物目录（铁律）：D:\Stellara\Music\xingli_music\release\
 #   星璃音乐_<0.YY.MM.DD>_<channel>_cl<NN>.<arm64|arm32>.apk + .sha256
@@ -98,7 +98,7 @@ if [ "$APK_COUNT" -eq 0 ]; then
   exit 1
 fi
 
-# ── 2. Windows release + 便携 zip（仅 --win 时）──────────────
+# ── 2. Windows release + 安装包（仅 --win 时）──────────────
 if [ "$BUILD_WIN" = "1" ]; then
   echo "==> 构建 Windows release（1-2 分钟）"
   "$FLUTTER" build windows --release --no-tree-shake-icons
@@ -107,22 +107,20 @@ if [ "$BUILD_WIN" = "1" ]; then
   test -f "$WINREL/xingli_music.exe" && echo "    exe OK"
   test -f "$WINREL/sqlite3.dll" && echo "    sqlite3.dll OK" || { echo "    ⚠️ sqlite3.dll 缺失"; exit 1; }
 
-  # 7z 中文路径/非交互 glob 坑：先复制到 ASCII 临时目录，再压缩成 ASCII 名，
-  # 最后 mv 成中文名（MEMORY 2026-08-17）。
-  TMP="D:/temp/xingli_win_build"
-  # 清理旧残留（上次中断可能留脏目录；失败不中断——沙箱可能拦批量删除）。
-  rm -rf "$TMP" 2>/dev/null || true
-  mkdir -p "$TMP"
-  cp -r "$WINREL/." "$TMP/xingli_music/"
-  ( cd "$TMP" && "C:/Program Files/7-Zip/7z.exe" a -tzip -mx=9 "$TMP/x.zip" xingli_music >/dev/null )
-  WIN_ZIP="$RELEASE_DIR/${BASE}_pc_${CODENAME}_win_portable.zip"
-  mv "$TMP/x.zip" "$WIN_ZIP"
-  # ⚠️ sha256 必须在清理临时目录【之前】生成——沙箱对批量 rm -rf 会弹
-  # SAFE_DELETE 确认并中断 set -e，导致哈希步丢失（cl02 实测踩中）。
-  ( cd "$RELEASE_DIR" && sha256sum "${BASE}_pc_${CODENAME}_win_portable.zip" > "${BASE}_pc_${CODENAME}_win_portable.zip.sha256" )
-  # 清理临时目录：失败不中断（被沙箱拦时仅残留 D:/temp 垃圾，产物已完整）。
-  rm -rf "$TMP" 2>/dev/null || true
-  echo "    便携包：$WIN_ZIP"
+  # 安装包程序（Inno Setup 7）：用户要求 Windows 只发安装包、不再发便携 zip。
+  # ISCC 不在 PATH，用 AppData Local Programs 绝对路径；OutputBaseFilename 已在
+  # inno_xingli.iss 固定为 ASCII 的 xingli_music_windows_x64（与 OTA
+  # otaWindowsAssetName() 一致——GitHub 会剥离非 ASCII，必须 ASCII）。版本经
+  # /dMyAppVersion 注入（与 pubspec 三段式同源）。
+  ISCC="C:/Users/Administrator/AppData/Local/Programs/Inno Setup 7/ISCC.exe"
+  if [ ! -f "$ISCC" ]; then echo "    ⚠️ ISCC.exe 缺失（$ISCC）"; exit 1; fi
+  WIN_VER="${YEAR}.${MONTH}.${VERSION}"
+  "$ISCC" "tools/inno_xingli.iss" "/dMyAppVersion=$WIN_VER"
+  WIN_EXE="$RELEASE_DIR/xingli_music_windows_x64.exe"
+  test -f "$WIN_EXE" && echo "    安装包：$WIN_EXE" || { echo "    ⚠️ 安装包未生成"; exit 1; }
+  # sha256（安装包体积较大，固定 contentLength 的 Dart 上传桥会用到一致值）。
+  ( cd "$RELEASE_DIR" && sha256sum "xingli_music_windows_x64.exe" > "xingli_music_windows_x64.exe.sha256" )
+  echo "    安装包 sha256 已生成"
 fi
 
 echo ""
