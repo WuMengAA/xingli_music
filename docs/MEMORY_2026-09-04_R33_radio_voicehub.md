@@ -433,3 +433,35 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   ControlServer/CastStreamServer/net_node HttpServer（懒启动或 FLUTTER_TEST 守卫）、
   各 StateNotifier Timer dispose 规范（_posTimer/_reconnectTimer/_tick cancel）、
   4 个工具 provider 首 watch 自动 load 且页面无重复手动 load
+
+## VoiceHub 设计语言融入 + 内嵌网页（进行中，goal-9c5e6005）
+用户方向调整（2026-09-04）：
+1. **不做纯 API 客户端**——VoiceHub 要做成「**星璃世界页面的卡片，内嵌网页**」
+   （VoiceHub 网页界面做得好，直接用它的 UI；但**音源/播放必须在本地处理**，
+   并和网页联动——即网页浏览，本地拉排期/点歌走星璃解析链播放）
+2. **VoiceHub 设计语言融入星璃音乐卡片**（用户反馈「音乐软件太单调」）：
+   - 核心是**封面主色驱动**（VoiceHub 的 `--main-cover-color` 理念：封面取色
+     驱动背景/歌词/发光氛围，每首歌一个氛围色）
+   - 星璃播放页 `_DynamicBackground`（now_playing_page.dart L300+）已有：
+     封面提色渐变（`PaletteExtractor.dominantOf` @ core/utils/palette_extractor.dart
+     + 700ms TweenAnimationBuilder 平滑）+ 模糊封面背景层（blur 24 +
+     ColorFiltered 提色）+ 动态粒子 + 顶部 radial 光晕——**已与 VoiceHub 同源**
+   - 待强化（未做）：底部音乐卡封面呼吸光晕（unified_player.dart header 的
+     TrackCover 包 `_CoverGlow`，用 dominant color 径向渐变呼吸动画）；信息密度
+     （曲库/最近在听行加来源/热度徽标，VoiceHub 卡片式）
+3. **内嵌网页技术底座**（已调研）：
+   - `webview_flutter 4.9.0` 已在 pub cache（`webview_flutter_android 3.16.9` /
+     `wkwebview 3.26.0` / `web` 0.2.3+4）——**Android/iOS/Web 可用**；
+     Windows 桌面需 `desktop_webview_window`（未缓存，需联网拉）
+   - `flutter pub add webview_flutter --dry-run` 可解析（网络可用）
+   - VoiceHub 网页 `https://voicehub.245959623.xyz` **无 X-Frame-Options 限制**（可内嵌）
+   - 项目已有 Android 原生 WebView 先例 `CookieWebViewActivity`（登录用，返回 cookie）
+   - 计划：星璃世界页 world_page.dart 入口卡片 → WebView 内嵌 VoiceHub 页面
+     （Android 优先；Windows 视 desktop_webview_window 可达性）→ 联动本地播放
+     （复用已建 VoiceHubClient.fetchSchedules/fetchSongs + 网易云/B站本地解析链）
+4. **上一轮的 VoiceHub 对接成果保留**（API 客户端/点歌/排期/网易云+B站播放/cookie
+   提交/双入口/cl09 发布）——网页卡片方案与之互补而非替代：网页做浏览/操作 UI，
+   API 客户端做数据桥 + 本地播放联动
+
+**收工前状态**：以上为已确认方向与已完成调研；设计语言融入的音乐卡光晕实现、
+世界页入口卡片、webview 内嵌、网页↔本地播放联动**尚未编码**（见下一轮）。
