@@ -30,7 +30,6 @@ import 'experiments/net_library_page.dart';
 import 'experiments/netease_playlist_page.dart';
 import 'experiments/netease_recommend_page.dart';
 import 'experiments/scraper_page.dart';
-import 'experiments/voicehub_page.dart';
 
 /// 探索页（v2 M2 重写，按画布「Screen · 探索」3:238 重建）。
 ///
@@ -779,12 +778,6 @@ class _UtilityStrip extends StatelessWidget {
             label: '刮削器',
             iconColor: c.success,
             onTap: () => push(const ScraperPage()),
-          ),
-          _UtilityItem(
-            icon: Icons.voice_chat_rounded,
-            label: 'VoiceHub 点歌',
-            iconColor: c.warning,
-            onTap: () => push(const VoiceHubPage()),
           ),
         ],
       ),

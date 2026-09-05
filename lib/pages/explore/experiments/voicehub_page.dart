@@ -13,7 +13,7 @@ import '../../../services/voicehub/voicehub_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 
-/// VoiceHub 校园广播站点歌对接页（可选数据源；自研 relay 电台保留）。
+/// VoiceHub 校园广播站点歌对接页（底部「校园电台」Tab；自研 relay 电台保留不动）。
 ///
 /// - 配置：服务器地址 + API Key（持久化）
 /// - 点歌列表（open/songs.get）与排期（open/schedules.get）展示
