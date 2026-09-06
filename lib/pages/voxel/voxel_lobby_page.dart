@@ -359,14 +359,8 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
           height: 46,
           child: XGlassButton(
             onPressed: _enterWorld,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accent,
-              foregroundColor: ink,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-            ),
-            child: const Text('进入世界'),
+            tint: accent,
+            child: Text('进入世界', style: TextStyle(color: ink)),
           ),
         ),
         const SizedBox(height: AppSpace.sm),
@@ -805,14 +799,8 @@ class _PrimaryButton extends StatelessWidget {
         height: 46,
         child: XGlassButton(
           onPressed: busy ? null : onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: accent,
-            foregroundColor: ink,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-          ),
-          child: Text(label),
+          tint: accent,
+          child: Text(label, style: TextStyle(color: ink)),
         ),
       );
 }
