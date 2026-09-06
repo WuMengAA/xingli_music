@@ -12,6 +12,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/audio/equalizer_providers.dart';
 import '../../services/audio/eq_engine.dart';
+import '../design/glass_controls.dart';
 
 /// 均衡器控件面板（不含外壳，直接可嵌入任何列表/弹层）。
 class EqualizerPanel extends ConsumerWidget {
@@ -28,21 +29,34 @@ class EqualizerPanel extends ConsumerWidget {
       padding: EdgeInsets.zero,
       children: <Widget>[
         // 总开关
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('启用均衡器', style: context.appText.body),
-          subtitle: Text(engine.label, style: context.appText.artist),
-          value: enabled,
-          onChanged: (bool v) {
-            ref.read(eqEnabledProvider.notifier).state = v;
-            // 开 → 应用当前预设；关 → 真正关闭（清 mpv 滤镜/Android EQ），
-            // 避免残留效果导致后续播放异常（R-EQ）。
-            if (v) {
-              applyEqPreset(ref, ref.read(eqPresetProvider));
-            } else {
-              disableEq(ref);
-            }
-          },
+        XGlassCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('启用均衡器', style: context.appText.body),
+                    Text(engine.label, style: context.appText.artist),
+                  ],
+                ),
+              ),
+              XGlassToggle(
+                value: enabled,
+                onChanged: (bool v) {
+                  ref.read(eqEnabledProvider.notifier).state = v;
+                  // 开 → 应用当前预设；关 → 真正关闭（清 mpv 滤镜/Android EQ），
+                  // 避免残留效果导致后续播放异常（R-EQ）。
+                  if (v) {
+                    applyEqPreset(ref, ref.read(eqPresetProvider));
+                  } else {
+                    disableEq(ref);
+                  }
+                },
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: AppSpace.md),
 
@@ -168,7 +182,7 @@ class _BandSlider extends StatelessWidget {
         Expanded(
           child: RotatedBox(
             quarterTurns: 3,
-            child: Slider(
+            child: XGlassSlider(
               value: value.clamp(kEqMinGain, kEqMaxGain),
               min: kEqMinGain,
               max: kEqMaxGain,

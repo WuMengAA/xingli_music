@@ -6,6 +6,7 @@ import '../../core/settings_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// vivo 式设置布局：左侧分类导航 + 右侧内容区（大卡片分区）。
 ///
@@ -233,7 +234,7 @@ class _SearchResultsView extends ConsumerWidget {
         ],
         const SizedBox(height: 4),
         Center(
-          child: TextButton.icon(
+          child: XGlassButton(
             onPressed: () {
               if (currentId != null && currentId.isNotEmpty) {
                 ref.read(layoutSelectedCollectionProvider.notifier).state =
@@ -241,8 +242,14 @@ class _SearchResultsView extends ConsumerWidget {
               }
               onClear();
             },
-            icon: const Icon(Icons.arrow_back_rounded, size: 16),
-            label: const Text('返回设置'),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const <Widget>[
+                Icon(Icons.arrow_back_rounded, size: 16),
+                SizedBox(width: 8),
+                Text('返回设置'),
+              ],
+            ),
           ),
         ),
       ],

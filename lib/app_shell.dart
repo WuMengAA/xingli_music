@@ -40,6 +40,7 @@ import 'widgets/shell/frost_edge_bar.dart';
 import 'widgets/shell/responsive_floating_layer.dart';
 import 'widgets/shell/scroll_blur.dart';
 import 'widgets/shell/tab_switch_blur.dart';
+import 'widgets/design/animated_background.dart';
 import 'widgets/playback/music_card.dart';
 import 'widgets/social/order_floating_card.dart';
 import 'widgets/notification/global_notification_toast.dart';
@@ -372,6 +373,8 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
       body: LiquidGlassCapture(
         child: Stack(
         children: <Widget>[
+          // 设计语言背景层（模糊大卡片 + 抽象彩色图形随页面切换位移）
+          const AnimatedBackground(),
           // 主内容层（iOS 化：移除极光渐变 + 噪点背景层，Scaffold bgPage
           // 直接承担 systemBackground 底色，毛玻璃组件自带材质质感）
           SafeArea(

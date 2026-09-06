@@ -6,6 +6,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../models/scene.dart';
 import '../../providers/scene/scene_custom_providers.dart';
 import '../../widgets/notification/app_notify.dart';
+import '../design/glass_controls.dart';
 
 /// 配色个性面板（v2 M5-4 · P0-M5-4，经场景页右上角微光圆点进入）。
 ///
@@ -124,14 +125,14 @@ class _SceneColorPanelState extends ConsumerState<SceneColorPanel> {
             Row(
               children: <Widget>[
                 Expanded(
-                  child: OutlinedButton(
+                  child: XGlassButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: const Text('取消'),
                   ),
                 ),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
-                  child: FilledButton(
+                  child: XGlassButton(
                     onPressed: _apply,
                     child: const Text('应用到当前场景'),
                   ),
@@ -289,7 +290,7 @@ class _HuePickerDialogState extends State<_HuePickerDialog> {
             ),
           ),
           const SizedBox(height: AppSpace.md),
-          Slider(
+          XGlassSlider(
             value: _hue,
             min: 0,
             max: 360,
@@ -299,11 +300,11 @@ class _HuePickerDialogState extends State<_HuePickerDialog> {
         ],
       ),
       actions: <Widget>[
-        TextButton(
+        XGlassButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),
-        FilledButton(
+        XGlassButton(
           onPressed: () => Navigator.of(context).pop(current),
           child: const Text('确定'),
         ),

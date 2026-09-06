@@ -14,6 +14,7 @@ import '../../providers/content/content_providers.dart';
 import '../../providers/settings/log_upload_providers.dart';
 import '../../services/log_discovery.dart';
 import '../../services/remote_log_uploader.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开日志上报设置弹层。
 Future<void> showLogUploadSheet(BuildContext context) {
@@ -209,25 +210,49 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                 spacing: AppSpace.sm,
                 runSpacing: AppSpace.xs,
                 children: <Widget>[
-                  OutlinedButton.icon(
+                  XGlassButton(
                     onPressed: _useOfficialRelay,
-                    icon: const Icon(Icons.cloud_outlined, size: 18),
-                    label: const Text('官方 relay'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.cloud_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('官方 relay'),
+                      ],
+                    ),
                   ),
-                  OutlinedButton.icon(
+                  XGlassButton(
                     onPressed: _discover,
-                    icon: const Icon(Icons.wifi_find_rounded, size: 18),
-                    label: const Text('自动搜索'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.wifi_find_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('自动搜索'),
+                      ],
+                    ),
                   ),
-                  OutlinedButton.icon(
+                  XGlassButton(
                     onPressed: _test,
-                    icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
-                    label: const Text('测试连接'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.wifi_tethering_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('测试连接'),
+                      ],
+                    ),
                   ),
-                  FilledButton.tonalIcon(
+                  XGlassButton(
                     onPressed: _flushNow,
-                    icon: const Icon(Icons.send_rounded, size: 18),
-                    label: const Text('立即上报'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.send_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('立即上报'),
+                      ],
+                    ),
                   ),
                 ],
               ),

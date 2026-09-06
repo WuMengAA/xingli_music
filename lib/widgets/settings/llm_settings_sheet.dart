@@ -12,6 +12,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/llm_providers.dart';
 import '../../services/llm/llm_client.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开大模型设置弹层。
 Future<void> showLlmSettingsSheet(BuildContext context) {
@@ -196,21 +197,39 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
               Wrap(
                 spacing: AppSpace.sm,
                 children: <Widget>[
-                  FilledButton.icon(
+                  XGlassButton(
                     onPressed: _save,
-                    icon: const Icon(Icons.save_outlined, size: 18),
-                    label: const Text('保存'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.save_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('保存'),
+                      ],
+                    ),
                   ),
-                  OutlinedButton.icon(
+                  XGlassButton(
                     onPressed: _test,
-                    icon: const Icon(Icons.wifi_tethering_rounded, size: 18),
-                    label: const Text('测试连接'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const <Widget>[
+                        Icon(Icons.wifi_tethering_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text('测试连接'),
+                      ],
+                    ),
                   ),
                   if (keySet)
-                    TextButton.icon(
+                    XGlassButton(
                       onPressed: _clearKey,
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text('清除 Key'),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const <Widget>[
+                          Icon(Icons.delete_outline, size: 18),
+                          SizedBox(width: 8),
+                          Text('清除 Key'),
+                        ],
+                      ),
                     ),
                 ],
               ),

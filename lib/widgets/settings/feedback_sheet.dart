@@ -11,10 +11,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../providers/content/content_providers.dart';
 import '../../providers/settings/log_upload_providers.dart';
 import '../../services/feedback_service.dart';
 import '../../services/log_service.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开用户反馈弹层。
 Future<void> showFeedbackSheet(BuildContext context) {
@@ -247,16 +247,22 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
                 onChanged: (bool v) => setState(() => _attachLogs = v),
               ),
               const SizedBox(height: AppSpace.sm),
-              FilledButton.icon(
+              XGlassButton(
                 onPressed: _submitting ? null : _submit,
-                icon: _submitting
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send_rounded, size: 18),
-                label: Text(_submitting ? '提交中…' : '提交反馈'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _submitting
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.send_rounded, size: 18),
+                    const SizedBox(width: 8),
+                    Text(_submitting ? '提交中…' : '提交反馈'),
+                  ],
+                ),
               ),
               if (_status.isNotEmpty) ...<Widget>[
                 const SizedBox(height: AppSpace.sm),

@@ -22,6 +22,7 @@ import '../../providers/settings/settings_persistence_providers.dart';
 import '../../services/ota_service.dart';
 import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开版本日志面板（自动获取最新日志：changelog 倒序，首条即最新）。
 Future<void> showVersionLogSheet(BuildContext context) {
@@ -266,11 +267,11 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
           style: const TextStyle(fontSize: 13),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(c).pop(false),
             child: const Text('稍后'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(c).pop(true),
             child: const Text('下载更新'),
           ),
@@ -712,50 +713,52 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
               ],
               SizedBox(
                 width: double.infinity,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  icon: (_checking || _installing || dl.isDownloading)
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : Icon(
-                          dl.isDone
-                              ? Icons.install_mobile_rounded
-                              : Icons.system_update_alt_rounded,
-                          size: 18,
-                        ),
-                  label: Text(
-                    dl.isDone
-                        ? (_installing ? '安装中…' : '安装更新')
-                        : (dl.isDownloading
-                              ? '下载中…'
-                              : (_checking
-                                    ? '检查中…'
-                                    : (_checked
-                                          ? (dl.isError
-                                                ? '重试下载'
-                                                : (sel != null
-                                                      ? '下载 ${sel.tag}'
-                                                      : '检查更新'))
-                                          : '检查更新'))),
-                  ),
+                child: XGlassButton(
                   onPressed: (_checking || dl.isDownloading || _installing)
                       ? null
                       : () => _onPrimary(dl),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      (_checking || _installing || dl.isDownloading)
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              dl.isDone
+                                  ? Icons.install_mobile_rounded
+                                  : Icons.system_update_alt_rounded,
+                              size: 18,
+                            ),
+                      const SizedBox(width: 8),
+                      Text(
+                        dl.isDone
+                            ? (_installing ? '安装中…' : '安装更新')
+                            : (dl.isDownloading
+                                  ? '下载中…'
+                                  : (_checking
+                                        ? '检查中…'
+                                        : (_checked
+                                              ? (dl.isError
+                                                    ? '重试下载'
+                                                    : (sel != null
+                                                          ? '下载 ${sel.tag}'
+                                                          : '检查更新'))
+                                              : '检查更新'))),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               if (dl.isDone) ...<Widget>[
                 const SizedBox(height: AppSpace.xs),
                 Center(
-                  child: TextButton(
+                  child: XGlassButton(
                     onPressed: () =>
                         ref.read(otaDownloadProvider.notifier).reset(),
                     child: const Text('选择其他版本'),

@@ -18,6 +18,7 @@ import '../../providers/stats/track_stats_providers.dart';
 import '../../services/audio/audio_service.dart';
 import '../app_icon.dart';
 import '../common/playback_feedback.dart';
+import '../design/glass_controls.dart';
 import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
@@ -825,12 +826,11 @@ Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text('自定义：${_fmtSpeed(cur)}×', style: context.appText.caption),
-                  Slider(
+                  XGlassSlider(
                     value: cur,
                     min: 0.25,
                     max: 4.0,
                     divisions: 15,
-                    label: '${_fmtSpeed(cur)}×',
                     onChanged: (double v) =>
                         unawaited(r.read(playbackActionsProvider).setSpeed(v)),
                   ),
@@ -956,17 +956,16 @@ class _SleepTimerCustomSliderState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text('自定义：$_minutes 分钟', style: context.appText.caption),
-        Slider(
+        XGlassSlider(
           value: _minutes.toDouble(),
           min: 5,
           max: 120,
           divisions: 23,
-          label: '$_minutes 分钟',
           onChanged: (double v) => setState(() => _minutes = v.round()),
         ),
         Align(
           alignment: Alignment.centerRight,
-          child: FilledButton(
+          child: XGlassButton(
             onPressed: () => ref
                 .read(sleepTimerProvider.notifier)
                 .start(Duration(minutes: _minutes)),

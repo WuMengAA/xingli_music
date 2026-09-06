@@ -49,6 +49,7 @@ import '../../services/open_url.dart';
 import '../../services/ota_service.dart';
 import '../../services/permission_service.dart';
 import '../../services/security/http_client_factory.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ═══════════ cl05 文案池（每页多款，随机出现）═══════════
 
@@ -280,7 +281,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                     child: Row(
                       children: <Widget>[
                         if (page > 0)
-                          TextButton(
+                          XGlassButton(
                             onPressed: () => _ctrl.previousPage(
                               duration: const Duration(milliseconds: 320),
                               curve: Curves.easeOutCubic,
@@ -294,7 +295,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                           const Spacer(),
                         const Spacer(),
                         if (page == 1)
-                          TextButton(
+                          XGlassButton(
                             onPressed: _agreed ? _next : null,
                             child: const Text(
                               '仅在线使用',
@@ -305,29 +306,28 @@ class _OobePageState extends ConsumerState<OobePage> {
                             ),
                           ),
                         const SizedBox(width: 8),
-                        FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: accent,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 26,
-                              vertical: 14,
-                            ),
-                          ),
-                          icon: const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 18,
-                          ),
-                          label: Text(
-                            page == 0
-                                ? l10n.startExplore
-                                : (page == 1 ? '授权并导入' : '下一步'),
-                          ),
+                        XGlassButton(
                           onPressed: switch (page) {
                             0 => _next,
                             1 => _agreed ? _grantAndNext : null,
                             2 => genres.isEmpty ? null : _next,
                             _ => _next,
                           },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                page == 0
+                                    ? l10n.startExplore
+                                    : (page == 1 ? '授权并导入' : '下一步'),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -453,19 +453,30 @@ class _OobePageState extends ConsumerState<OobePage> {
       side: const BorderSide(color: Color(0x22FFFFFF)),
     ),
     clipBehavior: Clip.antiAlias,
-    child: SwitchListTile(
-      value: value,
-      onChanged: onChanged,
-      activeThumbColor: accent,
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        title,
-        style: const TextStyle(fontSize: 14, color: Colors.white),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 11, color: Colors.white70),
-      ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: const TextStyle(fontSize: 14, color: Colors.white),
+              ),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+        XGlassToggle(
+          value: value,
+          onChanged: onChanged,
+          accentColor: accent,
+        ),
+      ],
     ),
   );
 
@@ -564,16 +575,21 @@ class _OobePageState extends ConsumerState<OobePage> {
           kRepoUrl,
         ),
         const SizedBox(height: 14),
-        CheckboxListTile(
-          value: _agreed,
-          onChanged: (bool? v) => setState(() => _agreed = v ?? false),
-          activeColor: accent,
-          controlAffinity: ListTileControlAffinity.leading,
-          contentPadding: EdgeInsets.zero,
-          title: const Text(
-            '我已阅读并同意《服务条款》与《隐私政策》',
-            style: TextStyle(fontSize: 13, color: Colors.white),
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: const Text(
+                '我已阅读并同意《服务条款》与《隐私政策》',
+                style: TextStyle(fontSize: 13, color: Colors.white),
+              ),
+            ),
+            XGlassToggle(
+              value: _agreed,
+              onChanged: (bool v) => setState(() => _agreed = v),
+              accentColor: accent,
+            ),
+          ],
         ),
         const SizedBox(height: 16),
       ],
@@ -793,10 +809,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  FilledButton.tonal(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0x22FFFFFF),
-                    ),
+                  XGlassButton(
                     onPressed: () => ref.read(authProvider.notifier).logout(),
                     child: const Text('退出登录',
                         style: TextStyle(fontSize: 12, color: Colors.white)),
@@ -829,17 +842,19 @@ class _OobePageState extends ConsumerState<OobePage> {
                 ),
               )
             else ...<Widget>[
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: accent,
-                  minimumSize: const Size(220, 44),
-                ),
+              XGlassButton(
                 onPressed: () => _tryAuth(false),
-                icon: const Icon(Icons.login_rounded, size: 18),
-                label: const Text('登录'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const <Widget>[
+                    Icon(Icons.login_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('登录'),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
-              TextButton(
+              XGlassButton(
                 onPressed: () => _tryAuth(true),
                 child: const Text(
                   '注册新账号',
