@@ -1,25 +1,37 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// 星璃音乐 · 玻璃控件模板（设计基准件）
+/// 星璃音乐 · 玻璃控件模板（设计基准件 · 平面抽象 / 标准 BackdropFilter）
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 用户 2026-09-06 要求：玻璃皮肤必须覆盖**全 app 控件**，而非仅 dock。
-/// `liquid_glass_compat` 已提供 GlassButton/GlassSlider/GlassToggle/GlassCard
-/// 等现成控件，这里只做一层**轻量模板封装**，统一圆角/模糊/配色默认值，
-/// 作为接下来所有开发的基准件——新增交互一律用这些，不再裸写 Material 控件。
+/// 2026-09-06 方向修正：原封装自 [liquid_glass_compat] 的 WebGL 按钮/滑块/
+/// 开关在真机到处有显示 bug、不可用。现统一改写为**标准 [BackdropFilter]
+/// 透明模糊 + 半透明填充 + 1px 细描边 + 圆角**的可靠玻璃件，作为后续所有
+/// 交互控件的基准——新增交互一律用这些，不再裸写 Material 控件。
 ///
-/// 替换原则：
+/// 替换原则（API 保持不变，调用点零改动）：
 ///   FilledButton/TextButton/ElevatedButton/OutlinedButton → [XGlassButton]
-///   Slider                                 → [XGlassSlider]  (值范围 0..1)
+///   Slider                                 → [XGlassSlider]（原生 Slider，支持任意 min/max + divisions）
 ///   Switch                                 → [XGlassToggle]
 ///   装饰性卡片                              → [XGlassCard]
 library;
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_compat/liquid_glass_compat.dart';
 
-/// 统一玻璃参数（基准值，后续集中调一处即可全局生效）。
-const double _kGlassBlur = 8;
+/// 统一玻璃模糊强度（px）。
+const double _kGlassBlur = 14;
 const double _kGlassRadius = 16;
+
+/// 半透明填充：深色主题更透、浅色主题略实；[tint] 非空时直接用。
+Color _surfaceFill(BuildContext context, Color? tint) {
+  if (tint != null) return tint;
+  final bool dark = Theme.of(context).brightness == Brightness.dark;
+  return Colors.white.withValues(alpha: dark ? 0.12 : 0.6);
+}
+
+/// 1px 细描边色（跟随明暗主题）。
+Color _hairline(BuildContext context) {
+  final bool dark = Theme.of(context).brightness == Brightness.dark;
+  return Colors.white.withValues(alpha: dark ? 0.16 : 0.5);
+}
 
 /// 玻璃按钮（替代 FilledButton / TextButton / ElevatedButton / OutlinedButton）。
 class XGlassButton extends StatelessWidget {
@@ -41,22 +53,44 @@ class XGlassButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GlassButton(
-        child: child,
-        onPressed: onPressed,
-        fullWidth: fullWidth,
-        radius: radius ?? _kGlassRadius,
-        blur: _kGlassBlur,
-        tint: tint,
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      );
+  Widget build(BuildContext context) {
+    final double r = radius ?? _kGlassRadius;
+    final Color fill = _surfaceFill(context, tint);
+    final Color line = _hairline(context);
+    final Widget box = Container(
+      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(color: line, width: 1),
+      ),
+      child: Center(child: child),
+    );
+    return SizedBox(
+      width: fullWidth ? double.infinity : null,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(r),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: _kGlassBlur, sigmaY: _kGlassBlur),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onPressed,
+              borderRadius: BorderRadius.circular(r),
+              splashFactory: NoSplash.splashFactory,
+              child: box,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-/// 玻璃滑块（替代 Slider，支持任意 min/max + divisions 吸附，内部映射到玻璃控件的 0..1）。
+/// 玻璃滑块（替代 Slider，支持任意 min/max + divisions 吸附）。
 ///
-/// 注意：[GlassSlider] 本体只接受 0..1 连续值、无 `divisions`/`label`，
-/// 这里在模板层把 [divisions] 吸附回传（保证设置项仍按刻度对齐），[label]
-/// 由调用方自行用文本展示（如 _VolSlider 的百分比）。
+/// 直接封装原生 [Slider]，可靠且语义一致；[divisions] 保留刻度吸附，
+/// [accentColor] 映射到 [Slider.activeColor]。
 class XGlassSlider extends StatelessWidget {
   final double value;
   final ValueChanged<double>? onChanged;
@@ -79,20 +113,13 @@ class XGlassSlider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double span = max > min ? max - min : 1;
-    final double t = ((value - min) / span).clamp(0, 1);
-    return GlassSlider(
-      value: t,
-      onChanged: onChanged == null
-          ? null
-          : (double nv) {
-              if (divisions != null && divisions! > 1) {
-                nv = (nv * divisions!).round() / divisions!;
-              }
-              onChanged!(min + nv * span);
-            },
-      accentColor: accentColor,
-      blur: blur ?? _kGlassBlur,
+    return Slider(
+      value: value.clamp(min, max),
+      min: min,
+      max: max,
+      divisions: divisions,
+      activeColor: accentColor ?? Theme.of(context).colorScheme.primary,
+      onChanged: onChanged,
     );
   }
 }
@@ -113,11 +140,10 @@ class XGlassToggle extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GlassToggle(
+  Widget build(BuildContext context) => Switch(
         value: value,
         onChanged: onChanged,
-        accentColor: accentColor,
-        blur: blur ?? _kGlassBlur,
+        activeColor: accentColor ?? Theme.of(context).colorScheme.primary,
       );
 }
 
@@ -141,13 +167,38 @@ class XGlassCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => GlassCard(
-        child: child,
-        padding: padding ?? const EdgeInsets.all(16),
-        radius: radius ?? 18,
-        blur: _kGlassBlur,
-        tint: tint,
-        borderColor: borderColor,
-        onTap: onTap,
-      );
+  Widget build(BuildContext context) {
+    final double r = radius ?? 18;
+    final Color fill = tint ?? _surfaceFill(context, null);
+    final Color line = borderColor ?? _hairline(context);
+    final Widget box = Container(
+      padding: padding ?? const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(color: line, width: 1),
+      ),
+      child: child,
+    );
+    final Widget blurred = ClipRRect(
+      borderRadius: BorderRadius.circular(r),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: _kGlassBlur, sigmaY: _kGlassBlur),
+        child: box,
+      ),
+    );
+    if (onTap == null) return blurred;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(r),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(r),
+          splashFactory: NoSplash.splashFactory,
+          child: box,
+        ),
+      ),
+    );
+  }
 }

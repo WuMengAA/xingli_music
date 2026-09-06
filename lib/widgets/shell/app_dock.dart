@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_compat/liquid_glass_compat.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../core/layout/responsive_layout.dart';
@@ -64,24 +63,18 @@ List<DockItem> buildDockItems(AppLocalizations l10n) => <DockItem>[
   ),
 ];
 
-/// 自定义底部导航 Dock（液态玻璃底部标签栏 · WebGL 版）
+/// 自定义底部导航 Dock（平面抽象风格 · 标准 BackdropFilter 透明模糊胶囊）
 ///
-/// 【WebGL 化】底层渲染改用 `liquid_glass_compat` 的 `GlassDock` ——
-/// 移植自 `martin65536/liquid-glass-webgl`（WebGL 版）+ AndroidLiquidGlass：
-/// - 整条 64dp 玻璃胶囊容器（G2 连续曲率 SDF 圆角）
-/// - 选中指示器胶囊随 x 临界阻尼弹簧滑动（忠实 dampedDragAnimation）
-/// - 玻璃容器 = 半透明 tint + 背景模糊 + 顶部高光带 + 细描边
-///
-/// 背景：此前用 `liquid_glass_widgets` 的 AdaptiveGlass，在 Android 真机走
-/// Skia/GLES 回落，效果退化成接近原生 —— 用户实测"完全是原生效果"。
-/// 本组件切换为 WebGL 移植实现，Dock 显示真实的液态玻璃底部标签栏。
+/// 2026-09-06 方向修正：原 [liquid_glass_compat] 的 [GlassDock]（WebGL 液态玻璃）
+/// 在真机到处有显示 bug、不可用。改为常规 [Container] + [BackdropFilter] 的可靠
+/// 透明胶囊，外观干净、跨平台零问题。
 ///
 /// 结构（自外向内）：
 /// ```
-/// GlassDock                                   ← ① WebGL 液态玻璃胶囊
-/// └ GlassSurface(blur + tint + highlight)     ← ② 玻璃容器（G2 圆角）
-///   └ Row → N × Expanded(_DockTab)            ← ③ 严格等分 Tab
-///     └ 指示器胶囊（弹簧物理 + SDF 圆角）       ← ④ 选中指示器
+/// Container(透明填充 + 细描边 + 圆角)        ← 玻璃胶囊
+/// └ ClipRRect + BackdropFilter               ← 背景模糊
+///   └ Row → N × Expanded(_DockTab)           ← 严格等分 Tab
+///     └ 图标 + 可选文字标签                    ← 选中态跟随皮肤主色
 /// ```
 ///
 /// 宽度由外层 [ResponsiveFloatingLayer] 控制（窄屏满宽 / 大屏居中限宽），
@@ -100,21 +93,13 @@ class AppDock extends StatelessWidget {
   /// 界面密度（R21：紧凑 0.8× 高度）。
   final UiDensity density;
 
-  /// 当前高亮 Tab 下标（0..3）。
+  /// 当前高亮 Tab 下标（0..5）。
   ///
   /// ### 隐藏页全灰约定（P0-B9 / V6）—— 唯一实现点
   /// 传入 `null` 表示「当前不在任何 Tab 页」（即处于 Home 隐藏页，
   /// 或已 push 到脱离 Shell 的沉浸画布）。此时下方 `selectedIndex == i`
-  /// 对 4 个 Tab **全部为 false**，于是 4 个 Tab 一致渲染为未选中态：
+  /// 对 6 个 Tab **全部为 false**，于是 6 个 Tab 一致渲染为未选中态：
   /// 灰图标、`textTertiary` 灰文字。
-  ///
-  /// 这个「全灰」是 `null` 自然推导出来的结果，**不需要也禁止**再写
-  /// `if (isHome)` 之类的特判分支——多一个分支就多一处不同步风险。
-  ///
-  /// 调用方必须传 `selectedTabIndexProvider` 的值（它已封装
-  /// `isTab(page) ? page : null` 的派生逻辑），**禁止**直接传
-  /// `shellPageIndexProvider`，否则 Home（index 4）会因为下标越界而
-  /// 静默不高亮，看起来"碰巧对了"，实则绕过了契约。
   final int? selectedIndex;
 
   /// Tab 点击回调
@@ -128,35 +113,103 @@ class AppDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // WebGL 液态玻璃底部标签栏：用 GlassDock（liquid-glass-webgl 移植）渲染。
-    // R21：界面密度由 AppShell 注入（本组件保持纯组件、可单测）。
     final ResponsiveLayout rl = ResponsiveLayout.of(context);
     final double dockH =
         kTabBarHeight * (density == UiDensity.compact ? 0.8 : 1.0);
-    // cl07：标签按当前语言构建（未注入 items 时）。
     final List<DockItem> dockItems =
         items ?? buildDockItems(AppLocalizations.of(context));
+    final bool showLabels = rl.dockShowLabels && density != UiDensity.compact;
+    final Color accent = context.appColors.accent;
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
 
-    return GlassDock(
-      // 与旧满宽直角条不同：WebGL 玻璃胶囊自带左右留白（horizontalPadding），
-      // 形状即"液态玻璃底部标签栏"（忠实 liquid-glass-webgl TABS_PAD）。
-      items: <GlassDockItem>[
-        for (final DockItem d in dockItems)
-          GlassDockItem(
-            icon: d.icon,
-            selectedIcon: d.selectedIcon,
-            label: d.label,
+    return Container(
+      height: dockH,
+      margin: EdgeInsets.symmetric(
+        horizontal: density == UiDensity.compact ? 24 : 36,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: dark ? Colors.white.withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(dockH / 2),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: dark ? 0.16 : 0.5),
+          width: 1,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(dockH / 2),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Row(
+            children: <Widget>[
+              for (int i = 0; i < dockItems.length; i++)
+                _DockTab(
+                  item: dockItems[i],
+                  selected: selectedIndex == i,
+                  showLabel: showLabels,
+                  accent: accent,
+                  onTap: () => onTabSelected(i),
+                ),
+            ],
           ),
-      ],
-      // null → 隐藏页全灰（GlassDock 已支持 int? selectedIndex）。
-      selectedIndex: selectedIndex,
-      onSelected: (int index) => onTabSelected(index),
-      // R21：紧凑密度收缩高度 + 隐藏文字标签（只留图标）。
-      containerHeight: dockH,
-      horizontalPadding: density == UiDensity.compact ? 24 : 36,
-      showLabels: rl.dockShowLabels && density != UiDensity.compact,
-      // 跟随皮肤主色派生语义色。
-      accentColor: context.appColors.accent,
+        ),
+      ),
+    );
+  }
+}
+
+/// 单个 Dock Tab（图标 + 可选文字标签，选中态跟随皮肤主色）。
+class _DockTab extends StatelessWidget {
+  final DockItem item;
+  final bool selected;
+  final bool showLabel;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _DockTab({
+    required this.item,
+    required this.selected,
+    required this.showLabel,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color fg = selected
+        ? accent
+        : (dark ? Colors.white70 : Colors.black54);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        splashFactory: NoSplash.splashFactory,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                selected ? item.selectedIcon : item.icon,
+                color: fg,
+                size: 22,
+              ),
+              if (showLabel)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    item.label,
+                    style: TextStyle(color: fg, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,47 +1,31 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// Liquid Glass 玻璃容器（全量迁移到 liquid_glass_widgets）
+/// 玻璃容器（平面抽象风格 · 标准 BackdropFilter 透明模糊）
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 自研 FragmentShader 折射 + BackdropFilter 毛玻璃已全量替换为成品库
-/// [liquid_glass_widgets] 的 [AdaptiveGlass]（0.29.8，MIT）。[AdaptiveGlass]
-/// 是**渲染器无关**的：Impeller 下走真折射 shader（iOS 26 质感），Skia/web
-/// 下自动回落轻量 2D shader，最终还有 FakeGlass 兜底——**绝不静默不渲染**。
+/// 2026-09-06 方向修正：原 [liquid_glass_widgets] / [liquid_glass_compat] 的
+/// WebGL 折射实现在真机到处出现显示 bug、压根不可用。本件改写为**标准
+/// [BackdropFilter] 透明模糊 + 半透明填充 + 1px 细描边 + 圆角**的可靠玻璃，
+/// 跨平台零显示问题、渲染稳定、性能可控。
 ///
-/// 公共 API（[LiquidGlass] 构造参数）保持不变，调用点（20+ 处）零改动：
-/// 仅 [forceGlass] 白名单（Dock 栏、音乐控制栏）走真玻璃，其余在
-/// [kNativeMinimal] 下保持原生极简直通（仅 padding）。
+/// 公共构造参数保持不变，30+ 调用点零改动；[style]/[refraction]/[dispersion]/
+/// [forceGlass] 仅保留以兼容调用点，平面抽象风格下统一走 frosted 透明模糊。
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 
 import '../core/theme/app_theme_colors.dart';
-import '../providers/settings/liquid_glass_advanced_providers.dart';
 import '../providers/settings/performance_providers.dart';
 
-/// ── 原生极简模式总开关（R27 风格转向，R32 白名单化）────────────────────
-///
-/// `true` 时全站 [LiquidGlass] 调用（30 余处）默认退化为**纯内容直通**：
-/// 去除半透明叠加色（tint）、细描边（border）、背景模糊（BackdropFilter）
-/// 与圆角裁切，仅保留 `padding`。
-///
-/// 设计依据：以「极简主义」为视觉基底 —— 不使用背景卡片 / 边框 / 任何带容器
-/// 边界的装饰元素，改由留白、排版层级与系统原生控件区分内容区块；极光渐变
-/// 降为清淡氛围主题层。
-///
-/// **白名单放行**：R32 起少数「核心浮层」经 [LiquidGlass.forceGlass] 显式
-/// 恢复玻璃质感（Dock 栏、音乐控制栏）——类似 Windows 11 / iOS 的玻璃焦点，
-/// 基底保持原生极简，仅这两处浮层带玻璃。改回 `false` 即可整体回滚到
-/// 极光玻璃全站风格。
-const bool kNativeMinimal = true;
+/// 默认模糊强度（px）。跟随性能模式在 [LiquidGlass] 内可调。
+const double _kGlassBlur = 16;
 
-/// 玻璃风格。
+/// 玻璃风格（保留枚举以兼容调用点；平面抽象风格下仅 [GlassStyle.frosted] 生效）。
 enum GlassStyle {
-  /// 经典毛玻璃：背景模糊 + 半透明 + 细描边（默认，统一不诡异）。
+  /// 经典毛玻璃：背景模糊 + 半透明 + 细描边。
   frosted,
 
-  /// 液态玻璃：折射 + 色散（[AdaptiveGlass] premium 路径，Dock 栏用，待精调）。
+  /// 保留兼容位（原液态玻璃 premium 路径）。
   liquid,
 }
 
@@ -50,7 +34,7 @@ class LiquidGlass extends ConsumerStatefulWidget {
   const LiquidGlass({
     super.key,
     required this.child,
-    this.radius = 24,
+    this.radius = 20,
     this.style = GlassStyle.frosted,
     this.blur,
     this.tint,
@@ -70,36 +54,27 @@ class LiquidGlass extends ConsumerStatefulWidget {
   /// 玻璃风格；默认 [GlassStyle.frosted]（毛玻璃）。
   final GlassStyle style;
 
-  /// 毛玻璃模糊强度（仅 [GlassStyle.frosted]）。
-  ///
-  /// 为 `null` 时由全局性能模式决定（省电=0 / 均衡=12 / 流畅=20），
-  /// 低端设备切「省电」可即时关闭模糊、明显降发热。
+  /// 毛玻璃模糊强度（px）。为 `null` 时由全局性能模式决定
+  ///（省电关闭模糊、均衡 16、流畅 22），低端设备切「省电」即时降发热。
   final double? blur;
 
-  /// 毛玻璃半透明叠加色（仅 [GlassStyle.frosted]）。
-  ///
-  /// 为 `null` 时跟随主题语义色 [AppThemeColors.glassTint]
-  /// （由皮肤主色派生，不写死白色）。
+  /// 毛玻璃半透明叠加色。为 `null` 时跟随主题语义色 [AppThemeColors.glassTint]
+  ///（由皮肤主色派生，很透）。
   final Color? tint;
 
-  /// 毛玻璃描边色（仅 [GlassStyle.frosted]）。
-  ///
-  /// 为 `null` 时跟随主题语义色 [AppThemeColors.glassBorder]。
+  /// 毛玻璃描边色。为 `null` 时跟随主题语义色 [AppThemeColors.glassBorder]。
   final Color? borderColor;
 
-  /// 折射强度（仅 [GlassStyle.liquid]，0~20），映射 refractiveIndex。
+  /// 折射强度（保留兼容位，平面抽象风格下不生效）。
   final double refraction;
 
-  /// 色散强度（仅 [GlassStyle.liquid]，0~4），映射 chromaticAberration。
+  /// 色散强度（保留兼容位，平面抽象风格下不生效）。
   final double dispersion;
 
   /// 内容内边距。
   final EdgeInsetsGeometry padding;
 
-  /// 原生极简模式下的白名单放行（R32）。
-  ///
-  /// `true` 时即使全局 [kNativeMinimal] 开启，本处仍渲染玻璃效果。
-  /// 仅「核心浮层」使用（Dock 栏、音乐控制栏），其余 30 余处保持默认直通。
+  /// 原生极简模式下的白名单放行（保留兼容位）。平面抽象风格下始终渲染玻璃。
   final bool forceGlass;
 
   @override
@@ -109,98 +84,44 @@ class LiquidGlass extends ConsumerStatefulWidget {
 class _LiquidGlassState extends ConsumerState<LiquidGlass> {
   @override
   Widget build(BuildContext context) {
-    // 原生极简模式：默认直通内容（见 [kNativeMinimal]）；仅白名单
-    // （[forceGlass]）的核心浮层恢复玻璃，构成「极简基底 + 玻璃焦点」。
-    if (kNativeMinimal && !widget.forceGlass) {
-      return Padding(padding: widget.padding, child: widget.child);
-    }
-
-    // 全量迁移到 liquid_glass_widgets：[AdaptiveGlass] 渲染器无关——
-    // Impeller 走真折射 shader（iOS 26 质感），Skia/web 自动回落轻量 shader，
-    // 最终 FakeGlass 兜底，绝不静默不渲染。
-    final bool liquid = widget.style == GlassStyle.liquid;
     final PerformanceMode perf = ref.watch(performanceModeProvider);
-    final double blur = widget.blur ?? ref.watch(glassBlurProvider);
     final AppThemeColors colors = context.appColors;
-    final Color resolvedTint = widget.tint ?? colors.glassTint;
-    final Color resolvedBorder = widget.borderColor ?? colors.glassBorder;
 
-    // 高级调节（仅 [GlassStyle.liquid] / premium 路径生效）：用户在独立
-    // 高级调节页显式覆盖的参数优先；未覆盖（null）时跟随构造默认值，
-    // 因此标准模式（frosted）零改动、行为与旧版完全一致。
-    final double refraction = liquid
-        ? (ref.watch(liquidRefractionProvider) ?? widget.refraction)
-        : widget.refraction;
-    final double dispersion = liquid
-        ? (ref.watch(liquidDispersionProvider) ?? widget.dispersion)
-        : widget.dispersion;
-    final double liquidThickness = liquid
-        ? (ref.watch(liquidThicknessProvider) ?? 34)
-        : 34;
-    final double liquidChromatic = liquid
-        ? (ref.watch(liquidChromaticAberrationProvider) ??
-            (dispersion / 100) * 6)
-        : 0.012;
-    final double liquidGlow =
-        liquid ? (ref.watch(liquidGlowProvider) ?? 0.7) : 0.7;
-    final double liquidFresnel =
-        liquid ? (ref.watch(liquidFresnelProvider) ?? 1.2) : 1.2;
-    final double liquidAmbientRim =
-        liquid ? (ref.watch(liquidAmbientRimProvider) ?? 0.2) : 0.2;
+    // 模糊强度：调用方覆盖 > 主题默认 > 全局常量；省电档强制关闭模糊。
+    double blur = widget.blur ?? _kGlassBlur;
+    if (perf == PerformanceMode.performance) blur = 0;
+    blur = blur.clamp(0, 32);
 
-    // 性能档把半透明叠加减到接近 0（关闭一切半透明效果）。
-    final Color tint = perf == PerformanceMode.performance
-        ? resolvedTint.withValues(alpha: resolvedTint.a * 0.15)
-        : resolvedTint;
+    final Color tint = widget.tint ?? colors.glassTint;
+    final Color border = widget.borderColor ?? colors.glassBorder;
 
-    final LiquidGlassSettings settings = LiquidGlassSettings(
-      // frost：直接对应模糊像素（典型 2~8）；省电档 blur=0 → 纯透无模糊。
-      blur: blur,
-      // glassColor：alpha 即着色强度，跟随皮肤主色派生语义色。
-      glassColor: tint,
-      // depth：液态玻璃更厚（折射更明显），毛玻璃偏薄。
-      thickness: liquid ? liquidThickness : 14,
-      // refractiveIndex：液态玻璃按 refraction 映射（1 + v/100*0.2），
-      // 毛玻璃给极弱折射（接近纯模糊）。
-      // liquid 档：v/100 放大 2.5 倍映射（refraction=8 → 1.20，明显折射），
-      // 对齐 AndroidLiquidGlass 的 refractionAmount 视觉强度。
-      refractiveIndex: liquid
-          ? (1 + (refraction / 100) * 2.5).clamp(1.0, 1.6)
-          : 1.05,
-      // chromaticAberration：色散（4 * v/100），液态玻璃明显、毛玻璃几乎无。
-      // liquid 档：v/100 放大 6 倍（dispersion=1.6 → 0.096，柔和彩虹边）。
-      chromaticAberration: liquid ? liquidChromatic : 0.012,
-      saturation: 1.4,
-      glowIntensity: liquid ? liquidGlow : 0.4,
-      fresnelStrength: liquid ? liquidFresnel : 1.0,
-      ambientRim: liquid ? liquidAmbientRim : 0.0,
-      shadowElevation: 1.0,
-      whitenStrength: 0.0,
-      edgeAbsorption: 0.0,
-    );
+    final Widget inner = Padding(padding: widget.padding, child: widget.child);
 
-    Widget glass = AdaptiveGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: widget.radius),
-      // liquid 走 premium 真折射；frosted 走 standard 轻量路径（更省）。
-      quality: liquid ? GlassQuality.premium : GlassQuality.standard,
-      settings: settings,
-      child: Padding(padding: widget.padding, child: widget.child),
-    );
-
-    // 保留此前需要的细描边（borderColor 非透明时叠加 1px hairline）。
-    // 多数调用（含 Dock）borderColor 透明 → 不进此分支，由 lib 自身边缘光替代。
-    if (resolvedBorder.a > 0) {
-      glass = Container(
+    if (blur <= 0.5) {
+      // 省电档：纯半透明卡（无模糊，仍可靠渲染）。
+      return Container(
         decoration: BoxDecoration(
+          color: tint,
           borderRadius: BorderRadius.circular(widget.radius),
-          border: Border.all(color: resolvedBorder, width: 1),
+          border: Border.all(color: border, width: 1),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(widget.radius),
-          child: glass,
-        ),
+        child: inner,
       );
     }
-    return glass;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: Container(
+          decoration: BoxDecoration(
+            color: tint,
+            borderRadius: BorderRadius.circular(widget.radius),
+            border: Border.all(color: border, width: 1),
+          ),
+          child: inner,
+        ),
+      ),
+    );
   }
 }

@@ -1,14 +1,14 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// 星璃音乐 · 设计语言背景层（模糊大卡片 + 抽象彩色图形）
+/// 星璃音乐 · 设计语言背景层（极淡渐变 + 抽象彩色图形 · 平面抽象 / 更透）
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 用户 2026-09-06 设计指令（简单路线，反"AI 化"）：
+/// 2026-09-06 设计指令（简单路线，反"AI 化"、反"液态玻璃 bug"）：
 ///   「一个大卡片背景模糊，然后不同颜色的图形在切换页面时随着页面变化而变化，
-///    最多的就是位移，注意组合搭配使用，抽象简单。」
+///    最多的就是位移，注意组合搭配使用，抽象简单。」+ 背景要更透明、平面抽象。
 ///
-/// 实现：
-///   - 底层：一块覆盖全屏（留边）的**模糊大卡片** GlassSurface（毛玻璃质感）。
-///   - 上层：N 个**抽象彩色图形**（圆角色块），随 `shellPageIndexProvider`
+/// 实现（不再用 GlassSurface / WebGL 折射，纯常规 widget）：
+///   - 底层：一块**极淡对角渐变**氛围层（alpha 0.06~0.10），不挡内容、更透。
+///   - 上层：N 个**抽象彩色图形**（圆角色块，alpha 0.20），随 `shellPageIndexProvider`
 ///     切换页面做**位移(translate)为主**、少量缩放/旋转组合，曲线缓动。
 ///   - 全程 IgnorePointer，纯装饰，不参与命中测试。
 ///   - 不依赖具体业务色，用一组抽象品牌色，明暗主题自适应。
@@ -16,7 +16,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:liquid_glass_compat/liquid_glass_compat.dart';
 
 import '../../providers/shell/shell_providers.dart';
 
@@ -65,23 +64,24 @@ class AnimatedBackground extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final int page = ref.watch(shellPageIndexProvider);
     final Size size = MediaQuery.of(context).size;
-    final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color tint = dark
-        ? Colors.white.withValues(alpha: 0.06)
-        : Colors.white.withValues(alpha: 0.55);
     const Duration dur = Duration(milliseconds: 320);
     const Curve curve = Curves.easeOutCubic;
 
     return IgnorePointer(
       child: Stack(
         children: <Widget>[
-          // —— 模糊大卡片 ——
+          // —— 极淡对角渐变氛围（更透、平面抽象）——
           Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: GlassSurface(
-                visuals: GlassVisuals(blur: 18, radius: 40, tint: tint),
-                child: const SizedBox.expand(),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: <Color>[
+                    _kShapeColors[0].withValues(alpha: 0.10),
+                    _kShapeColors[4].withValues(alpha: 0.06),
+                  ],
+                ),
               ),
             ),
           ),
@@ -140,7 +140,7 @@ class _ShapeLayer extends StatelessWidget {
   }
 }
 
-/// 抽象色块本体：缩放/旋转用 AnimatedContainer 做轻微组合动画。
+/// 抽象色块本体：缩放/旋转用 AnimatedContainer 做轻微组合动画；平面抽象、轻光。
 class _AnimatedBlob extends StatelessWidget {
   final double size;
   final Color color;
@@ -172,13 +172,14 @@ class _AnimatedBlob extends StatelessWidget {
       transform: Matrix4.rotationZ(rot)..scale(scale),
       transformAlignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.42),
-        borderRadius: BorderRadius.circular(size * 0.4),
+        color: color.withValues(alpha: 0.20),
+        borderRadius: BorderRadius.circular(size * 0.45),
+        // 平面抽象：仅极轻柔光，不再重阴影。
         boxShadow: <BoxShadow>[
           BoxShadow(
-            color: color.withValues(alpha: 0.25),
-            blurRadius: 50,
-            spreadRadius: -12,
+            color: color.withValues(alpha: 0.12),
+            blurRadius: 40,
+            spreadRadius: -20,
           ),
         ],
       ),
