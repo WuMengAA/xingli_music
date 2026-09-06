@@ -27,6 +27,7 @@ import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../../widgets/sources/bilibili_login_sheet.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 媒体源筛选。
 enum _SrcFilter {
@@ -123,11 +124,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           '登录即表示您已知悉并同意以上条款。',
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(false),
             child: const Text('不同意'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(true),
             child: const Text('同意并继续'),
           ),
@@ -254,7 +255,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           children: <Widget>[
             Text('搜索历史', style: context.appText.artist),
             const Spacer(),
-            TextButton(
+            XGlassButton(
               onPressed: () =>
                   ref.read(searchHistoryProvider.notifier).clear(),
               child: Text('清空', style: context.appText.artist.copyWith(color: context.appColors.iconInactive)),

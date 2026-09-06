@@ -24,6 +24,7 @@ import '../../widgets/library/card_view.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/shell/app_search_bar.dart';
 import 'playlist_detail_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 曲库四栏（cl15：歌曲 / 歌单 / 专辑 / 歌手）。
 ///
@@ -394,11 +395,11 @@ class _PlaylistsTab extends ConsumerWidget {
           decoration: const InputDecoration(hintText: '歌单名称'),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () =>
                 Navigator.of(dctx).pop(ctrl.text.trim()),
             child: const Text('创建'),

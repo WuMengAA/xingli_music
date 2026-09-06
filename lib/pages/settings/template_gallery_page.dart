@@ -6,6 +6,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../core/templates/ui_template.dart';
 import '../../providers/ui/template_provider.dart';
 import '../../widgets/templates/template_library.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 模板工坊（cl08）：展示几套标准页面模板 + 组件示例，选择后作为
 /// 以后所有页面的标准模板。模板只管布局，文字/图片内容由数据层填充。
@@ -118,14 +119,14 @@ class _TemplateCard extends ConsumerWidget {
           Row(
             children: <Widget>[
               Expanded(
-                child: OutlinedButton(
+                child: XGlassButton(
                   onPressed: onPreview,
                   child: const Text('预览'),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: FilledButton(
+                child: XGlassButton(
                   onPressed: onSelect,
                   child: Text(selected ? '已设为标准' : '设为标准'),
                 ),

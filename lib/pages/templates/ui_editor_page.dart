@@ -23,6 +23,7 @@ import '../../core/ui_editor_model.dart';
 import '../../core/ui_editor_rules.dart';
 import '../../core/ui_templates.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 编辑器页。
 class UiEditorPage extends StatefulWidget {
@@ -714,7 +715,7 @@ class _UiEditorPageState extends State<UiEditorPage> {
                 ),
                 const Spacer(),
                 if (_issues.isNotEmpty)
-                  TextButton(
+                  XGlassButton(
                     onPressed: () => setState(() => _recomputeIssues()),
                     child: const Text('重新检查'),
                   ),

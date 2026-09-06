@@ -28,6 +28,7 @@ import 'bili_visual_options_sheet.dart';
 import 'equalizer_panel.dart';
 import '../../providers/settings/performance_providers.dart';
 import 'playback_controls.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 统一播放器组件（场景默认样式）

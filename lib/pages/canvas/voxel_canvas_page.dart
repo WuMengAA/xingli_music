@@ -23,6 +23,7 @@ import '../../pages/world/world_page.dart';
 import '../scene/voxel_sound_editor_page.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/common/share_panel.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 新版沉浸画布（V3）：2.5D 场景编辑后的可互动场景
@@ -555,14 +556,14 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
               ],
             ),
             actions: <Widget>[
-              TextButton(
+              XGlassButton(
                 onPressed: () {
                   _controller.setVizSettings(const VoxelVizSettings());
                   setSt(() {});
                 },
                 child: const Text('重置'),
               ),
-              TextButton(
+              XGlassButton(
                 onPressed: () => Navigator.pop(ctx),
                 child: const Text('完成'),
               ),
@@ -597,7 +598,7 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
               ),
             ],
           ),
-          Slider(
+          XGlassSlider(
             value: value,
             min: min,
             max: max,

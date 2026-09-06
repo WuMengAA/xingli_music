@@ -23,6 +23,7 @@ import '../../services/stats/track_stats_db.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import 'playlist_detail_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 // ════════════════════════════════════════════════════════════════════════
 // 收藏与歌单主页
@@ -64,11 +65,11 @@ class _FavoritesAndPlaylistsPageState
             style: ctx.appText.body,
           ),
           actions: <Widget>[
-            TextButton(
+            XGlassButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: Text('跳过', style: ctx.appText.body),
             ),
-            TextButton(
+            XGlassButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: Text('是，归并',
                   style: ctx.appText.body.copyWith(color: ctx.appColors.accent)),
@@ -444,7 +445,7 @@ Future<void> _showCreateDialog(
               children: <Widget>[
                 Text('背景图', style: c.appText.body),
                 const Spacer(),
-                TextButton(
+                XGlassButton(
                   onPressed: () async {
                     final String? path = await _pickBgImage();
                     if (path != null) setState(() => bgPath = path);
@@ -453,7 +454,7 @@ Future<void> _showCreateDialog(
                       style: c.appText.body.copyWith(color: c.appColors.accent)),
                 ),
                 if (bgPath != null)
-                  TextButton(
+                  XGlassButton(
                     onPressed: () => setState(() => bgPath = null),
                     child: Text('清除', style: c.appText.bodyMuted),
                   ),
@@ -462,11 +463,11 @@ Future<void> _showCreateDialog(
           ],
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.pop(c),
             child: Text('取消', style: c.appText.body),
           ),
-          TextButton(
+          XGlassButton(
             onPressed: () async {
               final String name = nameCtrl.text.trim();
               if (name.isEmpty) return;

@@ -26,6 +26,7 @@ import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
 import '../../widgets/voxel/voxel_save.dart';
 import 'relay_input_validation.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 开放世界联机大厅。
 class VoxelLobbyPage extends ConsumerStatefulWidget {
@@ -326,7 +327,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                   child: Text('房间号：$code（已复制）',
                       style: AppTextStyles.body.copyWith(color: ink)),
                 ),
-                TextButton(
+                XGlassButton(
                   onPressed: () =>
                       Clipboard.setData(ClipboardData(text: code)),
                   child: const Text('复制'),
@@ -356,7 +357,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         const SizedBox(height: AppSpace.md),
         SizedBox(
           height: 46,
-          child: ElevatedButton(
+          child: XGlassButton(
             onPressed: _enterWorld,
             style: ElevatedButton.styleFrom(
               backgroundColor: accent,
@@ -369,7 +370,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
           ),
         ),
         const SizedBox(height: AppSpace.sm),
-        TextButton(
+        XGlassButton(
           onPressed: () => _leaveRoom(),
           child: const Text('离开房间'),
         ),
@@ -640,7 +641,7 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                 child: Text('局域网房间',
                     style: AppTextStyles.body.copyWith(color: ink)),
               ),
-              TextButton(
+              XGlassButton(
                 onPressed: _scanning ? null : _scanLan,
                 child: Text(_scanning ? '扫描中…' : '扫描局域网'),
               ),
@@ -802,7 +803,7 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         height: 46,
-        child: ElevatedButton(
+        child: XGlassButton(
           onPressed: busy ? null : onTap,
           style: ElevatedButton.styleFrom(
             backgroundColor: accent,

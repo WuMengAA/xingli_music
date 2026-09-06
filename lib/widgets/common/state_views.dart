@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 状态视图统一容器：空间够就居中，空间不够就可滚动。
 ///
@@ -143,7 +144,7 @@ class EmptyView extends StatelessWidget {
           ),
           if (actionLabel != null && onAction != null) ...<Widget>[
             const SizedBox(height: AppSpace.lg),
-            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+            XGlassButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ],
       ),

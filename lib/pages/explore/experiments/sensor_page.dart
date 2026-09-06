@@ -8,6 +8,7 @@ import '../../../providers/explore/sensor_providers.dart';
 import '../../../providers/scene/scene_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 实验 F · 传感器（v2 M2 · P0-M2-3，Q5 已裁决：仅光线 + 加速度）。
 ///

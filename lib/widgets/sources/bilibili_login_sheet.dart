@@ -20,6 +20,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/sources/bilibili/bilibili_webview_login.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开 B站登录弹层；返回 `true` 表示登录成功。
 Future<bool?> showBilibiliLoginSheet(BuildContext context) {
@@ -342,7 +343,7 @@ class _CookiePanel extends StatelessWidget {
           style: context.appText.caption,
         ),
         const SizedBox(height: AppSpace.md),
-        FilledButton(
+        XGlassButton(
           onPressed: busy ? null : onLogin,
           child: busy
               ? const SizedBox(

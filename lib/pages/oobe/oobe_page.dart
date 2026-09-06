@@ -506,6 +506,28 @@ class _OobePageState extends ConsumerState<OobePage> {
           _title(accent, _welcomeTitle!),
           const SizedBox(height: 10),
           _sub(_welcomeSub!),
+          const SizedBox(height: 14),
+          // 首屏即点明软件定位（用户批判：OOBE 空壳、看不出软件是干嘛的）
+          Text(
+            '会思考的本地音乐播放器 · 一个可以停留的空间',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13.5,
+              color: accent.withValues(alpha: 0.92),
+              letterSpacing: 0.3,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '本地优先 · 智能策展 · 场景化沉浸',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withValues(alpha: 0.6),
+              letterSpacing: 0.5,
+            ),
+          ),
           const SizedBox(height: 10),
           // R33：品牌页锚定版本标识（底部操作栏上方小字）。
           Text(

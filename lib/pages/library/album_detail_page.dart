@@ -9,6 +9,7 @@ import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/common/info_row.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 专辑曲目列表页（v2 M3 · P0-M3-4）。
 ///
@@ -33,7 +34,7 @@ class AlbumDetailPage extends ConsumerWidget {
         child: PageScaffold(
           title: albumName,
           actions: <Widget>[
-            TextButton(
+            XGlassButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('返回'),
             ),

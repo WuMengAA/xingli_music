@@ -7,6 +7,7 @@ import '../../providers/scene/scene_providers.dart';
 import '../../scenes/scene_api.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 场景自定义编辑页：名称 / 图标 / 风格 / 内容 / 背景 / 粒子 / 音频 / 音景
 class SceneEditorPage extends ConsumerStatefulWidget {
@@ -125,11 +126,9 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
           _audioEditor(theme),
 
           const SizedBox(height: 32),
-          ElevatedButton(
+          XGlassButton(
             onPressed: _save,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             child: const Text('保存自定义'),
           ),
         ],
@@ -202,11 +201,17 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
   Widget _bgEditor(ThemeData theme) {
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('自定义背景渐变色'),
-          value: _useCustomBg,
-          contentPadding: EdgeInsets.zero,
-          onChanged: (v) => setState(() => _useCustomBg = v),
+        XGlassCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(child: const Text('自定义背景渐变色')),
+              XGlassToggle(
+                value: _useCustomBg,
+                onChanged: (bool v) => setState(() => _useCustomBg = v),
+              ),
+            ],
+          ),
         ),
         if (_useCustomBg) ...[
           Row(
@@ -236,11 +241,17 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
   Widget _particleEditor(ThemeData theme) {
     return Column(
       children: [
-        SwitchListTile(
-          title: const Text('自定义粒子颜色'),
-          value: _useCustomParticle,
-          contentPadding: EdgeInsets.zero,
-          onChanged: (v) => setState(() => _useCustomParticle = v),
+        XGlassCard(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(child: const Text('自定义粒子颜色')),
+              XGlassToggle(
+                value: _useCustomParticle,
+                onChanged: (bool v) => setState(() => _useCustomParticle = v),
+              ),
+            ],
+          ),
         ),
         if (_useCustomParticle)
           Align(
@@ -415,7 +426,7 @@ class _SimpleColorPickerState extends State<_SimpleColorPicker> {
         }).toList(),
       ),
       actions: [
-        TextButton(
+        XGlassButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),

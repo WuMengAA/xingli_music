@@ -18,6 +18,7 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/radio/dj_audio_source_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class TrackPicker extends ConsumerStatefulWidget {
   /// [initialSource]：打开时默认选中的音源（电台页 DJ 自选传入 DJ 偏好；
@@ -72,7 +73,7 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
                     setState(() => _online = s.first),
               ),
               const Spacer(),
-              TextButton(
+              XGlassButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('取消'),
               ),

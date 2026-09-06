@@ -22,6 +22,7 @@ import '../../providers/net/session_provider.dart';
 import '../../services/net/net_node.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
 import 'station_room_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 电台房形态（cl15：校园广播 100 人 / 一起听 2-10 人）。
 enum StationMode {
@@ -741,7 +742,7 @@ class _PublicRoomTile extends StatelessWidget {
               ),
             ),
             if (room.members < room.capacity)
-              TextButton(onPressed: onJoin, child: const Text('加入'))
+              XGlassButton(onPressed: onJoin, child: const Text('加入'))
             else
               Text('已满',
                   style: TextStyle(color: c.textSecondary, fontSize: 12)),

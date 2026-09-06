@@ -20,6 +20,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class SettingsOrganizerPage extends ConsumerWidget {
   const SettingsOrganizerPage({super.key});
@@ -143,11 +144,11 @@ class SettingsOrganizerPage extends ConsumerWidget {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('创建'),
           ),
@@ -342,11 +343,11 @@ class _CollectionCard extends ConsumerWidget {
         title: const Text('重命名合集'),
         content: TextField(controller: c, autofocus: true),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('确定'),
           ),
@@ -399,11 +400,11 @@ class _CollectionCard extends ConsumerWidget {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('创建'),
           ),
@@ -599,11 +600,11 @@ class _GroupCard extends ConsumerWidget {
         title: const Text('重命名组'),
         content: TextField(controller: c, autofocus: true),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('确定'),
           ),

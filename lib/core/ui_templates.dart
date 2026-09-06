@@ -24,6 +24,7 @@ import 'theme/app_theme_colors.dart';
 import 'theme/design_tokens.dart';
 import 'theme/light_tokens.dart';
 import 'ui_editor_model.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 模板分类。
 enum UiTemplateCategory {

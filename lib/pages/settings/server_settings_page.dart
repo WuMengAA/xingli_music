@@ -18,6 +18,7 @@ import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
 import '../../widgets/common/state_chip.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 音源管理页（v2 M4 · P0-M4-1 ~ P0-M4-3 瘦身重写）。
 ///
@@ -189,7 +190,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                   label: Text('浏览…', style: context.appText.button),
                 ),
                 const SizedBox(height: AppSpace.md),
-                FilledButton(
+                XGlassButton(
                   onPressed: () {
                     Navigator.of(sheetContext).pop();
                     _addDir();
@@ -357,7 +358,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: OutlinedButton(
+                      child: XGlassButton(
                         onPressed: () {
                           final ServerConfig cfg = _buildServerConfig(
                             editing: editing,
@@ -375,7 +376,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                     ),
                     const SizedBox(width: AppSpace.sm),
                     Expanded(
-                      child: FilledButton(
+                      child: XGlassButton(
                         onPressed: () async {
                           if (nameCtrl.text.trim().isEmpty) return;
                           final ServerConfig cfg = _buildServerConfig(
@@ -573,7 +574,7 @@ class _EntryTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Switch(value: switchValue, onChanged: onSwitch),
+              XGlassToggle(value: switchValue, onChanged: onSwitch),
             ],
           ),
           Row(

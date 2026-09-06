@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/bilibili_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开视听结合子选项底部弹层。
 void showBiliVisualOptionsSheet(BuildContext context) {
@@ -80,12 +81,22 @@ class _Row extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      title: Text(title, style: context.appText.body),
-      subtitle: Text(sub, style: context.appText.artist),
-      value: value,
-      activeThumbColor: context.appColors.accent,
-      onChanged: onChanged,
+    return XGlassCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(title, style: context.appText.body),
+                Text(sub, style: context.appText.artist),
+              ],
+            ),
+          ),
+          XGlassToggle(value: value, onChanged: onChanged),
+        ],
+      ),
     );
   }
 }

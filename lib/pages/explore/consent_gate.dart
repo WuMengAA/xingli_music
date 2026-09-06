@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/terms/naming_dict.dart';
 import '../../providers/explore/experiment_providers.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 实验同意 Gate（v2 M2 · P0-M2-1，方案 A 已裁决）。
 ///
@@ -65,14 +66,14 @@ class ConsentGate extends ConsumerWidget {
               const SizedBox(height: AppSpace.lg),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
+                child: XGlassButton(
                   onPressed: () =>
                       ref.read(experimentConsentProvider.notifier).agree(),
                   child: const Text('同意并进入'),
                 ),
               ),
               const SizedBox(height: AppSpace.sm),
-              TextButton(
+              XGlassButton(
                 onPressed: () => _showReadOnly(context, ref),
                 child: Text('暂不参与', style: context.appText.body),
               ),
@@ -111,13 +112,13 @@ class ConsentGate extends ConsumerWidget {
                 const SizedBox(height: AppSpace.lg),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton(
+                  child: XGlassButton(
                     onPressed: () => Navigator.of(sheetContext).pop(),
                     child: const Text('再次进入'),
                   ),
                 ),
                 const SizedBox(height: AppSpace.xs),
-                TextButton(
+                XGlassButton(
                   onPressed: () => Navigator.of(sheetContext).pop(),
                   child: Text(Terms.cancel, style: context.appText.body),
                 ),

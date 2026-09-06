@@ -13,6 +13,7 @@ import '../../../services/network/webdav_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 import '../../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 文件大小人性化显示（B → MB/GB）。
 String _fmtBytes(int bytes) {
@@ -133,10 +134,10 @@ class NetLibraryPage extends ConsumerWidget {
           ),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
               onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('取消')),
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(isNew ? '添加' : '保存'),
           ),

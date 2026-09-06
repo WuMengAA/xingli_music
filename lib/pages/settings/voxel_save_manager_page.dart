@@ -25,6 +25,7 @@ import '../../widgets/voxel/voxel_world_view3d.dart' show VoxelWorld3DPage;
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../widgets/common/reminder_banner.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 世界存档管理器页。
 class VoxelSaveManagerPage extends StatefulWidget {
@@ -105,11 +106,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('确定'),
           ),
@@ -174,35 +175,74 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                 ),
               ),
               const SizedBox(height: AppSpace.xs),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('允许作弊'),
-                subtitle: const Text('关闭时固定创造模式；开启后可切换生存/创造'),
-                value: cheats,
-                onChanged: (bool v) => set(() => cheats = v),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const <Widget>[
+                          Text('允许作弊'),
+                          Text('关闭时固定创造模式；开启后可切换生存/创造'),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: cheats,
+                      onChanged: (bool v) => set(() => cheats = v),
+                    ),
+                  ],
+                ),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('生成结构'),
-                subtitle: const Text('沙漠沙堡等确定性结构'),
-                value: structures,
-                onChanged: (bool v) => set(() => structures = v),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const <Widget>[
+                          Text('生成结构'),
+                          Text('沙漠沙堡等确定性结构'),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: structures,
+                      onChanged: (bool v) => set(() => structures = v),
+                    ),
+                  ],
+                ),
               ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('浮空岛'),
-                subtitle: const Text('悬空草顶石核团块'),
-                value: floating,
-                onChanged: (bool v) => set(() => floating = v),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const <Widget>[
+                          Text('浮空岛'),
+                          Text('悬空草顶石核团块'),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: floating,
+                      onChanged: (bool v) => set(() => floating = v),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           actions: <Widget>[
-            TextButton(
+            XGlassButton(
               onPressed: () => Navigator.of(dctx).pop(),
               child: const Text('取消'),
             ),
-            FilledButton(
+            XGlassButton(
               onPressed: () => Navigator.of(dctx).pop(
                 (
                   n.text.trim(),
@@ -1045,10 +1085,10 @@ class _BackupTile extends StatelessWidget {
           Expanded(
             child: Text(fmt(backup.createdAt), style: context.appText.body),
           ),
-          TextButton(onPressed: onEnter, child: const Text('进入')),
-          TextButton(onPressed: onRollback, child: const Text('回滚')),
-          TextButton(onPressed: onExport, child: const Text('导出')),
-          TextButton(
+          XGlassButton(onPressed: onEnter, child: const Text('进入')),
+          XGlassButton(onPressed: onRollback, child: const Text('回滚')),
+          XGlassButton(onPressed: onExport, child: const Text('导出')),
+          XGlassButton(
             onPressed: onDelete,
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),

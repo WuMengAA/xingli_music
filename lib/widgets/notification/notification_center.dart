@@ -14,6 +14,7 @@ import '../../providers/session/session_providers.dart';
 import '../../providers/settings/notification_providers.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 通知中心（v2 M6 · P0-M6-1 三区块合一）。
 ///

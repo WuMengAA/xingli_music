@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/calendar_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 日历页。
 class CalendarPage extends ConsumerStatefulWidget {
@@ -351,11 +352,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           ],
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () {
               Navigator.of(dctx).pop();
               unawaited(ref

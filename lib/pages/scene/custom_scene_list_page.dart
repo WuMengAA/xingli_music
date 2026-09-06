@@ -10,6 +10,7 @@ import '../../scenes/scene_api.dart';
 import '../../widgets/common/page_scaffold.dart';
 import 'custom_scene_edit_page.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 自定义场景列表（v2 M5-2 · P0-M5-2）。
 ///

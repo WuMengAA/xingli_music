@@ -18,6 +18,7 @@ import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/liquid_glass_advanced_providers.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 液态玻璃高级调节页。
 class LiquidGlassAdvancedPage extends ConsumerWidget {
@@ -33,7 +34,7 @@ class LiquidGlassAdvancedPage extends ConsumerWidget {
         title: Text('液态玻璃 · 高级调节', style: context.appText.subtitle),
         elevation: 0,
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => resetLiquidGlassAdvanced(ref),
             child: const Text('恢复默认'),
           ),
@@ -285,7 +286,7 @@ class _SliderRow extends StatelessWidget {
           child: Text(label, style: context.appText.body),
         ),
         Expanded(
-          child: Slider(
+          child: XGlassSlider(
             value: value.clamp(min, max),
             min: min,
             max: max,

@@ -12,6 +12,7 @@ import '../../providers/stats/track_stats_providers.dart';
 import '../../services/stats/track_stats_db.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class PlaylistDetailPage extends ConsumerStatefulWidget {
   const PlaylistDetailPage({super.key, required this.playlistId});
@@ -265,24 +266,34 @@ class _AddTracksDialogState extends State<_AddTracksDialog> {
                   final String key =
                       trackKeyOf(t.title, t.artist, t.sourceId);
                   final bool on = _picked.contains(key);
-                  return CheckboxListTile(
-                    dense: true,
-                    value: on,
-                    title: Text(t.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.appText.body),
-                    subtitle: Text(t.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.appText.caption),
-                    onChanged: (bool? v) => setState(() {
-                      if (v == true) {
-                        _picked.add(key);
-                      } else {
-                        _picked.remove(key);
-                      }
-                    }),
+                  return Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(t.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.appText.body),
+                            Text(t.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: context.appText.caption),
+                          ],
+                        ),
+                      ),
+                      XGlassToggle(
+                        value: on,
+                        onChanged: (bool nv) => setState(() {
+                          if (nv) {
+                            _picked.add(key);
+                          } else {
+                            _picked.remove(key);
+                          }
+                        }),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -291,11 +302,11 @@ class _AddTracksDialogState extends State<_AddTracksDialog> {
         ),
       ),
       actions: <Widget>[
-        TextButton(
+        XGlassButton(
           onPressed: () => Navigator.pop(context),
           child: Text('取消', style: context.appText.body),
         ),
-        TextButton(
+        XGlassButton(
           onPressed: _picked.isEmpty
               ? null
               : () {

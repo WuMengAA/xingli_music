@@ -8,6 +8,7 @@ import '../../providers/security/cert_policy_provider.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/security/http_client_factory.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 账号页（cl10：用户系统）。
 ///
@@ -302,7 +303,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           fontSize: 12, color: theme.colorScheme.outline)),
                 ),
             ],
-            FilledButton(
+            XGlassButton(
               onPressed: () => ref.read(authProvider.notifier).logout(),
               child: const Text('退出登录'),
             ),
@@ -325,11 +326,11 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_loading)
               const Center(child: CircularProgressIndicator())
             else ...<Widget>[
-              FilledButton(
+              XGlassButton(
                 onPressed: () => _submit(false),
                 child: const Text('登录'),
               ),
-              TextButton(
+              XGlassButton(
                 onPressed: () => _submit(true),
                 child: const Text('注册新账号'),
               ),

@@ -85,6 +85,7 @@ import '../../widgets/notification/app_notify.dart';
 import '../../providers/net/session_provider.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
 import 'voxel_net_broadcast.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 相机移动方向（D-pad / 键盘按住时累积）。
 enum _Nav { forward, back, left, right, up, down }
@@ -2855,11 +2856,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ],
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('保存'),
           ),
@@ -3710,11 +3711,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           decoration: const InputDecoration(hintText: '存档名称'),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(ctrl.text.trim()),
             child: const Text('确定'),
           ),
@@ -3791,11 +3792,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                   title: const Text('删除存档'),
                   content: Text('确定删除「${s.name}」及其全部备份？此操作不可恢复。'),
                   actions: <Widget>[
-                    TextButton(
+                    XGlassButton(
                       onPressed: () => Navigator.of(dctx).pop(false),
                       child: const Text('取消'),
                     ),
-                    FilledButton(
+                    XGlassButton(
                       onPressed: () => Navigator.of(dctx).pop(true),
                       child: const Text('删除'),
                     ),
@@ -3982,11 +3983,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('确定'),
           ),

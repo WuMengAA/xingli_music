@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/classisland_provider.dart';
 import '../../services/tools/control_server.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ClassIsland 联动页。
 class ClassIslandPage extends ConsumerStatefulWidget {
@@ -174,7 +175,7 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
                     style: c.textSecondary.style(fontSize: 12),
                   ),
                 ),
-                TextButton(
+                XGlassButton(
                   onPressed: () => _setToken(svc),
                   child: Text(
                     svc.token.isEmpty ? '设置' : '修改',
@@ -205,11 +206,11 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
           ),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dctx).pop(_tokenCtrl.text.trim()),
             child: const Text('保存'),
           ),

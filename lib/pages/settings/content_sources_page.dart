@@ -5,6 +5,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/capability.dart';
 import '../../providers/content/capability_providers.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 内容来源：按能力清单渲染开关，让用户自己决定内容层要什么。
 ///
@@ -145,14 +146,20 @@ class _CapabilityTile extends ConsumerWidget {
     //  - 能力本身不可用（没配本地目录 / 服务端没开放）→ 开关置灰，点了也没用；
     //  - 能力可用但服务端只登记未实现（planned）→ 同样置灰，但文案说明是有这条路。
     final bool usable = cap.enabled;
-    return SwitchListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(cap.title),
-      value: usable && on,
-      onChanged: usable
-          ? (bool v) =>
-              ref.read(capabilitySelectionProvider.notifier).setOn(cap.id, v)
-          : null,
+    return XGlassCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Expanded(child: Text(cap.title)),
+          XGlassToggle(
+            value: usable && on,
+            onChanged: usable
+                ? (bool v) =>
+                    ref.read(capabilitySelectionProvider.notifier).setOn(cap.id, v)
+                : null,
+          ),
+        ],
+      ),
     );
   }
 }

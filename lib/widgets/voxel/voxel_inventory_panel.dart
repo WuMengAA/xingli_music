@@ -21,6 +21,7 @@ import 'voxel_inventory.dart';
 import 'voxel_items.dart';
 import 'voxel_survival.dart';
 import 'voxel_world_types.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 创造模式一键铺满背包的方块清单（也用作方块选择器的顺序）。
 const List<Voxel> kCreativeBlocks = <Voxel>[
@@ -732,7 +733,7 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
                 ],
               ),
             ),
-            TextButton(
+            XGlassButton(
               onPressed: ok ? () => widget.onCraft(r) : null,
               child: const Text('合成'),
             ),

@@ -29,6 +29,7 @@ import '../../widgets/liquid_glass.dart';
 import '../../widgets/social/track_picker.dart';
 import 'order_queue_page.dart';
 import 'station_lobby_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 电台房主页。
 class StationRoomPage extends ConsumerWidget {
@@ -120,11 +121,11 @@ class StationRoomPage extends ConsumerWidget {
         title: const Text('复制房间号'),
         content: Text('将房间号 $roomCode 复制到剪贴板？'),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dc).pop(false),
             child: const Text('取消'),
           ),
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(dc).pop(true),
             child: const Text('复制'),
           ),
@@ -493,7 +494,7 @@ class StationRoomPage extends ConsumerWidget {
               ),
             ),
           ),
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(context).push<void>(
               MaterialPageRoute<void>(builder: (_) => const _HistoryPage()),
             ),
@@ -612,7 +613,7 @@ class StationRoomPage extends ConsumerWidget {
                       color: c.textPrimary, fontWeight: FontWeight.bold)),
               const Spacer(),
               if (pending.isNotEmpty || approved.isNotEmpty)
-                TextButton(
+                XGlassButton(
                   onPressed: () => Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
                       builder: (_) => const OrderQueuePage(),

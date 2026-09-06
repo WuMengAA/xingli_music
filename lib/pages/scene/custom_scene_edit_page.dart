@@ -11,6 +11,7 @@ import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/scene/scene_color_panel.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 自定义场景编辑（v2 M5-3 · P0-M5-3）。
 ///
@@ -128,7 +129,7 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
           title: _isNew ? '新建场景' : '编辑场景',
           onBack: () => Navigator.of(context).pop(),
           actions: <Widget>[
-            TextButton(onPressed: _save, child: const Text('保存')),
+            XGlassButton(onPressed: _save, child: const Text('保存')),
           ],
           body: ListView(
             padding: EdgeInsets.zero,

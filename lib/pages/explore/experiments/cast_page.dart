@@ -8,6 +8,7 @@ import '../../../models/track.dart';
 import '../../../providers/audio/audio_providers.dart';
 import '../../../providers/cast/cast_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 投屏（T11 最小版）：局域网 HTTP 流媒体服务。
 ///

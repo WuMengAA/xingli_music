@@ -8,6 +8,7 @@ import '../../../providers/companion/companion_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
 import '../../../widgets/companion/companion_bubble.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 实验 · AI 陪伴（Phase 1）。
 ///
@@ -55,7 +56,7 @@ class CompanionPage extends ConsumerWidget {
                       style: context.appText.caption,
                     ),
                   ),
-                  TextButton(
+                  XGlassButton(
                     onPressed: () =>
                         ref.read(companionStateProvider.notifier).reset(),
                     child: const Text('重置'),

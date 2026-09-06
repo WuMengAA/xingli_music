@@ -20,6 +20,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../widgets/voxel/voxel_capture_models.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 一张已保存的照片（PNG + 场景快照）。
 class _Photo {
@@ -98,11 +99,11 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
         title: const Text('删除这张照片？'),
         content: const Text('照片与对应场景快照都会被删除。'),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.of(c).pop(false),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.of(c).pop(true),
             child: const Text('删除'),
           ),

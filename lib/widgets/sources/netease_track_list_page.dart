@@ -10,6 +10,7 @@ import '../common/page_scaffold.dart';
 import '../common/state_views.dart';
 import '../notification/app_notify.dart';
 import 'netease_auth_hint.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 网易云曲目列表页（共享薄壳）。
 ///
@@ -152,7 +153,7 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                         itemBuilder: (BuildContext context, int i) {
                           if (i == _loaded.length) {
                             if (_failed) {
-                              return TextButton(
+                              return XGlassButton(
                                 onPressed: _loadMore,
                                 child: const Text('加载失败，点击重试'),
                               );

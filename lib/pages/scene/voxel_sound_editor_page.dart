@@ -12,6 +12,7 @@ import '../../widgets/common/state_chip.dart';
 import '../../widgets/voxel/voxel_canvas_controller.dart';
 import '../../widgets/voxel/voxel_canvas_view.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 2.5D 类我的世界音效编辑器（v2 M5-1 · P0-M5-1）。
 ///
@@ -222,11 +223,11 @@ class _BlockPanelState extends ConsumerState<_BlockPanel> {
           decoration: const InputDecoration(labelText: '名称'),
         ),
         actions: <Widget>[
-          TextButton(
+          XGlassButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('取消'),
           ),
-          FilledButton(
+          XGlassButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('添加'),
           ),

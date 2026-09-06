@@ -20,6 +20,7 @@ import '../../providers/voxel/graphics_quality_provider.dart'
 import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 游戏画面 · 专属设置页（从主页设置「游戏」段进入）。
 class GameGraphicsPage extends ConsumerWidget {
@@ -176,7 +177,7 @@ class GameGraphicsPage extends ConsumerWidget {
                         style: context.appText.body,
                       ),
                     ),
-                    Switch(
+                    XGlassToggle(
                       value: lodFrustumCull,
                       onChanged: (bool v) =>
                           ref.read(lodFrustumCullProvider.notifier).state = v,
@@ -199,7 +200,7 @@ class GameGraphicsPage extends ConsumerWidget {
                     style: context.appText.body,
                   ),
                 ),
-                Switch(
+                XGlassToggle(
                   value: ref.watch(outlineEnabledProvider),
                   onChanged: (bool v) => ref
                       .read(outlineEnabledProvider.notifier)
@@ -226,13 +227,10 @@ class GameGraphicsPage extends ConsumerWidget {
                 children: <Widget>[
                   Text('渲染精度', style: context.appText.body),
                   const SizedBox(height: 6),
-                  Slider(
+                  XGlassSlider(
                     value: ref.watch(renderPrecisionScaleProvider),
                     min: 0.25,
                     max: 2.0,
-                    divisions: 14,
-                    label:
-                        '${ref.watch(renderPrecisionScaleProvider).toStringAsFixed(2)}×',
                     onChanged: (double v) => ref
                         .read(renderPrecisionScaleProvider.notifier)
                         .state = v,
@@ -448,7 +446,7 @@ class _ToggleRow extends StatelessWidget {
         Expanded(
           child: Text(title, style: context.appText.body),
         ),
-        Switch(value: value, onChanged: onChanged),
+        XGlassToggle(value: value, onChanged: onChanged),
       ],
     );
   }

@@ -18,6 +18,7 @@ import '../../providers/radio/radio_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 点歌队列页。
 class OrderQueuePage extends ConsumerStatefulWidget {
@@ -536,7 +537,7 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
                     setState(() => _online = s.first),
               ),
               const Spacer(),
-              TextButton(
+              XGlassButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('取消'),
               ),
