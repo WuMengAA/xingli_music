@@ -474,7 +474,7 @@ abstract final class AppVersion {
 /// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
 /// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
 /// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
-static const int buildCount = 3;
+static const int buildCount = 4;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -839,6 +839,16 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
       '#582 修复字体不支持导致的黄色双下划线',
       '#583 修复主题切换后玻璃失效（LiquidGlassCapture 监听主题/皮肤变化重新捕获背景快照）',
       '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '26.09.06',
+    cl: 'alpha_cl04',
+    title: '全界面液态玻璃控件基准化（设计语言统一）',
+    details: <String>[
+      '新增玻璃基准件 lib/widgets/design/glass_controls.dart（XGlassButton/Slider/Toggle/Card 封装 liquid_glass_compat，统一模糊/圆角/配色）+ AnimatedBackground（大模糊卡片 + 随页切换平移/缩放的抽象色块）',
+      '全 app 交互控件（设置/库/播放器/均衡器/场景/OOBE/二级与实验页）统一换 XGlass*，界面 100% 玻璃一致；保留 seek 进度条与迷你音量（进度指示器语义）',
+      'OOBE 品牌页点明定位（会思考的本地音乐播放器·可停留的空间）',
     ],
   ),
   ChangelogEntry(
