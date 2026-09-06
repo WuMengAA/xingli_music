@@ -822,13 +822,20 @@ class _UiEditorPageState extends State<UiEditorPage> {
           // ── cl45：自由定位（root）+ 对齐/分布/吸附 ──
           if (n.id == 'root') ...<Widget>[
             _label(context, '自由定位（Stack 画布）'),
-            SwitchListTile(
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: Text('自由定位模式',
-                  style: context.appText.body.copyWith(fontSize: 12)),
-              value: n.freePos,
-              onChanged: (bool v) => _updateSelected(n.clone()..freePos = v),
+            XGlassCard(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Text('自由定位模式',
+                        style: context.appText.body.copyWith(fontSize: 12)),
+                  ),
+                  XGlassToggle(
+                    value: n.freePos,
+                    onChanged: (bool v) => _updateSelected(n.clone()..freePos = v),
+                  ),
+                ],
+              ),
             ),
             if (_selectedIds.length >= 2) ...<Widget>[
               _label(context, '对齐 / 分布（已选 ${_selectedIds.length} 个）'),
@@ -954,8 +961,9 @@ class _UiEditorPageState extends State<UiEditorPage> {
           ],
           if (n.type == UiNodeType.text || n.type == UiNodeType.button) ...<Widget>[
             _label(context, '字号 ${n.fontSize.toStringAsFixed(0)}'),
-            Slider(
+            XGlassSlider(
               value: n.fontSize.clamp(8, 48),
+              min: 0,
               max: 48,
               onChanged: (double v) => _updateSelected(n.clone()..fontSize = v),
             ),
@@ -964,8 +972,9 @@ class _UiEditorPageState extends State<UiEditorPage> {
             _label(context, '图标 codePoint（如 e145 / e8b8）'),
             _textField(context, n.icon ?? '', (String v) => _updateSelected(n.clone()..icon = v)),
             _label(context, '大小 ${n.iconSize.toStringAsFixed(0)}'),
-            Slider(
+            XGlassSlider(
               value: n.iconSize.clamp(10, 80),
+              min: 0,
               max: 80,
               onChanged: (double v) => _updateSelected(n.clone()..iconSize = v),
             ),
@@ -981,21 +990,24 @@ class _UiEditorPageState extends State<UiEditorPage> {
               onChanged: (UiLayout? v) => v == null ? null : _updateSelected(n.clone()..layout = v),
             ),
             _label(context, '间距 gap ${n.gap.toStringAsFixed(0)}'),
-            Slider(
+            XGlassSlider(
               value: n.gap.clamp(0, 48),
+              min: 0,
               max: 48,
               onChanged: (double v) => _updateSelected(n.clone()..gap = v),
             ),
             _label(context, '内边距 ${n.padding.toStringAsFixed(0)}'),
-            Slider(
+            XGlassSlider(
               value: n.padding.clamp(0, 48),
+              min: 0,
               max: 48,
               onChanged: (double v) => _updateSelected(n.clone()..padding = v),
             ),
           ],
           _label(context, '圆角 ${n.cornerRadius.toStringAsFixed(0)}'),
-          Slider(
+          XGlassSlider(
             value: n.cornerRadius.clamp(0, 48),
+            min: 0,
             max: 48,
             onChanged: (double v) => _updateSelected(n.clone()..cornerRadius = v),
           ),
@@ -1079,13 +1091,20 @@ class _UiEditorPageState extends State<UiEditorPage> {
                 ? null
                 : _updateSelected(n.clone()..anim = v),
           ),
-          SwitchListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            title: Text('可点击（预览反馈）',
-                style: context.appText.body.copyWith(fontSize: 12)),
-            value: n.tappable,
-            onChanged: (bool v) => _updateSelected(n.clone()..tappable = v),
+          XGlassCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Text('可点击（预览反馈）',
+                      style: context.appText.body.copyWith(fontSize: 12)),
+                ),
+                XGlassToggle(
+                  value: n.tappable,
+                  onChanged: (bool v) => _updateSelected(n.clone()..tappable = v),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 8),
           Text('提示：改属性即时预览；开「纠错」检查对比度/溢出/间距/重叠。',

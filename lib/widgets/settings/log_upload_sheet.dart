@@ -159,26 +159,53 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                 style: context.appText.artist,
               ),
               const SizedBox(height: AppSpace.md),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('启用上报', style: context.appText.body),
-                subtitle: Text('仅启用时才会发送日志', style: context.appText.artist),
-                value: enabled,
-                onChanged: (bool v) {
-                  ref.read(logUploadEnabledProvider.notifier).state = v;
-                },
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('详细日志（DEBUG）', style: context.appText.body),
-                subtitle: Text(
-                  '记录状态机/播放器/音量等细粒度日志，便于定位问题',
-                  style: context.appText.artist,
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('启用上报', style: context.appText.body),
+                          Text('仅启用时才会发送日志',
+                              style: context.appText.artist),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: enabled,
+                      onChanged: (bool v) {
+                        ref.read(logUploadEnabledProvider.notifier).state = v;
+                      },
+                    ),
+                  ],
                 ),
-                value: ref.watch(logDebugEnabledProvider),
-                onChanged: (bool v) {
-                  ref.read(logDebugEnabledProvider.notifier).state = v;
-                },
+              ),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('详细日志（DEBUG）', style: context.appText.body),
+                          Text(
+                            '记录状态机/播放器/音量等细粒度日志，便于定位问题',
+                            style: context.appText.artist,
+                          ),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: ref.watch(logDebugEnabledProvider),
+                      onChanged: (bool v) {
+                        ref.read(logDebugEnabledProvider.notifier).state = v;
+                      },
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpace.sm),
               TextField(

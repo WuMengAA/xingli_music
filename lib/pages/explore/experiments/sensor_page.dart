@@ -73,7 +73,7 @@ class SensorPage extends ConsumerWidget {
                 title: '摇一摇切场景',
                 value: shakeEnabled ? '已开启' : '已关闭',
                 subtitle: '摇动手机切换到下一场景',
-                trailing: Switch(
+                trailing: XGlassToggle(
                   value: shakeEnabled,
                   onChanged: (bool v) {
                     ref.read(shakeSceneEnabledProvider.notifier).state = v;

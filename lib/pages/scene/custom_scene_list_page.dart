@@ -133,7 +133,7 @@ class _SceneTile extends ConsumerWidget {
             ),
           ),
           // 显示开关（持久化 visible，P0-M5-3）
-          Switch(
+          XGlassToggle(
             value: scene.visible,
             onChanged: (bool v) async {
               await ref

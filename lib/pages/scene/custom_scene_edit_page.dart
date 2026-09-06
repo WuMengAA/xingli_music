@@ -178,11 +178,19 @@ class _CustomSceneEditPageState extends ConsumerState<CustomSceneEditPage> {
               ),
               const SizedBox(height: AppSpace.md),
 
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('在列表中显示', style: context.appText.body),
-                value: _visible,
-                onChanged: (bool v) => setState(() => _visible = v),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text('在列表中显示', style: context.appText.body),
+                    ),
+                    XGlassToggle(
+                      value: _visible,
+                      onChanged: (bool v) => setState(() => _visible = v),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpace.md),
 

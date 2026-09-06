@@ -778,7 +778,7 @@ class _SwitchRow extends StatelessWidget {
                     color: Colors.white70,
                   )),
             ),
-            Switch(value: value, onChanged: enabled ? onChanged : null),
+            XGlassToggle(value: value, onChanged: enabled ? onChanged : null),
           ],
         ),
       );

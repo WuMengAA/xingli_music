@@ -6248,12 +6248,11 @@ class _FoldPanel extends StatelessWidget {
                   size: 16, color: Color(0xFFF2F5FA)),
               const SizedBox(width: 6),
               Expanded(
-                child: Slider(
+                child: XGlassSlider(
                   value: hudScale,
                   min: kHudScaleMin,
                   max: kHudScaleMax,
                   divisions: 6,
-                  label: '${(hudScale * 100).round()}%',
                   onChanged: onHudScale,
                 ),
               ),
@@ -6342,13 +6341,11 @@ class _CameraPanel extends StatelessWidget {
           const SizedBox(width: 8),
           SizedBox(
             width: 110,
-            child: Slider(
-              // 相机 fov 为弧度，滑块范围与 VoxelCamera 弧度边界对齐
-              // （原 0.35~1.5 与 _setFov 旧角度钳制不一致）。
+            child: XGlassSlider(
               value: fov.clamp(VoxelCamera.minFov, VoxelCamera.maxFov),
               min: VoxelCamera.minFov,
               max: VoxelCamera.maxFov,
-              activeColor: const Color(0xFFFFD54F),
+              accentColor: const Color(0xFFFFD54F),
               onChanged: onFov,
             ),
           ),

@@ -354,12 +354,10 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
             const SizedBox(height: 8),
             Row(
               children: <Widget>[
-                Switch(
+                XGlassToggle(
                   value: _anon,
                   onChanged: (v) => setState(() => _anon = v),
-                  activeThumbColor: WidgetStateColor.resolveWith(
-                    (_) => c.accent,
-                  ),
+                  accentColor: c.accent,
                 ),
                 Text('匿名点歌', style: TextStyle(color: c.textSecondary)),
                 const Spacer(),

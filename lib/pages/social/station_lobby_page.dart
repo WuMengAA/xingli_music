@@ -446,12 +446,11 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
                 Text('人数上限：$_listenCapacity 人',
                     style: TextStyle(color: c.textPrimary)),
                 Expanded(
-                  child: Slider(
+                  child: XGlassSlider(
                     value: _listenCapacity.toDouble(),
                     min: 2,
                     max: 10,
                     divisions: 8,
-                    label: '$_listenCapacity 人',
                     onChanged: (double v) =>
                         setState(() => _listenCapacity = v.round()),
                   ),

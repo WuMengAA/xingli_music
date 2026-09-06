@@ -121,32 +121,68 @@ class _StatusCard extends ConsumerWidget {
       title: '运行状态',
       child: Column(
         children: <Widget>[
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text('后台播放', style: context.appText.body),
-            subtitle: Text('切到其它 App 时继续播放', style: context.appText.artist),
-            value: background,
-            onChanged: (bool v) =>
-                ref.read(backgroundPlayProvider.notifier).state = v,
+          XGlassCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('后台播放', style: context.appText.body),
+                      Text('切到其它 App 时继续播放', style: context.appText.artist),
+                    ],
+                  ),
+                ),
+                XGlassToggle(
+                  value: background,
+                  onChanged: (bool v) =>
+                      ref.read(backgroundPlayProvider.notifier).state = v,
+                ),
+              ],
+            ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text('锁屏控件', style: context.appText.body),
-            subtitle: Text('锁屏显示播放 / 暂停 / 切歌', style: context.appText.artist),
-            value: lockScreen,
-            onChanged: (bool v) =>
-                ref.read(lockScreenProvider.notifier).state = v,
+          XGlassCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('锁屏控件', style: context.appText.body),
+                      Text('锁屏显示播放 / 暂停 / 切歌', style: context.appText.artist),
+                    ],
+                  ),
+                ),
+                XGlassToggle(
+                  value: lockScreen,
+                  onChanged: (bool v) =>
+                      ref.read(lockScreenProvider.notifier).state = v,
+                ),
+              ],
+            ),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            dense: true,
-            title: Text('通知栏', style: context.appText.body),
-            subtitle: Text('在通知栏常驻音乐卡片', style: context.appText.artist),
-            value: notificationBar,
-            onChanged: (bool v) =>
-                ref.read(notificationBarProvider.notifier).state = v,
+          XGlassCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text('通知栏', style: context.appText.body),
+                      Text('在通知栏常驻音乐卡片', style: context.appText.artist),
+                    ],
+                  ),
+                ),
+                XGlassToggle(
+                  value: notificationBar,
+                  onChanged: (bool v) =>
+                      ref.read(notificationBarProvider.notifier).state = v,
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -295,7 +331,7 @@ class _SceneCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              Switch(
+              XGlassToggle(
                 value: !soundscapeMuted,
                 onChanged: (bool v) async {
                   await ref.read(audioServiceProvider).setSoundscapeMuted(!v);

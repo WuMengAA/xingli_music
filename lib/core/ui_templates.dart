@@ -284,10 +284,10 @@ class UiToggleRow extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
+          XGlassToggle(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: context.appColors.accent,
+            accentColor: context.appColors.accent,
           ),
         ],
       ),
@@ -321,10 +321,10 @@ class UiSliderRow extends StatelessWidget {
           ),
           SizedBox(
             width: 160,
-            child: Slider(
+            child: XGlassSlider(
               value: value.clamp(0.0, 1.0),
               onChanged: onChanged,
-              activeColor: context.appColors.accent,
+              accentColor: context.appColors.accent,
             ),
           ),
         ],
@@ -400,10 +400,10 @@ class UiFoldPanel extends StatelessWidget {
               const SizedBox(width: 6),
               Text(label, style: AppTextStyles.caption.copyWith(color: ink)),
               const Spacer(),
-              Switch(
+              XGlassToggle(
                 value: true,
                 onChanged: null,
-                activeThumbColor: context.appColors.accent,
+                accentColor: context.appColors.accent,
               ),
             ],
           ),

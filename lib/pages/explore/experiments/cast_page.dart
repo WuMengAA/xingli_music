@@ -83,10 +83,9 @@ class CastPage extends ConsumerWidget {
               ],
             ),
           ),
-          Switch(
+          XGlassToggle(
             value: state.running,
-            activeThumbColor: c.onAccent,
-            activeTrackColor: c.accent,
+            accentColor: c.accent,
             onChanged: (_) => ref.read(castServerProvider.notifier).toggle(),
           ),
         ],

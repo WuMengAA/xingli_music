@@ -238,13 +238,26 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
                 ),
               ),
               const SizedBox(height: AppSpace.sm),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text('附带最近错误/告警日志', style: context.appText.body),
-                subtitle: Text('仅发送已脱敏的 ERROR/WARN 摘要，便于定位',
-                    style: context.appText.artist),
-                value: _attachLogs,
-                onChanged: (bool v) => setState(() => _attachLogs = v),
+              XGlassCard(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text('附带最近错误/告警日志', style: context.appText.body),
+                          Text('仅发送已脱敏的 ERROR/WARN 摘要，便于定位',
+                              style: context.appText.artist),
+                        ],
+                      ),
+                    ),
+                    XGlassToggle(
+                      value: _attachLogs,
+                      onChanged: (bool v) => setState(() => _attachLogs = v),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpace.sm),
               XGlassButton(
