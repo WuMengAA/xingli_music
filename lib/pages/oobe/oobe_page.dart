@@ -1,120 +1,72 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// OOBE · 7 页极简引导（cl05 · Win11 OOBE 分步聚焦；cl07 视觉语言统一
-/// Material，移除界面风格页；cl17 插入账号页 + 条款远端拉取本地兜底）
+/// OOBE · 极简首启引导（重写 cl_R34 · 去掉空壳与 filler）
 /// ════════════════════════════════════════════════════════════════════════
 ///
-/// 一页只做一件事，顶部进度点、底部固定操作栏：
-///   0. 品牌   —— 情感开场（不索要权限，无「跳过」）
-///   1. 权限   —— 存储访问（好处前置 + 「授权并导入」/「仅在线使用」）
-///               底部并入合同勾选（服务条款 / 隐私政策，合规保留；
-///               cl17 起条款正文尝试从 GitHub 拉取，失败用本地最新并显示来源与时间）
-///   2. 流派   —— 选音乐流派（≤3，防选择瘫痪；cl17 起并入语义随机加权词库）
-///   3. 世界   —— 星璃功能亮点（场景化 / 3D 世界 / 一起听 / 开放音源）
-///   4. 体验   —— 无损音质 / 后台播放 / 白噪音 开关
-///   5. 账号   —— 登录 / 注册（可选，游客可跳过；复用后端 /api/auth/*）
-///   6. 加载   —— 沉浸式扫描（旋转唱片 + 动态文案 + 进度条），完成自动进入
+/// 设计目标：首启应当**一眼看出这是什么、能做什么、要不要授权**，然后尽快进应用。
+/// 两步即可完成，不做任何"初始化无用东西"的步骤。
 ///
-/// 文案随机：每页标题 / 描述均有多款变体，启动时随机抽一套
-/// （「有秩序的随机感」——每次打开 OOBE 不重样）。
+///   0. 欢迎 —— 直接呈现设计语言（AnimatedBackground + 玻璃卡），
+///              一句话定位 + 3 条具体能力（本地优先 / 智能策展 / 场景化沉浸）。
+///   1. 权限 —— 用大白话解释"为什么要存储/通知权限"，可跳过、不阻塞；
+///              主操作「进入星璃」直接完成首启，副操作「授权并导入」先要权再进。
+///
+/// 合规：服务条款 / 隐私政策仍可展开查看，但**不再阻塞**前进（用户反感被墙）。
 ///
 /// 触发：首次启动覆盖全屏 / 设置-关于-初始化流程 / 版本升级后弹询问。
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:math' show pi, sin;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../l10n/app_localizations.dart';
 import '../../core/app_version.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../models/track.dart';
-import '../../providers/auth/user_provider.dart';
-import '../../providers/audio/playback_notifier.dart';
-import '../../providers/content/content_providers.dart';
-import '../../providers/security/cert_policy_provider.dart';
-import '../../providers/audio/audio_providers.dart';
-import '../../providers/audio/auto_play_providers.dart';
-import '../../providers/sources/netease_provider.dart';
-import '../../widgets/common/aurora_background.dart';
-import '../../providers/settings/notification_providers.dart';
-import '../../providers/settings/oobe_choice_providers.dart';
 import '../../providers/settings/performance_providers.dart';
-import '../../services/auth/auth_service.dart';
-import '../../services/audio/oobe_preview_service.dart';
 import '../../services/content/terms_service.dart';
-import '../../services/open_url.dart';
 import '../../services/ota_service.dart';
+import '../../services/open_url.dart';
 import '../../services/permission_service.dart';
-import '../../services/security/http_client_factory.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
+import '../../widgets/design/animated_background.dart';
+import '../../widgets/design/glass_controls.dart';
+import '../../widgets/liquid_glass.dart';
 
-/// ═══════════ cl05 文案池（每页多款，随机出现）═══════════
+/// 产品定位（一句话，用户可一眼读懂这是什么）。
+const String _kPositioning = '会思考的本地音乐播放器 · 一个可以停留的空间';
 
-const List<String> _kPermTitles = <String>[
-  '让好音乐随时待命。',
-  '把喜欢的歌，都收进你的口袋。',
-  '本地音乐，离线也能听。',
+/// 三条具体能力（避免营销空话，每条都是真能做的事）。
+const List<(IconData, String, String)> _kPillars = <(IconData, String, String)>[
+  (
+    Icons.library_music_outlined,
+    '本地优先',
+    '扫描本地曲库，离线也能听，自动补全封面 / 歌词 / CUE 分轨',
+  ),
+  (
+    Icons.auto_awesome_outlined,
+    '智能策展',
+    '按你的口味整理歌单与每日推荐，越听越懂你',
+  ),
+  (
+    Icons.blur_on_rounded,
+    '场景化沉浸',
+    '体素世界与白噪音，边听边逛，把听歌变成停留',
+  ),
 ];
 
-const List<String> _kPermDescs = <String>[
-  '访问本地音乐文件，以便离线播放和建立专属歌单。',
-  '读取设备里的音乐，让你随时离线享受，不依赖网络。',
-  '授权后即可扫描本地曲库，快速建立你的音乐地图。',
-];
-
-const List<String> _kPrefTitles = <String>[
-  '选几个你爱的风格。',
-  '告诉我，你耳朵的偏好。',
-  '你的音乐口味，是哪种颜色？',
-];
-
-const List<String> _kPrefDescs = <String>[
-  '帮你过滤同频好歌，也可以稍后更改。',
-  '最多选 3 个，之后随时在设置里调整。',
-  '让推荐更懂你，选完还能改。',
-];
-
-const List<String> _kWorldTitles = <String>[
-  '星璃的世界，不止音乐。',
-  '音乐之外，还有一片世界。',
-  '看看星璃还能陪你做什么。',
-];
-
-const List<String> _kWorldSubs = <String>[
-  '音乐、画面与世界，连在一起。',
-  '从一首歌出发，走进一个空间。',
-  '每个场景，都是一次漫游。',
-];
-
-const List<String> _kExpTitles = <String>[
-  '让体验更合你心意。',
-  '几个开关，调出你的听感。',
-  '体验细节，随你掌控。',
-];
-
-const List<String> _kExpSubs = <String>[
-  '都可以在设置里改回来。',
-  '按你的习惯来，不必勉强。',
-  '省电还是享受，你选。',
-];
-
-const List<String> _kLoadTitles = <String>[
-  '正在整理你的音乐版图...',
-  '正在为你的音乐建一座小屋...',
-  '正在星璃世界里为你点亮星星...',
-  '正在把每首歌安放进它的角落...',
-];
-
-/// 加载过程中按进度循环切换的动态文案（加载页副标题）。
-const List<String> _kLoadMessages = <String>[
-  '扫描本地曲库',
-  '整理专辑封面',
-  '建立听歌偏好',
-  '点亮你的音乐版图',
-  '为你准备第一个场景',
+/// 权限用途说明（大白话，解释"为什么要"）。
+const List<(IconData, String, String)> _kPerms = <(IconData, String, String)>[
+  (
+    Icons.folder_copy_rounded,
+    '存储权限',
+    '读取设备里的音乐文件：离线播放，并自动补全封面与歌词',
+  ),
+  (
+    Icons.notifications_active_rounded,
+    '通知 / 后台',
+    '锁屏与控制中心显示播放控制，退出应用后仍继续放歌',
+  ),
 ];
 
 /// OOBE 全屏引导页。
@@ -126,40 +78,14 @@ class OobePage extends ConsumerStatefulWidget {
 }
 
 class _OobePageState extends ConsumerState<OobePage> {
-  static const int _pageCount = 7;
+  static const int _pageCount = 2;
 
   final PageController _ctrl = PageController();
-  final math.Random _rng = math.Random();
   int _page = 0;
-  bool _agreed = false;
 
-  // ═══ cl17：条款（远端拉取，本地兜底）═══
+  // ═══ 条款（远端拉取，本地兜底，仅作查看，不阻塞）═══
   TermsDoc? _termsDoc;
   TermsDoc? _privacyDoc;
-
-  // ═══ cl17：账号页（可选登录/注册）═══
-  final TextEditingController _accountUser = TextEditingController();
-  final TextEditingController _accountPass = TextEditingController();
-  bool _authBusy = false;
-  String? _authError;
-
-  /// cl05：启动时随机抽一套文案（每页标题/描述各一款）。
-  /// cl07：品牌页标题/副标题改为 l10n 随机池（跟随语言），首次 build 抽一次。
-  String? _welcomeTitle;
-  String? _welcomeSub;
-  late final String _permTitle = _pick(_kPermTitles);
-  late final String _permDesc = _pick(_kPermDescs);
-  late final String _prefTitle = _pick(_kPrefTitles);
-  late final String _prefDesc = _pick(_kPrefDescs);
-  late final String _worldTitle = _pick(_kWorldTitles);
-  late final String _worldSub = _pick(_kWorldSubs);
-  late final String _expTitle = _pick(_kExpTitles);
-  late final String _expSub = _pick(_kExpSubs);
-  late final String _loadTitle = _pick(_kLoadTitles);
-  late final List<String> _loadMsgs = List<String>.of(_kLoadMessages)
-    ..shuffle(_rng);
-
-  String _pick(List<String> pool) => pool[_rng.nextInt(pool.length)];
 
   @override
   void initState() {
@@ -167,7 +93,7 @@ class _OobePageState extends ConsumerState<OobePage> {
     _loadTerms();
   }
 
-  /// cl17：条款文本从 GitHub 拉取，失败自动回退本地内置（见 [fetchTermsDoc]）。
+  /// 条款文本从 GitHub 拉取，失败自动回退本地内置（见 [fetchTermsDoc]）。
   Future<void> _loadTerms() async {
     final TermsDoc terms = await fetchTermsDoc(TermsKind.terms);
     final TermsDoc privacy = await fetchTermsDoc(TermsKind.privacy);
@@ -181,11 +107,13 @@ class _OobePageState extends ConsumerState<OobePage> {
   @override
   void dispose() {
     _ctrl.dispose();
-    _accountUser.dispose();
-    _accountPass.dispose();
     super.dispose();
   }
 
+  /// cl05 契约：完成首启。
+  ///   1) 标记 oobeDone，AppShell 据此进入主界面；
+  ///   2) 兜底静默申请必要权限（不阻塞）；
+  ///   3) 回到首个路由（AppShell 已就绪）。
   void _finish() {
     ref.read(oobeDoneProvider.notifier).state = true;
     // 兜底：若用户「仅在线使用」跳过授权，进入后仍静默申请（不阻塞）。
@@ -194,70 +122,75 @@ class _OobePageState extends ConsumerState<OobePage> {
   }
 
   void _next() {
-    if (_page == 1 && !_agreed) return; // 权限页合同未勾不可前进
     _ctrl.nextPage(
       duration: const Duration(milliseconds: 320),
       curve: Curves.easeOutCubic,
     );
   }
 
+  /// 「授权并导入」：先主动申请权限，再完成首启。
   void _grantAndNext() {
-    // 「授权并导入」：主动申请通知 + 存储，失败不阻塞流程。
     unawaited(PermissionService.requestEssentialOnStartup());
-    _next();
+    _finish();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AppLocalizations l10n = AppLocalizations.of(context);
     final Color accent = context.appColors.accent;
-    final Set<String> genres = ref.watch(genrePrefsProvider);
     final int page = _page;
-    final bool isLoading = page == _pageCount - 1;
+    final bool isLast = page == _pageCount - 1;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1220),
       body: Stack(
         children: <Widget>[
-          // cl05：光效 + 图形动态背景（所有页共用）。
-          Positioned.fill(child: AuroraBackground(accent: accent)),
+          // 设计语言背景（极淡渐变 + 抽象色块，随页面位移）。
+          Positioned.fill(child: AnimatedBackground()),
           SafeArea(
             child: Column(
               children: <Widget>[
-                // 顶部进度点。
+                // 顶部：进度点 + 右上角「跳过」。
                 Padding(
                   padding: const EdgeInsets.only(top: 18),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List<Widget>.generate(_pageCount, (int i) {
-                      final bool active = i == page;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                        width: active ? 20 : 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: active
-                              ? accent
-                              : (i < page
-                                    ? accent.withValues(alpha: 0.5)
-                                    : const Color(0x44FFFFFF)),
-                          borderRadius: BorderRadius.circular(3),
-                          boxShadow: active
-                              ? <BoxShadow>[
-                                  BoxShadow(
-                                    color: accent.withValues(alpha: 0.55),
-                                    blurRadius: 8,
-                                    spreadRadius: 1,
-                                  ),
-                                ]
-                              : null,
+                    children: <Widget>[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List<Widget>.generate(_pageCount, (int i) {
+                            final bool active = i == page;
+                            return AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              width: active ? 20 : 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: active
+                                    ? accent
+                                    : (i < page
+                                          ? accent.withValues(alpha: 0.5)
+                                          : const Color(0x44FFFFFF)),
+                                borderRadius: BorderRadius.circular(3),
+                                boxShadow: active
+                                    ? <BoxShadow>[
+                                        BoxShadow(
+                                          color: accent.withValues(alpha: 0.55),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            );
+                          }),
                         ),
-                      );
-                    }),
+                      ),
+                      _SkipButton(onTap: _finish),
+                    ],
                   ),
                 ),
-                // 页面主体（PageView 滑动）。
+                // 页面主体。
                 Expanded(
                   child: PageView.builder(
                     controller: _ctrl,
@@ -265,73 +198,56 @@ class _OobePageState extends ConsumerState<OobePage> {
                     onPageChanged: (int i) => setState(() => _page = i),
                     itemBuilder: (BuildContext c, int i) {
                       if (i == 0) return _welcomePage(c, accent);
-                      if (i == 1) return _permPage(c, accent);
-                      if (i == 2) return _prefPage(c, accent);
-                      if (i == 3) return _worldPage(c, accent);
-                      if (i == 4) return _expPage(c, accent);
-                      if (i == 5) return _accountPage(c, accent);
-                      return _loadingPage(c, accent); // i == 6
+                      return _permPage(c, accent); // i == 1
                     },
                   ),
                 ),
-                // 底部操作栏（加载页无按钮，自动跳转）。
-                if (!isLoading)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                    child: Row(
-                      children: <Widget>[
-                        if (page > 0)
-                          XGlassButton(
-                            onPressed: () => _ctrl.previousPage(
-                              duration: const Duration(milliseconds: 320),
-                              curve: Curves.easeOutCubic,
-                            ),
-                            child: const Text(
-                              '上一步',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          )
-                        else
-                          const Spacer(),
-                        const Spacer(),
-                        if (page == 1)
-                          XGlassButton(
-                            onPressed: _agreed ? _next : null,
-                            child: const Text(
-                              '仅在线使用',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white54,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 8),
+                // 底部操作栏。
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  child: Row(
+                    children: <Widget>[
+                      if (page > 0)
                         XGlassButton(
-                          onPressed: switch (page) {
-                            0 => _next,
-                            1 => _agreed ? _grantAndNext : null,
-                            2 => genres.isEmpty ? null : _next,
-                            _ => _next,
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              const Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                page == 0
-                                    ? l10n.startExplore
-                                    : (page == 1 ? '授权并导入' : '下一步'),
-                              ),
-                            ],
+                          onPressed: () => _ctrl.previousPage(
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          ),
+                          child: const Text(
+                            '上一步',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        )
+                      else
+                        const Spacer(),
+                      const Spacer(),
+                      if (isLast) ...<Widget>[
+                        XGlassButton(
+                          onPressed: _grantAndNext,
+                          child: const Text(
+                            '授权并导入',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white70,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                       ],
-                    ),
+                      XGlassButton(
+                        onPressed: isLast ? _finish : _next,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            const Icon(Icons.arrow_forward_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text(isLast ? '进入星璃' : '开始体验'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -342,13 +258,12 @@ class _OobePageState extends ConsumerState<OobePage> {
 
   // ── 通用构件 ─────────────────────────────────────
 
-  /// cl05 布局：内容窄栏聚焦（≤420dp，一页只做一件事）。R33 改版：
-  /// 原全宽卡片平铺 → 窄栏居中，视觉层级更集中，对齐「原生极简」基底。
+  /// 内容窄栏聚焦（≤440dp，一页只讲一件事）。
   Widget _scroll(Widget child) => SingleChildScrollView(
     padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
     child: Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 420),
+        constraints: const BoxConstraints(maxWidth: 440),
         child: child,
       ),
     ),
@@ -375,161 +290,48 @@ class _OobePageState extends ConsumerState<OobePage> {
     ),
   );
 
-  Widget _chip(Color accent, String label, bool selected, VoidCallback onTap) =>
-      ChoiceChip(
-        label: Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: Colors.white),
-        ),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        backgroundColor: const Color(0x1AFFFFFF),
-        selectedColor: accent,
-        side: const BorderSide(color: Color(0x33FFFFFF)),
-      );
-
-  /// 流派试听小按钮（「风格选择能听歌」cl17）。
-  ///
-  /// 点击 → 在线搜索该流派首曲并播放；未登录 / 无结果 / 网络异常
-  /// 一律降级为可展示提示（[OobePreviewService] 保证不抛异常）。
-  Widget _previewButton(Color accent, String genre) => IconButton(
-    onPressed: () => _previewGenre(genre),
-    icon: const Icon(Icons.graphic_eq_rounded, size: 16),
-    color: accent,
-    tooltip: '试听「$genre」',
-    visualDensity: VisualDensity.compact,
-    padding: const EdgeInsets.all(4),
-    constraints: const BoxConstraints.tightFor(
-      width: 28,
-      height: 28,
-    ),
-  );
-
-  /// 执行流派试听：搜索 → playTrack；失败给可展示消息，绝不静默。
-  Future<void> _previewGenre(String genre) async {
-    final ScaffoldMessengerState messenger =
-        ScaffoldMessenger.of(context);
-    final OobePreviewService service = OobePreviewService(
-      // 可用性 = 网易云源可用（需登录）；搜索复用既有 cloudsearch 链路，
-      // 播放前 uri 为占位符，由 StreamResolver 懒解析（现成链路，不手写）。
-      canPreview: () => ref.read(neteaseSourceProvider).enabled,
-      search: (String g) =>
-          ref.read(neteaseSourceProvider).search(g, limit: 8),
-    );
-    final GenrePreview result = await service.previewFor(genre);
-    if (!mounted) return;
-    if (result.ok && result.track != null) {
-      final String msg = await ref
-          .read(playbackActionsProvider)
-          .playTrack(result.track!, queue: <Track>[result.track!]);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(msg.isEmpty ? '正在试听「$genre」' : msg),
-          duration: const Duration(milliseconds: 1500),
-        ),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(result.message),
-          duration: const Duration(milliseconds: 1800),
-        ),
-      );
-    }
-  }
-
-  Widget _switchRow(
-    Color accent,
-    bool value,
-    ValueChanged<bool> onChanged,
-    String title,
-    String subtitle,
-  ) => Material(
-    // Material（而非 DecoratedBox）：SwitchListTile 内部是 ListTile，
-    // 需在 Material 上绘制背景/水墨波纹（同 _contractTile 修复）。
-    color: const Color(0x14FFFFFF),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      side: const BorderSide(color: Color(0x22FFFFFF)),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                title,
-                style: const TextStyle(fontSize: 14, color: Colors.white),
-              ),
-              Text(
-                subtitle,
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
-              ),
-            ],
-          ),
-        ),
-        XGlassToggle(
-          value: value,
-          onChanged: onChanged,
-          accentColor: accent,
-        ),
-      ],
-    ),
-  );
-
-  // ── 第 0 页：品牌（情感开场） ──────────────────────
+  // ── 第 0 页：欢迎（看见设计语言 + 这是什么） ──────────
 
   Widget _welcomePage(BuildContext context, Color accent) {
-    // cl07：品牌页标题/副标题随机池改为 l10n 提供（跟随语言）。
-    final AppLocalizations l10n = AppLocalizations.of(context);
-    _welcomeTitle ??= _pick(<String>[
-      l10n.welcomeTitle0,
-      l10n.welcomeTitle1,
-      l10n.welcomeTitle2,
-      l10n.welcomeTitle3,
-    ]);
-    _welcomeSub ??= _pick(<String>[
-      l10n.welcomeSub0,
-      l10n.welcomeSub1,
-      l10n.welcomeSub2,
-      l10n.welcomeSub3,
-    ]);
     return _scroll(
       Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          _BrandGlyph(accent: accent),
-          const SizedBox(height: 28),
-          _title(accent, _welcomeTitle!),
-          const SizedBox(height: 10),
-          _sub(_welcomeSub!),
-          const SizedBox(height: 14),
-          // 首屏即点明软件定位（用户批判：OOBE 空壳、看不出软件是干嘛的）
-          Text(
-            '会思考的本地音乐播放器 · 一个可以停留的空间',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: accent.withValues(alpha: 0.92),
-              letterSpacing: 0.3,
-              fontWeight: FontWeight.w500,
+          LiquidGlass(
+            radius: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+            child: Column(
+              children: <Widget>[
+                _BrandGlyph(accent: accent),
+                const SizedBox(height: 22),
+                Text(
+                  '星璃·无限音乐画布',
+                  style: AppTextStyles.title.copyWith(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _kPositioning,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: accent.withValues(alpha: 0.95),
+                    letterSpacing: 0.3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                ..._kPillars.map(
+                  (p) => _pillarRow(accent, p.$1, p.$2, p.$3),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '本地优先 · 智能策展 · 场景化沉浸',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withValues(alpha: 0.6),
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          // R33：品牌页锚定版本标识（底部操作栏上方小字）。
+          const SizedBox(height: 16),
           Text(
             AppVersion.displayShort,
             style: const TextStyle(
@@ -544,474 +346,178 @@ class _OobePageState extends ConsumerState<OobePage> {
     );
   }
 
-  // ── 第 1 页：权限 + 合同 ──────────────────────────
-
-  Widget _permPage(BuildContext context, Color accent) => _scroll(
-    Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              colors: <Color>[
-                accent.withValues(alpha: 0.9),
-                accent.withValues(alpha: 0.2),
-              ],
-            ),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.folder_copy_rounded,
-            size: 40,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 24),
-        _title(accent, _permTitle),
-        const SizedBox(height: 8),
-        _sub(_permDesc),
-        const SizedBox(height: 20),
-        _contractTile(
-          accent,
-          _termsDoc?.title ?? '服务条款',
-          _termsDoc?.body ?? kLocalTermsBody,
-          _termsDoc == null
-              ? null
-              : '${_termsDoc!.source} · 更新于 ${_termsDoc!.updatedAt}',
-        ),
-        const SizedBox(height: 8),
-        _contractTile(
-          accent,
-          _privacyDoc?.title ?? '隐私政策',
-          _privacyDoc?.body ?? kLocalPrivacyBody,
-          _privacyDoc == null
-              ? null
-              : '${_privacyDoc!.source} · 更新于 ${_privacyDoc!.updatedAt}',
-        ),
-        const SizedBox(height: 10),
-        _linkRow(
-          context,
-          '查看开源仓库与完整协议',
-          kRepoUrl,
-        ),
-        const SizedBox(height: 14),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              child: const Text(
-                '我已阅读并同意《服务条款》与《隐私政策》',
-                style: TextStyle(fontSize: 13, color: Colors.white),
-              ),
-            ),
-            XGlassToggle(
-              value: _agreed,
-              onChanged: (bool v) => setState(() => _agreed = v),
-              accentColor: accent,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ],
-    ),
-  );
-
-  // ── 第 2 页：流派（≤3） ───────────────────────────
-
-  Widget _prefPage(BuildContext context, Color accent) {
-    final Set<String> genres = ref.watch(genrePrefsProvider);
-    return _scroll(
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          _title(accent, _prefTitle),
-          const SizedBox(height: 8),
-          _sub(_prefDesc),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: <Widget>[
-              for (final String g in kGenreOptions)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    _chip(accent, g, genres.contains(g), () {
-                      final bool ok = ref
-                          .read(genrePrefsProvider.notifier)
-                          .toggle(g);
-                      if (!ok) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('最多选 3 个就够了'),
-                            duration: Duration(milliseconds: 1200),
-                          ),
-                        );
-                      }
-                    }),
-                    const SizedBox(width: 2),
-                    _previewButton(accent, g),
-                  ],
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  // ── 第 3 页：星璃世界（功能亮点四宫格） ────────────
-
-  Widget _worldPage(BuildContext context, Color accent) => _scroll(
-    Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
-        _title(accent, _worldTitle),
-        const SizedBox(height: 8),
-        _sub(_worldSub),
-        const SizedBox(height: 24),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: <Widget>[
-            _capCard(accent, Icons.blur_on_rounded, '场景化聆听', '每首歌都有它的画面与光'),
-            _capCard(accent, Icons.view_in_ar_rounded, '3D 体素世界', '边听边逛，空间里漫游'),
-            _capCard(accent, Icons.group_rounded, '一起听', '和 TA 同步听同一首歌'),
-            _capCard(accent, Icons.cloud_outlined, '开放音源', '网易云、B站… 一处聚合'),
-            _capCard(accent, Icons.hd_outlined, '无损音质', '高品 / 无损档随源生效'),
-            _capCard(accent, Icons.library_music_outlined, '本地曲库', '扫码即听，离线无忧'),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ],
-    ),
-  );
-
-  Widget _capCard(
-    Color accent,
-    IconData icon,
-    String title,
-    String desc,
-  ) =>
-      LayoutBuilder(
-    builder: (BuildContext context, BoxConstraints constraints) {
-      // R33 改版：内容收进 ≤420 窄栏后必须按父约束算宽（原按全屏宽计算，
-      // 桌面宽屏下会溢出窄栏）。两卡一行：各占 (可用宽 - 间距) / 2。
-      final double w = (constraints.maxWidth - 12) / 2;
-      return Container(
-        width: w,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0x14FFFFFF),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: const Color(0x22FFFFFF)),
-        ),
-        child: Column(
+  /// 一条能力说明：图标 + 标题 + 一句具体描述。
+  Widget _pillarRow(Color accent, IconData icon, String title, String desc) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Icon(icon, size: 24, color: accent),
-            const SizedBox(height: 10),
-            Text(title,
-                style: const TextStyle(fontSize: 14, color: Colors.white)),
-            const SizedBox(height: 4),
-            Text(desc,
-                style: const TextStyle(fontSize: 11, color: Colors.white70)),
-          ],
-        ),
-      );
-    },
-  );
-
-  // ── 第 4 页：体验开关 ─────────────────────────────
-
-  Widget _expPage(BuildContext context, Color accent) {
-    final int aq = ref.watch(audioQualityProvider);
-    final bool bg = ref.watch(backgroundPlayProvider);
-    final bool wn = ref.watch(whiteNoiseEnabledProvider);
-    final bool auto = ref.watch(autoPlayProvider);
-    final bool lock = ref.watch(lockScreenProvider);
-    final bool ana = ref.watch(analyticsConsentProvider);
-    return _scroll(
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          _title(accent, _expTitle),
-          const SizedBox(height: 8),
-          _sub(_expSub),
-          const SizedBox(height: 20),
-          _switchRow(
-            accent,
-            aq == 0,
-            (bool v) =>
-                ref.read(audioQualityProvider.notifier).state = v ? 0 : 1,
-            '无损音质',
-            '优先使用高品 / 无损档位播放',
-          ),
-          const SizedBox(height: 10),
-          _switchRow(
-            accent,
-            auto,
-            (bool v) => ref.read(autoPlayProvider.notifier).state = v,
-            '自动连播',
-            '一首结束后自动播放下一首',
-          ),
-          const SizedBox(height: 10),
-          _switchRow(
-            accent,
-            bg,
-            (bool v) => ref.read(backgroundPlayProvider.notifier).state = v,
-            '允许后台播放',
-            '退出应用后继续播放音乐',
-          ),
-          const SizedBox(height: 10),
-          _switchRow(
-            accent,
-            lock,
-            (bool v) => ref.read(lockScreenProvider.notifier).state = v,
-            '锁屏控制',
-            '锁屏 / 通知栏显示播放控制',
-          ),
-          const SizedBox(height: 10),
-          _switchRow(
-            accent,
-            wn,
-            (bool v) => ref.read(whiteNoiseEnabledProvider.notifier).state = v,
-            '白噪音',
-            '无人声时播放环境音，助眠专注',
-          ),
-          const SizedBox(height: 10),
-          _switchRow(
-            accent,
-            ana,
-            (bool v) => ref.read(analyticsConsentProvider.notifier).state = v,
-            '匿名统计',
-            '发送匿名使用统计，帮助改进体验',
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-
-  // ── 第 5 页：账号（可选登录/注册） ────────────────
-
-  Widget _accountPage(BuildContext context, Color accent) {
-    final AuthState auth = ref.watch(authProvider);
-    return _scroll(
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          _title(accent, '账号（可选）'),
-          const SizedBox(height: 8),
-          _sub('登录后可跨设备同步偏好与收藏；也可以游客身份继续，随时可在设置里登录。'),
-          const SizedBox(height: 20),
-          if (auth.isAuthed) ...<Widget>[
             Container(
-              width: 200,
-              padding: const EdgeInsets.all(14),
+              margin: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0x14FFFFFF),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: const Color(0x22FFFFFF)),
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
               ),
+              child: Icon(icon, size: 20, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.account_circle, size: 44, color: accent),
-                  const SizedBox(height: 8),
                   Text(
-                    auth.user?.username ?? '',
+                    title,
                     style: const TextStyle(
                       fontSize: 15,
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  XGlassButton(
-                    onPressed: () => ref.read(authProvider.notifier).logout(),
-                    child: const Text('退出登录',
-                        style: TextStyle(fontSize: 12, color: Colors.white)),
+                  const SizedBox(height: 2),
+                  Text(
+                    desc,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFFC3CFE3),
+                      height: 1.45,
+                    ),
                   ),
                 ],
               ),
             ),
-          ] else ...<Widget>[
-            _accountField(auth, '用户名', _accountUser, Icons.person_outline),
-            const SizedBox(height: 10),
-            _accountField(auth, '密码（至少 6 位）', _accountPass,
-                Icons.lock_outline,
-                obscure: true),
-            if (_authError != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                _authError!,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFFF8A80)),
-                textAlign: TextAlign.center,
-              ),
-            ],
-            const SizedBox(height: 14),
-            if (_authBusy)
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: Colors.white70,
-                ),
-              )
-            else ...<Widget>[
-              XGlassButton(
-                onPressed: () => _tryAuth(false),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const <Widget>[
-                    Icon(Icons.login_rounded, size: 18),
-                    SizedBox(width: 8),
-                    Text('登录'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              XGlassButton(
-                onPressed: () => _tryAuth(true),
-                child: const Text(
-                  '注册新账号',
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
-                ),
-              ),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              '不登录也能正常使用全部本地功能',
-              style: const TextStyle(fontSize: 11, color: Colors.white38),
-            ),
           ],
-          const SizedBox(height: 16),
+        ),
+      );
+
+  // ── 第 1 页：权限（为什么 + 可跳过） ────────────────
+
+  Widget _permPage(BuildContext context, Color accent) {
+    return _scroll(
+      Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          _title(accent, '先帮你准备好'),
+          const SizedBox(height: 8),
+          _sub('下面两项权限让本地音乐更好用；不给也能进，随时在设置里补。'),
+          const SizedBox(height: 20),
+          ..._kPerms.map((p) => _permRow(accent, p.$1, p.$2, p.$3)),
+          const SizedBox(height: 18),
+          _contractTile(
+            accent,
+            _termsDoc?.title ?? '服务条款',
+            _termsDoc?.body ?? kLocalTermsBody,
+            _termsDoc == null
+                ? null
+                : '${_termsDoc!.source} · 更新于 ${_termsDoc!.updatedAt}',
+          ),
+          const SizedBox(height: 8),
+          _contractTile(
+            accent,
+            _privacyDoc?.title ?? '隐私政策',
+            _privacyDoc?.body ?? kLocalPrivacyBody,
+            _privacyDoc == null
+                ? null
+                : '${_privacyDoc!.source} · 更新于 ${_privacyDoc!.updatedAt}',
+          ),
+          const SizedBox(height: 10),
+          _linkRow(context, '查看开源仓库与完整协议', kRepoUrl),
+          const SizedBox(height: 14),
         ],
       ),
     );
   }
 
-  /// 账号页输入框（暗底半透明白卡）。
-  Widget _accountField(
-    AuthState auth,
-    String hint,
-    TextEditingController ctrl,
-    IconData icon, {
-    bool obscure = false,
-  }) =>
-      Container(
-        decoration: BoxDecoration(
-          color: const Color(0x14FFFFFF),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: const Color(0x22FFFFFF)),
-        ),
-        child: TextField(
-          controller: ctrl,
-          obscureText: obscure,
-          style: const TextStyle(color: Colors.white, fontSize: 14),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-            prefixIcon: Icon(icon, size: 18, color: Colors.white54),
-            border: InputBorder.none,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  /// 一条权限说明：图标 + 标题 + 为什么。
+  Widget _permRow(Color accent, IconData icon, String title, String desc) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0x14FFFFFF),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: const Color(0x22FFFFFF)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(icon, size: 22, color: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      desc,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFFC3CFE3),
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       );
 
-  /// 登录 / 注册提交（复用后端 /api/auth/*，成功即写入全局登录态）。
-  Future<void> _tryAuth(bool register) async {
-    final String u = _accountUser.text.trim();
-    final String p = _accountPass.text;
-    if (u.length < 3) {
-      setState(() => _authError = '用户名至少 3 个字符');
-      return;
-    }
-    if (p.length < 6) {
-      setState(() => _authError = '密码至少 6 位');
-      return;
-    }
-    setState(() {
-      _authBusy = true;
-      _authError = null;
-    });
-    final String base = ref.read(contentBaseUrlProvider);
-    final bool lenient = ref.watch(certPolicyProvider) == CertPolicy.lenient;
-    final client = makeHttpClient(lenient: lenient);
-    final AuthResult res = register
-        ? await registerUser(base, u, p, client: client)
-        : await loginUser(base, u, p, client: client);
-    client.close();
-    if (!mounted) return;
-    setState(() => _authBusy = false);
-    if (res.ok && res.token != null && res.user != null) {
-      await ref.read(authProvider.notifier).setSession(res.token!, res.user!);
-      _accountPass.clear();
-    } else {
-      setState(() => _authError = res.error ?? '请求失败');
-    }
-  }
-
-  // ── 第 6 页：沉浸式加载（扫描本地） ────────────────
-
-  Widget _loadingPage(BuildContext context, Color accent) => _LoadingProgress(
-    accent: accent,
-    title: _loadTitle,
-    messages: _loadMsgs,
-    onDone: _finish,
-  );
-
-  // ── 合同辅助 ─────────────────────────────────────
+  // ── 合同辅助（查看用，不阻塞） ──────────────────────
 
   Widget _contractTile(Color accent, String title, String body,
       [String? sourceNote]) =>
-    // Material（而非 DecoratedBox）：ExpansionTile 内部是 ListTile，
-    // 需在 Material 上绘制背景/水墨波纹；DecoratedBox 会触发
-    // "ListTile background color or ink splashes may be invisible" 断言。
-    Material(
-      color: const Color(0x14FFFFFF),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        side: const BorderSide(color: Color(0x22FFFFFF)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          title: Text(
-            title,
-            style: const TextStyle(fontSize: 14, color: Colors.white),
-          ),
-          subtitle: sourceNote == null
-              ? null
-              : Text(
-                  sourceNote,
-                  style: const TextStyle(fontSize: 10, color: Colors.white54),
-                ),
-          iconColor: accent,
-          collapsedIconColor: Colors.white70,
-          children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              child: Text(
-                body,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.white70,
-                  height: 1.5,
+      // Material（而非 DecoratedBox）：ExpansionTile 内部是 ListTile，
+      // 需在 Material 上绘制背景 / 水墨波纹，否则会触发断言。
+      Material(
+        color: const Color(0x14FFFFFF),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          side: const BorderSide(color: Color(0x22FFFFFF)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            title: Text(
+              title,
+              style: const TextStyle(fontSize: 14, color: Colors.white),
+            ),
+            subtitle: sourceNote == null
+                ? null
+                : Text(
+                    sourceNote,
+                    style: const TextStyle(fontSize: 10, color: Colors.white54),
+                  ),
+            iconColor: accent,
+            collapsedIconColor: Colors.white70,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                    height: 1.5,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   Widget _linkRow(BuildContext context, String label, String url) => InkWell(
     onTap: () async {
@@ -1057,7 +563,27 @@ class _OobePageState extends ConsumerState<OobePage> {
   );
 }
 
-/// 品牌图标 + 呼吸动画（cl05：慢速缩放 + 外圈光晕脉冲）。
+/// 右上角「跳过」文字按钮（尊重"尽快进应用"）。
+class _SkipButton extends StatelessWidget {
+  const _SkipButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Text(
+        '跳过',
+        style: TextStyle(fontSize: 13, color: Colors.white54),
+      ),
+    ),
+  );
+}
+
+/// 品牌图标 + 呼吸动画（慢速缩放 + 外圈光晕脉冲）。
 class _BrandGlyph extends StatefulWidget {
   const _BrandGlyph({required this.accent});
 
@@ -1087,9 +613,8 @@ class _BrandGlyphState extends State<_BrandGlyph>
       builder: (BuildContext context, Widget? _) {
         // 正弦呼吸：图标 1.0↔1.06，外圈光晕 0.12↔0.3。
         final double t = _ctrl.value;
-        final double s = 1 + 0.06 * math.sin(t * math.pi * 2);
-        final double halo =
-            0.12 + 0.18 * (0.5 + 0.5 * math.sin(t * math.pi * 2));
+        final double s = 1 + 0.06 * sin(t * pi * 2);
+        final double halo = 0.12 + 0.18 * (0.5 + 0.5 * sin(t * pi * 2));
         return Transform.scale(
           scale: s,
           child: Container(
@@ -1121,124 +646,6 @@ class _BrandGlyphState extends State<_BrandGlyph>
                 color: Colors.white,
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// 沉浸式加载进度（cl05：旋转唱片 + 动态文案 + 进度条，完成后回调）。
-class _LoadingProgress extends StatefulWidget {
-  const _LoadingProgress({
-    required this.accent,
-    required this.title,
-    required this.messages,
-    required this.onDone,
-  });
-
-  final Color accent;
-  final String title;
-  final List<String> messages;
-  final VoidCallback onDone;
-
-  @override
-  State<_LoadingProgress> createState() => _LoadingProgressState();
-}
-
-class _LoadingProgressState extends State<_LoadingProgress>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl =
-      AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 2000),
-        )
-        ..addStatusListener((AnimationStatus s) {
-          if (s == AnimationStatus.completed) widget.onDone();
-        })
-        ..forward();
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (BuildContext context, Widget? _) {
-        final double v = _ctrl.value;
-        final int msgIdx = (v * widget.messages.length).floor().clamp(
-          0,
-          widget.messages.length - 1,
-        );
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              // 旋转唱片（2 圈）。
-              Transform.rotate(
-                angle: v * math.pi * 4,
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      colors: <Color>[
-                        widget.accent.withValues(alpha: 0.9),
-                        widget.accent.withValues(alpha: 0.2),
-                      ],
-                    ),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0x33FFFFFF)),
-                  ),
-                  child: const Icon(
-                    Icons.music_note_rounded,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 28),
-              Text(
-                widget.title,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.title.copyWith(
-                  color: Colors.white,
-                  fontSize: 20,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                widget.messages[msgIdx],
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Color(0xFFB8C4D8)),
-              ),
-              const SizedBox(height: 22),
-              // 百分比 + 细进度条。
-              Text(
-                '${(v * 100).round()}%',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                  fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: v,
-                  minHeight: 4,
-                  color: widget.accent,
-                  backgroundColor: const Color(0x22FFFFFF),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
           ),
         );
       },
