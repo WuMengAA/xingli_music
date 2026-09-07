@@ -15,6 +15,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'dart:ui';
 
 /// 统一玻璃模糊强度（px）。
 const double _kGlassBlur = 14;
