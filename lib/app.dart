@@ -27,6 +27,63 @@ import 'services/audio/audio_service.dart';
 import 'services/log_service.dart';
 import 'services/permission_service.dart';
 
+/// 全局滚动行为：让页面滑动有「缓冲、平滑」的手感。
+///
+/// 为什么单独抽一个 ScrollBehavior 包在 MaterialApp 外层：
+/// 1) 应用是扁平抽象风格，Android 默认的 overscroll 高亮/拉伸（M3 是 stretch、
+///    M2 是 glow）视觉很突兀，这里统一关掉 overscroll 指示器 —— 返回 child 即
+///    完全不画指示器。注意：iOS 的弹性来自 BouncingScrollPhysics 而非指示器
+///    widget，所以关掉指示器不影响 iOS 的回弹手感。
+/// 2) 不同平台给不同的 physics：触摸（Android）用 Clamping 保持扁平、到边即停；
+///    桌面（Windows/Linux）用 Bouncing + 快速减速，让拖拽有缓冲惯性、松手后
+///    coast 更顺，整体更「跟手、不硬跳」。
+/// 3) 该 behavior 通过 ScrollConfiguration 自动下发给所有 Scrollable（包括
+///    PageView / NestedScrollView / ListView），PageView 会把它当成
+///    PageScrollPhysics 的父级，分页吸附逻辑不受影响。
+class BufferedScrollBehavior extends ScrollBehavior {
+  const BufferedScrollBehavior();
+
+  /// 关掉 Android 的 overscroll 高亮/拉伸指示器（其余平台本来就不画）。
+  /// 只影响「视觉指示器」，不改变 bounce 物理，也不影响下拉刷新所需的 overscroll。
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    return child;
+  }
+
+  /// 按平台调校默认滚动物理，让触摸和桌面都「有惯性、不硬跳」。
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    switch (getPlatform(context)) {
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        // 苹果平台保留原生弹性 + 快速减速，手感最跟手。
+        return const BouncingScrollPhysics(
+          decelerationRate: ScrollDecelerationRate.fast,
+          parent: RangeMaintainingScrollPhysics(),
+        );
+      case TargetPlatform.android:
+      case TargetPlatform.fuchsia:
+        // 触摸平台用 Clamping：到边界就停、不回弹，符合扁平抽象风格；
+        // 触摸拖拽本身由系统提供惯性，无需额外 bounce。
+        return const ClampingScrollPhysics(
+          parent: RangeMaintainingScrollPhysics(),
+        );
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        // 桌面端鼠标滚轮/触控板：Bouncing + 快速减速让拖拽有缓冲惯性，
+        // 列表到头时轻微回弹而非生硬停住，整体更平滑一致。
+        return const BouncingScrollPhysics(
+          decelerationRate: ScrollDecelerationRate.fast,
+          parent: RangeMaintainingScrollPhysics(),
+        );
+    }
+  }
+}
+
 /// 星璃 · 无限音乐空间 —— 应用根组件
 class StelarithMusicApp extends ConsumerStatefulWidget {
   const StelarithMusicApp({super.key});
@@ -150,7 +207,11 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       // 语义树为空 → 桥接事件循环无节点 → 崩溃路径不存在。
       // 代价：Windows 屏幕阅读器读不到控件；Android 不受影响（条件包裹）。
       excluding: !kIsWeb && Platform.isWindows,
-      child: MaterialApp(
+      // R-scroll：全局滚动行为（overscroll 关高亮 + 分平台 physics），
+      // 见 BufferedScrollBehavior 的注释。
+      child: ScrollConfiguration(
+        behavior: const BufferedScrollBehavior(),
+        child: MaterialApp(
       onGenerateTitle: (BuildContext context) => AppLocalizations.of(context).appName,
       debugShowCheckedModeBanner: false,
       navigatorKey: _navKey,
@@ -216,6 +277,7 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
       themeAnimationCurve: Curves.easeOutCubic,
       home: const AppShell(),
       ),
+        ),
     );
   }
 }
