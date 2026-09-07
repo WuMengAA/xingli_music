@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 6;
+  static const int day = 7;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -474,7 +474,7 @@ abstract final class AppVersion {
 /// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
 /// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
 /// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
-static const int buildCount = 4;
+static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -839,6 +839,17 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
       '#582 修复字体不支持导致的黄色双下划线',
       '#583 修复主题切换后玻璃失效（LiquidGlassCapture 监听主题/皮肤变化重新捕获背景快照）',
       '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '26.09.07',
+    cl: 'alpha_cl01',
+    title: '液态玻璃 WebGL 移除 · 改标准 BackdropFilter 透明模糊（平面抽象）',
+    details: <String>[
+      '弃用 liquid_glass_compat / liquid_glass_widgets 的 WebGL 折射（真机到处显示 bug、不可用）',
+      'LiquidGlass 与 XGlass* 全部改写标准 BackdropFilter 透明模糊 + 半透明填充 + 1px 细描边 + 圆角（30+ 调用点零改动）',
+      'AnimatedBackground 改极淡对角渐变 + 更透(alpha≈0.20)抽象色块，随页平移为主、轻缩放/旋转组合；风格平面抽象、学 VoiceHub',
+      '删除液态玻璃高级调节/性能基准两死页 + 其 provider；LiquidGlassCapture 改透传',
     ],
   ),
   ChangelogEntry(
