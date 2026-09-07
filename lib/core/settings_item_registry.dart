@@ -76,11 +76,34 @@ typedef SettingItemBuilder = Widget Function(
     BuildContext context, WidgetRef ref);
 
 /// 注册表条目。
+///
+/// 排序与搜索规则（确定性，非临时拼凑；见 settings_vivo_layout 的搜索/去重）：
+/// - [priority]：使用频率权重。**越高越常用**。搜索结果按它降序排在最前；
+///   跨合集同名 id 去重时，优先保留 priority 更高的合集入口。建议分档
+///   （默认 0 = 中频）：
+///     ≥ 80  高频：播放 / 音质 / 媒体库 / 外观主题 / 账号
+///      40~79 中频：游戏画质 / 通知 / 连接 / 存储 / 更新
+///       0   默认：其余设置
+///     < 0   低频：高级渲染 / LOD / 实验 / 开发者工具（沉到底部）
+/// - [subtitle]：补充说明，参与搜索匹配。
+/// - [keywords]：额外搜索关键词（如「音量」「响度」）。
+/// - [aliases]：同义词（如「主题」命中「皮肤 / 配色」），搜索时同样匹配。
 class SettingItemDef {
-  const SettingItemDef({required this.title, required this.builder});
+  const SettingItemDef({
+    required this.title,
+    required this.builder,
+    this.subtitle = '',
+    this.keywords = const <String>[],
+    this.aliases = const <String>[],
+    this.priority = 0,
+  });
 
   final String title;
   final SettingItemBuilder builder;
+  final String subtitle;
+  final List<String> keywords;
+  final List<String> aliases;
+  final int priority;
 }
 
 /// 入口行（跳转子页）。
@@ -517,6 +540,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
   ),
   'netease': SettingItemDef(
     title: '网易云登录',
+    aliases: const <String>['网易云', '登录', '账号'],
+    priority: 80,
     builder: (context, ref) {
       final bool loggedIn = ref.watch(neteaseAuthProvider).isLoggedIn;
       return _entry(
@@ -1055,25 +1080,22 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           ref.read(autoTransitionProvider.notifier).state = v,
     ),
   ),
-  // cl46：渲染分辨率（渲染精度缩放 0.5×~2×，与渲染·高级的「渲染精度」同一数据源）。
+  // cl46：渲染分辨率（渲染精度缩放 0.5×~2×）——与「游戏画面·高级设置」(gameGraphics)
+  // 中的「渲染精度」是同一数据源（renderPrecisionScaleProvider）。为避免同一设置
+  // 在设置页出现两个可调入口（去重），此处收敛为跳转到 gameGraphics 高级页，
+  // 由该页统一承载画质档 / 分辨率 / 视距 / LOD 等，不再内嵌重复的滑块。
   'renderResolution': SettingItemDef(
     title: '分辨率',
-    builder: (context, ref) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('分辨率 · 渲染缩放', style: context.appText.body),
-          const SizedBox(height: 6),
-          _chips<double>(
-            ref: ref,
-            value: ref.watch(renderPrecisionScaleProvider),
-            values: const <double>[0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
-            labels: const <String>['0.5×', '0.75×', '1×', '1.25×', '1.5×', '2×'],
-            onChanged: (double v) =>
-                ref.read(renderPrecisionScaleProvider.notifier).state = v,
-          ),
-        ],
+    subtitle: '渲染精度缩放（与「游戏画面 · 高级设置」同一数据源）',
+    priority: 60,
+    builder: (context, ref) => _entry(
+      context,
+      ref,
+      icon: Icons.crop_free_rounded,
+      title: '分辨率',
+      subtitle: '渲染精度缩放 · 在「游戏画面 · 高级设置」中统一调节',
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage()),
       ),
     ),
   ),
@@ -1435,6 +1457,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
   ),
   'renderPrecision': SettingItemDef(
     title: '几何精度（面数）',
+    priority: -40,
     builder: (context, ref) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[

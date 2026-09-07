@@ -8,6 +8,44 @@ import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import 'package:xingli_music/widgets/design/glass_controls.dart';
 
+/// 计算每个设置 id 的「规范合集」：同名 id 只在它**首次出现**的合集里渲染，
+/// 其余合集里的重复入口在 [SettingsVivoLayout] 中隐藏（去重）。
+/// 判定：先按布局合集顺序取首个；若同名 id 在多个合集出现，取 [SettingItemDef.priority]
+/// 更高的合集作为规范入口（高频设置优先保留其入口）。
+Map<String, String> _canonicalCollectionByItem(SettingsLayout layout) {
+  final Map<String, String> canonical = <String, String>{};
+  final Map<String, int> bestPriority = <String, int>{};
+  for (final SettingCollection c in layout.collections) {
+    for (final SettingGroup g in c.groups) {
+      for (final SettingItem item in g.items) {
+        final int p = kSettingItemRegistry[item.id]?.priority ?? 0;
+        final String? existing = canonical[item.id];
+        if (existing == null || p > (bestPriority[item.id] ?? 0)) {
+          canonical[item.id] = c.id;
+          bestPriority[item.id] = p;
+        }
+      }
+    }
+  }
+  return canonical;
+}
+
+/// 某设置项是否命中搜索词：匹配 标题 + 副标题 + 关键词 + 同义词
+/// （布局项与注册表项都会参与），统一小写后做包含判断。
+bool _itemMatchesQuery(SettingItem item, String query) {
+  final SettingItemDef? def = kSettingItemRegistry[item.id];
+  final List<String> parts = <String>[
+    item.title,
+    item.subtitle,
+    if (def != null) def.title,
+    if (def != null) def.subtitle,
+    ...? def?.keywords,
+    ...? def?.aliases,
+  ];
+  final String haystack = parts.map((String s) => s.toLowerCase()).join(' ');
+  return haystack.contains(query);
+}
+
 /// vivo 式设置布局：左侧分类导航 + 右侧内容区（大卡片分区）。
 ///
 /// 数据来自 [settingsLayoutProvider]（默认 [kDefaultSettingsLayout]，可经
@@ -168,17 +206,30 @@ class _SearchResultsView extends ConsumerWidget {
     final SettingsLayout layout = ref.watch(settingsLayoutProvider);
     final AppThemeColors c = context.appColors;
 
-    final List<(SettingCollection, SettingGroup, SettingItem)> hits = [];
+    // 搜索匹配：标题 + 副标题 + 关键词 + 同义词（见 [_itemMatchesQuery]）。
+    // 同名 id 只保留首个命中（去重），命中结果按 priority 降序、再按标题排，
+    // 高频设置排在最前（确定性）。
+    final List<(SettingCollection, SettingGroup, SettingItem, int)> ranked =
+        <(SettingCollection, SettingGroup, SettingItem, int)>[];
+    final Set<String> seen = <String>{};
     for (final SettingCollection collection in layout.collections) {
       for (final SettingGroup group in collection.groups) {
         for (final SettingItem item in group.items) {
-          final String title = item.title.toLowerCase();
-          if (title.contains(query)) {
-            hits.add((collection, group, item));
-          }
+          if (seen.contains(item.id)) continue; // 同名 id 去重，仅首个入口
+          if (!_itemMatchesQuery(item, query)) continue;
+          seen.add(item.id);
+          final int p = kSettingItemRegistry[item.id]?.priority ?? 0;
+          ranked.add((collection, group, item, p));
         }
       }
     }
+    ranked.sort((a, b) {
+      final int cmp = b.$4.compareTo(a.$4);
+      if (cmp != 0) return cmp;
+      return a.$3.title.toLowerCase().compareTo(b.$3.title.toLowerCase());
+    });
+    final List<(SettingCollection, SettingGroup, SettingItem)> hits =
+        ranked.map((t) => (t.$1, t.$2, t.$3)).toList();
 
     if (hits.isEmpty) {
       return Center(
@@ -439,6 +490,10 @@ class _CollectionContent extends ConsumerWidget {
         child: Text('暂无设置内容', style: context.appText.bodyMuted),
       );
     }
+    // 跨合集去重：同名 id 只在规范合集里渲染，其余合集的重复入口隐藏，
+    // 避免「同一设置出现在多处」（如 图形后端 / 特效 在「个性」与「游戏」重复列出）。
+    final SettingsLayout layout = ref.watch(settingsLayoutProvider);
+    final Map<String, String> canonical = _canonicalCollectionByItem(layout);
     return ListView(
       padding: const EdgeInsets.only(
         bottom: AppSpace.lg,
@@ -457,9 +512,9 @@ class _CollectionContent extends ConsumerWidget {
               child: Text(
                 group.name,
                 style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700) ??
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700) ??
                     context.appText.subtitle,
               ),
             ),
@@ -480,9 +535,13 @@ class _CollectionContent extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
                     for (final SettingItem item in group.items) ...<Widget>[
-                      buildSettingItem(context, ref, item.id),
-                      if (item != group.items.last)
-                        const Divider(height: 1),
+                      if (canonical[item.id] != collection.id)
+                        const SizedBox.shrink()
+                      else ...<Widget>[
+                        buildSettingItem(context, ref, item.id),
+                        if (item != group.items.last)
+                          const Divider(height: 1),
+                      ],
                     ],
                   ],
                 ),
