@@ -58,29 +58,27 @@ class XGlassButton extends StatelessWidget {
     final double r = radius ?? _kGlassRadius;
     final Color fill = _surfaceFill(context, tint);
     final Color line = _hairline(context);
-    final Widget box = Container(
-      padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(r),
-        border: Border.all(color: line, width: 1),
-      ),
-      child: Center(child: child),
-    );
+    // 内存：按钮**不做背景模糊**。每个 BackdropFilter 都是一个 saveLayer，
+    // 而按钮面积小、模糊几乎看不出来，但调用点有 150+ 处，同时存在时代价极高
+    // （省电与内存目标 <100MB 的关键一刀）。透明填充 + 细描边已足够表达玻璃感；
+    // 需要真模糊的浮层/卡片请用 XGlassCard / LiquidGlass。
     return SizedBox(
       width: fullWidth ? double.infinity : null,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(r),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: _kGlassBlur, sigmaY: _kGlassBlur),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onPressed,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(r),
+          splashFactory: NoSplash.splashFactory,
+          child: Container(
+            padding:
+                padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: fill,
               borderRadius: BorderRadius.circular(r),
-              splashFactory: NoSplash.splashFactory,
-              child: box,
+              border: Border.all(color: line, width: 1),
             ),
+            child: Center(child: child),
           ),
         ),
       ),

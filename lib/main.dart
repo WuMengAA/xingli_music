@@ -57,6 +57,14 @@ Future<void> main() async {
 
   final SharedPreferences prefs = await SharedPreferences.getInstance();
 
+  // ── 内存：收紧 Flutter 图片缓存 ──────────────────────────────────
+  // 默认上限是 1000 张 / 100MB。音乐库的高分辨率专辑封面会把缓存迅速撑爆，
+  // 是启动后内存飙到 ~1GB 的主因之一。这里压到 120 张 / 32MB；列表项解码
+  // 尺寸另由 cacheWidth 限制（见各封面组件的 ResizeImage/cacheWidth）。
+  final cache = PaintingBinding.instance.imageCache;
+  cache.maximumSize = 120;
+  cache.maximumSizeBytes = 32 << 20; // 32 MiB
+
   // ── 初始化阶段预热液态玻璃（R32 用户拍板：测试/预热必须在初始化阶段，
   // 根应用启动（初始 + 「崩溃界面」重新启动共用）。
   void runRoot() {

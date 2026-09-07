@@ -21,6 +21,15 @@ import '../providers/settings/performance_providers.dart';
 /// 默认模糊强度（px）。跟随性能模式在 [LiquidGlass] 内可调。
 const double _kGlassBlur = 16;
 
+/// 模糊面积守卫阈值（占整屏面积比例）。
+///
+/// 每个 [BackdropFilter] 都会分配一块与自身裁剪区域等大的离屏纹理
+///（saveLayer）：整屏面板 1080×2400 ≈ 10MB，多个叠加就会把 GPU 内存推高、
+///并在切页/滚动时反复分配回收造成卡顿。当其渲染面积超过整屏的该比例时，
+///直接退化为纯半透明卡（无模糊），只给真实浮动小卡/中等面板保留毛玻璃。
+///真实卡片（几十~几百 px）远小于阈值，视觉角色不受影响。
+const double _kMaxGlassBlurAreaRatio = 0.5;
+
 /// 玻璃风格（保留枚举以兼容调用点；平面抽象风格下仅 [GlassStyle.frosted] 生效）。
 enum GlassStyle {
   /// 经典毛玻璃：背景模糊 + 半透明 + 细描边。
@@ -98,31 +107,48 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
 
     final Widget inner = Padding(padding: widget.padding, child: widget.child);
 
+    // 无模糊时的纯半透明卡（无 saveLayer，零离屏纹理开销）。
+    final Widget noBlur = Container(
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: BorderRadius.circular(widget.radius),
+        border: Border.all(color: border, width: 1),
+      ),
+      child: inner,
+    );
+
     if (blur <= 0.5) {
       // 省电档：纯半透明卡（无模糊，仍可靠渲染）。
-      return Container(
-        decoration: BoxDecoration(
-          color: tint,
-          borderRadius: BorderRadius.circular(widget.radius),
-          border: Border.all(color: border, width: 1),
-        ),
-        child: inner,
-      );
+      return noBlur;
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: Container(
-          decoration: BoxDecoration(
-            color: tint,
-            borderRadius: BorderRadius.circular(widget.radius),
-            border: Border.all(color: border, width: 1),
+    // 面积守卫：超大面板（接近整屏）的 [BackdropFilter] 会分配整屏离屏纹理，
+    // 多个叠加会撑爆 GPU 内存。超过阈值时退化为纯半透明卡，仅给真实浮动
+    // 小卡/中等面板保留毛玻璃（见 [_kMaxGlassBlurAreaRatio]）。
+    final Size screen = MediaQuery.sizeOf(context);
+    return LayoutBuilder(
+      builder: (BuildContext c, BoxConstraints constraints) {
+        final double w = constraints.maxWidth;
+        final double h = constraints.maxHeight;
+        final bool huge =
+            w.isFinite && h.isFinite && (w * h) > screen.width * screen.height * _kMaxGlassBlurAreaRatio;
+        if (huge) return noBlur;
+
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(widget.radius),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+            child: Container(
+              decoration: BoxDecoration(
+                color: tint,
+                borderRadius: BorderRadius.circular(widget.radius),
+                border: Border.all(color: border, width: 1),
+              ),
+              child: inner,
+            ),
           ),
-          child: inner,
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -67,34 +67,36 @@ class AnimatedBackground extends ConsumerWidget {
     const Duration dur = Duration(milliseconds: 320);
     const Curve curve = Curves.easeOutCubic;
 
-    return IgnorePointer(
-      child: Stack(
-        children: <Widget>[
-          // —— 极淡对角渐变氛围（更透、平面抽象）——
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: <Color>[
-                    _kShapeColors[0].withValues(alpha: 0.10),
-                    _kShapeColors[4].withValues(alpha: 0.06),
-                  ],
+    return RepaintBoundary(
+      child: IgnorePointer(
+        child: Stack(
+          children: <Widget>[
+            // —— 极淡对角渐变氛围（更透、平面抽象）——
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      _kShapeColors[0].withValues(alpha: 0.10),
+                      _kShapeColors[4].withValues(alpha: 0.06),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // —— 抽象彩色图形（随页面位移）——
-          for (int i = 0; i < _kShapes.length; i++)
-            _ShapeLayer(
-              shape: _kShapes[i],
-              page: page,
-              size: size,
-              duration: dur,
-              curve: curve,
-            ),
-        ],
+            // —— 抽象彩色图形（随页面位移）——
+            for (int i = 0; i < _kShapes.length; i++)
+              _ShapeLayer(
+                shape: _kShapes[i],
+                page: page,
+                size: size,
+                duration: dur,
+                curve: curve,
+              ),
+          ],
+        ),
       ),
     );
   }
