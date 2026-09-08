@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 7;
+  static const int day = 8;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -839,6 +839,18 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
       '#582 修复字体不支持导致的黄色双下划线',
       '#583 修复主题切换后玻璃失效（LiquidGlassCapture 监听主题/皮肤变化重新捕获背景快照）',
       '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '26.09.08',
+    cl: 'alpha_cl01',
+    title: 'OOBE 重写 + 设置去重 + 滚动平滑 + 内存性能大改',
+    details: <String>[
+      '内存：封面解码按显示尺寸限制（cacheWidth），48dp 缩略图 4MB→约80KB；图片缓存收紧为 120 张/32MB —— 修复启动飙到 1GB',
+      '性能：XGlassButton 去掉 BackdropFilter（150+ saveLayer 归零）；LiquidGlass 加面积守卫（超整屏 50% 不模糊）；背景加 RepaintBoundary',
+      'OOBE 重写：欢迎页秀设计语言+定位+三能力，权限页大白话可跳过；砍掉 5 个 filler 页',
+      '设置：重复入口去重、priority 分层排序、搜索支持别名匹配（音量/响度、主题/皮肤）',
+      '滚动：全局 BufferedScrollBehavior，去掉 Android 刺眼 overscroll 光晕，桌面惯性更顺滑',
     ],
   ),
   ChangelogEntry(
