@@ -222,6 +222,7 @@ class _PhotoTile extends StatelessWidget {
             Expanded(
               child: Image.file(
                 photo.png,
+                cacheWidth: 512,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => ColoredBox(
                   color: context.appColors.accentSoft,

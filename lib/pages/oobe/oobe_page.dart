@@ -302,7 +302,8 @@ class _OobePageState extends ConsumerState<OobePage> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
             child: Column(
               children: <Widget>[
-                _BrandGlyph(accent: accent),
+                // 仅当前（欢迎）页脉动；切到其它引导页即停 tick，避免 N 页同时空转。
+                TickerMode(enabled: _page == 0, child: _BrandGlyph(accent: accent)),
                 const SizedBox(height: 22),
                 Text(
                   '星璃·无限音乐画布',

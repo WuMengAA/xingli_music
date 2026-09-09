@@ -129,6 +129,7 @@ class _PlaylistTile extends StatelessWidget {
                           playlist.coverUrl!,
                           width: 48,
                           height: 48,
+                          cacheWidth: 256,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                             width: 48,

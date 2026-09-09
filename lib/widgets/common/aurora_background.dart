@@ -63,11 +63,19 @@ class _LightShapePainter extends CustomPainter {
     required this.accent,
     required this.ambient,
     required this.t,
-  });
+  }) : _bgGradient = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[ambient, Color.lerp(ambient, accent, 0.08)!],
+        );
 
   final Color accent;
   final Color ambient;
   final double t;
+
+  /// 底色渐变提为一次性构建（accent/ambient 恒定）：避免每帧 new LinearGradient()
+  /// 带来的分配与 GC 压力（paint 每帧重绘，此优化直接削减每帧对象数）。
+  final LinearGradient _bgGradient;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -78,12 +86,7 @@ class _LightShapePainter extends CustomPainter {
     // ── 底色：深色 + 底部向 accent 轻微泛光 ──
     canvas.drawRect(
       full,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: <Color>[ambient, Color.lerp(ambient, accent, 0.08)!],
-        ).createShader(full),
+      Paint()..shader = _bgGradient.createShader(full),
     );
 
     // ── 光效：3 个光斑（radial 光晕，各自漂移 + 呼吸）──

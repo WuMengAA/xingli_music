@@ -136,17 +136,19 @@ class _LiquidGlassState extends ConsumerState<LiquidGlass> {
 
         return ClipRRect(
           borderRadius: BorderRadius.circular(widget.radius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-            child: Container(
-              decoration: BoxDecoration(
-                color: tint,
-                borderRadius: BorderRadius.circular(widget.radius),
-                border: Border.all(color: border, width: 1),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(widget.radius),
+                  border: Border.all(color: border, width: 1),
+                ),
+                // 隔离：内容(child)变化只重光栅化本卡区域，不触发 BackdropFilter
+                // 重新采样整片背景（否则歌词滚动/进度 tick 每帧都跑一次全屏高斯模糊）。
+                child: RepaintBoundary(child: inner),
               ),
-              child: inner,
             ),
-          ),
         );
       },
     );

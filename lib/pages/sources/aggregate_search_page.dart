@@ -673,6 +673,7 @@ class _CoverBox extends StatelessWidget {
     if (u == null || u.isEmpty) return const _CoverFallback();
     return Image.network(
       u,
+      cacheWidth: 256,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => const _CoverFallback(),
       loadingBuilder: (BuildContext context, Widget child,

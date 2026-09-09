@@ -198,6 +198,7 @@ class _FavoriteTile extends ConsumerWidget {
                 entry.coverUrl!,
                 width: 44,
                 height: 44,
+                cacheWidth: 256,
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => const _FavFallback(),
               )

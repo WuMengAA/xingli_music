@@ -21,6 +21,21 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../providers/settings/performance_providers.dart';
 import 'scroll_blur.dart';
 
+/// 羽化渐变（上缘透明 → 下缘实 / 下缘透明 → 上缘实）。
+///
+/// 提为常量：否则 [ShaderMask] 在滚动驱动的每帧都 `new LinearGradient().createShader`，
+/// 增加每帧分配与 GC 压力；渐变内容恒定，建一次即可。
+const LinearGradient _kTopFeather = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: <Color>[Color(0x00000000), Color(0xFF000000)],
+);
+const LinearGradient _kBottomFeather = LinearGradient(
+  begin: Alignment.bottomCenter,
+  end: Alignment.topCenter,
+  colors: <Color>[Color(0x00000000), Color(0xFF000000)],
+);
+
 /// 顶部 / 底部磨砂边条。
 class FrostEdgeBar extends ConsumerWidget {
   const FrostEdgeBar({
@@ -55,23 +70,13 @@ class FrostEdgeBar extends ConsumerWidget {
         : base;
 
     // 外缘羽化：顶部条边「上缘透明 → 下缘实」；底部条边「下缘透明 → 上缘实」。
+    // RepaintBoundary 隔离模糊层：progress 变化只重合成、不重采样模糊，
+    // 避免每帧全宽高斯模糊重跑（切页/滑动时底部只做一次模糊采样 + 合成）。
+    final LinearGradient grad = top ? _kTopFeather : _kBottomFeather;
     final Widget feathered = ShaderMask(
-      shaderCallback: (Rect rect) {
-        final Alignment begin =
-            top ? Alignment.topCenter : Alignment.bottomCenter;
-        final Alignment end =
-            top ? Alignment.bottomCenter : Alignment.topCenter;
-        return LinearGradient(
-          begin: begin,
-          end: end,
-          colors: const <Color>[
-            Color(0x00000000),
-            Color(0xFF000000),
-          ],
-        ).createShader(rect);
-      },
+      shaderCallback: (Rect rect) => grad.createShader(rect),
       blendMode: BlendMode.dstIn,
-      child: blurred,
+      child: RepaintBoundary(child: blurred),
     );
 
     // 随滚动淡入/淡出（滑动模糊过渡）。
@@ -125,7 +130,8 @@ class DockTopFeather extends ConsumerWidget {
           )
         : base;
 
-    return IgnorePointer(child: blurred);
+    // 常驻静态带：RepaintBoundary 缓存模糊层，避免祖先重绘时重采样。
+    return IgnorePointer(child: RepaintBoundary(child: blurred));
   }
 }
 
@@ -184,6 +190,7 @@ class DockBlendEdge extends ConsumerWidget {
         : base;
 
     // 外缘羽化：上缘透明 → 下缘实，羽化方向朝向 Dock。
+    // RepaintBoundary 隔离模糊层：opacity 随滚动变化时只重合成、不重采样模糊。
     final Widget feathered = ShaderMask(
       shaderCallback: (Rect rect) => const LinearGradient(
         begin: Alignment.topCenter,
@@ -191,7 +198,7 @@ class DockBlendEdge extends ConsumerWidget {
         colors: <Color>[Color(0x00000000), Color(0xFF000000)],
       ).createShader(rect),
       blendMode: BlendMode.dstIn,
-      child: blurred,
+      child: RepaintBoundary(child: blurred),
     );
 
     return Opacity(

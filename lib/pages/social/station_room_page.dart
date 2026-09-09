@@ -773,7 +773,7 @@ class _LivePulse extends StatefulWidget {
   State<_LivePulse> createState() => _LivePulseState();
 }
 
-class _LivePulseState extends State<_LivePulse> with TickerProviderStateMixin {
+class _LivePulseState extends State<_LivePulse> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),

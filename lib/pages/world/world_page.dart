@@ -327,6 +327,7 @@ class _QuickSaveCard extends StatelessWidget {
                   child: thumb != null && File(thumb).existsSync()
                       ? Image.file(
                           File(thumb),
+                          cacheWidth: 256,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _thumbPlaceholder(c),
                         )

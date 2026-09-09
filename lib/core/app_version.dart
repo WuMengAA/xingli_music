@@ -474,6 +474,13 @@ abstract final class AppVersion {
 /// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
 /// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
 /// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
+/// 26.09.09_alpha_cl01（cl 跨天清零，首日构建）：全方面性能 / 内存优化——
+/// ①图片解码尺寸封顶（10 处列表 / 详情封面加 cacheWidth，根治「启动飙 1GB」内存暴涨）；
+/// ②曲库四栏全部视窗化（曲目 + 专辑 / 歌手 / 歌单改 SliverList 懒构建，仅建可见项）；
+/// ③体素 3D 世界离屏静音（IndexedStack 包 TickerMode，仅当前 Tab 的 Ticker 运行，
+///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
+/// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
+///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
 static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。

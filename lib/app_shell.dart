@@ -427,7 +427,16 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
                         opacity: 0.82 + 0.18 * v,
                         child: IndexedStack(
                           index: pageIndex,
-                          children: _pages,
+                          // 切 Tab 时仅当前页 tick：非活动页（含 WorldPage 体素
+                          // 3D 渲染循环）的 Ticker 被 TickerMode 静音，避免后台
+                          // 持续重绘的 CPU/GPU 负载与内存抖动（全方面减负）。
+                          children: <Widget>[
+                            for (int i = 0; i < _pages.length; i++)
+                              TickerMode(
+                                enabled: pageIndex == i,
+                                child: _pages[i],
+                              ),
+                          ],
                         ),
                       ),
                     );

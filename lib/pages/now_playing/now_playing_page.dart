@@ -311,7 +311,7 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 3),
-  )..repeat();
+  );
 
   /// 当前曲目封面提取的主色（R32 一.4）；未提取到则回退 accent。
   Color? _dominant;
@@ -325,6 +325,8 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
   void initState() {
     super.initState();
     _extract();
+    // 仅在播放时脉动；暂停即停 tick（避免空转浪费 CPU）。
+    if (ref.read(isPlayingProvider).valueOrNull ?? false) _pulse.repeat();
   }
 
   @override
@@ -346,6 +348,12 @@ class _DynamicBackgroundState extends ConsumerState<_DynamicBackground>
 
   @override
   Widget build(BuildContext context) {
+    // 播放态切换时启停脉动，避免暂停后仍 60fps 空转。
+    ref.listen(isPlayingProvider, (_, AsyncValue<bool> next) {
+      final bool playing = next.valueOrNull ?? false;
+      if (playing && !_pulse.isAnimating) _pulse.repeat();
+      if (!playing && _pulse.isAnimating) _pulse.stop();
+    });
     final AppThemeColors c = context.appColors;
     final Track? t = widget.track;
     final bool hasImage = t != null &&
@@ -514,6 +522,7 @@ class _CoverImage extends StatelessWidget {
     if (url != null && url.isNotEmpty) {
       return Image.network(
         url,
+        cacheWidth: 1024,
         fit: fit,
         errorBuilder: (_, __, ___) => fallback,
         loadingBuilder: (BuildContext c2, Widget child, ImageChunkEvent? p) =>
@@ -523,6 +532,7 @@ class _CoverImage extends StatelessWidget {
     if (path != null && path.isNotEmpty) {
       return Image.file(
         File(path),
+        cacheWidth: 1024,
         fit: fit,
         errorBuilder: (_, __, ___) => fallback,
       );
@@ -610,6 +620,14 @@ class _BreathingCoverState extends ConsumerState<_BreathingCover>
   );
 
   @override
+  void initState() {
+    super.initState();
+    // 初始按播放态决定是否呼吸；避免在 build 内反复调用 repeat/animateTo
+    // （每次重建都重触发动画、且持续 tick 浪费 CPU）。
+    if (ref.read(isPlayingProvider).valueOrNull ?? false) _ctrl.repeat();
+  }
+
+  @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
@@ -617,16 +635,19 @@ class _BreathingCoverState extends ConsumerState<_BreathingCover>
 
   @override
   Widget build(BuildContext context) {
-    final bool playing = ref.watch(isPlayingProvider).valueOrNull ?? false;
-    if (playing) {
-      _ctrl.repeat();
-    } else {
-      _ctrl.animateTo(
-        0,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOut,
-      );
-    }
+    // 仅在播放态切换时驱动一次，不在 build 内做副作用（也不 subscribe，避免无谓重建）。
+    ref.listen(isPlayingProvider, (_, AsyncValue<bool> next) {
+      final bool p = next.valueOrNull ?? false;
+      if (p && !_ctrl.isAnimating) {
+        _ctrl.repeat();
+      } else if (!p && _ctrl.isAnimating) {
+        _ctrl.animateTo(
+          0,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+      }
+    });
     return AnimatedBuilder(
       animation: _ctrl,
       child: widget.child,

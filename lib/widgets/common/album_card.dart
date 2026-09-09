@@ -54,6 +54,7 @@ class AlbumCard extends ConsumerWidget {
                   Positioned.fill(
                     child: Image.network(
                       track.coverUrl!,
+                      cacheWidth: 512,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                       // cl07：背景氛围图加载完成渐显（不硬跳）。

@@ -289,6 +289,7 @@ class CoverImage extends StatelessWidget {
     if (url == null) return _placeholder();
     return Image.network(
       url,
+      cacheWidth: 256,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => _placeholder(),
       loadingBuilder: (BuildContext ctx, Widget child, ImageChunkEvent? p) =>
