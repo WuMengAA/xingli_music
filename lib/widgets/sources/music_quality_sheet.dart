@@ -17,6 +17,7 @@ import '../../providers/audio/music_quality_provider.dart';
 /// 打开音质选择弹层。
 Future<void> showMusicQualitySheet(BuildContext context) {
   return showModalBottomSheet<void>(
+    isScrollControlled: true,
     context: context,
     backgroundColor: context.appColors.bgSurface,
     constraints: const BoxConstraints(maxWidth: 560),
@@ -40,30 +41,41 @@ class _MusicQualitySheet extends ConsumerWidget {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(
-            AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.lg),
+          AppSpace.lg,
+          AppSpace.md,
+          AppSpace.lg,
+          AppSpace.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Row(
               children: <Widget>[
-                Icon(Icons.high_quality_rounded,
-                    size: AppSize.icon, color: context.appColors.accent),
+                Icon(
+                  Icons.high_quality_rounded,
+                  size: AppSize.icon,
+                  color: context.appColors.accent,
+                ),
                 const SizedBox(width: AppSpace.sm),
                 Expanded(
                   child: Text('音质与清晰度', style: context.appText.subtitle),
                 ),
                 IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      size: AppSize.iconSm,
-                      color: context.appColors.iconInactive),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    size: AppSize.iconSm,
+                    color: context.appColors.iconInactive,
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
-            Text('网易云（音乐源）${neVip ? '· VIP' : ''}',
-                style: context.appText.body),
+            Text(
+              '网易云（音乐源）${neVip ? '· VIP' : ''}',
+              style: context.appText.body,
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
@@ -80,14 +92,17 @@ class _MusicQualitySheet extends ConsumerWidget {
                     selected: mq == q,
                     onSelected: q == MusicQuality.lossless && !neVip
                         ? null
-                        : (_) => ref.read(musicQualityProvider.notifier).state = q,
+                        : (_) =>
+                              ref.read(musicQualityProvider.notifier).state = q,
                     visualDensity: VisualDensity.compact,
                   ),
               ],
             ),
             const SizedBox(height: AppSpace.md),
-            Text('哔哩哔哩（视频源）${biVip ? '· 大会员' : ''}',
-                style: context.appText.body),
+            Text(
+              '哔哩哔哩（视频源）${biVip ? '· 大会员' : ''}',
+              style: context.appText.body,
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 6,
@@ -103,18 +118,19 @@ class _MusicQualitySheet extends ConsumerWidget {
                       style: context.appText.caption,
                     ),
                     selected: bq == q,
-                    onSelected:
-                        (q == BiliVideoQuality.p1080p60 && !biVip)
-                            ? null
-                            : (_) =>
-                                ref.read(biliVideoQualityProvider.notifier).state = q,
+                    onSelected: (q == BiliVideoQuality.p1080p60 && !biVip)
+                        ? null
+                        : (_) =>
+                              ref
+                                      .read(biliVideoQualityProvider.notifier)
+                                      .state =
+                                  q,
                     visualDensity: VisualDensity.compact,
                   ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
-            Text('未登录/无会员时高级档不可选；登录后自动识别会员权益。',
-                style: context.appText.artist),
+            Text('未登录/无会员时高级档不可选；登录后自动识别会员权益。', style: context.appText.artist),
           ],
         ),
       ),

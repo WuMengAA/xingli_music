@@ -33,11 +33,7 @@ import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 电台房主页。
 class StationRoomPage extends ConsumerWidget {
-  const StationRoomPage({
-    super.key,
-    required this.mode,
-    required this.isHost,
-  });
+  const StationRoomPage({super.key, required this.mode, required this.isHost});
 
   final StationMode mode;
   final bool isHost;
@@ -136,39 +132,38 @@ class StationRoomPage extends ConsumerWidget {
     await Clipboard.setData(ClipboardData(text: roomCode));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('已复制'),
-        duration: Duration(seconds: 2),
-      ),
+      const SnackBar(content: Text('已复制'), duration: Duration(seconds: 2)),
     );
   }
 
   Widget _buildStatus(AppThemeColors c, NetSessionState s) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(height: 16),
-              Text('连接中…',
-                  style: TextStyle(color: c.textPrimary, fontSize: 16)),
-              if (s.error != null) ...<Widget>[
-                const SizedBox(height: 8),
-                Text(s.error!, style: TextStyle(color: c.danger)),
-              ],
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
-        ),
-      );
+          const SizedBox(height: 16),
+          Text('连接中…', style: TextStyle(color: c.textPrimary, fontSize: 16)),
+          if (s.error != null) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(s.error!, style: TextStyle(color: c.danger)),
+          ],
+        ],
+      ),
+    ),
+  );
 
   /// 房间号卡片（房主）—— 玻璃质感。
-  Widget _buildRoomCode(BuildContext context, AppThemeColors c, NetSessionState s) =>
-      LiquidGlass(
+  Widget _buildRoomCode(
+    BuildContext context,
+    AppThemeColors c,
+    NetSessionState s,
+  ) => LiquidGlass(
     radius: 16,
     style: GlassStyle.frosted,
     padding: const EdgeInsets.all(16),
@@ -179,8 +174,10 @@ class StationRoomPage extends ConsumerWidget {
           children: <Widget>[
             Icon(Icons.cast, color: c.accent, size: 16),
             const SizedBox(width: 6),
-            Text('房间号（分享给好友加入）',
-                style: TextStyle(color: c.textSecondary, fontSize: 12)),
+            Text(
+              '房间号（分享给好友加入）',
+              style: TextStyle(color: c.textSecondary, fontSize: 12),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -255,9 +252,14 @@ class StationRoomPage extends ConsumerWidget {
         children: <Widget>[
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -265,8 +267,12 @@ class StationRoomPage extends ConsumerWidget {
 
   /// R33：DJ 音源显式切换 chip（仅 host 可见）——点开菜单选「本地 / 网易云 /
   /// 哔哩哔哩」，写 [djAudioSourceProvider] 持久化，并同步「DJ 自选」弹层默认平台。
-  Widget _buildSourceSwitch(BuildContext context, WidgetRef ref,
-      Track? now, AppThemeColors c) {
+  Widget _buildSourceSwitch(
+    BuildContext context,
+    WidgetRef ref,
+    Track? now,
+    AppThemeColors c,
+  ) {
     final DjAudioSource pref = ref.watch(djAudioSourceProvider);
     return PopupMenuButton<DjAudioSource>(
       tooltip: '切换音源',
@@ -292,15 +298,16 @@ class StationRoomPage extends ConsumerWidget {
                   s == DjAudioSource.local
                       ? Icons.library_music_rounded
                       : s == DjAudioSource.netease
-                          ? Icons.cloud_queue_rounded
-                          : Icons.play_circle_outline_rounded,
+                      ? Icons.cloud_queue_rounded
+                      : Icons.play_circle_outline_rounded,
                   size: 16,
                   color: s == pref ? c.accent : c.textSecondary,
                 ),
                 const SizedBox(width: 8),
-                Text(_sourceLabel(s),
-                    style: TextStyle(
-                        color: s == pref ? c.accent : c.textPrimary)),
+                Text(
+                  _sourceLabel(s),
+                  style: TextStyle(color: s == pref ? c.accent : c.textPrimary),
+                ),
                 if (s == pref) ...<Widget>[
                   const SizedBox(width: 6),
                   Icon(Icons.check, size: 14, color: c.accent),
@@ -314,15 +321,20 @@ class StationRoomPage extends ConsumerWidget {
   }
 
   static String _sourceLabel(DjAudioSource s) => switch (s) {
-        DjAudioSource.local => '本地',
-        DjAudioSource.netease => '网易云',
-        DjAudioSource.bilibili => '哔哩哔哩',
-      };
+    DjAudioSource.local => '本地',
+    DjAudioSource.netease => '网易云',
+    DjAudioSource.bilibili => '哔哩哔哩',
+  };
 
   /// DJ 卡片（VoiceHub 风格）—— 玻璃质感 + 脉冲徽章 + 在线状态。
-  Widget _buildDjCard(BuildContext context, WidgetRef ref,
-      AppThemeColors c, NetSessionState s) {
-    final PeerInfo? dj = s.peers.where((p) => p.isHost).firstOrNull ??
+  Widget _buildDjCard(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeColors c,
+    NetSessionState s,
+  ) {
+    final PeerInfo? dj =
+        s.peers.where((p) => p.isHost).firstOrNull ??
         (s.role == NetRole.host
             ? PeerInfo(id: s.localId ?? '', isHost: true, name: s.localName)
             : null);
@@ -344,11 +356,7 @@ class StationRoomPage extends ConsumerWidget {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: c.accent,
-                  child: const Icon(
-                    Icons.radio,
-                    color: Colors.white,
-                    size: 22,
-                  ),
+                  child: const Icon(Icons.radio, color: Colors.white, size: 22),
                 ),
               ],
             ),
@@ -360,23 +368,32 @@ class StationRoomPage extends ConsumerWidget {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    const Text('DJ · 音源',
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    const Text(
+                      'DJ · 音源',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: c.accent.withValues(alpha: 0.22),
                         borderRadius: BorderRadius.circular(7),
                       ),
-                      child: Text('LIVE',
-                          style: TextStyle(
-                              color: c.accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5)),
+                      child: Text(
+                        'LIVE',
+                        style: TextStyle(
+                          color: c.accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     if (s.role == NetRole.host)
@@ -392,18 +409,23 @@ class StationRoomPage extends ConsumerWidget {
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(0, 26),
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          textStyle:
-                              const TextStyle(fontSize: 11),
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          textStyle: const TextStyle(fontSize: 11),
                         ),
                       ),
                     ],
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text(dj?.name ?? '连接中…',
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.bold)),
+                Text(
+                  dj?.name ?? '连接中…',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -421,11 +443,14 @@ class StationRoomPage extends ConsumerWidget {
                   ),
                 ],
               ),
-              child: const Text('你',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold)),
+              child: const Text(
+                '你',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
         ],
       ),
@@ -437,10 +462,10 @@ class StationRoomPage extends ConsumerWidget {
   ///
   /// 弹层默认选中 DJ 当前偏好的音源（本地 / 网易云 / 哔哩哔哩，
   /// 由 DJ 卡上的源切换 chip 控制，[djAudioSourceProvider] 持久化）。
-  Future<void> _djSelfPick(
-      BuildContext context, WidgetRef ref) async {
+  Future<void> _djSelfPick(BuildContext context, WidgetRef ref) async {
     final DjAudioSource src = ref.read(djAudioSourceProvider);
     final Track? t = await showModalBottomSheet<Track?>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: context.appColors.bgCard,
       builder: (_) => TrackPicker(initialSource: src),
@@ -457,13 +482,20 @@ class StationRoomPage extends ConsumerWidget {
   }
 
   /// 已播历史统计条 —— 显示已播总数 + 今日 + 「查看」跳转。
-  Widget _buildHistoryCard(BuildContext context, WidgetRef ref, AppThemeColors c) {
+  Widget _buildHistoryCard(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeColors c,
+  ) {
     final List<PlayedRecord> history = ref.watch(radioHistoryProvider);
     final DateTime today = DateTime.now();
     final int todayCount = history
-        .where((r) => r.at.year == today.year &&
-            r.at.month == today.month &&
-            r.at.day == today.day)
+        .where(
+          (r) =>
+              r.at.year == today.year &&
+              r.at.month == today.month &&
+              r.at.day == today.day,
+        )
         .length;
     return LiquidGlass(
       radius: 14,
@@ -482,9 +514,10 @@ class StationRoomPage extends ConsumerWidget {
                   TextSpan(
                     text: '${history.length}',
                     style: TextStyle(
-                        color: c.accent,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold),
+                      color: c.accent,
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   TextSpan(
                     text: ' 首 · 今日 $todayCount 首',
@@ -507,21 +540,24 @@ class StationRoomPage extends ConsumerWidget {
 
   /// 正在播放 LIVE mini bar（VoiceHub Player 风格）。
   /// 顶部玻璃条：脉冲 LIVE 标 + 当前曲目 + 进度 / 总长。
-  Widget _buildNowPlayingBar(BuildContext context, WidgetRef ref, AppThemeColors c) {
+  Widget _buildNowPlayingBar(
+    BuildContext context,
+    WidgetRef ref,
+    AppThemeColors c,
+  ) {
     final Track? now = ref.read(nowPlayingProvider);
     final Duration? pos = ref.read(musicPositionProvider).valueOrNull;
     final Duration total = now?.duration ?? Duration.zero;
-    final bool isPlaying = ref
-            .read(playbackStateProvider)
-            .valueOrNull
-            ?.name
-            .contains('playing') ??
+    final bool isPlaying =
+        ref.read(playbackStateProvider).valueOrNull?.name.contains('playing') ??
         false;
     final String fmt = _fmt(pos);
     final String totalFmt = _fmt(total);
-    final bool showProgress = now != null && total.inMilliseconds > 0 && pos != null;
-    final double ratio =
-        total.inMilliseconds > 0 && pos != null ? pos.inMilliseconds / total.inMilliseconds : 0;
+    final bool showProgress =
+        now != null && total.inMilliseconds > 0 && pos != null;
+    final double ratio = total.inMilliseconds > 0 && pos != null
+        ? pos.inMilliseconds / total.inMilliseconds
+        : 0;
 
     return LiquidGlass(
       radius: 14,
@@ -538,27 +574,35 @@ class StationRoomPage extends ConsumerWidget {
                   child: _LivePulse(color: c.accent, size: 22),
                 ),
               if (isPlaying)
-                Text('正在播出',
-                    style: TextStyle(
-                        color: c.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
+                Text(
+                  '正在播出',
+                  style: TextStyle(
+                    color: c.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               const Spacer(),
               Icon(Icons.volume_up, color: c.textTertiary, size: 16),
             ],
           ),
           const SizedBox(height: 6),
           if (now == null)
-            Text('（等待 DJ 开始播放）',
-                style: TextStyle(color: c.textSecondary, fontSize: 13))
+            Text(
+              '（等待 DJ 开始播放）',
+              style: TextStyle(color: c.textSecondary, fontSize: 13),
+            )
           else
-            Text('${now.title}  —  ${now.artist}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: c.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500)),
+            Text(
+              '${now.title}  —  ${now.artist}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: c.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           if (showProgress) ...<Widget>[
             const SizedBox(height: 8),
             Row(
@@ -570,15 +614,15 @@ class StationRoomPage extends ConsumerWidget {
                       value: ratio,
                       minHeight: 3,
                       backgroundColor: c.border.withValues(alpha: 0.4),
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(c.accent),
+                      valueColor: AlwaysStoppedAnimation<Color>(c.accent),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Text('$fmt / $totalFmt',
-                    style: TextStyle(
-                        color: c.textSecondary, fontSize: 11)),
+                Text(
+                  '$fmt / $totalFmt',
+                  style: TextStyle(color: c.textSecondary, fontSize: 11),
+                ),
               ],
             ),
           ],
@@ -589,7 +633,10 @@ class StationRoomPage extends ConsumerWidget {
 
   /// 点歌队列卡片 —— 玻璃质感。
   Widget _buildOrderQueueCard(
-      BuildContext context, AppThemeColors c, NetSessionState s) {
+    BuildContext context,
+    AppThemeColors c,
+    NetSessionState s,
+  ) {
     final List<OrderItem> pending = s.orderQueue
         .where((it) => it.status == OrderStatus.pending)
         .toList();
@@ -608,9 +655,13 @@ class StationRoomPage extends ConsumerWidget {
             children: <Widget>[
               Icon(Icons.queue_music, color: c.accent, size: 18),
               const SizedBox(width: 8),
-              Text('点歌队列',
-                  style: TextStyle(
-                      color: c.textPrimary, fontWeight: FontWeight.bold)),
+              Text(
+                '点歌队列',
+                style: TextStyle(
+                  color: c.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
               if (pending.isNotEmpty || approved.isNotEmpty)
                 XGlassButton(
@@ -627,16 +678,28 @@ class StationRoomPage extends ConsumerWidget {
           if (s.orderQueue.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text('暂无点歌，听众可点歌',
-                  style: TextStyle(color: c.textSecondary, fontSize: 12)),
+              child: Text(
+                '暂无点歌，听众可点歌',
+                style: TextStyle(color: c.textSecondary, fontSize: 12),
+              ),
             )
           else ...<Widget>[
             if (pending.isNotEmpty) ...<Widget>[
-              _queueRow(c: c, icon: Icons.pending_actions, label: '待审批', items: pending),
+              _queueRow(
+                c: c,
+                icon: Icons.pending_actions,
+                label: '待审批',
+                items: pending,
+              ),
               const SizedBox(height: 8),
             ],
             if (approved.isNotEmpty) ...<Widget>[
-              _queueRow(c: c, icon: Icons.playlist_play, label: '待播放', items: approved),
+              _queueRow(
+                c: c,
+                icon: Icons.playlist_play,
+                label: '待播放',
+                items: approved,
+              ),
             ],
           ],
         ],
@@ -659,36 +722,43 @@ class StationRoomPage extends ConsumerWidget {
           children: <Widget>[
             Icon(icon, size: 14, color: c.textSecondary),
             const SizedBox(width: 4),
-            Text('$label（${items.length}）',
-                style: TextStyle(color: c.textSecondary, fontSize: 11)),
+            Text(
+              '$label（${items.length}）',
+              style: TextStyle(color: c.textSecondary, fontSize: 11),
+            ),
           ],
         ),
         const SizedBox(height: 4),
-        ...shown.map((OrderItem it) => Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: <Widget>[
-                  Icon(Icons.music_note, size: 14, color: c.accent),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      it.track.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.textPrimary, fontSize: 12),
-                    ),
+        ...shown.map(
+          (OrderItem it) => Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.music_note, size: 14, color: c.accent),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    it.track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: c.textPrimary, fontSize: 12),
                   ),
-                  Text(it.anonymous ? '匿名' : it.fromName,
-                      style:
-                          TextStyle(color: c.textTertiary, fontSize: 11)),
-                ],
-              ),
-            )),
+                ),
+                Text(
+                  it.anonymous ? '匿名' : it.fromName,
+                  style: TextStyle(color: c.textTertiary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ),
         if (items.length > shown.length)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('+${items.length - shown.length} 首',
-                style: TextStyle(color: c.textTertiary, fontSize: 11)),
+            child: Text(
+              '+${items.length - shown.length} 首',
+              style: TextStyle(color: c.textTertiary, fontSize: 11),
+            ),
           ),
       ],
     );
@@ -703,18 +773,21 @@ class StationRoomPage extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('成员（${members.length}）',
-            style: TextStyle(color: c.textSecondary, fontSize: 13)),
+        Text(
+          '成员（${members.length}）',
+          style: TextStyle(color: c.textSecondary, fontSize: 13),
+        ),
         const SizedBox(height: 8),
-        ...members.map((p) => _MemberTile(c: c, p: p, isSelf: p.id == s.localId)),
+        ...members.map(
+          (p) => _MemberTile(c: c, p: p, isSelf: p.id == s.localId),
+        ),
       ],
     );
   }
 
   Widget _buildListenHint(WidgetRef ref, AppThemeColors c, NetSessionState s) {
     final Track? now = ref.watch(nowPlayingProvider);
-    final Duration? pos =
-        ref.watch(musicPositionProvider).valueOrNull;
+    final Duration? pos = ref.watch(musicPositionProvider).valueOrNull;
     final String fmt = _fmt(pos);
     final bool isClient = s.role == NetRole.client;
 
@@ -732,7 +805,11 @@ class StationRoomPage extends ConsumerWidget {
               children: <Widget>[
                 Text(
                   isClient ? '与房主同步中' : '你正在播出，同步给全员',
-                  style: TextStyle(color: c.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: c.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -762,10 +839,7 @@ class StationRoomPage extends ConsumerWidget {
 /// 脉冲 LIVE 点（VoiceHub 风格）—— 呼吸光环 + 中心实心点。
 /// 可嵌入任意位置（DJ 头像光环、LIVE 标等）。
 class _LivePulse extends StatefulWidget {
-  const _LivePulse({
-    required this.color,
-    this.size = 20,
-  });
+  const _LivePulse({required this.color, this.size = 20});
   final Color color;
   final double size;
 
@@ -773,14 +847,17 @@ class _LivePulse extends StatefulWidget {
   State<_LivePulse> createState() => _LivePulseState();
 }
 
-class _LivePulseState extends State<_LivePulse> with SingleTickerProviderStateMixin {
+class _LivePulseState extends State<_LivePulse>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1100),
   )..repeat(reverse: true);
 
-  late final Animation<double> _a =
-      CurvedAnimation(parent: _c, curve: Curves.easeInOut);
+  late final Animation<double> _a = CurvedAnimation(
+    parent: _c,
+    curve: Curves.easeInOut,
+  );
 
   @override
   void dispose() {
@@ -806,7 +883,8 @@ class _LivePulseState extends State<_LivePulse> with SingleTickerProviderStateMi
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: widget.color.withValues(
-                    alpha: (0.45 - 0.35 * _a.value) * 0.7),
+                  alpha: (0.45 - 0.35 * _a.value) * 0.7,
+                ),
               ),
             ),
             // 中心实心点。
@@ -833,54 +911,55 @@ class _LivePulseState extends State<_LivePulse> with SingleTickerProviderStateMi
 }
 
 class _MemberTile extends StatelessWidget {
-  const _MemberTile({
-    required this.c,
-    required this.p,
-    required this.isSelf,
-  });
+  const _MemberTile({required this.c, required this.p, required this.isSelf});
   final AppThemeColors c;
   final PeerInfo p;
   final bool isSelf;
 
   @override
   Widget build(BuildContext context) => LiquidGlass(
-        radius: 10,
-        style: GlassStyle.frosted,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: <Widget>[
-              Icon(Icons.person, color: c.textSecondary, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(p.name + (isSelf ? '（你）' : ''),
-                    style: TextStyle(color: c.textPrimary)),
-              ),
-              if (p.isHost)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: c.accent,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: <BoxShadow>[
-                      BoxShadow(
-                        color: c.accent.withValues(alpha: 0.55),
-                        blurRadius: 8,
-                        spreadRadius: 0.5,
-                      ),
-                    ],
-                  ),
-                  child: Text('DJ',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold)),
-                ),
-            ],
+    radius: 10,
+    style: GlassStyle.frosted,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.person, color: c.textSecondary, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              p.name + (isSelf ? '（你）' : ''),
+              style: TextStyle(color: c.textPrimary),
+            ),
           ),
-        ),
-      );
+          if (p.isHost)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: c.accent,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: <BoxShadow>[
+                  BoxShadow(
+                    color: c.accent.withValues(alpha: 0.55),
+                    blurRadius: 8,
+                    spreadRadius: 0.5,
+                  ),
+                ],
+              ),
+              child: Text(
+                'DJ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+        ],
+      ),
+    ),
+  );
 }
 
 /// 已播历史页 —— VoiceHub 风格玻璃列表。
@@ -901,8 +980,7 @@ class _HistoryPage extends ConsumerWidget {
       ),
       body: history.isEmpty
           ? Center(
-              child: Text('暂无已播记录',
-                  style: TextStyle(color: c.textSecondary)),
+              child: Text('暂无已播记录', style: TextStyle(color: c.textSecondary)),
             )
           : ListView.separated(
               padding: const EdgeInsets.all(12),
@@ -937,14 +1015,17 @@ class _HistoryPage extends ConsumerWidget {
                             Text(
                               r.track.title,
                               style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontWeight: FontWeight.w500),
+                                color: c.textPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               r.track.artist,
                               style: TextStyle(
-                                  color: c.textSecondary, fontSize: 11),
+                                color: c.textSecondary,
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ),
@@ -955,17 +1036,19 @@ class _HistoryPage extends ConsumerWidget {
                         children: <Widget>[
                           if (r.fromName.isNotEmpty)
                             Text(
-                              isDj
-                                  ? 'DJ · ${r.fromName}'
-                                  : r.fromName,
+                              isDj ? 'DJ · ${r.fromName}' : r.fromName,
                               style: TextStyle(
-                                  color: c.textTertiary, fontSize: 11),
+                                color: c.textTertiary,
+                                fontSize: 11,
+                              ),
                             ),
                           const SizedBox(height: 2),
                           Text(
                             _fmtDate(r.at),
                             style: TextStyle(
-                                color: c.textTertiary, fontSize: 10),
+                              color: c.textTertiary,
+                              fontSize: 10,
+                            ),
                           ),
                         ],
                       ),
@@ -979,9 +1062,7 @@ class _HistoryPage extends ConsumerWidget {
 
   static String _fmtDate(DateTime d) {
     final DateTime now = DateTime.now();
-    if (d.year == now.year &&
-        d.month == now.month &&
-        d.day == now.day) {
+    if (d.year == now.year && d.month == now.month && d.day == now.day) {
       final Duration ago = now.difference(d);
       if (ago.inHours > 0) return '${ago.inHours}h 前';
       if (ago.inMinutes > 0) return '${ago.inMinutes}m 前';

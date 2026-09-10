@@ -53,6 +53,7 @@ class ThemeSwitchButton extends ConsumerWidget {
   /// 底部面板：主题模式 + 皮肤（逻辑与设置页「外观」一致）。
   Future<void> _showThemeSheet(BuildContext context) {
     return showModalBottomSheet<void>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: context.appColors.scrim.withValues(alpha: 0.45),

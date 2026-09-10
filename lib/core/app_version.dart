@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 8;
+  static const int day = 10;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -846,6 +846,17 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
       '#582 修复字体不支持导致的黄色双下划线',
       '#583 修复主题切换后玻璃失效（LiquidGlassCapture 监听主题/皮肤变化重新捕获背景快照）',
       '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
+    ],
+  ),
+  ChangelogEntry(
+    version: '26.09.10',
+    cl: 'alpha_cl01',
+    title: '三处体验 bug 修复：底部播放卡滚动收起 / 列表自动刷新 / 全部弹窗可滚动',
+    details: <String>[
+      '底部播放卡（音乐卡）滚动时自动收起，停止滚动 5s 后恢复，给信息流腾空间（无曲目时不收起）',
+      '歌曲列表 / 搜索列表 / 网易云歌单 / 网易云推荐：app 回到前台或数据源变化即自动重新同步，不再需手动重进页面',
+      '全部 showModalBottomSheet 统一加 isScrollControlled:true；布局类弹窗（Column/SafeArea/Padding 等）包 SingleChildScrollView + 高度上限 0.92 屏高，内容超出屏幕可滚动',
+      'AppLifecycleListener 回到前台触发曲库重扫（invalidate musicLibrary / effectiveMusicLibrary），根治列表不刷新',
     ],
   ),
   ChangelogEntry(

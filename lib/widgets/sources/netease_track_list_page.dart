@@ -91,10 +91,24 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
     final AsyncValue<List<Track>> first = ref.watch(widget.firstProvider);
     final bool loggedIn = ref.watch(neteaseAuthProvider).isLoggedIn;
 
-    first.whenData((List<Track> list) {
-      if (_loaded.isEmpty && list.isNotEmpty) {
-        _loaded.addAll(list);
-      }
+    // 自动刷新（#bug-fix）：首屏把 provider 数据填充到 _loaded（仅在空时）；
+    // 之后 provider 数据变化（重新登录 / 切换账号 / 服务端更新推荐流）时，
+    // 若首屏批次与已加载内容不一致则整体替换，列表不再陈旧。
+    // 用 ref.listen 在 build 阶段之外响应变化，避免「build 期间改状态」反模式。
+    ref.listen<AsyncValue<List<Track>>>(widget.firstProvider,
+        (_, AsyncValue<List<Track>> next) {
+      next.whenData((List<Track> list) {
+        if (!mounted) return;
+        if (_loaded.isEmpty) {
+          setState(() => _loaded.addAll(list));
+        } else if (!_firstBatchEquals(_loaded, list)) {
+          setState(() {
+            _loaded
+              ..clear()
+              ..addAll(list);
+          });
+        }
+      });
     });
 
     return Scaffold(
@@ -200,6 +214,18 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
     if (!mounted || msg.isEmpty) return;
     appNotify(context, msg);
   }
+}
+
+/// 比较已加载列表的「首屏批次」是否与 [first] 一致（按 uri）。
+///
+/// 仅比前 [first.length] 项，忽略无限漫游模式追加的后续批次——首屏批次未变
+/// 时保留漫游追加项，首屏批次变化（换账号 / 服务端更新）时才整体替换。
+bool _firstBatchEquals(List<Track> loaded, List<Track> first) {
+  if (loaded.length < first.length) return false;
+  for (int i = 0; i < first.length; i++) {
+    if (loaded[i].uri != first[i].uri) return false;
+  }
+  return true;
 }
 
 /// 统一曲目行：封面 + 标题 + 歌手 + 可选推荐理由 + VIP 角标。

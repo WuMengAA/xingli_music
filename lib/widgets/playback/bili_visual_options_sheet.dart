@@ -15,6 +15,7 @@ import 'package:xingli_music/widgets/design/glass_controls.dart';
 /// 打开视听结合子选项底部弹层。
 void showBiliVisualOptionsSheet(BuildContext context) {
   showModalBottomSheet<void>(
+    isScrollControlled: true,
     context: context,
     backgroundColor: context.appColors.bgSurface,
     shape: const RoundedRectangleBorder(

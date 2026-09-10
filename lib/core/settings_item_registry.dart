@@ -72,8 +72,8 @@ import '../widgets/notification/app_notify.dart';
 import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 单项渲染函数。
-typedef SettingItemBuilder = Widget Function(
-    BuildContext context, WidgetRef ref);
+typedef SettingItemBuilder =
+    Widget Function(BuildContext context, WidgetRef ref);
 
 /// 注册表条目。
 ///
@@ -133,50 +133,56 @@ Future<void> _pickUpdateChannel(BuildContext context, WidgetRef ref) async {
   final SettingsRepository repo = ref.read(settingsRepositoryProvider);
   final UpdateChannel current = repo.updateChannel;
   final UpdateChannel? picked = await showModalBottomSheet<UpdateChannel>(
+    isScrollControlled: true,
     context: context,
     backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (BuildContext c) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('更新渠道', style: Theme.of(c).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                Text(
-                  '渠道决定 OTA 更新来源与更新日志；切换后重启生效',
-                  style: Theme.of(c).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          RadioGroup<UpdateChannel>(
-            groupValue: current,
-            onChanged: (UpdateChannel? ch) => Navigator.of(c).pop(ch),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (final UpdateChannel ch in UpdateChannel.values)
-                  RadioListTile<UpdateChannel>(
-                    title: Text(ch.label),
-                    subtitle: Text(
-                      ch == UpdateChannel.beta
-                          ? '较稳定，默认推荐'
-                          : '尝鲜，功能更新更早',
+    builder: (BuildContext c) => SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(c).size.height * 0.92,
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text('更新渠道', style: Theme.of(c).textTheme.titleMedium),
+                    const SizedBox(height: 4),
+                    Text(
+                      '渠道决定 OTA 更新来源与更新日志；切换后重启生效',
+                      style: Theme.of(c).textTheme.bodySmall,
                     ),
-                    value: ch,
-                  ),
-              ],
-            ),
+                  ],
+                ),
+              ),
+              RadioGroup<UpdateChannel>(
+                groupValue: current,
+                onChanged: (UpdateChannel? ch) => Navigator.of(c).pop(ch),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (final UpdateChannel ch in UpdateChannel.values)
+                      RadioListTile<UpdateChannel>(
+                        title: Text(ch.label),
+                        subtitle: Text(
+                          ch == UpdateChannel.beta ? '较稳定，默认推荐' : '尝鲜，功能更新更早',
+                        ),
+                        value: ch,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
-          const SizedBox(height: 8),
-        ],
+        ),
       ),
     ),
   );
@@ -190,8 +196,9 @@ Future<void> _pickUpdateChannel(BuildContext context, WidgetRef ref) async {
 
 /// 编辑内容服务地址（cl08：relay_server http 根，设置可改）。
 Future<void> _editContentBase(BuildContext context, WidgetRef ref) async {
-  final TextEditingController c =
-      TextEditingController(text: ref.read(contentBaseUrlProvider));
+  final TextEditingController c = TextEditingController(
+    text: ref.read(contentBaseUrlProvider),
+  );
   final String? next = await showDialog<String>(
     context: context,
     builder: (BuildContext dlg) => AlertDialog(
@@ -228,7 +235,8 @@ Future<void> _editContentBase(BuildContext context, WidgetRef ref) async {
 /// 留空 = 关闭鉴权（v1 冻结行为）；非空即启用（所有端点需 token）。
 Future<void> _editNowPlayingToken(BuildContext context, WidgetRef ref) async {
   final TextEditingController c = TextEditingController(
-      text: ref.read(settingsRepositoryProvider).nowPlayingToken);
+    text: ref.read(settingsRepositoryProvider).nowPlayingToken,
+  );
   final String? next = await showDialog<String>(
     context: context,
     builder: (BuildContext dlg) => AlertDialog(
@@ -238,7 +246,8 @@ Future<void> _editNowPlayingToken(BuildContext context, WidgetRef ref) async {
         autofocus: true,
         decoration: const InputDecoration(
           hintText: '留空 = 关闭鉴权',
-          helperText: 'ClassIsland 插件同页填一致 token 即可联动。'
+          helperText:
+              'ClassIsland 插件同页填一致 token 即可联动。'
               '启用后所有端点需鉴权，远程控制可由异机（有 token）发起；'
               '未启用时控制仅本机回环。修改后重启星璃生效。',
         ),
@@ -292,15 +301,9 @@ Widget _worldGenSlider(
 ) {
   return Row(
     children: <Widget>[
-      SizedBox(
-        width: 84,
-        child: Text(label, style: context.appText.bodyMuted),
-      ),
+      SizedBox(width: 84, child: Text(label, style: context.appText.bodyMuted)),
       Expanded(
-        child: XGlassSlider(
-          value: value.clamp(0.0, 1.0),
-          onChanged: onChanged,
-        ),
+        child: XGlassSlider(value: value.clamp(0.0, 1.0), onChanged: onChanged),
       ),
       SizedBox(
         width: 44,
@@ -336,10 +339,7 @@ Widget _toggle(
             ],
           ),
         ),
-        XGlassToggle(
-          value: value,
-          onChanged: onChanged,
-        ),
+        XGlassToggle(value: value, onChanged: onChanged),
       ],
     ),
   );
@@ -361,10 +361,7 @@ class _VolSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Expanded(
-          flex: 3,
-          child: Text(label, style: context.appText.caption),
-        ),
+        Expanded(flex: 3, child: Text(label, style: context.appText.caption)),
         Expanded(
           flex: 2,
           child: XGlassSlider(
@@ -389,19 +386,18 @@ class _VolSlider extends StatelessWidget {
 
 /// 未知 id 占位（不崩）。
 Widget _placeholder(BuildContext context, String id) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Text(
-        '设置项「$id」未注册（可到整理模式移除）',
-        style: Theme.of(context)
-            .textTheme
-            .bodySmall
-            ?.copyWith(color: Theme.of(context).colorScheme.outline),
-      ),
-    );
+  padding: const EdgeInsets.symmetric(vertical: 12),
+  child: Text(
+    '设置项「$id」未注册（可到整理模式移除）',
+    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Theme.of(context).colorScheme.outline,
+    ),
+  ),
+);
 
 /// 全部注册表项。
-final Map<String, SettingItemDef> kSettingItemRegistry =
-    <String, SettingItemDef>{
+final Map<String, SettingItemDef>
+kSettingItemRegistry = <String, SettingItemDef>{
   // ── 音频 ──────────────────────────────────────────────
   'masterVolume': SettingItemDef(
     title: '主音量',
@@ -415,8 +411,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
               Text('主音量', style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('所有分类的总输出',
-                    style: Theme.of(context).textTheme.bodySmall),
+                child: Text(
+                  '所有分类的总输出',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -444,7 +442,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(
-                horizontal: AppSpace.md, vertical: 8),
+              horizontal: AppSpace.md,
+              vertical: 8,
+            ),
             decoration: BoxDecoration(
               color: context.appColors.accentSoft,
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -520,9 +520,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.graphic_eq_rounded,
       title: '均衡器（10 段）',
       subtitle: '31Hz ~ 16kHz · 7 组预设 · Android 真 EQ',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const EqualizerPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const EqualizerPage())),
     ),
   ),
   'serverSource': SettingItemDef(
@@ -568,9 +568,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
             ref,
             icon: Icons.video_library_outlined,
             title: '哔哩哔哩视频源',
-            subtitle: loggedIn
-                ? '已登录 · 点击管理 / 自动匹配'
-                : '扫码 / Cookie 登录（未登录不可用）',
+            subtitle: loggedIn ? '已登录 · 点击管理 / 自动匹配' : '扫码 / Cookie 登录（未登录不可用）',
             onTap: () => showBilibiliLoginSheet(context),
           ),
           if (loggedIn) ...<Widget>[
@@ -645,9 +643,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
               // cl54-G1：1080p60（116）需大会员。
               for (final BiliVideoQuality q in BiliVideoQuality.values)
                 q.label +
-                    (q == BiliVideoQuality.p1080p60 && !vip
-                        ? ' · 需大会员'
-                        : ''),
+                    (q == BiliVideoQuality.p1080p60 && !vip ? ' · 需大会员' : ''),
             ],
             onChanged: (BiliVideoQuality q) {
               if (q == BiliVideoQuality.p1080p60 && !vip) return;
@@ -664,7 +660,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
     builder: (context, ref) => _toggle(
       context,
       title: '视频背景（B站）',
-      subtitle: '当前曲目自动匹配 B站视频作背景画面（默认静音）；'
+      subtitle:
+          '当前曲目自动匹配 B站视频作背景画面（默认静音）；'
           '长按播放器上的「视频背景」可设置模糊/同步/变速',
       value: ref.watch(biliVisualEnabledProvider),
       onChanged: (bool v) =>
@@ -760,10 +757,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           children: <Widget>[
             for (final ThemeSkin skin in ThemeSkins.all)
               ChoiceChip(
-                avatar: CircleAvatar(
-                  backgroundColor: skin.primary,
-                  radius: 8,
-                ),
+                avatar: CircleAvatar(backgroundColor: skin.primary, radius: 8),
                 label: Text(skin.name),
                 selected: ref.watch(themeSkinProvider) == skin.id,
                 onSelected: (_) =>
@@ -807,8 +801,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           value: ref.watch(uiScaleProvider),
           min: kUiScaleMin,
           max: kUiScaleMax,
-          onChanged: (double v) =>
-              ref.read(uiScaleProvider.notifier).state = v,
+          onChanged: (double v) => ref.read(uiScaleProvider.notifier).state = v,
         ),
       ],
     ),
@@ -853,8 +846,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
               ref.read(sceneBgQualityProvider.notifier).state = q,
         ),
         const SizedBox(height: 4),
-        Text('仅影响场景页/播放器背景渲染，与游戏画质互不影响',
-            style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          '仅影响场景页/播放器背景渲染，与游戏画质互不影响',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
       ],
     ),
   ),
@@ -873,8 +868,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           value: ref.watch(sceneBgFpsProvider),
           values: const <int>[15, 30, 60],
           labels: const <String>['15', '30', '60'],
-          onChanged: (int v) =>
-              ref.read(sceneBgFpsProvider.notifier).state = v,
+          onChanged: (int v) => ref.read(sceneBgFpsProvider.notifier).state = v,
         ),
       ],
     ),
@@ -886,8 +880,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '场景背景 · 雾',
       subtitle: '远处淡入雾效',
       value: ref.watch(sceneBgFogProvider),
-      onChanged: (bool v) =>
-          ref.read(sceneBgFogProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(sceneBgFogProvider.notifier).state = v,
     ),
   ),
   'sceneBgWater': SettingItemDef(
@@ -897,8 +890,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '场景背景 · 水波动画',
       subtitle: '水面起伏重绘',
       value: ref.watch(sceneBgWaterProvider),
-      onChanged: (bool v) =>
-          ref.read(sceneBgWaterProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(sceneBgWaterProvider.notifier).state = v,
     ),
   ),
   'sceneBgSky': SettingItemDef(
@@ -908,8 +900,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '场景背景 · 天空渐变',
       subtitle: '天顶到地平线渐变',
       value: ref.watch(sceneBgSkyProvider),
-      onChanged: (bool v) =>
-          ref.read(sceneBgSkyProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(sceneBgSkyProvider.notifier).state = v,
     ),
   ),
   'sceneBgAnim': SettingItemDef(
@@ -965,8 +956,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         children: <Widget>[
           Text('场景卡片实色浓度', style: context.appText.bodyMuted),
           const SizedBox(height: 2),
-          Text('越高卡片越实、文字对比越稳；越低渐变越透出',
-              style: context.appText.caption),
+          Text('越高卡片越实、文字对比越稳；越低渐变越透出', style: context.appText.caption),
           const SizedBox(height: 6),
           Row(
             children: <Widget>[
@@ -1051,9 +1041,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.leaderboard_rounded,
       title: '听歌排行',
       subtitle: '全局播放次数 / 收听时长排行榜',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const TopListPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const TopListPage())),
     ),
   ),
   // cl46：自动播放——曲毕自动按播放顺序 / 歌单顺序下一首。
@@ -1064,8 +1054,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '自动播放',
       subtitle: '曲目播完后自动按播放顺序 / 歌单顺序播下一首',
       value: ref.watch(autoPlayProvider),
-      onChanged: (bool v) =>
-          ref.read(autoPlayProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(autoPlayProvider.notifier).state = v,
     ),
   ),
   // cl46：自动过渡——接近曲末 5 秒淡出淡入，无缝衔接。
@@ -1094,9 +1083,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.crop_free_rounded,
       title: '分辨率',
       subtitle: '渲染精度缩放 · 在「游戏画面 · 高级设置」中统一调节',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage())),
     ),
   ),
   // cl46：世界自动备份间隔。
@@ -1151,7 +1140,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
             context,
             '结构生成',
             ref.watch(worldGenStructureProvider),
-            (double v) => ref.read(worldGenStructureProvider.notifier).state = v,
+            (double v) =>
+                ref.read(worldGenStructureProvider.notifier).state = v,
           ),
         ],
       ),
@@ -1167,9 +1157,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.dashboard_customize_outlined,
       title: '游戏画面 · 高级设置',
       subtitle: '画质档 / 视距 / LOD / 描边 / 帧率（与游戏内共享）',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const GameGraphicsPage())),
     ),
   ),
   'outlineToggle': SettingItemDef(
@@ -1284,9 +1274,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '后台自动备份',
       subtitle: '存档自动滚动备份 20 份（游戏主菜单「世界存档」可任选恢复）',
       // R26skel：存档/恢复唯一入口 = 游戏主菜单「世界存档」。
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const WorldPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const WorldPage())),
     ),
   ),
   // perfPreset（画质预设）已移除：与「游戏画面 · 高级设置」(gameGraphics) 页内画质档
@@ -1324,9 +1314,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           value: ref.watch(viewDistanceChunksProvider).toDouble(),
           min: 2,
           max: 4,
-          onChanged: (double v) => ref
-              .read(viewDistanceChunksProvider.notifier)
-              .state = v.round(),
+          onChanged: (double v) =>
+              ref.read(viewDistanceChunksProvider.notifier).state = v.round(),
         ),
       ],
     ),
@@ -1347,7 +1336,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           min: 0,
           max: 8,
           onChanged: (double v) =>
-              ref.read(lodStartChunksProvider.notifier).state = v.round().clamp(0, 8),
+              ref.read(lodStartChunksProvider.notifier).state = v.round().clamp(
+                0,
+                8,
+              ),
         ),
       ],
     ),
@@ -1376,8 +1368,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: 'LOD 开关',
       subtitle: '关 = 全满精度方阵，无远景大方块（最费面数）',
       value: ref.watch(lodEnabledProvider),
-      onChanged: (bool v) =>
-          ref.read(lodEnabledProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(lodEnabledProvider.notifier).state = v,
     ),
   ),
   'lodStepBlocks': SettingItemDef(
@@ -1461,7 +1452,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
     builder: (context, ref) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('几何精度（面数倍率，与渲染分辨率无关）', style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          '几何精度（面数倍率，与渲染分辨率无关）',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 6),
         _chips<double>(
           ref: ref,
@@ -1481,8 +1475,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text('全局画面预设 · 一键套用（精度 + 模糊 + 噪点 + 动画 + 帧率）',
-              style: Theme.of(context).textTheme.bodyMedium),
+          Text(
+            '全局画面预设 · 一键套用（精度 + 模糊 + 噪点 + 动画 + 帧率）',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
           const SizedBox(height: 6),
           _chips<PicturePreset>(
             ref: ref,
@@ -1504,8 +1500,8 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           Text(
             p.blurb,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: context.appColors.textSecondary,
-                ),
+              color: context.appColors.textSecondary,
+            ),
           ),
         ],
       );
@@ -1522,7 +1518,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
           ref: ref,
           value: ref.watch(engineBackendProvider),
           values: EngineBackend.values,
-          labels: <String>[for (final EngineBackend e in EngineBackend.values) e.label],
+          labels: <String>[
+            for (final EngineBackend e in EngineBackend.values) e.label,
+          ],
           onChanged: (EngineBackend e) =>
               ref.read(engineBackendProvider.notifier).state = e,
         ),
@@ -1536,8 +1534,7 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       title: '噪点纹理',
       subtitle: '胶片颗粒质感；关 = 更省 GPU（低档位默认关）',
       value: ref.watch(noiseEnabledProvider),
-      onChanged: (bool v) =>
-          ref.read(noiseOverrideProvider.notifier).state = v,
+      onChanged: (bool v) => ref.read(noiseOverrideProvider.notifier).state = v,
     ),
   ),
   'fxBlur': SettingItemDef(
@@ -1653,10 +1650,14 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
-                        Text(item.name,
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        Text(item.statusLabel,
-                            style: Theme.of(context).textTheme.bodySmall),
+                        Text(
+                          item.name,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        Text(
+                          item.statusLabel,
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   ),
@@ -1689,7 +1690,10 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
     builder: (context, ref) => ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text('星璃音乐空间', style: Theme.of(context).textTheme.bodyMedium),
-      subtitle: Text(AppVersion.display, style: Theme.of(context).textTheme.bodySmall),
+      subtitle: Text(
+        AppVersion.display,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
     ),
   ),
   // 恢复设置-关于「GitHub 仓库」入口（cl07 曾有，重构 vivo 布局时丢失；
@@ -1727,10 +1731,12 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
         ref,
         icon: Icons.account_circle_outlined,
         title: '账号',
-        subtitle: auth.isAuthed ? '已登录 · ${auth.user?.username ?? ''}' : '登录 / 注册（游客可跳过）',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const AuthPage()),
-        ),
+        subtitle: auth.isAuthed
+            ? '已登录 · ${auth.user?.username ?? ''}'
+            : '登录 / 注册（游客可跳过）',
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const AuthPage())),
       );
     },
   ),
@@ -1779,17 +1785,16 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
   'voiceHub': SettingItemDef(
     title: 'VoiceHub 点歌',
     builder: (context, ref) {
-      final String base =
-          ref.watch(voiceHubProvider).config.baseUrl;
+      final String base = ref.watch(voiceHubProvider).config.baseUrl;
       return _entry(
         context,
         ref,
         icon: Icons.voice_chat_rounded,
         title: 'VoiceHub 点歌',
         subtitle: base.isEmpty ? '配置服务器地址与 API Key' : base,
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const VoiceHubPage()),
-        ),
+        onTap: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute<void>(builder: (_) => const VoiceHubPage())),
       );
     },
   ),
@@ -1797,16 +1802,13 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
   'nowPlayingToken': SettingItemDef(
     title: '联动鉴权 token',
     builder: (context, ref) {
-      final String token =
-          ref.read(settingsRepositoryProvider).nowPlayingToken;
+      final String token = ref.read(settingsRepositoryProvider).nowPlayingToken;
       return _entry(
         context,
         ref,
         icon: Icons.key_outlined,
         title: '联动鉴权 token',
-        subtitle: token.isEmpty
-            ? '关闭（ClassIsland 插件同机回环可用）'
-            : '已启用 · 重启星璃生效',
+        subtitle: token.isEmpty ? '关闭（ClassIsland 插件同机回环可用）' : '已启用 · 重启星璃生效',
         onTap: () => _editNowPlayingToken(context, ref),
       );
     },
@@ -1885,9 +1887,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.auto_awesome_outlined,
       title: '初始化流程',
       subtitle: '重新体验界面介绍 / 个性化 / 权限 / 协议（不清除数据）',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const OobePage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const OobePage())),
     ),
   ),
   'logUpload': SettingItemDef(
@@ -1935,9 +1937,9 @@ final Map<String, SettingItemDef> kSettingItemRegistry =
       icon: Icons.edit_rounded,
       title: 'UI 编辑器',
       subtitle: '资产拖入 + 实时编辑预览 + 自动纠错，导出 JSON',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const UiEditorPage()),
-      ),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const UiEditorPage())),
     ),
   ),
 };
@@ -1953,7 +1955,9 @@ Widget buildSettingItem(BuildContext context, WidgetRef ref, String id) {
 /// 结果，自动播放时长最接近的那个；**默认静音**（匹配到的视频可能是翻唱/
 /// 剪辑，不该突然出声；用户可手动取消静音）。
 Future<void> _autoPlayBilibiliForCurrent(
-    BuildContext context, WidgetRef ref) async {
+  BuildContext context,
+  WidgetRef ref,
+) async {
   final Track? cur = ref.read(audioServiceProvider).currentTrack;
   if (cur == null) {
     appNotify(context, '当前没有播放中的曲目');
@@ -1973,8 +1977,7 @@ Future<void> _autoPlayBilibiliForCurrent(
     await ref.read(audioServiceProvider).setMusicMuted(true);
     await ref.read(audioServiceProvider).playMusic(c.track);
     if (!context.mounted) return;
-    appNotify(context,
-        '已自动匹配 B站：${c.track.title}（${c.delta}s 差）· 默认静音，可手动取消');
+    appNotify(context, '已自动匹配 B站：${c.track.title}（${c.delta}s 差）· 默认静音，可手动取消');
   } on BilibiliApiException catch (e) {
     if (!context.mounted) return;
     appNotify(context, bilibiliErrorText(e));
@@ -1986,5 +1989,3 @@ Future<void> _autoPlayBilibiliForCurrent(
     appNotify(context, 'B站自动匹配失败，请稍后重试');
   }
 }
-
-

@@ -41,6 +41,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
       <String, List<VoxelManualSaveMeta>>{};
   final Set<String> _expanded = <String>{};
   bool _loading = true;
+
   /// 枚举失败时的错误提示（不再静默显示「暂无存档」误导用户）。
   String? _listError;
 
@@ -93,7 +94,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   Future<bool> _hasManualFile(String id) async =>
       await (await manualSaveFile(id)).exists();
 
-  Future<String?> _askName(String title, String hint, [String initial = '']) async {
+  Future<String?> _askName(
+    String title,
+    String hint, [
+    String initial = '',
+  ]) async {
     final TextEditingController c = TextEditingController(text: initial);
     final String? res = await showDialog<String>(
       context: context,
@@ -134,15 +139,18 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
 
   /// 新建对话框：名称 + **自定义种子**（数字，留空随机）+ cl29 世界选项
   /// （作弊 / 结构 / 浮空岛）。返回 (名称, 种子, 选项)。
-  Future<(String, int, WorldOptions)?> _askNewSave(String title, String nameHint) async {
+  Future<(String, int, WorldOptions)?> _askNewSave(
+    String title,
+    String nameHint,
+  ) async {
     final TextEditingController n = TextEditingController();
     final TextEditingController s = TextEditingController();
     // R28：新建存档默认关闭作弊与浮空岛（用户要求），结构默认开。
     bool cheats = false;
     bool structures = true;
     bool floating = false;
-    final (String, int, WorldOptions)? res =
-        await showDialog<(String, int, WorldOptions)>(
+    final (String, int, WorldOptions)?
+    res = await showDialog<(String, int, WorldOptions)>(
       context: context,
       builder: (BuildContext dctx) => StatefulBuilder(
         builder: (BuildContext dctx2, StateSetter set) => AlertDialog(
@@ -154,16 +162,15 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                 controller: n,
                 autofocus: true,
                 decoration: InputDecoration(hintText: nameHint, isDense: true),
-                onSubmitted: (String v) => Navigator.of(dctx).pop(
-                  (
-                    v.trim(),
-                    int.tryParse(s.text.trim()) ?? Random().nextInt(1 << 30),
-                    WorldOptions(
-                        cheats: cheats,
-                        structures: structures,
-                        floatingIslands: floating),
+                onSubmitted: (String v) => Navigator.of(dctx).pop((
+                  v.trim(),
+                  int.tryParse(s.text.trim()) ?? Random().nextInt(1 << 30),
+                  WorldOptions(
+                    cheats: cheats,
+                    structures: structures,
+                    floatingIslands: floating,
                   ),
-                ),
+                )),
               ),
               const SizedBox(height: AppSpace.sm),
               TextField(
@@ -222,10 +229,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[
-                          Text('浮空岛'),
-                          Text('悬空草顶石核团块'),
-                        ],
+                        children: const <Widget>[Text('浮空岛'), Text('悬空草顶石核团块')],
                       ),
                     ),
                     XGlassToggle(
@@ -243,16 +247,15 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
               child: const Text('取消'),
             ),
             XGlassButton(
-              onPressed: () => Navigator.of(dctx).pop(
-                (
-                  n.text.trim(),
-                  int.tryParse(s.text.trim()) ?? Random().nextInt(1 << 30),
-                  WorldOptions(
-                      cheats: cheats,
-                      structures: structures,
-                      floatingIslands: floating),
+              onPressed: () => Navigator.of(dctx).pop((
+                n.text.trim(),
+                int.tryParse(s.text.trim()) ?? Random().nextInt(1 << 30),
+                WorldOptions(
+                  cheats: cheats,
+                  structures: structures,
+                  floatingIslands: floating,
                 ),
-              ),
+              )),
               child: const Text('确定'),
             ),
           ],
@@ -271,15 +274,16 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   /// 新建存档：全新**随机或自定义种子**空白世界（不再复制当前存档——想备份
   /// 请用「备份当前世界」；想立即进新世界用「新建空白世界」）。
   Future<void> _newSave() async {
-    final (String, int, WorldOptions)? r =
-        await _askNewSave('新建存档', '存档名称（留空自动命名）');
+    final (String, int, WorldOptions)? r = await _askNewSave(
+      '新建存档',
+      '存档名称（留空自动命名）',
+    );
     if (r == null || !mounted) return;
     final String name = r.$1;
     final int seed = r.$2;
     final WorldOptions opt = r.$3;
     final Map<String, dynamic> data = freshWorldSave(seed, opt);
-    final String finalName =
-        name.isEmpty ? '世界 ${_fmt(DateTime.now())}' : name;
+    final String finalName = name.isEmpty ? '世界 ${_fmt(DateTime.now())}' : name;
     try {
       await writeManualSave(data, finalName);
       _snack('已新建存档「$finalName」（种子 $seed）');
@@ -291,15 +295,18 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
 
   /// 新建空白世界：全新种子 + 立即进入。
   Future<void> _newBlankWorld() async {
-    final (String, int, WorldOptions)? r =
-        await _askNewSave('新建空白世界', '世界名称（留空自动命名）');
+    final (String, int, WorldOptions)? r = await _askNewSave(
+      '新建空白世界',
+      '世界名称（留空自动命名）',
+    );
     if (r == null || !mounted) return;
     final String name = r.$1;
     final int seed = r.$2;
     final WorldOptions opt = r.$3;
     final Map<String, dynamic> data = freshWorldSave(seed, opt);
-    final String finalName =
-        name.isEmpty ? '空白世界 ${_fmt(DateTime.now())}' : name;
+    final String finalName = name.isEmpty
+        ? '空白世界 ${_fmt(DateTime.now())}'
+        : name;
     String? id;
     try {
       id = await writeManualSave(data, finalName); // #511：捕获 id 作身份
@@ -350,8 +357,9 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     if (cur == null) {
       if (targetId == null) {
         // 既无运行世界也无存档：新建一个「星璃世界」并备份。
-        final Map<String, dynamic> data =
-            freshWorldSave(VoxelWorld.defaultSeed);
+        final Map<String, dynamic> data = freshWorldSave(
+          VoxelWorld.defaultSeed,
+        );
         final String id = await writeManualSave(data, '星璃世界');
         await createBackup(id);
         await _refresh();
@@ -377,8 +385,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
   /// 恢复（进入）某存档 / 备份：以 [saveId] 身份、带种子打开世界。
   /// [saveId] 为存档 id 或备份 bakId（驱动按 id 隔离的自动检查点）；
   /// [data] 已优先取最新检查点（见 _enterSave/_enterBackup），直接传入恢复。
-  Future<void> _enter(Map<String, dynamic>? data, String label,
-      [String? saveId]) async {
+  Future<void> _enter(
+    Map<String, dynamic>? data,
+    String label, [
+    String? saveId,
+  ]) async {
     if (data == null || !mounted) {
       _snack('存档损坏，无法恢复');
       return;
@@ -390,21 +401,24 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         ? wj['seed'] as int
         : VoxelWorld.defaultSeed;
     // cl29：从存档 world JSON 取回新建世界选项（作弊 / 结构 / 浮空岛）。
-    final WorldOptions opt = WorldOptions.fromJson(wj is Map ? wj['options'] : null);
+    final WorldOptions opt = WorldOptions.fromJson(
+      wj is Map ? wj['options'] : null,
+    );
     if (!mounted) return;
     _snack('正在进入「$label」');
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-          builder: (_) => VoxelWorld3DPage(
-        seed: seed,
-        options: opt,
-        // cl05：非作弊下默认创造且不可生存；作弊开默认创造（游戏内可切生存）。
-        survival: false,
-        // R26fx：恢复玩家状态（位置/视角/编辑层/背包）——不再每次重置摄像头。
-        initialSaveData: data,
-        // #511：以本存档/备份身份隔离自动检查点。
-        saveId: saveId,
-      )),
+        builder: (_) => VoxelWorld3DPage(
+          seed: seed,
+          options: opt,
+          // cl05：非作弊下默认创造且不可生存；作弊开默认创造（游戏内可切生存）。
+          survival: false,
+          // R26fx：恢复玩家状态（位置/视角/编辑层/背包）——不再每次重置摄像头。
+          initialSaveData: data,
+          // #511：以本存档/备份身份隔离自动检查点。
+          saveId: saveId,
+        ),
+      ),
     );
     // 从世界页返回存档管理页后刷新列表（修复「新建/进入后新存档不出现」：
     // 本页 State 在 push 期间一直存活，initState 不会重跑，需手动重载）。
@@ -451,29 +465,36 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
     final Map<String, dynamic>? data = await readManualSave(s.id);
     if (!mounted) return;
     final dynamic wj = data?['world'];
-    final Map<String, dynamic> w =
-        wj is Map<String, dynamic> ? wj : <String, dynamic>{};
+    final Map<String, dynamic> w = wj is Map<String, dynamic>
+        ? wj
+        : <String, dynamic>{};
     final WorldOptions o = WorldOptions.fromJson(w['options']);
-    final int seed = (w['seed'] is int) ? w['seed'] as int : VoxelWorld.defaultSeed;
+    final int seed = (w['seed'] is int)
+        ? w['seed'] as int
+        : VoxelWorld.defaultSeed;
     final int sizeX = (w['sizeX'] is int) ? w['sizeX'] as int : 0;
     final int sizeZ = (w['sizeZ'] is int) ? w['sizeZ'] as int : 0;
     final int maxY = (w['maxY'] is int) ? w['maxY'] as int : 0;
-    final int waterLevel =
-        (w['waterLevel'] is int) ? w['waterLevel'] as int : 0;
+    final int waterLevel = (w['waterLevel'] is int)
+        ? w['waterLevel'] as int
+        : 0;
     final int edits = (w['edits'] is List) ? (w['edits'] as List).length : 0;
     final int lights = (w['lights'] is List) ? (w['lights'] as List).length : 0;
     final List<VoxelManualSaveMeta> bks =
         _backups[s.id] ?? <VoxelManualSaveMeta>[];
     if (!mounted) return;
     showModalBottomSheet<void>(
+      isScrollControlled: true,
       context: context,
       builder: (BuildContext bctx) => ListView(
         padding: const EdgeInsets.all(AppSpace.lg),
         children: <Widget>[
           Text(s.name, style: context.appText.subtitle),
           const SizedBox(height: AppSpace.xs),
-          Text('创建于 ${_fmt(s.createdAt)} · ${bks.length} 个备份',
-              style: context.appText.artist),
+          Text(
+            '创建于 ${_fmt(s.createdAt)} · ${bks.length} 个备份',
+            style: context.appText.artist,
+          ),
           const SizedBox(height: AppSpace.md),
           Text('基本信息', style: context.appText.body),
           const SizedBox(height: AppSpace.xs),
@@ -510,8 +531,10 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         final String p = e.path;
         if (!p.toLowerCase().endsWith('.png')) continue;
         // 仅保留带配对快照的场景照片，过滤掉非取景 PNG。
-        final String jsonPath =
-            p.replaceFirst(RegExp(r'\.png$', caseSensitive: false), '.json');
+        final String jsonPath = p.replaceFirst(
+          RegExp(r'\.png$', caseSensitive: false),
+          '.json',
+        );
         if (await File(jsonPath).exists()) files.add(e);
       }
     }
@@ -746,8 +769,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.error_outline,
-                              size: 48, color: context.appColors.textTertiary),
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: context.appColors.textTertiary,
+                          ),
                           const SizedBox(height: AppSpace.sm),
                           Text('存档读取出错', style: context.appText.body),
                           const SizedBox(height: AppSpace.xs),
@@ -774,8 +800,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Icon(Icons.save_outlined,
-                              size: 48, color: context.appColors.textTertiary),
+                          Icon(
+                            Icons.save_outlined,
+                            size: 48,
+                            color: context.appColors.textTertiary,
+                          ),
                           const SizedBox(height: AppSpace.sm),
                           Text('暂无存档', style: context.appText.body),
                           const SizedBox(height: AppSpace.xs),
@@ -791,7 +820,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                   );
                 }
                 // 卡片网格：宽屏多列、窄屏单列，铺满横向空间，消除大片空白。
-                final int cols = maxW > 980 ? 3 : maxW > 640 ? 2 : 1;
+                final int cols = maxW > 980
+                    ? 3
+                    : maxW > 640
+                    ? 2
+                    : 1;
                 final double gap = AppSpace.md;
                 final double cardW = (maxW - gap * (cols - 1)) / cols;
                 return SingleChildScrollView(
@@ -801,10 +834,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                     runSpacing: gap,
                     children: <Widget>[
                       for (final VoxelManualSaveMeta s in _saves)
-                        SizedBox(
-                          width: cardW,
-                          child: _buildSaveCard(s),
-                        ),
+                        SizedBox(width: cardW, child: _buildSaveCard(s)),
                     ],
                   ),
                 );
@@ -920,13 +950,15 @@ class _SaveCard extends StatelessWidget {
             _Chip(icon: Icons.edit_outlined, label: '重命名', onTap: onRename),
             _Chip(icon: Icons.delete_outline, label: '删除', onTap: onDelete),
             _Chip(icon: Icons.info_outline, label: '详细', onTap: onDetails),
-            _Chip(icon: Icons.image_outlined, label: '背景', onTap: onSetBackground),
+            _Chip(
+              icon: Icons.image_outlined,
+              label: '背景',
+              onTap: onSetBackground,
+            ),
             _Chip(icon: Icons.crop_square, label: '缩略图', onTap: onSetThumbnail),
             if (backups.isNotEmpty)
               _Chip(
-                icon: expanded
-                    ? Icons.expand_less
-                    : Icons.expand_more,
+                icon: expanded ? Icons.expand_less : Icons.expand_more,
                 label: expanded ? '收起备份' : '展开备份',
                 onTap: onToggle,
               ),
@@ -1004,11 +1036,7 @@ class _ThumbPlaceholder extends StatelessWidget {
 
 /// 操作小药丸。
 class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _Chip({required this.icon, required this.label, required this.onTap});
 
   final IconData icon;
   final String label;
@@ -1047,15 +1075,16 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: <Widget>[
-            Expanded(child: Text(label, style: context.appText.artist)),
-            Text(value, style: context.appText.body),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: <Widget>[
+        Expanded(child: Text(label, style: context.appText.artist)),
+        Text(value, style: context.appText.body),
+      ],
+    ),
+  );
 }
+
 /// 备份行。
 class _BackupTile extends StatelessWidget {
   const _BackupTile({
@@ -1117,10 +1146,7 @@ class _BackgroundPicker extends StatelessWidget {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.all(AppSpace.md),
-              child: Text(
-                title ?? '选择场景截图作为背景',
-                style: context.appText.body,
-              ),
+              child: Text(title ?? '选择场景截图作为背景', style: context.appText.body),
             ),
             if (files.isEmpty)
               Padding(
@@ -1162,7 +1188,9 @@ class _BackgroundPicker extends StatelessWidget {
                                     color: context.appColors.accent,
                                     width: 3,
                                   ),
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.sm,
+                                  ),
                                 ),
                               ),
                           ],
@@ -1179,8 +1207,10 @@ class _BackgroundPicker extends StatelessWidget {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: <Widget>[
-                              Icon(Icons.block,
-                                  color: context.appColors.iconPrimary),
+                              Icon(
+                                Icons.block,
+                                color: context.appColors.iconPrimary,
+                              ),
                               const SizedBox(height: 4),
                               Text('清除', style: context.appText.artist),
                             ],

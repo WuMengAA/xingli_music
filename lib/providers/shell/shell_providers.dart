@@ -84,3 +84,13 @@ void setShellPage(WidgetRef ref, int pageIndex) {
   if (controller.state == pageIndex) return;
   controller.state = pageIndex;
 }
+
+/// 底部播放卡（音乐卡）滚动时自动收起（bug-fix 批次）。
+///
+/// - `true` = 收起（隐藏），把底部空间让给信息流；
+/// - `false` = 正常显示。
+///
+/// 页面上下滑动时由 [AppShell] 的滚动监听置 `true`，停滑 5 秒后复位 `false`
+/// （见 [_AppShellState] 的滚动计时器）。仅在「有曲目在播放」时生效。
+final StateProvider<bool> miniPlayerAutoHideProvider =
+    StateProvider<bool>((Ref ref) => false);

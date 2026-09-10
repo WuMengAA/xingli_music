@@ -40,8 +40,7 @@ class FavoritesAndPlaylistsPage extends ConsumerStatefulWidget {
 class _FavoritesAndPlaylistsPageState
     extends ConsumerState<FavoritesAndPlaylistsPage>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabCtrl =
-      TabController(length: 2, vsync: this);
+  late final TabController _tabCtrl = TabController(length: 2, vsync: this);
 
   @override
   void initState() {
@@ -53,8 +52,9 @@ class _FavoritesAndPlaylistsPageState
   Future<void> _checkMergeCandidate() async {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final MergeCandidate? c =
-          await ref.read(pendingMergeCandidateProvider.future);
+      final MergeCandidate? c = await ref.read(
+        pendingMergeCandidateProvider.future,
+      );
       if (!mounted || c == null) return;
       final bool? merge = await showDialog<bool>(
         context: context,
@@ -71,8 +71,10 @@ class _FavoritesAndPlaylistsPageState
             ),
             XGlassButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: Text('是，归并',
-                  style: ctx.appText.body.copyWith(color: ctx.appColors.accent)),
+              child: Text(
+                '是，归并',
+                style: ctx.appText.body.copyWith(color: ctx.appColors.accent),
+              ),
             ),
           ],
         ),
@@ -98,22 +100,26 @@ class _FavoritesAndPlaylistsPageState
       backgroundColor: context.appColors.bgPage,
       appBar: AppBar(
         backgroundColor: context.appColors.bgPage,
-        title: Text('收藏与歌单',
-            style: context.appText.title.copyWith(color: context.appColors.textPrimary)),
+        title: Text(
+          '收藏与歌单',
+          style: context.appText.title.copyWith(
+            color: context.appColors.textPrimary,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabCtrl,
           labelColor: context.appColors.accent,
           unselectedLabelColor: context.appColors.textSecondary,
           indicatorColor: context.appColors.accent,
-          tabs: const <Tab>[Tab(text: '收藏'), Tab(text: '歌单')],
+          tabs: const <Tab>[
+            Tab(text: '收藏'),
+            Tab(text: '歌单'),
+          ],
         ),
       ),
       body: TabBarView(
         controller: _tabCtrl,
-        children: <Widget>[
-          _FavoritesTab(),
-          _PlaylistsTab(),
-        ],
+        children: <Widget>[_FavoritesTab(), _PlaylistsTab()],
       ),
     );
   }
@@ -135,10 +141,7 @@ class _FavoritesTab extends ConsumerWidget {
       ),
       data: (List<FavoriteEntry> list) {
         if (list.isEmpty) {
-          return const EmptyView(
-            title: '还没有收藏',
-            message: '播放中点心形即可收藏',
-          );
+          return const EmptyView(title: '还没有收藏', message: '播放中点心形即可收藏');
         }
         return ListView.separated(
           padding: const EdgeInsets.all(AppSpace.md),
@@ -158,7 +161,9 @@ class _FavoriteTile extends ConsumerWidget {
   final FavoriteEntry entry;
 
   Future<Track?> _match(WidgetRef ref) async {
-    final List<Track> all = await ref.read(effectiveMusicLibraryProvider.future);
+    final List<Track> all = await ref.read(
+      effectiveMusicLibraryProvider.future,
+    );
     final String key = trackKeyOf(entry.title, entry.artist, entry.sourceId);
     for (final Track t in all) {
       if (trackKeyOf(t.title, t.artist, t.sourceId) == key) return t;
@@ -171,6 +176,7 @@ class _FavoriteTile extends ConsumerWidget {
     final List<Playlist> pls = await ref.read(playlistsProvider.future);
     if (!context.mounted) return;
     final int? picked = await showModalBottomSheet<int>(
+      isScrollControlled: true,
       context: context,
       builder: (BuildContext c) => _PlaylistPicker(playlists: pls),
     );
@@ -180,10 +186,12 @@ class _FavoriteTile extends ConsumerWidget {
         .addToPlaylist(picked, key, entry.title, entry.artist, entry.sourceId);
     ref.invalidate(playlistTracksProvider(picked));
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('已加入歌单', style: context.appText.caption),
-        duration: const Duration(seconds: 1),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已加入歌单', style: context.appText.caption),
+          duration: const Duration(seconds: 1),
+        ),
+      );
     }
   }
 
@@ -204,12 +212,18 @@ class _FavoriteTile extends ConsumerWidget {
               )
             : const _FavFallback(),
       ),
-      title: Text(entry.title,
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: context.appText.trackName),
-      subtitle: Text(entry.artist,
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: context.appText.artist),
+      title: Text(
+        entry.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: context.appText.trackName,
+      ),
+      subtitle: Text(
+        entry.artist,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: context.appText.artist,
+      ),
       onTap: () async {
         final Track? t = await _match(ref);
         if (t == null || !context.mounted) return;
@@ -217,38 +231,52 @@ class _FavoriteTile extends ConsumerWidget {
       },
       onLongPress: () => _showMenu(context, ref, key),
     );
-    return Material(
-      color: Colors.transparent,
-      child: tile,
-    );
+    return Material(color: Colors.transparent, child: tile);
   }
 
   Future<void> _showMenu(
-      BuildContext context, WidgetRef ref, String key) async {
+    BuildContext context,
+    WidgetRef ref,
+    String key,
+  ) async {
     final TrackStatsDb db = ref.read(trackStatsDbProvider);
     final int? choice = await showModalBottomSheet<int>(
+      isScrollControlled: true,
       context: context,
-      builder: (BuildContext c) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            ListTile(
-              leading: const Icon(Icons.playlist_add_rounded),
-              title: Text('加入歌单', style: c.appText.body),
-              onTap: () => Navigator.pop(c, 0),
+      builder: (BuildContext c) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(c).size.height * 0.92,
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                ListTile(
+                  leading: const Icon(Icons.playlist_add_rounded),
+                  title: Text('加入歌单', style: c.appText.body),
+                  onTap: () => Navigator.pop(c, 0),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.favorite_rounded),
+                  title: Text('取消收藏', style: c.appText.body),
+                  onTap: () => Navigator.pop(c, 1),
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.favorite_rounded),
-              title: Text('取消收藏', style: c.appText.body),
-              onTap: () => Navigator.pop(c, 1),
-            ),
-          ],
+          ),
         ),
       ),
     );
     if (choice == null) return;
     if (choice == 1) {
-      await db.toggleFavorite(key, entry.title, entry.artist, entry.sourceId, entry.coverUrl);
+      await db.toggleFavorite(
+        key,
+        entry.title,
+        entry.artist,
+        entry.sourceId,
+        entry.coverUrl,
+      );
       ref.invalidate(favoritesProvider);
       ref.invalidate(isFavoriteProvider(key));
     } else {
@@ -263,12 +291,15 @@ class _FavFallback extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 44,
-        height: 44,
-        color: context.appColors.accent.withValues(alpha: 0.12),
-        child: Icon(Icons.music_note_rounded,
-            size: 22, color: context.appColors.accent),
-      );
+    width: 44,
+    height: 44,
+    color: context.appColors.accent.withValues(alpha: 0.12),
+    child: Icon(
+      Icons.music_note_rounded,
+      size: 22,
+      color: context.appColors.accent,
+    ),
+  );
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -282,7 +313,7 @@ class _PlaylistsTab extends ConsumerWidget {
     return pls.when(
       loading: () => const LoadingView(label: '歌单加载中…'),
       error: (Object e, StackTrace st) => ErrorView(
-          message: '歌单加载失败，请稍后重试',
+        message: '歌单加载失败，请稍后重试',
         onRetry: () => ref.invalidate(playlistsProvider),
       ),
       data: (List<Playlist> list) {
@@ -297,15 +328,15 @@ class _PlaylistsTab extends ConsumerWidget {
                   crossAxisSpacing: 12,
                   childAspectRatio: 1.5,
                 ),
-                delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int i) {
-                    if (i >= list.length) {
-                      return _NewPlaylistCard();
-                    }
-                    return _PlaylistCard(playlist: list[i]);
-                  },
-                  childCount: list.length + 1,
-                ),
+                delegate: SliverChildBuilderDelegate((
+                  BuildContext context,
+                  int i,
+                ) {
+                  if (i >= list.length) {
+                    return _NewPlaylistCard();
+                  }
+                  return _PlaylistCard(playlist: list[i]);
+                }, childCount: list.length + 1),
               ),
             ),
           ],
@@ -322,8 +353,8 @@ class _PlaylistCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final BoxDecoration bg = playlist.bgPath != null &&
-            File(playlist.bgPath!).existsSync()
+    final BoxDecoration bg =
+        playlist.bgPath != null && File(playlist.bgPath!).existsSync()
         ? BoxDecoration(
             image: DecorationImage(
               image: FileImage(File(playlist.bgPath!)),
@@ -344,9 +375,11 @@ class _PlaylistCard extends ConsumerWidget {
           );
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => PlaylistDetailPage(playlistId: playlist.id!),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => PlaylistDetailPage(playlistId: playlist.id!),
+        ),
+      ),
       onLongPress: () async {
         final bool? ok = await AppConfirmDialog.show(
           context: context,
@@ -367,15 +400,24 @@ class _PlaylistCard extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.end,
           children: <Widget>[
-            Icon(Icons.queue_music_rounded,
-                size: 22, color: Colors.white.withValues(alpha: 0.9)),
+            Icon(
+              Icons.queue_music_rounded,
+              size: 22,
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
             const SizedBox(height: 4),
-            Text(playlist.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.appText.trackName.copyWith(color: Colors.white)),
-            Text('${playlist.trackCount} 首 · ${_sortLabel(playlist.sortMode)}',
-                style: context.appText.caption.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+            Text(
+              playlist.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.appText.trackName.copyWith(color: Colors.white),
+            ),
+            Text(
+              '${playlist.trackCount} 首 · ${_sortLabel(playlist.sortMode)}',
+              style: context.appText.caption.copyWith(
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
           ],
         ),
       ),
@@ -383,12 +425,12 @@ class _PlaylistCard extends ConsumerWidget {
   }
 
   static String _sortLabel(PlaylistSortMode m) => switch (m) {
-        PlaylistSortMode.manual => '手动排序',
-        PlaylistSortMode.titleAsc => '歌名 A→Z',
-        PlaylistSortMode.titleDesc => '歌名 Z→A',
-        PlaylistSortMode.playCountDesc => '按播放次数',
-        PlaylistSortMode.addedDesc => '按添加时间',
-      };
+    PlaylistSortMode.manual => '手动排序',
+    PlaylistSortMode.titleAsc => '歌名 A→Z',
+    PlaylistSortMode.titleDesc => '歌名 Z→A',
+    PlaylistSortMode.playCountDesc => '按播放次数',
+    PlaylistSortMode.addedDesc => '按添加时间',
+  };
 }
 
 class _NewPlaylistCard extends ConsumerWidget {
@@ -401,14 +443,18 @@ class _NewPlaylistCard extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
-              color: context.appColors.accent.withValues(alpha: 0.5)),
+            color: context.appColors.accent.withValues(alpha: 0.5),
+          ),
         ),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              Icon(Icons.add_circle_outline_rounded,
-                  size: 28, color: context.appColors.accent),
+              Icon(
+                Icons.add_circle_outline_rounded,
+                size: 28,
+                color: context.appColors.accent,
+              ),
               const SizedBox(height: 6),
               Text('新建歌单', style: context.appText.bodyMuted),
             ],
@@ -420,8 +466,7 @@ class _NewPlaylistCard extends ConsumerWidget {
 }
 
 /// 新建歌单对话框：名称 + 背景图（无 / 相册选图）。
-Future<void> _showCreateDialog(
-    BuildContext context, WidgetRef ref) async {
+Future<void> _showCreateDialog(BuildContext context, WidgetRef ref) async {
   final TextEditingController nameCtrl = TextEditingController();
   String? bgPath;
 
@@ -451,8 +496,10 @@ Future<void> _showCreateDialog(
                     final String? path = await _pickBgImage();
                     if (path != null) setState(() => bgPath = path);
                   },
-                  child: Text(bgPath == null ? '选择图片' : '已选择 ✓',
-                      style: c.appText.body.copyWith(color: c.appColors.accent)),
+                  child: Text(
+                    bgPath == null ? '选择图片' : '已选择 ✓',
+                    style: c.appText.body.copyWith(color: c.appColors.accent),
+                  ),
                 ),
                 if (bgPath != null)
                   XGlassButton(
@@ -472,7 +519,9 @@ Future<void> _showCreateDialog(
             onPressed: () async {
               final String name = nameCtrl.text.trim();
               if (name.isEmpty) return;
-              await ref.read(trackStatsDbProvider).createPlaylist(
+              await ref
+                  .read(trackStatsDbProvider)
+                  .createPlaylist(
                     name,
                     bgType: bgPath == null
                         ? PlaylistBgType.none
@@ -482,7 +531,10 @@ Future<void> _showCreateDialog(
               ref.invalidate(playlistsProvider);
               if (c.mounted) Navigator.pop(c);
             },
-            child: Text('创建', style: c.appText.body.copyWith(color: c.appColors.accent)),
+            child: Text(
+              '创建',
+              style: c.appText.body.copyWith(color: c.appColors.accent),
+            ),
           ),
         ],
       ),
@@ -492,8 +544,9 @@ Future<void> _showCreateDialog(
 
 /// 用 file_picker 选一张图片，复制到应用文档目录，返回本地路径。
 Future<String?> _pickBgImage() async {
-  final FilePickerResult? result =
-      await FilePicker.pickFiles(type: FileType.image);
+  final FilePickerResult? result = await FilePicker.pickFiles(
+    type: FileType.image,
+  );
   final String? src = result?.files.single.path;
   if (src == null) return null;
   try {
@@ -541,13 +594,17 @@ class _PlaylistPicker extends StatelessWidget {
               child: Text('还没有歌单，先去歌单页新建', style: context.appText.bodyMuted),
             )
           else
-            ...list.map((Playlist p) => ListTile(
-                  leading: const Icon(Icons.queue_music_rounded),
-                  title: Text(p.name, style: context.appText.body),
-                  subtitle: Text('${p.trackCount} 首',
-                      style: context.appText.caption),
-                  onTap: () => Navigator.pop(context, p.id),
-                )),
+            ...list.map(
+              (Playlist p) => ListTile(
+                leading: const Icon(Icons.queue_music_rounded),
+                title: Text(p.name, style: context.appText.body),
+                subtitle: Text(
+                  '${p.trackCount} 首',
+                  style: context.appText.caption,
+                ),
+                onTap: () => Navigator.pop(context, p.id),
+              ),
+            ),
           const SizedBox(height: 8),
         ],
       ),

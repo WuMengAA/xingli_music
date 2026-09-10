@@ -109,11 +109,24 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
   /// 切 Tab 的「上浮淡入」过渡（批3 #580 · B）。
   /// 仅驱动内容层渲染变换，不重建 IndexedStack（_pages 为 const，保活滚动位置）。
   late final AnimationController _tabAnim;
+  /// 滚动收起播放卡后，停滑 5 秒恢复显示的计时器（#bug-fix）。
+  Timer? _miniHideTimer;
+
+  /// 应用生命周期监听：回到前台时重扫曲库，本地增删文件后列表自动刷新
+  /// （#bug-fix · 歌曲列表 / 搜索列表不自动刷新）。
+  late final AppLifecycleListener _lifecycle;
 
   @override
   void initState() {
     super.initState();
     _tabAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
+    // 回到前台自动重扫曲库：本地文件增删后歌曲列表 / 搜索列表自动刷新。
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        ref.invalidate(musicLibraryProvider);
+        ref.invalidate(effectiveMusicLibraryProvider);
+      },
+    );
     // 冷启动播放当前场景的环境音景。
     //
     // 该副作用原先寄生在 CanvasPage.initState —— 重构后 CanvasPage 变成
@@ -154,6 +167,22 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
   void dispose() {
     _tabAnim.dispose();
     super.dispose();
+  }
+
+  /// #bug-fix：页面滚动时收起底部播放卡。
+  ///
+  /// 有曲目播放时，任意滚动（[ScrollUpdateNotification] 持续触发、
+  /// [ScrollEndNotification] 标记停滑）立即收起播放卡，并（重）启 5 秒计时器；
+  /// 计时器到点（停滑满 5 秒）恢复显示。把底部空间让给信息流。
+  void _onUserScroll(WidgetRef ref) {
+    if (ref.read(nowPlayingProvider) == null) return; // 无曲目不收起
+    if (!ref.read(miniPlayerAutoHideProvider)) {
+      ref.read(miniPlayerAutoHideProvider.notifier).state = true;
+    }
+    _miniHideTimer?.cancel();
+    _miniHideTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) ref.read(miniPlayerAutoHideProvider.notifier).state = false;
+    });
   }
 
   /// F4：版本升级检测——仅当「已完成 OOBE 且记录过上次构建号」且
@@ -402,6 +431,10 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
                       final double p = scrollBlurProgress(px);
                       if ((ref.read(pageScrollBlurProvider) - p).abs() > 0.01) {
                         ref.read(pageScrollBlurProvider.notifier).state = p;
+                      }
+                      // #bug-fix：页面上下滑动时收起底部播放卡，停滑 5 秒后恢复。
+                      if (n is ScrollUpdateNotification || n is ScrollEndNotification) {
+                        _onUserScroll(ref);
                       }
                       return false;
                     },

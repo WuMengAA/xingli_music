@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/audio/audio_providers.dart';
+import '../../providers/shell/shell_providers.dart';
 import '../lyrics/lyrics_view.dart';
 import '../../core/utils/app_motion.dart';
 import 'unified_player.dart';
@@ -35,6 +37,11 @@ class MusicCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // 滚动时自动收起（#bug-fix）：有曲目播放且处于「收起」态时，把音乐卡整体
+    // 淡出 + 高度折叠到 0，把底部空间让给信息流；停滑 5 秒后由 [AppShell]
+    // 复位 [miniPlayerAutoHideProvider] 自动展开。
+    final bool collapsed =
+        ref.watch(miniPlayerAutoHideProvider) && ref.watch(nowPlayingProvider) != null;
     // 独立 UI 卡片（R27 原生极简）：**不做任何容器边界装饰**——
     // 去除此前 24dp 圆角裁切与细描边，让 [UnifiedPlayer] 直接浮在场景背景上，
     // 靠留白与排版层级与页面其它内容区分，不引入卡片/边框/玻璃等边界元素。
@@ -45,12 +52,25 @@ class MusicCard extends ConsumerWidget {
         () => Navigator.of(context).push(
               NowPlayingRoute(page: const NowPlayingPage()),
             );
-    return UnifiedPlayer(
-      onOpenNowPlaying: openNowPlaying,
-      // R32 批2：共享元素转场——折叠态封面/曲名作为 Hero 起点。
-      heroTag: NpHeroTags.cover,
-      // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
-      lyricsSlot: const LyricsView(),
+    return ClipRect(
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 240),
+        opacity: collapsed ? 0 : 1,
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 240),
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: collapsed ? 0 : null,
+            child: UnifiedPlayer(
+              onOpenNowPlaying: openNowPlaying,
+              // R32 批2：共享元素转场——折叠态封面/曲名作为 Hero 起点。
+              heroTag: NpHeroTags.cover,
+              // 歌词内嵌：LyricsView 自行跟随 audio_providers 的当前曲目与播放进度。
+              lyricsSlot: const LyricsView(),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

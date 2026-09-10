@@ -46,7 +46,9 @@ class ConsentGate extends ConsumerWidget {
               const SizedBox(height: AppSpace.sm),
               Text(
                 '这里是实验场所',
-                style: context.appText.subtitle.copyWith(color: context.appColors.accent),
+                style: context.appText.subtitle.copyWith(
+                  color: context.appColors.accent,
+                ),
               ),
               const SizedBox(height: AppSpace.md),
               Text(
@@ -87,6 +89,7 @@ class ConsentGate extends ConsumerWidget {
   /// 方案 A：暂不参与 → 只读条款 + 再次进入按钮。
   void _showReadOnly(BuildContext context, WidgetRef ref) {
     showModalBottomSheet<void>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: context.appColors.bgSurface,
       shape: const RoundedRectangleBorder(

@@ -69,9 +69,8 @@ class HomeSceneContent extends ConsumerWidget {
           enabled: bgOn,
           live: bgRealtime,
           available: capture != null,
-          onToggle: () => ref
-              .read(voxelBgEnabledProvider.notifier)
-              .state = !bgOn,
+          onToggle: () =>
+              ref.read(voxelBgEnabledProvider.notifier).state = !bgOn,
           onLongPress: () {
             // 联动：实时开关与动画开关同步翻转（取并集，关两者 = 静态单帧）。
             final bool next = !bgRealtime;
@@ -126,10 +125,7 @@ class HomeSceneContent extends ConsumerWidget {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: <Color>[
-                                c.bgSurfaceSunken,
-                                c.bgSurface,
-                              ],
+                              colors: <Color>[c.bgSurfaceSunken, c.bgSurface],
                             ),
                           ),
                         ),
@@ -148,140 +144,149 @@ class HomeSceneContent extends ConsumerWidget {
           // 场景卡占剩余空间自适应（FittedBox 防溢出/裁切）。
           Column(
             children: <Widget>[
-                // ── 顶部：问候语 + 品牌名 ──────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpace.lg,
-                    AppSpace.md,
-                    AppSpace.lg,
-                    AppSpace.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        _timeGreeting(DateTime.now()),
-                        style: context.appText.caption.copyWith(
-                          fontSize: 13,
-                          color: c.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '星璃音乐',
-                        style: context.appText.title.copyWith(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w700,
-                          color: c.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      // 今日信息行：星期 · 农历 · 天气（信息密度↑，即开即见）。
-                      _TodayInfoLine(
-                        weather: ref.watch(weatherProvider),
-                      ),
-                    ],
-                  ),
+              // ── 顶部：问候语 + 品牌名 ──────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpace.lg,
+                  AppSpace.md,
+                  AppSpace.lg,
+                  AppSpace.sm,
                 ),
-                const SizedBox(height: AppSpace.md),
-
-                // ── 场景卡（柔光晕 + Hero + 圆点）────────
-                // 占剩余空间自适应，不随页面滚动。
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
-                    child: Builder(
-                      builder: (BuildContext ctx) {
-                        final double screenW = MediaQuery.of(ctx).size.width;
-                        final double cardW = screenW * 0.94;
-                        final double cardH = cardW * 9 / 16;
-                        return Center(
-                          child: FittedBox(
-                            fit: BoxFit.contain,
-                            child: SizedBox(
-                              width: cardW,
-                              height: cardH + 44,
-                              child: Stack(
-                            clipBehavior: Clip.none,
-                            children: <Widget>[
-                              // scene-glow：卡后柔光晕（accent 派生，跟随皮肤）。
-                              Positioned(
-                                top: -30,
-                                left: 0,
-                                right: 0,
-                                child: Center(
-                                  child: AnimatedContainer(
-                                    duration: Duration(milliseconds: (400 * scale).round()),
-                                    curve: Motion.gentle,
-                                    width: 200,
-                                    height: 200,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      // 跟随当前场景主色（切场景时色渐变，不硬跳）。
-                                      color: active.visual.accent
-                                          .withValues(alpha: 0.16),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // 复用既有 SceneCardStack（场景切换 / 音景 / 长按编辑
-                              // 逻辑全部保留，仅视觉贴合画布双层玻璃）。
-                              SceneCardStack(
-                                scenes: scenes,
-                                currentIndex: activeIndex,
-                                // cl46-E：长按场景中间卡片 = 打开当前场景的详细 / 个性编辑。
-                                onLongPress: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => CustomSceneEditPage(
-                                      scene: ref.read(activeSceneProvider),
-                                    ),
-                                  ),
-                                ),
-                                onSceneChanged: (int i) {
-                                  ref.read(currentSceneIndexProvider.notifier).state = i;
-                                  final Scene scene = scenes[i];
-                                  // R5：仅切换音景层，音乐由 AppShell/播放面板继续播放
-                                  unawaited(ref
-                                      .read(audioServiceProvider)
-                                      .switchSoundscape(scene));
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      _timeGreeting(DateTime.now()),
+                      style: context.appText.caption.copyWith(
+                        fontSize: 13,
+                        color: c.textSecondary,
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '星璃音乐',
+                      style: context.appText.title.copyWith(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w700,
+                        color: c.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // 今日信息行：星期 · 农历 · 天气（信息密度↑，即开即见）。
+                    _TodayInfoLine(weather: ref.watch(weatherProvider)),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpace.md),
+              const SizedBox(height: AppSpace.md),
 
-                // ── 轮播圆点（carousel dots）──────────────────
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      for (int i = 0; i < scenes.length; i++)
-                        AnimatedContainer(
-                          duration: Duration(milliseconds: (220 * scale).round()),
-                          curve: Motion.gentle,
-                          margin: const EdgeInsets.symmetric(horizontal: 3),
-                          width: i == activeIndex ? 10 : 6,
-                          height: i == activeIndex ? 10 : 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: i == activeIndex
-                                ? c.accent
-                                : c.iconInactive.withValues(alpha: 0.5),
+              // ── 场景卡（柔光晕 + Hero + 圆点）────────
+              // 占剩余空间自适应，不随页面滚动。
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpace.md),
+                  child: Builder(
+                    builder: (BuildContext ctx) {
+                      final double screenW = MediaQuery.of(ctx).size.width;
+                      final double cardW = screenW * 0.94;
+                      final double cardH = cardW * 9 / 16;
+                      return Center(
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: SizedBox(
+                            width: cardW,
+                            height: cardH + 44,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: <Widget>[
+                                // scene-glow：卡后柔光晕（accent 派生，跟随皮肤）。
+                                Positioned(
+                                  top: -30,
+                                  left: 0,
+                                  right: 0,
+                                  child: Center(
+                                    child: AnimatedContainer(
+                                      duration: Duration(
+                                        milliseconds: (400 * scale).round(),
+                                      ),
+                                      curve: Motion.gentle,
+                                      width: 200,
+                                      height: 200,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        // 跟随当前场景主色（切场景时色渐变，不硬跳）。
+                                        color: active.visual.accent.withValues(
+                                          alpha: 0.16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // 复用既有 SceneCardStack（场景切换 / 音景 / 长按编辑
+                                // 逻辑全部保留，仅视觉贴合画布双层玻璃）。
+                                SceneCardStack(
+                                  scenes: scenes,
+                                  currentIndex: activeIndex,
+                                  // cl46-E：长按场景中间卡片 = 打开当前场景的详细 / 个性编辑。
+                                  onLongPress: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => CustomSceneEditPage(
+                                        scene: ref.read(activeSceneProvider),
+                                      ),
+                                    ),
+                                  ),
+                                  onSceneChanged: (int i) {
+                                    ref
+                                            .read(
+                                              currentSceneIndexProvider
+                                                  .notifier,
+                                            )
+                                            .state =
+                                        i;
+                                    final Scene scene = scenes[i];
+                                    // R5：仅切换音景层，音乐由 AppShell/播放面板继续播放
+                                    unawaited(
+                                      ref
+                                          .read(audioServiceProvider)
+                                          .switchSoundscape(scene),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: AppSpace.lg),
-              ],
-            ),
+              ),
+              const SizedBox(height: AppSpace.md),
+
+              // ── 轮播圆点（carousel dots）──────────────────
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (int i = 0; i < scenes.length; i++)
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: (220 * scale).round()),
+                        curve: Motion.gentle,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        width: i == activeIndex ? 10 : 6,
+                        height: i == activeIndex ? 10 : 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: i == activeIndex
+                              ? c.accent
+                              : c.iconInactive.withValues(alpha: 0.5),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppSpace.lg),
+            ],
+          ),
         ],
       ),
     );
@@ -292,7 +297,9 @@ class HomeSceneContent extends ConsumerWidget {
   /// （游戏主菜单）。不再直接 push [VoxelWorld3DPage]——游戏只能从主菜单
   /// 进入，避免叠加游戏/叠加存档。
   Future<void> _openCameraWithSaveChoice(
-      BuildContext context, WidgetRef ref) async {
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final List<Scene> scenes = ref.read(sceneOrderProvider);
     final List<Scene> captured = <Scene>[
       for (final Scene s in scenes)
@@ -300,11 +307,11 @@ class HomeSceneContent extends ConsumerWidget {
     ];
     if (!context.mounted) return;
     final Scene? chosen = await showModalBottomSheet<Scene>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: context.appColors.bgSurface,
       shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (BuildContext sheetContext) {
         return SafeArea(
@@ -312,8 +319,10 @@ class HomeSceneContent extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               ListTile(
-                leading: Icon(Icons.camera_alt_outlined,
-                    color: context.appColors.accent),
+                leading: Icon(
+                  Icons.camera_alt_outlined,
+                  color: context.appColors.accent,
+                ),
                 title: Text('拍到的场景', style: context.appText.body),
               ),
               const Divider(height: 1),
@@ -323,17 +332,24 @@ class HomeSceneContent extends ConsumerWidget {
                   children: <Widget>[
                     // 「去拍新场景」：进入游戏主菜单 → 世界存档 → 拍照取景。
                     ListTile(
-                      leading: Icon(Icons.add_a_photo_outlined,
-                          color: context.appColors.iconPrimary),
+                      leading: Icon(
+                        Icons.add_a_photo_outlined,
+                        color: context.appColors.iconPrimary,
+                      ),
                       title: Text('去拍新场景', style: context.appText.body),
                       onTap: () => Navigator.of(sheetContext).pop(),
                     ),
                     for (final Scene s in captured)
                       ListTile(
-                        leading: Icon(Icons.auto_awesome,
-                            color: context.appColors.iconPrimary),
+                        leading: Icon(
+                          Icons.auto_awesome,
+                          color: context.appColors.iconPrimary,
+                        ),
                         title: Text(s.name, style: context.appText.body),
-                        subtitle: Text('已拍 · 进入游戏', style: context.appText.artist),
+                        subtitle: Text(
+                          '已拍 · 进入游戏',
+                          style: context.appText.artist,
+                        ),
                         onTap: () => Navigator.of(sheetContext).pop(s),
                       ),
                     if (captured.isEmpty)
@@ -362,9 +378,9 @@ class HomeSceneContent extends ConsumerWidget {
         ref.read(voxelBgEnabledProvider.notifier).state = true;
       }
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const WorldPage()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const WorldPage()));
   }
 
   /// cl29·②：场景评估底部弹层——展示当前场景取景快照的评估信息（预设组件 SceneEvalSheet）。
@@ -378,19 +394,28 @@ class HomeSceneContent extends ConsumerWidget {
         backgroundColor: context.appColors.bgSurface,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-        ),
-        builder: (_) => Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpace.lg,
-            AppSpace.lg,
-            AppSpace.lg,
-            AppSpace.lg,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.lg),
           ),
-          child: Text(
-            '该场景暂无取景快照。进入 3D 世界点相机图标拍照取景，即可生成'
-            '场景背景并在此查看评估信息。',
-            style: context.appText.artist,
+        ),
+        builder: (ctx) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.92,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpace.lg,
+                AppSpace.lg,
+                AppSpace.lg,
+                AppSpace.lg,
+              ),
+              child: Text(
+                '该场景暂无取景快照。进入 3D 世界点相机图标拍照取景，即可生成'
+                '场景背景并在此查看评估信息。',
+                style: context.appText.artist,
+              ),
+            ),
           ),
         ),
       );
@@ -409,13 +434,15 @@ class HomeSceneContent extends ConsumerWidget {
         SceneEvalRow(label: '世界种子', value: seedHex),
         SceneEvalRow(
           label: '机位 X / Y / Z',
-          value: '${cap.cameraX.toStringAsFixed(1)} / '
+          value:
+              '${cap.cameraX.toStringAsFixed(1)} / '
               '${cap.cameraY.toStringAsFixed(1)} / '
               '${cap.cameraZ.toStringAsFixed(1)}',
         ),
         SceneEvalRow(
           label: '偏航 / 俯仰',
-          value: '${(cap.yaw * deg).toStringAsFixed(1)}° / '
+          value:
+              '${(cap.yaw * deg).toStringAsFixed(1)}° / '
               '${(cap.pitch * deg).toStringAsFixed(1)}°',
         ),
         SceneEvalRow(
@@ -458,10 +485,8 @@ class _VoxelBgToggle extends StatelessWidget {
       child: Tooltip(
         message: live
             ? '游戏背景已开 · 实时渲染中（长按关闭实时）'
-            : (enabled
-                ? '游戏背景已开（长按实时渲染）'
-                : '游戏背景已关（点击开启）'),
-          child: GestureDetector(
+            : (enabled ? '游戏背景已开（长按实时渲染）' : '游戏背景已关（点击开启）'),
+        child: GestureDetector(
           onTap: available ? onToggle : null,
           onLongPress: available ? onLongPress : null,
           child: Container(
@@ -477,8 +502,8 @@ class _VoxelBgToggle extends StatelessWidget {
               live
                   ? Icons.visibility_rounded
                   : (enabled
-                      ? Icons.view_in_ar_rounded
-                      : Icons.view_in_ar_outlined),
+                        ? Icons.view_in_ar_rounded
+                        : Icons.view_in_ar_outlined),
               size: 18,
               color: enabled
                   ? context.appColors.accent
@@ -523,8 +548,7 @@ class _SceneIconButton extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: context.appColors.bgSurface,
               ),
-              child: Icon(icon, size: 18,
-                  color: context.appColors.iconPrimary),
+              child: Icon(icon, size: 18, color: context.appColors.iconPrimary),
             ),
           ),
         ),
@@ -564,9 +588,11 @@ class _TodayInfoLine extends StatelessWidget {
       parts.write(' · ${lunar.festivalName}');
     }
     if (weather.city != null && weather.current != null) {
-      parts.write(' · ${weather.city!.name} '
-          '${weather.current!.temperature.round()}°'
-          ' ${weatherMeta(weather.current!.weatherCode).icon}');
+      parts.write(
+        ' · ${weather.city!.name} '
+        '${weather.current!.temperature.round()}°'
+        ' ${weatherMeta(weather.current!.weatherCode).icon}',
+      );
     }
 
     return Text(

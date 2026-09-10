@@ -70,8 +70,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   }
 
   Future<void> _testServer(ServerConfig c) async {
-    final SourceHealthNotifier health =
-        ref.read(sourceHealthProvider.notifier);
+    final SourceHealthNotifier health = ref.read(sourceHealthProvider.notifier);
     health.startTest(c.name);
     final bool ok = c.type == SourceType.subsonic
         ? await SubsonicSource(c).testConnection()
@@ -87,10 +86,12 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   Widget build(BuildContext context) {
     final List<LocalDirConfig> dirs = ref.watch(localDirConfigsProvider);
     final List<ServerConfig> configs = ref.watch(serverConfigsProvider);
-    final List<ServerConfig> servers =
-        configs.where((ServerConfig c) => c.type == SourceType.subsonic).toList();
-    final List<ServerConfig> radios =
-        configs.where((ServerConfig c) => c.type == SourceType.radio).toList();
+    final List<ServerConfig> servers = configs
+        .where((ServerConfig c) => c.type == SourceType.subsonic)
+        .toList();
+    final List<ServerConfig> radios = configs
+        .where((ServerConfig c) => c.type == SourceType.radio)
+        .toList();
 
     return Scaffold(
       backgroundColor: context.appColors.bgPage,
@@ -114,8 +115,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
             addLabel: '添加目录',
             onAdd: () => _showAddDirSheet(),
             children: <Widget>[
-              if (dirs.isEmpty)
-                const _EmptyHint('尚未添加本地目录'),
+              if (dirs.isEmpty) const _EmptyHint('尚未添加本地目录'),
               for (final LocalDirConfig d in dirs) _dirTile(d),
             ],
           ),
@@ -128,8 +128,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
             addLabel: '添加${Terms.server}',
             onAdd: () => _showServerSheet(null),
             children: <Widget>[
-              if (servers.isEmpty)
-                const _EmptyHint('尚未配置自建服务器'),
+              if (servers.isEmpty) const _EmptyHint('尚未配置自建服务器'),
               for (final ServerConfig c in servers) _serverTile(c),
             ],
           ),
@@ -142,8 +141,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
             addLabel: '添加电台',
             onAdd: () => _showRadioSheet(null),
             children: <Widget>[
-              if (radios.isEmpty)
-                const _EmptyHint('尚未配置公开电台'),
+              if (radios.isEmpty) const _EmptyHint('尚未配置公开电台'),
               for (final ServerConfig c in radios) _serverTile(c),
             ],
           ),
@@ -157,6 +155,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
 
   Future<void> _showAddDirSheet() async {
     await showModalBottomSheet<void>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: context.appColors.bgSurface,
       shape: const RoundedRectangleBorder(
@@ -247,7 +246,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
     return _EntryTile(
       icon: Icons.folder_outlined,
       title: d.path,
-      subtitle: '已启用' ,
+      subtitle: '已启用',
       switchValue: d.enabled,
       onSwitch: (bool v) => _toggleDir(d, v),
       onEdit: null,
@@ -264,18 +263,25 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   Future<void> _showRadioSheet(ServerConfig? editing) =>
       _showServerConfigSheet(editing, isRadio: true);
 
-  Future<void> _showServerConfigSheet(ServerConfig? editing,
-      {required bool isRadio}) async {
-    final TextEditingController nameCtrl =
-        TextEditingController(text: editing?.name ?? '');
-    final TextEditingController urlCtrl =
-        TextEditingController(text: editing?.baseUrl ?? '');
-    final TextEditingController userCtrl =
-        TextEditingController(text: editing?.user ?? '');
-    final TextEditingController pwdCtrl =
-        TextEditingController(text: editing?.password ?? '');
-    final TextEditingController tagsCtrl =
-        TextEditingController(text: (editing?.tags ?? const ['ambient']).join(', '));
+  Future<void> _showServerConfigSheet(
+    ServerConfig? editing, {
+    required bool isRadio,
+  }) async {
+    final TextEditingController nameCtrl = TextEditingController(
+      text: editing?.name ?? '',
+    );
+    final TextEditingController urlCtrl = TextEditingController(
+      text: editing?.baseUrl ?? '',
+    );
+    final TextEditingController userCtrl = TextEditingController(
+      text: editing?.user ?? '',
+    );
+    final TextEditingController pwdCtrl = TextEditingController(
+      text: editing?.password ?? '',
+    );
+    final TextEditingController tagsCtrl = TextEditingController(
+      text: (editing?.tags ?? const ['ambient']).join(', '),
+    );
 
     await showModalBottomSheet<void>(
       context: context,
@@ -298,7 +304,9 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(
-                  editing != null ? '编辑${isRadio ? '电台' : '服务器'}' : '新增${isRadio ? '电台' : '服务器'}',
+                  editing != null
+                      ? '编辑${isRadio ? '电台' : '服务器'}'
+                      : '新增${isRadio ? '电台' : '服务器'}',
                   style: context.appText.subtitle,
                 ),
                 const SizedBox(height: AppSpace.md),
@@ -435,9 +443,12 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
   }
 
   Widget _serverTile(ServerConfig c) {
-    final SourceHealth health =
-        ref.watch(sourceHealthProvider.select((Map<String, SourceHealth> m) =>
-            m[c.name] ?? const SourceHealth(status: SourceHealthStatus.unknown)));
+    final SourceHealth health = ref.watch(
+      sourceHealthProvider.select(
+        (Map<String, SourceHealth> m) =>
+            m[c.name] ?? const SourceHealth(status: SourceHealthStatus.unknown),
+      ),
+    );
 
     return _EntryTile(
       icon: c.type == SourceType.subsonic
@@ -497,11 +508,13 @@ class _GroupCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, size: AppSize.iconSm, color: context.appColors.iconPrimary),
-              const SizedBox(width: AppSpace.sm),
-              Expanded(
-                child: Text(title, style: context.appText.subtitle),
+              Icon(
+                icon,
+                size: AppSize.iconSm,
+                color: context.appColors.iconPrimary,
               ),
+              const SizedBox(width: AppSpace.sm),
+              Expanded(child: Text(title, style: context.appText.subtitle)),
               TextButton.icon(
                 onPressed: onAdd,
                 icon: const Icon(Icons.add, size: 18),
@@ -557,20 +570,28 @@ class _EntryTile extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, size: AppSize.iconSm, color: context.appColors.textTertiary),
+              Icon(
+                icon,
+                size: AppSize.iconSm,
+                color: context.appColors.textTertiary,
+              ),
               const SizedBox(width: AppSpace.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(title,
-                        style: context.appText.body,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
-                    Text(subtitle,
-                        style: context.appText.artist,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      title,
+                      style: context.appText.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      subtitle,
+                      style: context.appText.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
@@ -582,26 +603,34 @@ class _EntryTile extends StatelessWidget {
               if (h != null) ...<Widget>[
                 StateChip(tone: _toneOf(h.status), label: h.statusLabel),
                 const SizedBox(width: AppSpace.xs),
-                Text('上次 ${h.lastTestedLabel}',
-                    style: context.appText.caption),
+                Text('上次 ${h.lastTestedLabel}', style: context.appText.caption),
               ],
               const Spacer(),
               if (onEdit != null)
                 IconButton(
-                  icon: Icon(Icons.edit_outlined,
-                      size: 18, color: context.appColors.textTertiary),
+                  icon: Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: context.appColors.textTertiary,
+                  ),
                   onPressed: onEdit,
                 ),
               if (onTest != null)
                 IconButton(
-                  icon: Icon(Icons.network_check_rounded,
-                      size: 18, color: context.appColors.textTertiary),
+                  icon: Icon(
+                    Icons.network_check_rounded,
+                    size: 18,
+                    color: context.appColors.textTertiary,
+                  ),
                   tooltip: Terms.testConnection,
                   onPressed: onTest,
                 ),
               IconButton(
-                icon: Icon(Icons.delete_outline,
-                    size: 18, color: context.appColors.danger),
+                icon: Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: context.appColors.danger,
+                ),
                 onPressed: onDelete,
               ),
             ],
@@ -612,11 +641,11 @@ class _EntryTile extends StatelessWidget {
   }
 
   ChipTone _toneOf(SourceHealthStatus status) => switch (status) {
-        SourceHealthStatus.connecting => ChipTone.connecting,
-        SourceHealthStatus.ok => ChipTone.ok,
-        SourceHealthStatus.failed => ChipTone.failed,
-        SourceHealthStatus.unknown => ChipTone.retired,
-      };
+    SourceHealthStatus.connecting => ChipTone.connecting,
+    SourceHealthStatus.ok => ChipTone.ok,
+    SourceHealthStatus.failed => ChipTone.failed,
+    SourceHealthStatus.unknown => ChipTone.retired,
+  };
 }
 
 class _EmptyHint extends StatelessWidget {

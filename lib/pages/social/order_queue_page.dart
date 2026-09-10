@@ -41,6 +41,7 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
 
   Future<void> _pickTrack() async {
     final Track? t = await showModalBottomSheet<Track?>(
+      isScrollControlled: true,
       context: context,
       backgroundColor: context.appColors.bgCard,
       builder: (_) => _TrackPicker(),
@@ -50,18 +51,16 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
 
   void _submit() {
     if (_picked == null) return;
-    ref.read(netSessionProvider.notifier).submitOrder(
-          _picked!,
-          message: _msgCtrl.text.trim(),
-          anonymous: _anon,
-        );
+    ref
+        .read(netSessionProvider.notifier)
+        .submitOrder(_picked!, message: _msgCtrl.text.trim(), anonymous: _anon);
     setState(() {
       _picked = null;
       _msgCtrl.clear();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('已提交点歌，等待 DJ 审批')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('已提交点歌，等待 DJ 审批')));
   }
 
   @override
@@ -114,7 +113,10 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
   /// 队列渲染（R33 排期管理）：非 approved 项按原序平铺；approved 组独立小节——
   /// DJ 端可拖拽排序（VoiceHub「排期管理」），听众端只读展示。
   List<Widget> _buildQueueItems(
-      AppThemeColors c, NetSessionState s, bool isHost) {
+    AppThemeColors c,
+    NetSessionState s,
+    bool isHost,
+  ) {
     final List<OrderItem> rest = s.orderQueue
         .where((it) => it.status != OrderStatus.approved)
         .toList();
@@ -127,97 +129,108 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
           c: c,
           item: it,
           isHost: isHost,
-          onApprove: () => ref
-              .read(netSessionProvider.notifier)
-              .decideOrder(it.id, true),
-          onReject: () => ref
-              .read(netSessionProvider.notifier)
-              .decideOrder(it.id, false),
+          onApprove: () =>
+              ref.read(netSessionProvider.notifier).decideOrder(it.id, true),
+          onReject: () =>
+              ref.read(netSessionProvider.notifier).decideOrder(it.id, false),
           onPlay: () => _playAsDj(it.track, it.id),
         ),
     ];
     if (approved.isEmpty) return items;
-    items.add(Padding(
-      padding: const EdgeInsets.only(top: 6, bottom: 6),
-      child: Row(
-        children: <Widget>[
-          Text('待播（${approved.length}）',
+    items.add(
+      Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 6),
+        child: Row(
+          children: <Widget>[
+            Text(
+              '待播（${approved.length}）',
               style: TextStyle(
-                  color: c.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-          const Spacer(),
-          if (isHost)
-            Text('按住 ≡ 拖拽排序',
-                style: TextStyle(color: c.textSecondary, fontSize: 11)),
-        ],
-      ),
-    ));
-    if (isHost) {
-      items.add(ReorderableListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        buildDefaultDragHandles: false,
-        itemCount: approved.length,
-        onReorderItem: (int oldIndex, int newIndex) => ref
-            .read(netSessionProvider.notifier)
-            .reorderApproved(oldIndex, newIndex),
-        itemBuilder: (BuildContext context, int i) {
-          final OrderItem it = approved[i];
-          return Padding(
-            key: ValueKey<String>(it.id),
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: ReorderableDragStartListener(
-                    index: i,
-                    child: Icon(Icons.drag_indicator_rounded,
-                        size: 20, color: c.textTertiary),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: _OrderTile(
-                    c: c,
-                    item: it,
-                    isHost: isHost,
-                    onApprove: () => ref
-                        .read(netSessionProvider.notifier)
-                        .decideOrder(it.id, true),
-                    onReject: () => ref
-                        .read(netSessionProvider.notifier)
-                        .decideOrder(it.id, false),
-                    onPlay: () => _playAsDj(it.track, it.id),
-                  ),
-                ),
-              ],
+                color: c.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          );
-        },
-      ));
+            const Spacer(),
+            if (isHost)
+              Text(
+                '按住 ≡ 拖拽排序',
+                style: TextStyle(color: c.textSecondary, fontSize: 11),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (isHost) {
+      items.add(
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: approved.length,
+          onReorderItem: (int oldIndex, int newIndex) => ref
+              .read(netSessionProvider.notifier)
+              .reorderApproved(oldIndex, newIndex),
+          itemBuilder: (BuildContext context, int i) {
+            final OrderItem it = approved[i];
+            return Padding(
+              key: ValueKey<String>(it.id),
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: ReorderableDragStartListener(
+                      index: i,
+                      child: Icon(
+                        Icons.drag_indicator_rounded,
+                        size: 20,
+                        color: c.textTertiary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: _OrderTile(
+                      c: c,
+                      item: it,
+                      isHost: isHost,
+                      onApprove: () => ref
+                          .read(netSessionProvider.notifier)
+                          .decideOrder(it.id, true),
+                      onReject: () => ref
+                          .read(netSessionProvider.notifier)
+                          .decideOrder(it.id, false),
+                      onPlay: () => _playAsDj(it.track, it.id),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
     } else {
-      items.addAll(approved.map((it) => _OrderTile(
+      items.addAll(
+        approved.map(
+          (it) => _OrderTile(
             c: c,
             item: it,
             isHost: isHost,
-            onApprove: () => ref
-                .read(netSessionProvider.notifier)
-                .decideOrder(it.id, true),
-            onReject: () => ref
-                .read(netSessionProvider.notifier)
-                .decideOrder(it.id, false),
+            onApprove: () =>
+                ref.read(netSessionProvider.notifier).decideOrder(it.id, true),
+            onReject: () =>
+                ref.read(netSessionProvider.notifier).decideOrder(it.id, false),
             onPlay: () => _playAsDj(it.track, it.id),
-          )));
+          ),
+        ),
+      );
     }
     return items;
   }
 
   Future<void> _playAsDj(Track track, String orderId) async {
-    final NetSessionNotifier notifier =
-        ref.read(netSessionProvider.notifier);
+    final NetSessionNotifier notifier = ref.read(netSessionProvider.notifier);
     final NetSessionState s = ref.read(netSessionProvider);
     // 先找当前 playing 项并写入已播历史。
     final OrderItem? cur = s.orderQueue
@@ -242,135 +255,148 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
   /// 队列统计头：VoiceHub 风格——按状态分类计数（总 / 待审批 / 待播 / 播放中 / 已播 / 已拒）。
   Widget _buildQueueHeader(AppThemeColors c, NetSessionState s) {
     final int total = s.orderQueue.length;
-    final int pending =
-        s.orderQueue.where((it) => it.status == OrderStatus.pending).length;
-    final int approved =
-        s.orderQueue.where((it) => it.status == OrderStatus.approved).length;
-    final int playing =
-        s.orderQueue.where((it) => it.status == OrderStatus.playing).length;
-    final int played =
-        s.orderQueue.where((it) => it.status == OrderStatus.played).length;
-    final int rejected =
-        s.orderQueue.where((it) => it.status == OrderStatus.rejected).length;
+    final int pending = s.orderQueue
+        .where((it) => it.status == OrderStatus.pending)
+        .length;
+    final int approved = s.orderQueue
+        .where((it) => it.status == OrderStatus.approved)
+        .length;
+    final int playing = s.orderQueue
+        .where((it) => it.status == OrderStatus.playing)
+        .length;
+    final int played = s.orderQueue
+        .where((it) => it.status == OrderStatus.played)
+        .length;
+    final int rejected = s.orderQueue
+        .where((it) => it.status == OrderStatus.rejected)
+        .length;
     return Row(
       children: <Widget>[
-        Text('队列（$total）',
-            style: TextStyle(color: c.textPrimary, fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(
+          '队列（$total）',
+          style: TextStyle(
+            color: c.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const Spacer(),
-        if (pending > 0)
-          _queueChip('待审批', pending, c.warning),
-        if (approved > 0)
-          _queueChip('待播', approved, c.accent),
-        if (playing > 0)
-          _queueChip('播放中', playing, Colors.red),
-        if (played > 0)
-          _queueChip('已播', played, c.textSecondary),
-        if (rejected > 0)
-          _queueChip('已拒', rejected, c.danger),
+        if (pending > 0) _queueChip('待审批', pending, c.warning),
+        if (approved > 0) _queueChip('待播', approved, c.accent),
+        if (playing > 0) _queueChip('播放中', playing, Colors.red),
+        if (played > 0) _queueChip('已播', played, c.textSecondary),
+        if (rejected > 0) _queueChip('已拒', rejected, c.danger),
       ],
     );
   }
 
   Widget _queueChip(String label, int count, Color color) => Padding(
-        padding: const EdgeInsets.only(left: 6),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text.rich(
+    padding: const EdgeInsets.only(left: 6),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text.rich(
+        TextSpan(
+          text: label,
+          style: TextStyle(color: color, fontSize: 11),
+          children: <InlineSpan>[
             TextSpan(
-              text: label,
-              style: TextStyle(color: color, fontSize: 11),
-              children: <InlineSpan>[
-                TextSpan(
-                  text: ' $count',
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-  Widget _buildSubmitCard(AppThemeColors c) => Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: c.bgCard,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text('点一首歌', style: TextStyle(color: c.textPrimary, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: _pickTrack,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: c.bgPage,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: c.border),
-                ),
-                child: Row(
-                  children: <Widget>[
-                    Icon(Icons.music_note, color: c.accent),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _picked?.title ?? '点击选择歌曲',
-                        style: TextStyle(
-                            color: _picked == null ? c.textSecondary : c.textPrimary),
-                      ),
-                    ),
-                    if (_picked != null)
-                      Text(_picked!.artist,
-                          style: TextStyle(color: c.textSecondary, fontSize: 12)),
-                  ],
-                ),
+              text: ' $count',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _msgCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                hintText: '点歌寄语（可选）',
-                hintStyle: TextStyle(color: c.textSecondary),
-                filled: true,
-                fillColor: c.bgPage,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              style: TextStyle(color: c.textPrimary),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                XGlassToggle(
-                  value: _anon,
-                  onChanged: (v) => setState(() => _anon = v),
-                  accentColor: c.accent,
-                ),
-                Text('匿名点歌', style: TextStyle(color: c.textSecondary)),
-                const Spacer(),
-                FilledButton.icon(
-                  onPressed: _picked == null ? null : _submit,
-                  icon: const Icon(Icons.send),
-                  label: const Text('提交'),
-                ),
-              ],
             ),
           ],
         ),
-      );
+      ),
+    ),
+  );
+
+  Widget _buildSubmitCard(AppThemeColors c) => Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: c.bgCard,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          '点一首歌',
+          style: TextStyle(color: c.textPrimary, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: _pickTrack,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: c.bgPage,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: c.border),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.music_note, color: c.accent),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _picked?.title ?? '点击选择歌曲',
+                    style: TextStyle(
+                      color: _picked == null ? c.textSecondary : c.textPrimary,
+                    ),
+                  ),
+                ),
+                if (_picked != null)
+                  Text(
+                    _picked!.artist,
+                    style: TextStyle(color: c.textSecondary, fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _msgCtrl,
+          maxLines: 2,
+          decoration: InputDecoration(
+            hintText: '点歌寄语（可选）',
+            hintStyle: TextStyle(color: c.textSecondary),
+            filled: true,
+            fillColor: c.bgPage,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          style: TextStyle(color: c.textPrimary),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            XGlassToggle(
+              value: _anon,
+              onChanged: (v) => setState(() => _anon = v),
+              accentColor: c.accent,
+            ),
+            Text('匿名点歌', style: TextStyle(color: c.textSecondary)),
+            const Spacer(),
+            FilledButton.icon(
+              onPressed: _picked == null ? null : _submit,
+              icon: const Icon(Icons.send),
+              label: const Text('提交'),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
 class _OrderTile extends StatelessWidget {
@@ -391,71 +417,84 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: c.bgCard,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: c.bgCard,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
           children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Text(item.track.title,
-                      style: TextStyle(color: c.textPrimary, fontWeight: FontWeight.bold)),
-                ),
-                _StatusBadge(c: c, status: item.status),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(item.track.artist,
-                style: TextStyle(color: c.textSecondary, fontSize: 12)),
-            if (item.message.isNotEmpty) ...<Widget>[
-              const SizedBox(height: 6),
-              Text('“${item.message}”',
-                  style: TextStyle(color: c.textTertiary, fontSize: 12, fontStyle: FontStyle.italic)),
-            ],
-            const SizedBox(height: 4),
-            Text(
-              item.anonymous ? '匿名听众' : item.fromName,
-              style: TextStyle(color: c.textSecondary, fontSize: 11),
-            ),
-            if (isHost && item.status == OrderStatus.pending) ...<Widget>[
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: <Widget>[
-                  OutlinedButton.icon(
-                    onPressed: onReject,
-                    icon: const Icon(Icons.close, size: 16),
-                    label: const Text('拒绝'),
-                    style: OutlinedButton.styleFrom(foregroundColor: c.danger),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    onPressed: onApprove,
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('通过'),
-                  ),
-                ],
-              ),
-            ],
-            if (isHost && item.status == OrderStatus.approved) ...<Widget>[
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  onPressed: onPlay,
-                  icon: const Icon(Icons.play_arrow, size: 16),
-                  label: const Text('推入播放'),
+            Expanded(
+              child: Text(
+                item.track.title,
+                style: TextStyle(
+                  color: c.textPrimary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
+            ),
+            _StatusBadge(c: c, status: item.status),
           ],
         ),
-      );
+        const SizedBox(height: 2),
+        Text(
+          item.track.artist,
+          style: TextStyle(color: c.textSecondary, fontSize: 12),
+        ),
+        if (item.message.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 6),
+          Text(
+            '“${item.message}”',
+            style: TextStyle(
+              color: c.textTertiary,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+        const SizedBox(height: 4),
+        Text(
+          item.anonymous ? '匿名听众' : item.fromName,
+          style: TextStyle(color: c.textSecondary, fontSize: 11),
+        ),
+        if (isHost && item.status == OrderStatus.pending) ...<Widget>[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: <Widget>[
+              OutlinedButton.icon(
+                onPressed: onReject,
+                icon: const Icon(Icons.close, size: 16),
+                label: const Text('拒绝'),
+                style: OutlinedButton.styleFrom(foregroundColor: c.danger),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: onApprove,
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text('通过'),
+              ),
+            ],
+          ),
+        ],
+        if (isHost && item.status == OrderStatus.approved) ...<Widget>[
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: onPlay,
+              icon: const Icon(Icons.play_arrow, size: 16),
+              label: const Text('推入播放'),
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 class _StatusBadge extends StatelessWidget {
@@ -488,11 +527,10 @@ class _EmptyHint extends StatelessWidget {
   final AppThemeColors c;
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(24),
-        alignment: Alignment.center,
-        child: Text('暂无点歌，听众可在此点歌',
-            style: TextStyle(color: c.textSecondary)),
-      );
+    padding: const EdgeInsets.all(24),
+    alignment: Alignment.center,
+    child: Text('暂无点歌，听众可在此点歌', style: TextStyle(color: c.textSecondary)),
+  );
 }
 
 /// 选曲弹层：本地曲库 / 在线（网易云 + 哔哩哔哩）双标签搜索。
@@ -574,13 +612,16 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
         final List<Track> filtered = k.isEmpty
             ? tracks
             : tracks
-                .where((Track t) =>
-                    (t.title.toLowerCase().contains(k)) ||
-                    (t.artist.toLowerCase().contains(k)))
-                .toList();
+                  .where(
+                    (Track t) =>
+                        (t.title.toLowerCase().contains(k)) ||
+                        (t.artist.toLowerCase().contains(k)),
+                  )
+                  .toList();
         if (filtered.isEmpty) {
           return Center(
-              child: Text('无匹配', style: TextStyle(color: c.textSecondary)));
+            child: Text('无匹配', style: TextStyle(color: c.textSecondary)),
+          );
         }
         return ListView.builder(
           itemCount: filtered.length,
@@ -588,8 +629,10 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
             final Track t = filtered[i];
             return ListTile(
               title: Text(t.title, style: TextStyle(color: c.textPrimary)),
-              subtitle: Text(t.artist,
-                  style: TextStyle(color: c.textSecondary, fontSize: 12)),
+              subtitle: Text(
+                t.artist,
+                style: TextStyle(color: c.textSecondary, fontSize: 12),
+              ),
               onTap: () => Navigator.of(context).pop(t),
             );
           },
@@ -597,7 +640,8 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, _) => Center(
-          child: Text('读取曲库失败', style: TextStyle(color: c.danger))),
+        child: Text('读取曲库失败', style: TextStyle(color: c.danger)),
+      ),
     );
   }
 
@@ -605,15 +649,18 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
     final String kw = _q.text.trim();
     if (kw.isEmpty) {
       return Center(
-          child: Text('输入关键词搜索在线曲库',
-              style: TextStyle(color: c.textSecondary)));
+        child: Text('输入关键词搜索在线曲库', style: TextStyle(color: c.textSecondary)),
+      );
     }
     final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
     final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
     if (!ne && !bi) {
       return Center(
-          child: Text('点歌需先登录网易云 / 哔哩哔哩',
-              style: TextStyle(color: c.textSecondary)));
+        child: Text(
+          '点歌需先登录网易云 / 哔哩哔哩',
+          style: TextStyle(color: c.textSecondary),
+        ),
+      );
     }
     final AsyncValue<List<Track>> neRes = ne
         ? ref.watch(neteaseSearchProvider(kw))
@@ -629,7 +676,8 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
         return const Center(child: CircularProgressIndicator());
       }
       return Center(
-          child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)));
+        child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)),
+      );
     }
     final List<Track> all = <Track>[...neHits, ...biHits];
     return ListView.builder(
@@ -639,12 +687,14 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
         final String src = t.sourceId == 'netease'
             ? '网易云'
             : t.sourceId == 'bilibili'
-                ? 'B站'
-                : '本地';
+            ? 'B站'
+            : '本地';
         return ListTile(
           title: Text(t.title, style: TextStyle(color: c.textPrimary)),
-          subtitle: Text('$src · ${t.artist}',
-              style: TextStyle(color: c.textSecondary, fontSize: 12)),
+          subtitle: Text(
+            '$src · ${t.artist}',
+            style: TextStyle(color: c.textSecondary, fontSize: 12),
+          ),
           onTap: () => Navigator.of(context).pop(t),
         );
       },
