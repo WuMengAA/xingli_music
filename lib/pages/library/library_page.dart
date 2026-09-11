@@ -35,7 +35,9 @@ import 'package:xingli_music/widgets/design/glass_controls.dart';
 /// 歌单（playlistsProvider）——四个 Tab 全部接入真实数据。
 enum LibraryTab { tracks, playlists, albums, artists }
 
-final libraryCategoryProvider = StateProvider<LibraryTab>((_) => LibraryTab.tracks);
+final libraryCategoryProvider = StateProvider<LibraryTab>(
+  (_) => LibraryTab.tracks,
+);
 
 /// 曲库页（cl15 四栏重构 · 对齐画布 3:147）
 ///
@@ -63,8 +65,7 @@ class LibraryPage extends ConsumerWidget {
         hintText: Terms.librarySearchHint,
         query: query,
         onChanged: (String v) =>
-            ref.read(searchQueryProvider(ShellPage.library).notifier).state =
-                v,
+            ref.read(searchQueryProvider(ShellPage.library).notifier).state = v,
       ),
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -103,32 +104,57 @@ class _ToolsQuickRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: <Widget>[
-          _toolChip(context, c, Icons.wb_sunny_outlined, '天气',
-              () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
-                  )),
+          _toolChip(
+            context,
+            c,
+            Icons.wb_sunny_outlined,
+            '天气',
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const WeatherPage()),
+            ),
+          ),
           const SizedBox(width: 8),
-          _toolChip(context, c, Icons.calendar_month_outlined, '日历',
-              () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
-                  )),
+          _toolChip(
+            context,
+            c,
+            Icons.calendar_month_outlined,
+            '日历',
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const CalendarPage()),
+            ),
+          ),
           const SizedBox(width: 8),
-          _toolChip(context, c, Icons.school_outlined, 'ClassIsland',
-              () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const ClassIslandPage()),
-                  )),
+          _toolChip(
+            context,
+            c,
+            Icons.school_outlined,
+            'ClassIsland',
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ClassIslandPage()),
+            ),
+          ),
           const SizedBox(width: 8),
-          _toolChip(context, c, Icons.grid_view_outlined, '全部工具',
-              () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const ToolsPanelPage()),
-                  )),
+          _toolChip(
+            context,
+            c,
+            Icons.grid_view_outlined,
+            '全部工具',
+            () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const ToolsPanelPage()),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _toolChip(BuildContext context, AppThemeColors c, IconData icon,
-      String label, VoidCallback onTap) {
+  Widget _toolChip(
+    BuildContext context,
+    AppThemeColors c,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return Material(
       type: MaterialType.transparency,
       child: InkWell(
@@ -146,9 +172,10 @@ class _ToolsQuickRow extends StatelessWidget {
             children: <Widget>[
               Icon(icon, size: 14, color: c.accent),
               const SizedBox(width: 6),
-              Text(label,
-                  style: context.appText.caption
-                      .copyWith(color: c.textSecondary)),
+              Text(
+                label,
+                style: context.appText.caption.copyWith(color: c.textSecondary),
+              ),
             ],
           ),
         ),
@@ -180,9 +207,8 @@ class _CategoryTabs extends ConsumerWidget {
             _Chip(
               label: _tabs[i].$1,
               selected: sel == _tabs[i].$2,
-              onTap: () => ref
-                  .read(libraryCategoryProvider.notifier)
-                  .state = _tabs[i].$2,
+              onTap: () => ref.read(libraryCategoryProvider.notifier).state =
+                  _tabs[i].$2,
             ),
           ],
         ],
@@ -195,10 +221,14 @@ class _CategoryTabs extends ConsumerWidget {
 /// 返回 sliver 列表，交由页面级 [CustomScrollView] 统一视窗化（仅构建可见行），
 /// 取代此前 [SingleChildScrollView]+[Column] 把全部曲目一次性建树的内存/卡顿问题。
 List<Widget> _buildTracksSlivers(
-    BuildContext context, WidgetRef ref, String query) {
+  BuildContext context,
+  WidgetRef ref,
+  String query,
+) {
   final LibraryViewStyle style = ref.watch(libraryViewStyleProvider);
-  final AsyncValue<List<Track>> library =
-      ref.watch(effectiveMusicLibraryProvider);
+  final AsyncValue<List<Track>> library = ref.watch(
+    effectiveMusicLibraryProvider,
+  );
   final AsyncValue<List<TrackStats>> stats = ref.watch(playStatsProvider);
   final bool landscape =
       MediaQuery.of(context).size.width >= AppSize.landscapeBreakpoint;
@@ -213,6 +243,8 @@ List<Widget> _buildTracksSlivers(
             child: Text(Terms.recentlyPlayed, style: context.appText.title),
           ),
           const _ViewToggle(),
+          const SizedBox(width: 4),
+          const _SortButton(),
         ],
       ),
     ),
@@ -228,7 +260,10 @@ List<Widget> _buildTracksSlivers(
         ),
       ),
       data: (List<Track> all) {
-        final List<Track> shown = _filter(all, query);
+        final List<Track> shown = _applySort(
+          _filter(all, query),
+          ref.watch(librarySortProvider),
+        );
         if (shown.isEmpty) {
           return const SliverToBoxAdapter(child: LibraryEmptyView());
         }
@@ -266,15 +301,18 @@ List<Widget> _buildTracksSlivers(
     const SliverToBoxAdapter(child: SizedBox(height: 20)),
     // 时光沉底横幅（累计听歌时长）。
     SliverToBoxAdapter(
-        child: _TimeSinkBanner(totalMs: ref.watch(totalPlayMsProvider))),
+      child: _TimeSinkBanner(totalMs: ref.watch(totalPlayMsProvider)),
+    ),
     const SliverToBoxAdapter(child: SizedBox(height: 20)),
     // 「你的排行」。
     SliverToBoxAdapter(
-        child: Text(Terms.topCharts, style: context.appText.title)),
+      child: Text(Terms.topCharts, style: context.appText.title),
+    ),
     const SliverToBoxAdapter(child: SizedBox(height: 12)),
     stats.when(
       loading: () => const SliverToBoxAdapter(
-          child: LoadingView(label: Terms.topChartsLoading)),
+        child: LoadingView(label: Terms.topChartsLoading),
+      ),
       error: (Object e, StackTrace st) => SliverToBoxAdapter(
         child: ErrorView(
           message: Terms.loadFailed,
@@ -297,9 +335,7 @@ List<Widget> _buildTracksSlivers(
             children: <Widget>[
               for (int i = 0; i < top.length; i++)
                 Padding(
-                  padding: EdgeInsets.only(
-                    bottom: i < top.length - 1 ? 10 : 0,
-                  ),
+                  padding: EdgeInsets.only(bottom: i < top.length - 1 ? 10 : 0),
                   child: _RankRowCard(
                     rank: i + 1,
                     stats: top[i],
@@ -324,9 +360,8 @@ class _PlaylistsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AsyncValue<List<Playlist>> pls = ref.watch(playlistsProvider);
     return pls.when(
-      loading: () => const SliverToBoxAdapter(
-        child: LoadingView(label: Terms.loading),
-      ),
+      loading: () =>
+          const SliverToBoxAdapter(child: LoadingView(label: Terms.loading)),
       error: (Object e, StackTrace st) => SliverToBoxAdapter(
         child: ErrorView(
           message: Terms.loadFailed,
@@ -338,8 +373,8 @@ class _PlaylistsTab extends ConsumerWidget {
         final List<Playlist> shown = q.isEmpty
             ? list
             : list
-                .where((Playlist p) => p.name.toLowerCase().contains(q))
-                .toList();
+                  .where((Playlist p) => p.name.toLowerCase().contains(q))
+                  .toList();
         if (shown.isEmpty) {
           return const SliverToBoxAdapter(
             child: EmptyView(
@@ -350,52 +385,50 @@ class _PlaylistsTab extends ConsumerWidget {
         }
         // 视窗化：仅构建可见歌单卡（SliverList 懒构建）。
         return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (BuildContext ctx, int index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Text(Terms.filterPlaylists,
-                            style: context.appText.title),
-                      ),
-                      TextButton.icon(
-                        onPressed: () => _createPlaylist(ref, context),
-                        icon: const Icon(Icons.add_rounded, size: 18),
-                        label: Text(Terms.createPlaylist),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const M3uTransferPage(),
-                          ),
-                        ),
-                        icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                        label: const Text('导入 M3U8'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              final Playlist p = shown[index - 1];
+          delegate: SliverChildBuilderDelegate((BuildContext ctx, int index) {
+            if (index == 0) {
               return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _PlaylistCard(
-                  playlist: p,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => PlaylistDetailPage(
-                          playlistId: p.id ?? -1),
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
+                        Terms.filterPlaylists,
+                        style: context.appText.title,
+                      ),
                     ),
-                  ),
+                    TextButton.icon(
+                      onPressed: () => _createPlaylist(ref, context),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text(Terms.createPlaylist),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const M3uTransferPage(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                      label: const Text('导入 M3U8'),
+                    ),
+                  ],
                 ),
               );
-            },
-            childCount: shown.length + 1,
-          ),
+            }
+            final Playlist p = shown[index - 1];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _PlaylistCard(
+                playlist: p,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PlaylistDetailPage(playlistId: p.id ?? -1),
+                  ),
+                ),
+              ),
+            );
+          }, childCount: shown.length + 1),
         );
       },
     );
@@ -419,8 +452,7 @@ class _PlaylistsTab extends ConsumerWidget {
             child: const Text('取消'),
           ),
           XGlassButton(
-            onPressed: () =>
-                Navigator.of(dctx).pop(ctrl.text.trim()),
+            onPressed: () => Navigator.of(dctx).pop(ctrl.text.trim()),
             child: const Text('创建'),
           ),
         ],
@@ -450,12 +482,12 @@ class _AlbumsTabState extends ConsumerState<_AlbumsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<List<Track>> library =
-        ref.watch(effectiveMusicLibraryProvider);
+    final AsyncValue<List<Track>> library = ref.watch(
+      effectiveMusicLibraryProvider,
+    );
     return library.when(
-      loading: () => const SliverToBoxAdapter(
-        child: LoadingView(label: Terms.loading),
-      ),
+      loading: () =>
+          const SliverToBoxAdapter(child: LoadingView(label: Terms.loading)),
       error: (Object e, StackTrace st) => SliverToBoxAdapter(
         child: ErrorView(
           message: Terms.loadFailed,
@@ -478,51 +510,47 @@ class _AlbumsTabState extends ConsumerState<_AlbumsTab> {
         }
         if (groups.isEmpty) {
           return const SliverToBoxAdapter(
-            child: EmptyView(
-              title: '还没有专辑',
-              message: '播放带专辑信息的歌曲后会自动归类',
-            ),
+            child: EmptyView(title: '还没有专辑', message: '播放带专辑信息的歌曲后会自动归类'),
           );
         }
         final List<String> names = groups.keys.toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         // 视窗化：仅构建可见分组卡（SliverList 懒构建）。
         return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (BuildContext ctx, int index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text('${Terms.filterAlbums}（${names.length}）',
-                      style: context.appText.title),
-                );
-              }
-              final String name = names[index - 1];
-              final bool open = _expanded == name;
+          delegate: SliverChildBuilderDelegate((BuildContext ctx, int index) {
+            if (index == 0) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _GroupCard(
-                  title: name,
-                  subtitle: '${groups[name]!.length} 首',
-                  coverUrl: _firstCover(groups[name]!),
-                  expanded: open,
-                  onTap: () => setState(() {
-                    _expanded = open ? null : name;
-                  }),
-                  children: open
-                      ? <Widget>[
-                          for (final Track t in groups[name]!)
-                            _TrackRowCard(
-                              track: t,
-                              onTap: () => _playTrack(ref, context, t),
-                            ),
-                        ]
-                      : const <Widget>[],
+                child: Text(
+                  '${Terms.filterAlbums}（${names.length}）',
+                  style: context.appText.title,
                 ),
               );
-            },
-            childCount: names.length + 1,
-          ),
+            }
+            final String name = names[index - 1];
+            final bool open = _expanded == name;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _GroupCard(
+                title: name,
+                subtitle: '${groups[name]!.length} 首',
+                coverUrl: _firstCover(groups[name]!),
+                expanded: open,
+                onTap: () => setState(() {
+                  _expanded = open ? null : name;
+                }),
+                children: open
+                    ? <Widget>[
+                        for (final Track t in groups[name]!)
+                          _TrackRowCard(
+                            track: t,
+                            onTap: () => _playTrack(ref, context, t),
+                          ),
+                      ]
+                    : const <Widget>[],
+              ),
+            );
+          }, childCount: names.length + 1),
         );
       },
     );
@@ -551,12 +579,12 @@ class _ArtistsTabState extends ConsumerState<_ArtistsTab> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<List<Track>> library =
-        ref.watch(effectiveMusicLibraryProvider);
+    final AsyncValue<List<Track>> library = ref.watch(
+      effectiveMusicLibraryProvider,
+    );
     return library.when(
-      loading: () => const SliverToBoxAdapter(
-        child: LoadingView(label: Terms.loading),
-      ),
+      loading: () =>
+          const SliverToBoxAdapter(child: LoadingView(label: Terms.loading)),
       error: (Object e, StackTrace st) => SliverToBoxAdapter(
         child: ErrorView(
           message: Terms.loadFailed,
@@ -578,51 +606,47 @@ class _ArtistsTabState extends ConsumerState<_ArtistsTab> {
         }
         if (groups.isEmpty) {
           return const SliverToBoxAdapter(
-            child: EmptyView(
-              title: '还没有歌手',
-              message: '播放带歌手信息的歌曲后会自动归类',
-            ),
+            child: EmptyView(title: '还没有歌手', message: '播放带歌手信息的歌曲后会自动归类'),
           );
         }
         final List<String> names = groups.keys.toList()
           ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
         // 视窗化：仅构建可见分组卡（SliverList 懒构建）。
         return SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (BuildContext ctx, int index) {
-              if (index == 0) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Text('${Terms.filterSingers}（${names.length}）',
-                      style: context.appText.title),
-                );
-              }
-              final String name = names[index - 1];
-              final bool open = _expanded == name;
+          delegate: SliverChildBuilderDelegate((BuildContext ctx, int index) {
+            if (index == 0) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: _GroupCard(
-                  title: name,
-                  subtitle: '${groups[name]!.length} 首',
-                  coverUrl: _firstCover(groups[name]!),
-                  expanded: open,
-                  onTap: () => setState(() {
-                    _expanded = open ? null : name;
-                  }),
-                  children: open
-                      ? <Widget>[
-                          for (final Track t in groups[name]!)
-                            _TrackRowCard(
-                              track: t,
-                              onTap: () => _playTrack(ref, context, t),
-                            ),
-                        ]
-                      : const <Widget>[],
+                child: Text(
+                  '${Terms.filterSingers}（${names.length}）',
+                  style: context.appText.title,
                 ),
               );
-            },
-            childCount: names.length + 1,
-          ),
+            }
+            final String name = names[index - 1];
+            final bool open = _expanded == name;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _GroupCard(
+                title: name,
+                subtitle: '${groups[name]!.length} 首',
+                coverUrl: _firstCover(groups[name]!),
+                expanded: open,
+                onTap: () => setState(() {
+                  _expanded = open ? null : name;
+                }),
+                children: open
+                    ? <Widget>[
+                        for (final Track t in groups[name]!)
+                          _TrackRowCard(
+                            track: t,
+                            onTap: () => _playTrack(ref, context, t),
+                          ),
+                      ]
+                    : const <Widget>[],
+              ),
+            );
+          }, childCount: names.length + 1),
         );
       },
     );
@@ -681,7 +705,9 @@ class _GroupCard extends StatelessWidget {
                 onTap: onTap,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: <Widget>[
                       ClipRRect(
@@ -695,9 +721,12 @@ class _GroupCard extends StatelessWidget {
                                   cacheWidth: 256,
                                   fit: BoxFit.cover,
                                   errorBuilder: (_, __, ___) => fallback,
-                                  loadingBuilder: (BuildContext c2,
-                                          Widget child, ImageChunkEvent? p) =>
-                                      p == null ? child : fallback,
+                                  loadingBuilder:
+                                      (
+                                        BuildContext c2,
+                                        Widget child,
+                                        ImageChunkEvent? p,
+                                      ) => p == null ? child : fallback,
                                 )
                               : fallback,
                         ),
@@ -708,13 +737,14 @@ class _GroupCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
-                            Text(title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: context.appText.trackName),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.appText.trackName,
+                            ),
                             const SizedBox(height: 2),
-                            Text(subtitle,
-                                style: context.appText.caption),
+                            Text(subtitle, style: context.appText.caption),
                           ],
                         ),
                       ),
@@ -731,10 +761,7 @@ class _GroupCard extends StatelessWidget {
             ),
           ),
           // 展开的歌曲列表。
-          if (expanded) ...<Widget>[
-            const SizedBox(height: 8),
-            ...children,
-          ],
+          if (expanded) ...<Widget>[const SizedBox(height: 8), ...children],
         ],
       ),
     );
@@ -773,10 +800,12 @@ class _PlaylistCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(playlist.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appText.trackName),
+                      Text(
+                        playlist.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.trackName,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${playlist.trackCount} 首',
@@ -841,9 +870,7 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? c.accent : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(
-              color: selected ? c.accent : c.border,
-            ),
+            border: Border.all(color: selected ? c.accent : c.border),
           ),
           child: Text(
             label,
@@ -914,10 +941,12 @@ class _TrackRowCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appText.trackName),
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.trackName,
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         track.artist,
@@ -963,9 +992,9 @@ class _RowCover extends StatelessWidget {
                 cacheWidth: 256,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => fallback,
-                loadingBuilder: (BuildContext c2, Widget child,
-                        ImageChunkEvent? p) =>
-                    p == null ? child : fallback,
+                loadingBuilder:
+                    (BuildContext c2, Widget child, ImageChunkEvent? p) =>
+                        p == null ? child : fallback,
               )
             : fallback,
       ),
@@ -1028,10 +1057,12 @@ class _RankRowCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Text(stats.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appText.trackName),
+                      Text(
+                        stats.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appText.trackName,
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         '${stats.artist} · 播 ${stats.playCount} 次 · ${stats.totalLabel}',
@@ -1079,9 +1110,10 @@ class _TimeSinkBanner extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(Terms.totalPlaytime,
-                style: context.appText.caption
-                    .copyWith(color: c.textSecondary)),
+            Text(
+              Terms.totalPlaytime,
+              style: context.appText.caption.copyWith(color: c.textSecondary),
+            ),
             const SizedBox(height: 6),
             totalMs.when(
               data: (int v) => Text(
@@ -1102,8 +1134,10 @@ class _TimeSinkBanner extends StatelessWidget {
                   ),
                 ),
               ),
-              error: (_, __) => Text('—',
-                  style: context.appText.title.copyWith(color: c.accent)),
+              error: (_, __) => Text(
+                '—',
+                style: context.appText.title.copyWith(color: c.accent),
+              ),
             ),
           ],
         ),
@@ -1119,24 +1153,27 @@ List<Track> _filter(List<Track> all, String query) {
   final String q = query.trim().toLowerCase();
   if (q.isEmpty) return all;
   return all
-      .where((Track t) =>
-          t.title.toLowerCase().contains(q) ||
-          t.artist.toLowerCase().contains(q) ||
-          (t.album ?? '').toLowerCase().contains(q))
+      .where(
+        (Track t) =>
+            t.title.toLowerCase().contains(q) ||
+            t.artist.toLowerCase().contains(q) ||
+            (t.album ?? '').toLowerCase().contains(q),
+      )
       .toList();
 }
 
-Future<void> _playTrack(
-    WidgetRef ref, BuildContext context, Track t) async {
+Future<void> _playTrack(WidgetRef ref, BuildContext context, Track t) async {
   final String msg = await ref.read(playbackActionsProvider).playTrack(t);
   if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
 }
 
 /// 在曲库中按归一化键匹配真实 [Track] 后播放（听歌排行复用）。
 Future<void> _playStats(
-    WidgetRef ref, BuildContext context, TrackStats s) async {
-  final List<Track> all =
-      await ref.read(effectiveMusicLibraryProvider.future);
+  WidgetRef ref,
+  BuildContext context,
+  TrackStats s,
+) async {
+  final List<Track> all = await ref.read(effectiveMusicLibraryProvider.future);
   Track? matched;
   for (final Track t in all) {
     if (trackKeyOf(t.title, t.artist, t.sourceId) ==
@@ -1149,7 +1186,117 @@ Future<void> _playStats(
     if (context.mounted) appNotify(context, Terms.trackNotFound);
     return;
   }
-  final String msg =
-      await ref.read(playbackActionsProvider).playTrack(matched);
+  final String msg = await ref.read(playbackActionsProvider).playTrack(matched);
   if (msg.isNotEmpty && context.mounted) appNotify(context, msg);
+}
+
+/// 曲库歌曲栏排序：order 保持默认顺序；标题/艺术家忽略大小写，时长空值垫底。
+List<Track> _applySort(List<Track> list, LibrarySortBy sort) {
+  if (sort == LibrarySortBy.order) return list;
+  final List<Track> out = List<Track>.of(list);
+  switch (sort) {
+    case LibrarySortBy.title:
+      out.sort(
+        (Track a, Track b) =>
+            a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+      );
+      break;
+    case LibrarySortBy.artist:
+      out.sort((Track a, Track b) {
+        final int c = a.artist.toLowerCase().compareTo(b.artist.toLowerCase());
+        if (c != 0) return c;
+        return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+      });
+      break;
+    case LibrarySortBy.duration:
+      out.sort(
+        (Track a, Track b) => (a.duration?.inMilliseconds ?? 0).compareTo(
+          b.duration?.inMilliseconds ?? 0,
+        ),
+      );
+      break;
+    case LibrarySortBy.order:
+      return list;
+  }
+  return out;
+}
+
+/// 歌曲栏排序按钮：激活态着色，点击弹底部选项。
+class _SortButton extends ConsumerWidget {
+  const _SortButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final LibrarySortBy sort = ref.watch(librarySortProvider);
+    return IconButton(
+      tooltip: '排序',
+      icon: Icon(
+        Icons.sort_rounded,
+        size: AppSize.iconSm,
+        color: sort == LibrarySortBy.order
+            ? context.appColors.iconInactive
+            : context.appColors.accent,
+      ),
+      onPressed: () => _showSortSheet(context, ref),
+    );
+  }
+}
+
+/// 排序底部弹层（默认 / 标题 / 艺术家 / 时长）。
+Future<void> _showSortSheet(BuildContext context, WidgetRef ref) {
+  final LibrarySortBy current = ref.read(librarySortProvider);
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: context.appColors.bgSurface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+    ),
+    builder: (BuildContext ctx) {
+      final AppThemeColors c = context.appColors;
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.all(AppSpace.lg),
+              child: Text('排序方式', style: context.appText.title),
+            ),
+            for (final LibrarySortBy s in LibrarySortBy.values)
+              ListTile(
+                leading: Icon(
+                  switch (s) {
+                    LibrarySortBy.order => Icons.notes_rounded,
+                    LibrarySortBy.title => Icons.text_fields_rounded,
+                    LibrarySortBy.artist => Icons.person_outline_rounded,
+                    LibrarySortBy.duration => Icons.timer_outlined,
+                  },
+                  size: AppSize.iconSm,
+                  color: s == current ? c.accent : c.iconInactive,
+                ),
+                title: Text(switch (s) {
+                  LibrarySortBy.order => '默认顺序',
+                  LibrarySortBy.title => '按标题',
+                  LibrarySortBy.artist => '按艺术家',
+                  LibrarySortBy.duration => '按时长',
+                }, style: context.appText.body),
+                trailing: s == current
+                    ? Icon(
+                        Icons.check_rounded,
+                        size: AppSize.iconSm,
+                        color: c.accent,
+                      )
+                    : null,
+                onTap: () {
+                  if (s != current) {
+                    ref.read(librarySortProvider.notifier).state = s;
+                  }
+                  Navigator.of(ctx).pop();
+                },
+              ),
+            const SizedBox(height: AppSpace.sm),
+          ],
+        ),
+      );
+    },
+  );
 }

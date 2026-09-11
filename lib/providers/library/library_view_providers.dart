@@ -9,10 +9,10 @@ enum LibraryViewStyle { card, list }
 
 /// 当前浏览样式（持久化到 prefs，key：`library_view_style_v1`）。
 final StateNotifierProvider<LibraryViewStyleNotifier, LibraryViewStyle>
-    libraryViewStyleProvider =
+libraryViewStyleProvider =
     StateNotifierProvider<LibraryViewStyleNotifier, LibraryViewStyle>(
-  (Ref ref) => LibraryViewStyleNotifier(ref.watch(prefsProvider)),
-);
+      (Ref ref) => LibraryViewStyleNotifier(ref.watch(prefsProvider)),
+    );
 
 class LibraryViewStyleNotifier extends StateNotifier<LibraryViewStyle> {
   LibraryViewStyleNotifier(this._prefs) : super(LibraryViewStyle.card) {
@@ -41,3 +41,10 @@ class LibraryViewStyleNotifier extends StateNotifier<LibraryViewStyle> {
     }
   }
 }
+
+/// 曲库歌曲栏排序方式。
+enum LibrarySortBy { order, title, artist, duration }
+
+/// 当前排序（会话级，不持久化；order = 曲库默认顺序）。
+final StateProvider<LibrarySortBy> librarySortProvider =
+    StateProvider<LibrarySortBy>((Ref ref) => LibrarySortBy.order);

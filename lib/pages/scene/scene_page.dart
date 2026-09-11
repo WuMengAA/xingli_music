@@ -2,6 +2,7 @@ import '../../core/theme/app_theme_colors.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/light_tokens.dart';
@@ -158,7 +159,8 @@ class HomeSceneContent extends ConsumerWidget {
                     Text(
                       _timeGreeting(DateTime.now()),
                       style: context.appText.caption.copyWith(
-                        fontSize: 13,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                         color: c.textSecondary,
                       ),
                     ),
@@ -166,8 +168,9 @@ class HomeSceneContent extends ConsumerWidget {
                     Text(
                       '星璃音乐',
                       style: context.appText.title.copyWith(
-                        fontSize: 21,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
                         color: c.textPrimary,
                       ),
                     ),
@@ -235,6 +238,7 @@ class HomeSceneContent extends ConsumerWidget {
                                     ),
                                   ),
                                   onSceneChanged: (int i) {
+                                    HapticFeedback.lightImpact();
                                     ref
                                             .read(
                                               currentSceneIndexProvider
@@ -486,28 +490,42 @@ class _VoxelBgToggle extends StatelessWidget {
         message: live
             ? '游戏背景已开 · 实时渲染中（长按关闭实时）'
             : (enabled ? '游戏背景已开（长按实时渲染）' : '游戏背景已关（点击开启）'),
-        child: GestureDetector(
-          onTap: available ? onToggle : null,
-          onLongPress: available ? onLongPress : null,
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: enabled
-                  ? context.appColors.accent.withValues(alpha: 0.22)
-                  : context.appColors.bgSurface,
-            ),
-            child: Icon(
-              live
-                  ? Icons.visibility_rounded
-                  : (enabled
-                        ? Icons.view_in_ar_rounded
-                        : Icons.view_in_ar_outlined),
-              size: 18,
-              color: enabled
-                  ? context.appColors.accent
-                  : context.appColors.iconPrimary,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: available
+                ? () {
+                    HapticFeedback.lightImpact();
+                    onToggle();
+                  }
+                : null,
+            onLongPress: available
+                ? () {
+                    HapticFeedback.lightImpact();
+                    onLongPress();
+                  }
+                : null,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: enabled
+                    ? context.appColors.accent.withValues(alpha: 0.22)
+                    : context.appColors.bgSurface,
+              ),
+              child: Icon(
+                live
+                    ? Icons.visibility_rounded
+                    : (enabled
+                          ? Icons.view_in_ar_rounded
+                          : Icons.view_in_ar_outlined),
+                size: 18,
+                color: enabled
+                    ? context.appColors.accent
+                    : context.appColors.iconPrimary,
+              ),
             ),
           ),
         ),
@@ -540,7 +558,10 @@ class _SceneIconButton extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: onTap,
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
             child: Container(
               width: 32,
               height: 32,

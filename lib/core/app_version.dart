@@ -481,7 +481,7 @@ abstract final class AppVersion {
   ///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
   /// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
   ///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
-  static const int buildCount = 5;
+  static const int buildCount = 6;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -546,6 +546,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.11',
+    cl: 'alpha_cl06',
+    title: '体验优化：主页视觉文字 + 跟手反馈 + 曲库排序',
+    details: <String>[
+      '主页头部强化：品牌名加大加粗加字距，问候语提升可读性，视觉锚点更明确',
+      '主页操作跟手：场景切换 / 背景开关 / 右上功能钮补震动反馈，背景开关补水波纹',
+      '曲库歌曲栏新增排序菜单（默认 / 标题 / 艺术家 / 时长）',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.11',
     cl: 'alpha_cl05',
