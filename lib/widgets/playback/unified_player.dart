@@ -11,6 +11,7 @@ import '../../models/track.dart';
 import '../../models/track_stats.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
+import '../../providers/cast/cast_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/audio/sleep_timer_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
@@ -28,7 +29,6 @@ import 'bili_visual_options_sheet.dart';
 import 'equalizer_panel.dart';
 import '../../providers/settings/performance_providers.dart';
 import 'playback_controls.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 统一播放器组件（场景默认样式）
@@ -705,9 +705,50 @@ Widget buildBottomActions(
         _SpeedButton(),
         // R26skel：睡眠定时（播放体验优化）。
         _SleepTimerButton(),
+        // 投屏最小版：一键开关局域网串流（CastStreamServer）。
+        _CastButton(),
       ],
     ),
   );
+}
+
+/// 投屏按钮：一键开关局域网串流服务（[CastStreamServer]）。
+///
+/// 开启后同网设备 / 电视盒用浏览器打开 [CastPage] 给出的地址即可播放当前曲目；
+/// 再次点击关闭。Windows 无系统级 Cast/AirPlay，此即最小投屏通路。
+class _CastButton extends ConsumerWidget {
+  const _CastButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bool running = ref.watch(castServerProvider).running;
+    final AppThemeColors colors = context.appColors;
+    return Tooltip(
+      message: running ? '关闭投屏' : '投屏',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => ref.read(castServerProvider.notifier).toggle(),
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(
+                  running ? Icons.cast_connected_rounded : Icons.cast_rounded,
+                  size: 18,
+                  color: running ? colors.accent : colors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Text('投屏', style: context.appText.caption),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// 均衡器弹层（底部卡片）：紧凑卡片与全屏 Overlay 共用（cl52-B 提取）。

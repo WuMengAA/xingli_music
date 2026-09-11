@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/cast/cast_stream_server.dart';
+import '../audio/audio_providers.dart';
 
 /// 投屏服务 UI 状态。
 class CastUiState {
@@ -40,8 +41,9 @@ class CastUiState {
 
 /// 投屏服务控制器：启停 + 端口 + 本机 IP 列表。
 class CastServerController extends StateNotifier<CastUiState> {
-  CastServerController() : super(const CastUiState());
+  CastServerController(this.ref) : super(const CastUiState());
 
+  final Ref ref;
   bool _busy = false;
 
   Future<void> toggle() async {
@@ -53,6 +55,8 @@ class CastServerController extends StateNotifier<CastUiState> {
         await srv.stop();
         state = state.copyWith(running: false);
       } else {
+        // 注入「当前曲目」读取器，使 GET /stream 自动指向 nowPlaying。
+        srv.currentTrackUri = () => ref.read(nowPlayingProvider)?.uri;
         final int port = await srv.start();
         final List<String> ips = await srv.localIPv4();
         state = state.copyWith(running: true, port: port, ips: ips);
@@ -65,5 +69,5 @@ class CastServerController extends StateNotifier<CastUiState> {
 
 final castServerProvider =
     StateNotifierProvider<CastServerController, CastUiState>(
-  (ref) => CastServerController(),
+  (ref) => CastServerController(ref),
 );

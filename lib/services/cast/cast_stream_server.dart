@@ -33,6 +33,9 @@ class CastStreamServer {
   bool _running = false;
   final http.Client _proxy = http.Client();
 
+  /// 当前曲目 uri 读取器（由 UI 注入）；[GET /stream] 自动指向 nowPlaying。
+  String? Function()? currentTrackUri;
+
   bool get running => _running;
 
   /// 实际绑定端口（未启动时为 [defaultPort]）。
@@ -98,6 +101,22 @@ class CastStreamServer {
           await _respondStream(req, res);
         case '/info':
           await _respondInfo(req, res);
+        case '/stream':
+          // 自动指向当前曲目（nowPlaying）；也允许显式 ?uri= 覆盖。
+          final String? uri = req.uri.queryParameters['uri'] ??
+              currentTrackUri?.call();
+          if (uri == null || uri.isEmpty) {
+            res.statusCode = HttpStatus.badRequest;
+            res.write('no current track');
+            await res.close();
+            break;
+          }
+          if (uri.startsWith('http://') || uri.startsWith('https://')) {
+            await _proxyRemote(req, res, uri);
+          } else {
+            await _serveFile(req, res, uri);
+          }
+          break;
         default:
           res.statusCode = HttpStatus.notFound;
           res.write('not found');
@@ -156,6 +175,14 @@ class CastStreamServer {
   }
 
   Future<void> _serveFile(HttpRequest req, HttpResponse res, String path) async {
+    // SAF / file_picker 选文件夹所得 content:// 不是文件系统路径，无法直读；
+    // 最小版本不支持其串流（需 DocumentFile 管道化），明确告知而非 404 沉默。
+    if (path.startsWith('content://')) {
+      res.statusCode = HttpStatus.notImplemented;
+      res.write('content:// 曲源需经系统播放器打开，不支持局域网串流');
+      await res.close();
+      return;
+    }
     final File f = File(path);
     if (!await f.exists()) {
       res.statusCode = HttpStatus.notFound;

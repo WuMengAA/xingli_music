@@ -481,7 +481,7 @@ abstract final class AppVersion {
 ///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
 /// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
 ///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
-static const int buildCount = 3;
+static const int buildCount = 4;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -546,6 +546,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.11',
+    cl: 'alpha_cl04',
+    title: '投屏最小版（HTTP 流 + 系统 Cast 入口）',
+    details: <String>[
+      'CastStreamServer 新增 GET /stream：自动指向当前曲目，同网设备浏览器打开即可播放（带 Range 切片）',
+      '播放器操作行新增「投屏」按钮：一键开关局域网串流服务',
+      'content:// 曲源串流明确告知不支持（避免 404 沉默）',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.11',
     cl: 'alpha_cl03',
