@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../models/local_dir_config.dart';
 import '../../models/track.dart';
 import '../log_service.dart';
+import '../cue/cue_scan.dart';
 import 'music_source.dart';
 
 /// 自定义本地目录曲库源：扫描指定文件夹里的音频文件。
@@ -75,7 +76,7 @@ class LocalDirMusicSource implements MusicSource {
     // P-1：`config.path` 是用户绝对路径（含真实用户名），日志只留目录名。
     LogService.instance.i(
         'source', '目录曲库 …/$artist: 扫描到 ${tracks.length} 首');
-    return tracks;
+    return expandCueTracks(tracks);
   }
 
   @override

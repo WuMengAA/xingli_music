@@ -60,8 +60,8 @@ abstract class MusicBackend {
   /// 打开远程 URL 并准备播放。
   Future<void> openUrl(String url, {Map<String, String>? headers});
 
-  /// 打开本地文件路径并准备播放。
-  Future<void> openPath(String path);
+  /// 打开本地文件路径并准备播放；[start]/[end] 为 CUE 分轨区间（null=整轨）。
+  Future<void> openPath(String path, {Duration? start, Duration? end});
 
   /// 播放 / 继续。
   Future<void> play();

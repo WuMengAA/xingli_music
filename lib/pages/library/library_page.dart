@@ -19,6 +19,7 @@ import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/album_card.dart';
 import '../../widgets/common/page_scaffold.dart';
 import '../../widgets/common/state_views.dart';
+import '../../widgets/common/track_info_sheet.dart';
 import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/library/card_view.dart';
 import '../../widgets/notification/app_notify.dart';
@@ -901,6 +902,7 @@ class _TrackRowCard extends StatelessWidget {
         type: MaterialType.transparency,
         child: InkWell(
           onTap: onTap,
+          onLongPress: () => showTrackInfoSheet(context, track),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
             child: Row(

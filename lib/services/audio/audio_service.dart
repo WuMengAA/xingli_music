@@ -530,7 +530,16 @@ class AudioService {
         final String path = track.uri.startsWith('file://')
             ? Uri.parse(track.uri).toFilePath()
             : track.uri;
-        await _safe(() => _activeBackend.openPath(path), tag: 'openPath');
+        final Duration? cueStart = track.cueStartMs == null
+            ? null
+            : Duration(milliseconds: track.cueStartMs!);
+        final Duration? cueEnd = track.cueEndMs == null
+            ? null
+            : Duration(milliseconds: track.cueEndMs!);
+        await _safe(
+          () => _activeBackend.openPath(path, start: cueStart, end: cueEnd),
+          tag: 'openPath',
+        );
       } else {
         // 占位符（netease:///bili:// 等）解析失败却落到这里：绝不以文件路径
         // 打开非法 URI（原生层不可捕获崩溃）。判加载失败，回落 idle。
@@ -542,14 +551,8 @@ class AudioService {
       if (_disposed) return;
       _currentTrack = track;
       _trackCtrl.add(_currentTrack);
-      // T12 CUE 分轨：加载后从 INDEX 01 起点开始播（seek 到 cueStartMs）。
-      final int cueStart = track.cueStartMs ?? 0;
-      if (cueStart > 0) {
-        await _safe(
-          () => _activeBackend.seek(Duration(milliseconds: cueStart)),
-          tag: 'cueSeek',
-        );
-      }
+      // T12 CUE 分轨：起始/结束区间已在 openPath 内经 AudioSource / Media.start|end
+      // 命中（just_audio ClippingAudioSource / libmpv --start|--end），无需加载后再 seek。
       LogService.instance.i('audio', '加载成功: ${track.title}');
     } catch (e) {
       // 注意：异常文本本身常内嵌完整 uri（just_audio 会把 source 塞进

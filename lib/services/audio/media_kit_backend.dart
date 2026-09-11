@@ -242,7 +242,7 @@ class MediaKitBackend implements MusicBackend {
   }
 
   @override
-  Future<void> openPath(String path) async {
+  Future<void> openPath(String path, {Duration? start, Duration? end}) async {
     final Player p = await _ensurePlayer();
     // libmpv 需要标准 URI：裸路径（尤其 Windows 反斜杠路径）转 file:///。
     // 否则文件打不开 → 播放器无输出（R23c 双端无声的头号嫌疑）。
@@ -252,7 +252,7 @@ class MediaKitBackend implements MusicBackend {
         ? path
         : Uri.file(path).toString();
     try {
-      await p.open(Media(uri));
+      await p.open(Media(uri, start: start, end: end));
     } catch (e) {
       LogService.instance.e('audio', 'media_kit open 失败: $e');
       await _resetPlayer();

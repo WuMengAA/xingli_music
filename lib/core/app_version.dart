@@ -46,9 +46,9 @@ enum UpdateChannel {
 
   /// 从 tag 文本解析渠道（未知回落默认 beta）。
   static UpdateChannel fromTag(String tag) => switch (tag.toLowerCase()) {
-        'alpha' => UpdateChannel.alpha,
-        _ => UpdateChannel.beta,
-      };
+    'alpha' => UpdateChannel.alpha,
+    _ => UpdateChannel.beta,
+  };
 }
 
 /// 版本信息（编译期常量，发版时手动维护）。
@@ -402,86 +402,86 @@ abstract final class AppVersion {
   /// cl09（08.28）：后端内容联动——relay_server 扩展 REST 内容 API（/api/health、
   /// /api/content/scenes·playlists·notices·random，内容 JSON 热编辑）；App 端
   /// content_service + provider + 探索页公告条 + 设置「内容服务地址」；同步到
-/// ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件拉取显示）。
-/// cl10（08.28）：能力中心地基——架构定调「服务端全量支持、客户端自行选配」。
-/// relay_server 新增 /api/capabilities 能力清单（id/source/kind/title/endpoint/
-/// requiresCredential/credentialOwner/enabled/status，内容类 enabled 按 content
-/// JSON 存在性动态判定）；凭据默认 credentialOwner=client（留客户端、服务端无
-/// 状态适配不落盘，服务端不持账号资产）；App 端新建能力层（模型 + 主备逐个降级
-/// 拉取 + 本地缓存 + 选配持久化 + 与本地固有能力合并）；新增备用地址列表做多实
-/// 例兜底。本版为地基层，尚未接入 UI。
-/// cl11（08.28）：能力层落地到 UI。服务端把 netease.recommend 翻为 ready
-/// （客户端执行、不带 endpoint——凭据不出设备），netease.search / playlist 如实
-/// 保持 planned（歌单链路尚未落地）；新增「能力 → 内容」解析层，能力关闭即不
-/// 发请求；设置页音频分组新增「内容来源」入口页，按能力清单渲染开关（区分
-/// 「能力不可用」与「用户关掉」）；探索页实验区叠加能力门控，关掉即隐藏。
-/// cl12（08.29）：能力清单与事实对齐 + 搜索接入能力开关。核对发现客户端 8 月
-/// 即已完整实现网易云搜索与 B站搜索（含 WBI 签名与播放地址解析），却在清单里
-/// 误标为 planned，本版纠正为 ready；B站搜索实测无需登录即可返回数据，故不标
-/// requiresCredential（与网易云区分）。解析层支持搜索词，接入 netease.search /
-/// bilibili.search；聚合搜索页的来源筛选与结果按能力开关过滤，关掉的来源不再
-/// 发请求、也不再催登录。netease.playlist 维持 planned（歌单链路确未落地）。
-/// cl02（08.31）：液态玻璃性能基准 + 高级调节分离 + 白噪音粉红噪声采样——
-/// ①「液态玻璃·性能基准」页（设置→关于→开发者工具）实测 premium/standard/
-/// minimal 三档光栅帧耗时（P50/P75/P95/P99）+ shader 支持探测 + 降级建议
-/// （对照包内 GlassQualityAdapter 阈值 20/28ms），诊断「部分安卓手机无法加载
-/// 液态玻璃」（Mali/Impeller 的 premium 路径专属问题）；②「液态玻璃·高级调节」
-/// 独立页（premium 真折射参数：折射/色散/厚度/色差/辉光/Fresnel/环境光边），
-/// 与标准模式严格分离——frosted/standard 路径零改动，仅 GlassStyle.liquid 读取
-/// 覆盖 provider，恢复默认即回标准；③白噪音采样优化——旧实现 prev=white-
-/// prev*0.35 实为高通反馈（增强高频→刺耳嘶声），R23p 换 Paul Kellet 粉红噪声
-/// （-3dB/oct 平滑下倾），主白噪与分类提示音 shhh 同步改，version 3→4 强制重建
-/// 缓存文件。buildCount 1→2（0.26.8.31_beta_cl02）。
-/// cl03（08.31）：底部导航栏 Dock 上液态玻璃——恢复 GlassStyle.liquid premium
-/// 真折射/色散路径（0.26.8.29 曾因 Windows 底部浮层 own-layer 不稳定回退原生
-/// BackdropFilter；包升至 0.29.8 且同浮层播放控制栏已稳定走此路径），参数对齐
-/// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
-/// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
-/// buildCount 2→3（0.26.8.31_beta_cl03）。
-/// buildCount 4→5（0.26.9.3_beta_cl05）：R33 收尾全量——多音源显式切换、
-/// 排期管理拖拽、analyze 全零告警清理、白噪音默认关闭、OOBE 改版、字体背景
-/// 颜色自适应、严重回归（源文件损坏 0 编译）修复、OOBE 布局冒烟测试。
-/// buildCount 5→6（0.26.9.3_beta_cl06）：功能拓展五件套（SMTC/天气/日历/
-/// ClassIsland 联动/集控插件）+ UI 选型（Spotify 深色沉浸）+ 即开即用优化
-/// （工具面板整合/主页今日信息行/列表紧凑）+ 后续可做项（集控鉴权/农历/
-/// 天气自动定位/SMTC 网络封面/播放页大封面/ip 定位降级）。
-/// buildCount 6→7（0.26.9.3_beta_cl07）：修歌单报错（JOIN 取元数据+未播曲
-/// 兜底）+ 修天气城市管理无法添加查询（面板本地刷新）+ 曲库顶部工具快捷入口。
-/// buildCount 7→8（0.26.9.3_beta_cl08）：持续修复一批——OTA 下载镜像代理
-/// 重试 + 下载残留清理、SMTC 网络封面临时目录泄漏、天气 JSON 空安全、
-/// 天气/日历/ClassIsland provider 首 watch 自动加载、集控响应防双写、
-/// buildCount 9→1（0.26.9.5_beta_cl01）：M2 收尾修复——
-/// 探索页 ConsentGate 双重滚动（Gate 嵌长页 SingleChildScrollView 被挤出首屏，
-/// 整页渲染 ConsentGate 拿有界高度）+ 进度条 Slider 缺 Material 祖先崩溃
-/// （unified_player 外包 Material(type:transparency)）。
-/// 工具面板输入不被 rebuild 清空。
-/// buildCount 8→9（0.26.9.3_beta_cl09）：VoiceHub 对接闭环——客户端(songs/
-/// schedules/request)+点歌/排期展示+网易云/B站通道播放+登录 cookie 点歌提交
-/// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
-/// buildCount 1→2（26.09.05_alpha_cl02）：VoiceHub 内嵌为底部第 5 个 Tab
-/// 「校园电台」（原仅设置入口 + 探索胶囊）；一级可达、一键点歌/排期/播放。
-/// buildCount 2→3（26.09.05_alpha_cl03）：校园电台改为**整页 WebView 嵌入**
-/// 真实 VoiceHub 站点（webview_flutter 4.14.1）+ 原生播放器双向 JS 桥联动
-/// （页面 postMessage→播放/点歌；拦截 netease://、bilibili://、xingli://）；
-/// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
-/// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
-/// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
-/// buildCount 2→3（26.09.06_alpha_cl03）：五处 bug 修复——
-/// ①dock Tab 顺序修正（voicehub/settings 对调，点击与高亮不再错位）+ 玻璃 dock
-/// 指示器 x 偏移去重（末 tab 高亮不再越出玻璃框）；②OOBE 冷启动门闸
-/// （bootRestoredProvider）：restoreSettings 帧后跑完才放行，消除每次启动闪欢迎页；
-/// ③白噪音解耦为独立第三音轨（whiteNoiseFollowsSceneProvider 默认 false，不再跟随
-/// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
-/// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
-/// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
-/// 26.09.09_alpha_cl01（cl 跨天清零，首日构建）：全方面性能 / 内存优化——
-/// ①图片解码尺寸封顶（10 处列表 / 详情封面加 cacheWidth，根治「启动飙 1GB」内存暴涨）；
-/// ②曲库四栏全部视窗化（曲目 + 专辑 / 歌手 / 歌单改 SliverList 懒构建，仅建可见项）；
-/// ③体素 3D 世界离屏静音（IndexedStack 包 TickerMode，仅当前 Tab 的 Ticker 运行，
-///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
-/// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
-///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
-static const int buildCount = 4;
+  /// ClassIsland 插件（UniversalThemePlugin 新增「星璃音乐」小组件拉取显示）。
+  /// cl10（08.28）：能力中心地基——架构定调「服务端全量支持、客户端自行选配」。
+  /// relay_server 新增 /api/capabilities 能力清单（id/source/kind/title/endpoint/
+  /// requiresCredential/credentialOwner/enabled/status，内容类 enabled 按 content
+  /// JSON 存在性动态判定）；凭据默认 credentialOwner=client（留客户端、服务端无
+  /// 状态适配不落盘，服务端不持账号资产）；App 端新建能力层（模型 + 主备逐个降级
+  /// 拉取 + 本地缓存 + 选配持久化 + 与本地固有能力合并）；新增备用地址列表做多实
+  /// 例兜底。本版为地基层，尚未接入 UI。
+  /// cl11（08.28）：能力层落地到 UI。服务端把 netease.recommend 翻为 ready
+  /// （客户端执行、不带 endpoint——凭据不出设备），netease.search / playlist 如实
+  /// 保持 planned（歌单链路尚未落地）；新增「能力 → 内容」解析层，能力关闭即不
+  /// 发请求；设置页音频分组新增「内容来源」入口页，按能力清单渲染开关（区分
+  /// 「能力不可用」与「用户关掉」）；探索页实验区叠加能力门控，关掉即隐藏。
+  /// cl12（08.29）：能力清单与事实对齐 + 搜索接入能力开关。核对发现客户端 8 月
+  /// 即已完整实现网易云搜索与 B站搜索（含 WBI 签名与播放地址解析），却在清单里
+  /// 误标为 planned，本版纠正为 ready；B站搜索实测无需登录即可返回数据，故不标
+  /// requiresCredential（与网易云区分）。解析层支持搜索词，接入 netease.search /
+  /// bilibili.search；聚合搜索页的来源筛选与结果按能力开关过滤，关掉的来源不再
+  /// 发请求、也不再催登录。netease.playlist 维持 planned（歌单链路确未落地）。
+  /// cl02（08.31）：液态玻璃性能基准 + 高级调节分离 + 白噪音粉红噪声采样——
+  /// ①「液态玻璃·性能基准」页（设置→关于→开发者工具）实测 premium/standard/
+  /// minimal 三档光栅帧耗时（P50/P75/P95/P99）+ shader 支持探测 + 降级建议
+  /// （对照包内 GlassQualityAdapter 阈值 20/28ms），诊断「部分安卓手机无法加载
+  /// 液态玻璃」（Mali/Impeller 的 premium 路径专属问题）；②「液态玻璃·高级调节」
+  /// 独立页（premium 真折射参数：折射/色散/厚度/色差/辉光/Fresnel/环境光边），
+  /// 与标准模式严格分离——frosted/standard 路径零改动，仅 GlassStyle.liquid 读取
+  /// 覆盖 provider，恢复默认即回标准；③白噪音采样优化——旧实现 prev=white-
+  /// prev*0.35 实为高通反馈（增强高频→刺耳嘶声），R23p 换 Paul Kellet 粉红噪声
+  /// （-3dB/oct 平滑下倾），主白噪与分类提示音 shhh 同步改，version 3→4 强制重建
+  /// 缓存文件。buildCount 1→2（0.26.8.31_beta_cl02）。
+  /// cl03（08.31）：底部导航栏 Dock 上液态玻璃——恢复 GlassStyle.liquid premium
+  /// 真折射/色散路径（0.26.8.29 曾因 Windows 底部浮层 own-layer 不稳定回退原生
+  /// BackdropFilter；包升至 0.29.8 且同浮层播放控制栏已稳定走此路径），参数对齐
+  /// 播放栏「刚刚好完美」档（refraction=8/dispersion=1.6），tint 跟随玻璃语义色，
+  /// 保留 iOS TabBar 顶部 hairline，并自动吃「高级调节」provider 覆盖。
+  /// buildCount 2→3（0.26.8.31_beta_cl03）。
+  /// buildCount 4→5（0.26.9.3_beta_cl05）：R33 收尾全量——多音源显式切换、
+  /// 排期管理拖拽、analyze 全零告警清理、白噪音默认关闭、OOBE 改版、字体背景
+  /// 颜色自适应、严重回归（源文件损坏 0 编译）修复、OOBE 布局冒烟测试。
+  /// buildCount 5→6（0.26.9.3_beta_cl06）：功能拓展五件套（SMTC/天气/日历/
+  /// ClassIsland 联动/集控插件）+ UI 选型（Spotify 深色沉浸）+ 即开即用优化
+  /// （工具面板整合/主页今日信息行/列表紧凑）+ 后续可做项（集控鉴权/农历/
+  /// 天气自动定位/SMTC 网络封面/播放页大封面/ip 定位降级）。
+  /// buildCount 6→7（0.26.9.3_beta_cl07）：修歌单报错（JOIN 取元数据+未播曲
+  /// 兜底）+ 修天气城市管理无法添加查询（面板本地刷新）+ 曲库顶部工具快捷入口。
+  /// buildCount 7→8（0.26.9.3_beta_cl08）：持续修复一批——OTA 下载镜像代理
+  /// 重试 + 下载残留清理、SMTC 网络封面临时目录泄漏、天气 JSON 空安全、
+  /// 天气/日历/ClassIsland provider 首 watch 自动加载、集控响应防双写、
+  /// buildCount 9→1（0.26.9.5_beta_cl01）：M2 收尾修复——
+  /// 探索页 ConsentGate 双重滚动（Gate 嵌长页 SingleChildScrollView 被挤出首屏，
+  /// 整页渲染 ConsentGate 拿有界高度）+ 进度条 Slider 缺 Material 祖先崩溃
+  /// （unified_player 外包 Material(type:transparency)）。
+  /// 工具面板输入不被 rebuild 清空。
+  /// buildCount 8→9（0.26.9.3_beta_cl09）：VoiceHub 对接闭环——客户端(songs/
+  /// schedules/request)+点歌/排期展示+网易云/B站通道播放+登录 cookie 点歌提交
+  /// +设置页入口；播放控件 InkWell Material 兜底 ×6；点歌热度/投稿人/封面对齐。
+  /// buildCount 1→2（26.09.05_alpha_cl02）：VoiceHub 内嵌为底部第 5 个 Tab
+  /// 「校园电台」（原仅设置入口 + 探索胶囊）；一级可达、一键点歌/排期/播放。
+  /// buildCount 2→3（26.09.05_alpha_cl03）：校园电台改为**整页 WebView 嵌入**
+  /// 真实 VoiceHub 站点（webview_flutter 4.14.1）+ 原生播放器双向 JS 桥联动
+  /// （页面 postMessage→播放/点歌；拦截 netease://、bilibili://、xingli://）；
+  /// Windows/Linux 无官方 WebView 实现→fallback 用 dart:io 调系统浏览器打开
+  /// （不引 url_launcher：其 androidx.browser 1.9.0 要求 AGP 8.9.1+，与本项目
+  /// 固定 AGP 8.7.3 冲突，会令 Android 构建失败）。
+  /// buildCount 2→3（26.09.06_alpha_cl03）：五处 bug 修复——
+  /// ①dock Tab 顺序修正（voicehub/settings 对调，点击与高亮不再错位）+ 玻璃 dock
+  /// 指示器 x 偏移去重（末 tab 高亮不再越出玻璃框）；②OOBE 冷启动门闸
+  /// （bootRestoredProvider）：restoreSettings 帧后跑完才放行，消除每次启动闪欢迎页；
+  /// ③白噪音解耦为独立第三音轨（whiteNoiseFollowsSceneProvider 默认 false，不再跟随
+  /// 背景声）；④界面排版：heightDock 76→50 与 kTabBarHeight 对齐、floatingReserve
+  /// 计入 MusicCard 防遮挡、宽屏 dock 改 dockMaxWidth 不再拉成条；⑤liquidglass 跨平台
+  /// 取舍说明（Impeller-only + kNativeMinimal 降级 + PlatformView 不可折射）。
+  /// 26.09.09_alpha_cl01（cl 跨天清零，首日构建）：全方面性能 / 内存优化——
+  /// ①图片解码尺寸封顶（10 处列表 / 详情封面加 cacheWidth，根治「启动飙 1GB」内存暴涨）；
+  /// ②曲库四栏全部视窗化（曲目 + 专辑 / 歌手 / 歌单改 SliverList 懒构建，仅建可见项）；
+  /// ③体素 3D 世界离屏静音（IndexedStack 包 TickerMode，仅当前 Tab 的 Ticker 运行，
+  ///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
+  /// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
+  ///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
+  static const int buildCount = 5;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -546,6 +546,17 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.11',
+    cl: 'alpha_cl05',
+    title: 'CUE 分轨 + 曲目信息面板',
+    details: <String>[
+      '扫描自动把整轨 + 同目录 .cue 拆成逐轨子曲（起点/终点经 cueStartMs/cueEndMs 命中，播放精确落在单轨区间）',
+      '播放后端 openPath 新增 start/end 区间参数：just_audio 走 ClippingAudioSource、media_kit 走 Media.start|end',
+      '曲库列表行长按弹出曲目信息面板：编码/采样率/位深/码率/时长/专辑/来源/CUE 区间（本地文件零依赖探测）',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.11',
     cl: 'alpha_cl04',
@@ -791,7 +802,8 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
     version: '0.26.8.28',
     cl: 'beta_cl09',
-    title: '08.28 批量更新（cl03–cl09）：界面动效 / UI 体系 / OOBE / i18n / 模板 / 离线 / 后端内容联动',
+    title:
+        '08.28 批量更新（cl03–cl09）：界面动效 / UI 体系 / OOBE / i18n / 模板 / 离线 / 后端内容联动',
     details: <String>[
       'cl03 界面动效：底部 Dock 融合磨砂边（FrostEdgeBar 底边 + DockTopFeather 合并为单 BackdropFilter，省一层重叠模糊采样）；Tab 切换内容上浮淡入（保活 IndexedStack，滚动位置不丢）；播放控钮按压缩放反馈 + 播放/暂停态 AnimatedCrossFade；主页场景卡光晕跟随场景主色渐变、轮播圆点平滑过渡、问候语按时段动态',
       'cl04 UI 体系：曲库 / 探索卡片化分层（iOS 分组卡 + Fluent Card 质感）+ 排行前三金银铜；全屏播放页封面浮起阴影 + 播放呼吸动效；去 Material 水波纹（NoSplash + 原生按压高光）；三套界面风格可切换',
@@ -1581,10 +1593,7 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
     version: '0.26.8.14',
     cl: 'cl39',
     title: '安卓运行时 4 连崩修复',
-    details: <String>[
-      '占位符解析超时兜底、歌名/曲名真源对齐',
-      '网易云源崩溃回落、进世界/进存档异步错误兜底',
-    ],
+    details: <String>['占位符解析超时兜底、歌名/曲名真源对齐', '网易云源崩溃回落、进世界/进存档异步错误兜底'],
   ),
   ChangelogEntry(
     version: '0.26.8.14',
@@ -1599,10 +1608,7 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
     version: '0.26.8.13',
     cl: 'cl37',
     title: '生存模式 bug 修复',
-    details: <String>[
-      '新建/读档强制生存、饥饿衰减提速',
-      '新建存档作弊/浮空岛默认关',
-    ],
+    details: <String>['新建/读档强制生存、饥饿衰减提速', '新建存档作弊/浮空岛默认关'],
   ),
   ChangelogEntry(
     version: '0.26.8.13',

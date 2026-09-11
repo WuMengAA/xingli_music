@@ -1,5 +1,6 @@
 import '../../models/track.dart';
 import '../audio/local_music_scanner.dart';
+import '../cue/cue_scan.dart';
 import '../log_service.dart';
 import 'music_source.dart';
 
@@ -21,7 +22,7 @@ class LocalMusicSource implements MusicSource {
     try {
       final List<Track> t = await LocalMusicScanner.scan();
       LogService.instance.i('source', '系统本地曲库: 扫描到 ${t.length} 首');
-      return t;
+      return expandCueTracks(t);
     } catch (e) {
       LogService.instance.e('source', '本地曲库扫描异常: $e');
       return const [];

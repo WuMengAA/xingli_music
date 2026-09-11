@@ -63,7 +63,13 @@ class JustAudioBackend implements MusicBackend {
           : _player.setUrl(url, headers: headers);
 
   @override
-  Future<void> openPath(String path) => _player.setFilePath(path);
+  Future<void> openPath(String path, {Duration? start, Duration? end}) {
+    final UriAudioSource src = AudioSource.file(path);
+    final AudioSource toLoad = (start != null || end != null)
+        ? ClippingAudioSource(child: src, start: start, end: end)
+        : src;
+    return _player.setAudioSource(toLoad);
+  }
 
   @override
   Future<void> play() => _player.play();
