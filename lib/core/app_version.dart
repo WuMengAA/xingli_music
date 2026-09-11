@@ -481,7 +481,7 @@ abstract final class AppVersion {
 ///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
 /// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
 ///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
-static const int buildCount = 2;
+static const int buildCount = 3;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -546,6 +546,16 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.11',
+    cl: 'alpha_cl03',
+    title: '频谱可视化 + 本地语义随机完善',
+    details: <String>[
+      '正在播放页新增频谱条（消费音乐反应层 16 段合成能量，随播放起伏，意境优先）',
+      '语义随机页新增「播放全部」：一键把当前场景语义排序结果作播放队列',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.11',
     cl: 'alpha_cl02',

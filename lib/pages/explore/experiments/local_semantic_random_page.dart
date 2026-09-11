@@ -88,23 +88,52 @@ class _LocalSemanticRandomPageState
                         message: '请先在设置「音源」中添加音乐',
                       );
                     }
-                    return ListView.builder(
-                      padding: EdgeInsets.zero,
-                      itemCount: ranked.length,
-                      itemBuilder: (BuildContext context, int i) {
-                        final Track t = ranked[i];
-                        return InfoRow(
-                          track: t,
-                          onTap: () async {
-                            final String msg = await ref
-                                .read(playbackActionsProvider)
-                                .playTrack(t);
-                            if (msg.isNotEmpty && context.mounted) {
-                              appNotify(context, msg);
-                            }
-                          },
-                        );
-                      },
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8, left: 4, right: 4),
+                          child: Row(
+                            children: <Widget>[
+                              Text('共 ${ranked.length} 首',
+                                  style: context.appText.bodyMuted),
+                              const Spacer(),
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final String msg = await ref
+                                      .read(playbackActionsProvider)
+                                      .playTrack(ranked.first, queue: ranked);
+                                  if (msg.isNotEmpty && context.mounted) {
+                                    appNotify(context, msg);
+                                  }
+                                },
+                                icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                                label: const Text('播放全部'),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: ranked.length,
+                            itemBuilder: (BuildContext context, int i) {
+                              final Track t = ranked[i];
+                              return InfoRow(
+                                track: t,
+                                onTap: () async {
+                                  final String msg = await ref
+                                      .read(playbackActionsProvider)
+                                      .playTrack(t);
+                                  if (msg.isNotEmpty && context.mounted) {
+                                    appNotify(context, msg);
+                                  }
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     );
                   },
                   loading: () => const LoadingView(),

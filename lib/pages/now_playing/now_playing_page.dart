@@ -20,6 +20,7 @@ import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
 import '../../widgets/playback/unified_player.dart';
+import '../../widgets/visualizer/spectrum_bars.dart';
 
 /// 整页正在播放（#552：从零重建）。
 ///
@@ -142,6 +143,8 @@ class NowPlayingPage extends ConsumerWidget {
               ),
               const SizedBox(height: AppSpace.lg),
               _TrackInfo(track: track),
+              const SizedBox(height: AppSpace.sm),
+              const SpectrumBars(height: 48),
               const SizedBox(height: AppSpace.lg),
               const LyricsView(),
             ],
@@ -180,7 +183,9 @@ class NowPlayingPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 _TrackInfo(track: track, alignLeft: true),
-                const SizedBox(height: AppSpace.sm),
+                const SizedBox(height: AppSpace.xs),
+                const SpectrumBars(height: 40),
+                SizedBox(height: AppSpace.sm),
                 // 歌词自适应剩余高度（横屏下不再固定 160）。
                 Expanded(
                   child: LayoutBuilder(
