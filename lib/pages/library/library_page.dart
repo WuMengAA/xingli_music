@@ -24,6 +24,7 @@ import '../../widgets/library/card_view.dart';
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/shell/app_search_bar.dart';
 import 'playlist_detail_page.dart';
+import 'm3u_transfer_page.dart';
 import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 曲库四栏（cl15：歌曲 / 歌单 / 专辑 / 歌手）。
@@ -363,6 +364,16 @@ class _PlaylistsTab extends ConsumerWidget {
                         onPressed: () => _createPlaylist(ref, context),
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: Text(Terms.createPlaylist),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const M3uTransferPage(),
+                          ),
+                        ),
+                        icon: const Icon(Icons.playlist_add_rounded, size: 18),
+                        label: const Text('导入 M3U8'),
                       ),
                     ],
                   ),
