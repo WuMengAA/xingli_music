@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 10;
+  static const int day = 11;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -547,6 +547,28 @@ class ChangelogEntry {
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
   ChangelogEntry(
+    version: '26.09.11',
+    cl: 'alpha_cl01',
+    title: '设计收口：玻璃不再过于透明（抬升无模糊控件 / 毛玻璃默认 tint 透明度下限）',
+    details: <String>[
+      'glassTint（accent 派生）从 alpha 0.10 抬到 0.18，所有 LiquidGlass 面板实体感一致增强',
+      'XGlassButton / XGlassCard 深色填充 0.12→0.20、1px 描边 0.16→0.22，深色背景下控件读得出、不再是「看不见的玻璃」',
+      '无模糊控件（按钮/滑块/开关）一律视作「纯色或半透明」实体，不再依赖过透的玻璃感表达',
+    ],
+  ),
+  ChangelogEntry(
+    version: '26.09.10',
+    cl: 'alpha_cl01',
+    title: '三处体验 bug 修复：底部播放卡滚动收起 / 列表自动刷新 / 全部弹窗可滚动',
+    details: <String>[
+      '底部播放卡（音乐卡）滚动时自动收起，停止滚动 5s 后恢复，给信息流腾空间（无曲目时不收起）',
+      '歌曲列表 / 搜索列表 / 网易云歌单 / 网易云推荐：app 回到前台或数据源变化即自动重新同步，不再需手动重进页面',
+      '全部 showModalBottomSheet 统一加 isScrollControlled:true；布局类弹窗（Column/SafeArea/Padding 等）包 SingleChildScrollView + 高度上限 0.92 屏高，内容超出屏幕可滚动',
+      'AppLifecycleListener 回到前台触发曲库重扫（invalidate musicLibrary / effectiveMusicLibrary），根治列表不刷新',
+    ],
+  ),
+
+  ChangelogEntry(
     version: '0.26.9.6',
     cl: 'alpha_cl02',
     title: 'VoiceHub 整页内嵌真实站点（安卓 + Windows）',
@@ -848,17 +870,7 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
       '#584 修复部分界面不跟随主题（3D 世界频谱条/画布/场景配色面板改 context.appColors 响应式）',
     ],
   ),
-  ChangelogEntry(
-    version: '26.09.10',
-    cl: 'alpha_cl01',
-    title: '三处体验 bug 修复：底部播放卡滚动收起 / 列表自动刷新 / 全部弹窗可滚动',
-    details: <String>[
-      '底部播放卡（音乐卡）滚动时自动收起，停止滚动 5s 后恢复，给信息流腾空间（无曲目时不收起）',
-      '歌曲列表 / 搜索列表 / 网易云歌单 / 网易云推荐：app 回到前台或数据源变化即自动重新同步，不再需手动重进页面',
-      '全部 showModalBottomSheet 统一加 isScrollControlled:true；布局类弹窗（Column/SafeArea/Padding 等）包 SingleChildScrollView + 高度上限 0.92 屏高，内容超出屏幕可滚动',
-      'AppLifecycleListener 回到前台触发曲库重扫（invalidate musicLibrary / effectiveMusicLibrary），根治列表不刷新',
-    ],
-  ),
+
   ChangelogEntry(
     version: '26.09.08',
     cl: 'alpha_cl01',

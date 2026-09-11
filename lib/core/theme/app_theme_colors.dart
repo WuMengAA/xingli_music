@@ -207,7 +207,7 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   ///
   /// 跟随当前皮肤主色 [accent] 派生（不再写死白色），
   /// 深浅主题 + 6 套配色下毛玻璃质感自动同步。
-  Color get glassTint => accent.withValues(alpha: 0.10);
+  Color get glassTint => accent.withValues(alpha: 0.18);
 
   /// 毛玻璃描边色（[LiquidGlass] 默认 borderColor）。
   ///

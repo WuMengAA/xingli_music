@@ -25,13 +25,13 @@ const double _kGlassRadius = 16;
 Color _surfaceFill(BuildContext context, Color? tint) {
   if (tint != null) return tint;
   final bool dark = Theme.of(context).brightness == Brightness.dark;
-  return Colors.white.withValues(alpha: dark ? 0.12 : 0.6);
+  return Colors.white.withValues(alpha: dark ? 0.20 : 0.6);
 }
 
 /// 1px 细描边色（跟随明暗主题）。
 Color _hairline(BuildContext context) {
   final bool dark = Theme.of(context).brightness == Brightness.dark;
-  return Colors.white.withValues(alpha: dark ? 0.16 : 0.5);
+  return Colors.white.withValues(alpha: dark ? 0.22 : 0.5);
 }
 
 /// 玻璃按钮（替代 FilledButton / TextButton / ElevatedButton / OutlinedButton）。
