@@ -226,7 +226,7 @@ class MinecraftSfxService {
   static Future<String?> _baseDir() async {
     if (kIsWeb) return null;
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      const String dev = r'd:\Stellara\Music\minecraft_music';
+      const String dev = r'd:\Stelarith\Stelarith-Music\minecraft_music';
       final File probe = File('$dev/sfx/sfx_manifest.json');
       if (await probe.exists()) return dev;
       return null;

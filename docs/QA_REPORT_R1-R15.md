@@ -4,7 +4,7 @@
 |---|---|
 | 文档版本 | v1.0 |
 | 作者 | 严过关（QA 工程师） |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 核验基线 | master = `d0de07d`（T05 NowPlaying），工作树干净，仅 master 分支 |
 | 核验方式 | 只读审查 + 静态分析 + git 只读命令（log/show/diff），**未修改任何 lib/ 源码** |
 | 核验日期 | 2026-08-09 |

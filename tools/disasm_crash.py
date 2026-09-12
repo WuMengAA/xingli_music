@@ -4,7 +4,7 @@ import sys
 
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 
-DLL = r"D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
+DLL = r"D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
 OFFSET = 0x3A9FA  # 崩溃偏移
 
 

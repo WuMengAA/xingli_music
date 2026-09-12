@@ -9,7 +9,7 @@
 /// 与 [WorldAudioEngine]（空间环境音效）互补：本引擎只管「整曲轮换」的单轨 BGM。
 ///
 /// 素材：用户把自己的合法音频按约定命名放入目录即可生效；缺失文件 = 安全 no-op。
-///   - 桌面：`d:\Stellara\Music\minecraft_music\voxel_audio\music\track_01.m4a`
+///   - 桌面：`d:\Stelarith\Stelarith-Music\minecraft_music\voxel_audio\music\track_01.m4a`
 ///           （或 `…\music\track_01.m4a`）
 ///   - 移动：`/storage/emulated/0/Music/minecraft_music/voxel_audio/music/…`
 library;
@@ -140,7 +140,7 @@ class VoxelMusicEngine {
   static Future<String?> _baseDir() async {
     if (kIsWeb) return null;
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      const String dev = r'd:\Stellara\Music\minecraft_music';
+      const String dev = r'd:\Stelarith\Stelarith-Music\minecraft_music';
       if (await Directory('$dev/voxel_audio/music').exists() ||
           await Directory('$dev/music').exists()) {
         return dev;

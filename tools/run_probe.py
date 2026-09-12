@@ -1,11 +1,11 @@
 """启动 xingli_music.exe 并捕获 stdout/stderr/退出码（排障用）。"""
 import subprocess, time, sys
 
-EXE = r"D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release\xingli_music.exe"
+EXE = r"D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release\xingli_music.exe"
 out = open(r"C:\Users\Administrator\AppData\Local\Temp\xl_out.txt", "wb")
 err = open(r"C:\Users\Administrator\AppData\Local\Temp\xl_err.txt", "wb")
 try:
-    p = subprocess.Popen([EXE], stdout=out, stderr=err, cwd=r"D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release")
+    p = subprocess.Popen([EXE], stdout=out, stderr=err, cwd=r"D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release")
 except Exception as e:
     print(f"启动失败: {e}")
     sys.exit(1)

@@ -5,7 +5,7 @@
 | 文档版本 | v2.0 |
 | 作者 | 高见远（架构师） |
 | 上游输入 | `docs/PRD_V2_增量.md` v2.0 + 用户裁决（①文字色浅色 Token ②调色盘入微光圆点 ③本轮执行体验迭代）+ `docs/ARCHITECTURE_UI_重构.md` v1 + `docs/API_CONTRACT_FROZEN.md` |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 技术栈 | Flutter 3.9+ / Riverpod 2.6 / just_audio 0.9 / audio_service 0.18（沿用 v1，不更换） |
 | 本文档定位 | 增量文档。**只说变更/新增**，v1 已定稿（浅色 Token、AppDock/MiniPlayer、设置 Master-Detail、Shell 5 页保活、CanvasPage 暗色孤岛）不重复；实现以 v1 + 本设计叠加为准 |
 

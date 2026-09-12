@@ -32,7 +32,7 @@ class AmbientSoundscapeService {
     if (kIsWeb) return null;
 
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
-      const String dev = r'd:\Stellara\Music\minecraft_music\ambient';
+      const String dev = r'd:\Stelarith\Stelarith-Music\minecraft_music\ambient';
       final File probe = File('$dev/$_soundsRel/weather/rain1.ogg');
       if (await probe.exists()) return dev;
       return null;

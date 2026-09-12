@@ -21,7 +21,7 @@ class MinecraftMusicSource implements MusicSource {
 
   /// 桌面调试目录（Windows）。换成你的提取路径即可。
   static const String kMinecraftMusicDirDesktop =
-      r'd:\Stellara\Music\minecraft_music';
+      r'd:\Stelarith\Stelarith-Music\minecraft_music';
 
   /// Android 设备上的目录（adb push 或手动拷贝到此处）。
   static const String kMinecraftMusicDirMobile =

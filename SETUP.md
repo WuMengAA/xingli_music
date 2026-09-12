@@ -62,7 +62,7 @@ flutter doctor
 
 ```powershell
 # 1) 在父目录创建/进入项目
-cd d:\Stellara\Music
+cd d:\Stelarith\Stelarith-Music
 # 如果 SDK 已安装且想全新生成，也可执行：
 # flutter create xingli_music --platforms=android,ios --org com.stelarith --project-name xingli_music
 

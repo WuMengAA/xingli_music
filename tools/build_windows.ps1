@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = 'Continue'
-$root  = "D:\Stellara\Music\xingli_music"
-$rel   = "D:\Stellara\Music\release"
+$root  = "D:\Stelarith\Stelarith-Music\xingli_music"
+$rel   = "D:\Stelarith\Stelarith-Music\release"
 $log   = "$root\build_windows.log"
 $cmake = "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin"
 $env:ANDROID_HOME = "D:\Android\Sdk"

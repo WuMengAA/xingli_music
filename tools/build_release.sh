@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 星璃音乐 · 一键双平台 release 出包（Android APK + Windows 安装包）
 #
-# 产物目录（铁律）：D:\Stellara\Music\xingli_music\release\
+# 产物目录（铁律）：D:\Stelarith\Stelarith-Music\xingli_music\release\
 #   星璃音乐_<0.YY.MM.DD>_<channel>_cl<NN>.<arm64|arm32>.apk + .sha256
 #   星璃音乐_<0.YY.MM.DD>_<channel>_cl<NN>_pc_<代号>_win_portable.zip + .sha256
 #
@@ -14,15 +14,15 @@
 #   1. 版本号三处已同步：lib/core/app_version.dart + android/app/build.gradle
 #      (versionCode/versionName) + pubspec.yaml version。
 #   2. build/media_kit_libs_android_video/v1.1.7/ 下 4 个 jar 存在（缺失则去
-#      D:/Stellara/Music/assets 复制，原件不许动）。
+#      D:/Stelarith/Stelarith-Music/assets 复制，原件不许动）。
 #   3. 绝不 flutter clean（会清掉预置 jar，下次构建卡死下载墙）。
 set -e
 
 cd "$(dirname "$0")/.."
 FLUTTER="D:/flutter/bin/flutter.bat"
-# ⚠️ 真实产物目录 = 工程内 release/（不是 D:/Stellara/Music/release —— 旧脚本
+# ⚠️ 真实产物目录 = 工程内 release/（不是 D:/Stelarith/Stelarith-Music/release —— 旧脚本
 # 指错导致产物静默丢失，MEMORY 2026-08-17 铁律）。
-RELEASE_DIR="D:/Stellara/Music/xingli_music/release"
+RELEASE_DIR="D:/Stelarith/Stelarith-Music/xingli_music/release"
 
 # ── D 盘构建约定（2026-08-12 SDK/缓存迁移后）──────────────
 # ⚠️ 必须用正斜杠！Git-Bash 双引号会吞 `\.` 反斜杠 → "D:\.gradle" 变 "D:.gradle"

@@ -87,4 +87,4 @@
 3. 对 cl38/cl39 两笔大修复做一次真机验证，闭环稳定性项。
 
 ---
-*本报表由自动化任务生成；数据源：本地 git（`D:\Stellara\Music\xingli_music`）+ GitHub MCP（WuMengAA/xingli_music）。GitHub 远程为空，故 PR/Issue 数据以"0"呈现，真实进展以本地提交为准。*
+*本报表由自动化任务生成；数据源：本地 git（`D:\Stelarith\Stelarith-Music\xingli_music`）+ GitHub MCP（WuMengAA/xingli_music）。GitHub 远程为空，故 PR/Issue 数据以"0"呈现，真实进展以本地提交为准。*

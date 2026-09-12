@@ -16,7 +16,7 @@
 - `app_shell.dart`（157 行契约版，已编译通过）**归入 software-engineer-2 统一维护，保留不动**；不再提「原作者认领」。
 
 ### 0.2 版本基线（git）
-- 仓库：`D:/Stellara/Music/xingli_music/.git`（**独立仓库**，与祖父级 `D:/Stellara` 仓库隔离）。
+- 仓库：`D:/Stelarith/Stelarith-Music/xingli_music/.git`（**独立仓库**；外层容器为纯目录，祖父级旧仓库已于 2026-09-12 迁移时解除并归档）。
 - 权威基线提交：`4c19cc8` — `chore: re-establish dedicated repo baseline for xingli_music UI refactor`。
 - 跟踪：208 文件，工作区干净。
 - ⚠️ 该 `.git` 曾被删除重建一次；早期 `58c4b62` / `459eaa0` 两个提交**已随对象库消失，严禁在文档/提交中引用**。

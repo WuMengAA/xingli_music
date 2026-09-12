@@ -4,7 +4,7 @@
 |---|---|
 | 文档版本 | v1.0 |
 | 作者 | 许清楚（产品经理） |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 技术栈 | Flutter + Riverpod + just_audio / audio_service |
 | 设计输入 | 《音乐App设计稿》PDF（5 页，1400×2489/页）+ 仓库内 `figma_export/*.svg`（同源，1080×1920/页） |
 | 重构范围 | 全面替换：配色 + 布局 + 组件 |

@@ -5,7 +5,7 @@
 | 文档版本 | v2.0 |
 | 类型 | **增量 PRD**（仅描述变更 / 新增，不与 v1 重复；v1 = `docs/PRD_UI_重构.md`） |
 | 作者 | 许清楚（产品经理） |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 技术栈 | Flutter + Riverpod + just_audio / audio_service（沿用 v1，不新增） |
 | 执行背景 | 用户已裁决：① 文字色以浅色 Token 为准；② 调色盘移入右上角微光圆点入口；③ v1 §5 之后的体验细节排入下一阶段 —— **本轮即执行该裁决后的体验细节迭代** |
 

@@ -5,7 +5,7 @@
 | 文档版本 | v1.0 |
 | 作者 | 高见远（架构师） |
 | 上游输入 | `docs/PRD_UI_重构.md` v1.0 + Q1–Q5 用户裁决 |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 技术栈 | Flutter 3.9+ / Riverpod 2.6 / just_audio 0.9 / audio_service 0.18 |
 | 代码基线 | 66 个 Dart 文件；`app_shell.dart` 327 行；`Color(0x` 命中 64 处 / 14 个文件 |
 | 本文档定位 | 工程师直接执行依据（设计 + 任务分解合一） |

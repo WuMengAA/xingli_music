@@ -4,7 +4,7 @@
 |---|---|
 | 文档版本 | v2.0 |
 | 作者 | 严过关（QA 工程师） |
-| 项目路径 | `D:\Stellara\Music\xingli_music` |
+| 项目路径 | `D:\Stelarith\Stelarith-Music\xingli_music` |
 | 核验基线 | master = `0809157`（ce102f6 T01/T02 → 553ba4f 依赖 → 0809157 场景包导出） |
 | 核验方式 | 只读审查 + 静态分析（grep）+ 新增 25 单测 + 6 集成 widget 测试 + `flutter analyze` |
 | 核验日期 | 2026-08-09 |

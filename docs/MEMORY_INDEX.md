@@ -10,7 +10,7 @@
 
 ## 二、速查
 **项目事实**
-- 路径 `D:\Stellara\Music\xingli_music`；Flutter SDK `D:\flutter`
+- 路径 `D:\Stelarith\Stelarith-Music\xingli_music`；Flutter SDK `D:\flutter`
 - 版本 `0.26.9.x_beta_clNN`（buildCount=当日次数，次日清零）；三处同步 app_version.dart ↔ pubspec(+NNN=versionCode) ↔ build.gradle versionName
 - git 红线：源文件只用 edit/write（禁 PowerShell 写，曾 mojibake）；逐文件 add 禁 `-A`；push 用 token URL + fetch/update-ref
 - `flutter.bat` exit 1 恒为 stderr 镜像误报（看 stderr 有无 `✓ Built`）

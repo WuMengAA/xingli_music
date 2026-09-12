@@ -89,7 +89,7 @@
 - 短回、直接、要证据、不反复确认
 - 逐文件 `git add <path>`，绝不 `git add -A`
 - Hindsight 401（apiToken 未配置），记忆走 docs md
-- 工作目录 `D:\Stellara\Music\xingli_music`
+- 工作目录 `D:\Stelarith\Stelarith-Music\xingli_music`
 
 ## ⚠️ 严重回归修复（2f14f1c，2026-09-04）
 - **事故**：上轮用 PowerShell `ReadAllText+Replace+WriteAllText(UTF8 no BOM)` 批量编辑时，
@@ -268,7 +268,7 @@ AudioServicePlugin 用 `new FlutterEngine(context)` 都不走）。
   无状态变化也要刷新当前课判定（每 build 取 `DateTime.now()`）
 
 ## UI 选型 + 后续可做项（2026-09-03，bdc13fe/6039c4f）
-- **UI 选型（bdc13fe）**：用 `D:\Stellara\.md\design-md`（70+ 品牌设计库）对比
+- **UI 选型（bdc13fe）**：用 `D:\Stelarith\_misc\design-md`（70+ 品牌设计库）对比
   Spotify/Apple/Linear/Notion/Raycast → 音乐 App 选 **Spotify 式「内容优先深色沉浸」**
   （UI 退后/封面发光/单一 accent/pill 几何）。落地：`AppDarkColors` 深色表面改炭黑三级
   （bg #000→#121212、surface #1C1C1E→#1A1A1A、surfaceHigh/placeholder #2C2C2E→#242424）。

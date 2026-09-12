@@ -1,7 +1,7 @@
 /// ════════════════════════════════════════════════════════════════════════
 /// VoiceHub 数据模型（校园广播站点歌系统 · Nuxt 4 全栈）
 ///
-/// 契约来源（本机参考实现 `D:\Stellara\Music\_voicehub_ref`）：
+/// 契约来源（本机参考实现 `D:\Stelarith\Stelarith-Music\_voicehub_ref`）：
 ///   - `server/api/open/songs.get.ts`      → `{success, data:{songs, pagination}}`
 ///   - `server/api/open/schedules.get.ts`  → `{success, data:{schedules, pagination}}`
 ///   - `server/api/songs/index.get.ts`     → `{success, data:{songs, total}}`

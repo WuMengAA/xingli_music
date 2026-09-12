@@ -1,6 +1,6 @@
 # 星璃音乐 · 项目资料索引
 
-> 本文件汇总 `D:\Stellara\Music` 工作区的资料组织。由 AI 整理于 2026-08-26。
+> 本文件汇总 `D:\Stelarith\Stelarith-Music` 工作区的资料组织。由 AI 整理于 2026-08-26。
 
 ## 顶层目录
 | 目录 | 用途 |
@@ -39,6 +39,6 @@
 - `misc/` — 杂项：`figma_file.json`、`vswhere.json`、`_ui.xml`、`minecraft_music.7z`、4 个 `tmp_*.bin` 临时二进制
 
 ## 说明
-- 外层 `D:\Stellara\Music` 是空 git 仓库（未跟踪任何文件），以上整理均为本地归拢，不进版本控制。
+- 外层 `D:\Stelarith\Stelarith-Music` 是空 git 仓库（未跟踪任何文件），以上整理均为本地归拢，不进版本控制。
 - 代码版本管理请见 `xingli_music/` 子仓库。
 - `_archive/` 为一次性调试/构建残留，如确认不再需要回溯，可直接删除整个目录。

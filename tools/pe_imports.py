@@ -4,7 +4,7 @@
 """
 import struct
 
-DLL = r"D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
+DLL = r"D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
 TARGET_RVA = 0x3A9E7 + 7 + 0xFA4483  # call 指令 rip 相对目标
 
 

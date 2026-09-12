@@ -11,7 +11,7 @@
 4. **电台尽量还原 voicehub 的功能和界面体验；点歌可在底部音乐媒体栏中以悬浮窗形式显示**。
 5. 补充强调：**VoiceHub 用的 WebGL 就是「Web 液态玻璃」，正是我一直要求的**；**必须、一定长期写记忆**。
 
-## 二、VoiceHub 侦查（github.com/laoshuikaixue/VoiceHub，已克隆到 D:\Stellara\Music\_voicehub_ref）
+## 二、VoiceHub 侦查（github.com/laoshuikaixue/VoiceHub，已克隆到 D:\Stelarith\Stelarith-Music\_voicehub_ref）
 
 - 技术栈：**Nuxt 4 全栈** + Vue + TypeScript + Drizzle ORM + PostgreSQL/Redis（docker-compose / fnos / vercel / netlify 多部署）。
 - **WebGL**：依赖 **Pixi.js**（@pixi/app 7.x、@pixi/core、@pixi/filter-blur、@pixi/filter-color-matrix、@pixi/filter-bulge-pinch、@pixi/sprite）——即用户所指的 Web 液态玻璃渲染层。

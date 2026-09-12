@@ -3,7 +3,7 @@ import struct
 
 from capstone import Cs, CS_ARCH_X86, CS_MODE_64
 
-DLL = r"D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
+DLL = r"D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release\flutter_windows.dll"
 CRASH = 0x3A9FA
 FUNC_START = CRASH - 0x400  # 往上找函数头（含 prologue）
 FUNC_END = CRASH + 0x300

@@ -4,10 +4,10 @@
 #ifndef MyAppVersion
 #define MyAppVersion "0.26.8.31"
 #endif
-#define MyAppPublisher "Stellara"
-#define MySrc "D:\Stellara\Music\xingli_music\build\windows\x64\runner\Release"
-#define MyOut "D:\Stellara\Music\xingli_music\release"
-#define MyIcon "D:\Stellara\Music\xingli_music\windows\runner\resources\app_icon.ico"
+#define MyAppPublisher "Stelarith"
+#define MySrc "D:\Stelarith\Stelarith-Music\xingli_music\build\windows\x64\runner\Release"
+#define MyOut "D:\Stelarith\Stelarith-Music\xingli_music\release"
+#define MyIcon "D:\Stelarith\Stelarith-Music\xingli_music\windows\runner\resources\app_icon.ico"
 
 [Setup]
 AppId={{8F6E1A2B-3C5D-4A7E-9B12-7F4D6E2C1A90}
