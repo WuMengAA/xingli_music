@@ -3729,30 +3729,51 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                     spacing: 8,
                     runSpacing: 8,
                     children: <Widget>[
-                      FilledButton.icon(
+                      XGlassButton(
                         onPressed: () async {
                           Navigator.of(sheetContext).pop();
                           await _saveNow();
                           if (mounted) _snack('已手动存档（当前视角/位置已记录）');
                         },
-                        icon: const Icon(Icons.save_alt_rounded, size: 18),
-                        label: const Text('手动存档'),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const <Widget>[
+                            Icon(Icons.save_alt_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('手动存档'),
+                          ],
+                        ),
                       ),
-                      OutlinedButton.icon(
+                      XGlassButton(
                         onPressed: () {
                           Navigator.of(sheetContext).pop();
                           _openRestorePicker();
                         },
-                        icon: const Icon(Icons.restore_rounded, size: 18),
-                        label: const Text('恢复备份'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _renameCurrentSave(sheetContext),
-                        icon: const Icon(
-                          Icons.drive_file_rename_outline,
-                          size: 18,
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const <Widget>[
+                            Icon(Icons.restore_rounded, size: 18),
+                            SizedBox(width: 8),
+                            Text('恢复备份'),
+                          ],
                         ),
-                        label: const Text('重命名'),
+                      ),
+                      XGlassButton(
+                        onPressed: () => _renameCurrentSave(sheetContext),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const <Widget>[
+                            Icon(Icons.drive_file_rename_outline, size: 18),
+                            SizedBox(width: 8),
+                            Text('重命名'),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -3937,25 +3958,37 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             ),
                           ),
                           const SizedBox(width: AppSpace.sm),
-                          FilledButton.icon(
+                          XGlassButton(
                             onPressed: newWorld,
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('新建并进入'),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const <Widget>[
+                                Icon(Icons.add, size: 18),
+                                SizedBox(width: 8),
+                                Text('新建并进入'),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: AppSpace.md),
                     ],
                     // ── 备份当前世界（独立动作，不与新建混为一谈）──
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          await _doBackupCurrent();
-                          await refresh();
-                        },
-                        icon: const Icon(Icons.backup_outlined, size: 18),
-                        label: const Text('备份当前世界'),
+                    XGlassButton(
+                      fullWidth: true,
+                      onPressed: () async {
+                        await _doBackupCurrent();
+                        await refresh();
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const <Widget>[
+                          Icon(Icons.backup_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('备份当前世界'),
+                        ],
                       ),
                     ),
                     const SizedBox(height: AppSpace.md),
@@ -3986,10 +4019,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
                                   if (!inGame)
-                                    IconButton(
-                                      tooltip: '进入',
+                                    XGlassIconButton(
                                       icon: const Icon(Icons.play_arrow),
                                       onPressed: () => enter(s.id, s.name),
+                                      tooltip: '进入',
                                     ),
                                   PopupMenuButton<String>(
                                     onSelected: (String act) async {

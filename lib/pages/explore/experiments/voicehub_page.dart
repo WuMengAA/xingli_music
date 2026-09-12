@@ -7,11 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 import '../../../core/theme/app_theme_colors.dart';
-import '../../../models/track.dart';
-import '../../../providers/audio/playback_notifier.dart';
-import '../../../providers/sources/bilibili_provider.dart';
-import '../../../providers/sources/netease_provider.dart';
 import '../../../providers/voicehub/voicehub_provider.dart';
+import '../../../services/voicehub/voicehub_models.dart';
+import '../../../services/voicehub/voicehub_play.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 
@@ -164,7 +162,12 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
                 controller: _cookieCtrl,
                 obscureText: true,
                 decoration: const InputDecoration(
-                  hintText: '登录 cookie（点歌用，浏览器登录后复制，可留空）',
+                  // 必须点明 auth-token：会话判定只认它（见
+                  // VoiceHubClient.hasSessionCookie），粘别的 cookie 不算登录。
+                  hintText:
+                      '登录 cookie（需含 auth-token，登录后从浏览器复制）',
+                  helperText: '形如 auth-token=eyJ…；缺少 auth-token 视为未登录',
+                  helperMaxLines: 2,
                   isDense: true,
                   prefixIcon: Icon(Icons.lock_outline, size: 16),
                 ),
@@ -330,6 +333,8 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
   }
 
   /// 联动核心：把网页请求的曲目交给 App 原生播放器（网易云 / B站）。
+  ///
+  /// 判定逻辑抽到 [VoiceHubPlay.playSong]，与原生页共用一份（避免两处走偏）。
   Future<void> _playByFields({
     required String platform,
     required String id,
@@ -338,52 +343,26 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     String coverUrl = '',
   }) async {
     if (!mounted) return;
-    final String p = platform.toLowerCase();
-    if (p.contains('netease') && id.isNotEmpty) {
-      if (!ref.read(neteaseAuthProvider).isLoggedIn) {
-        _toast('播放网易云曲目需先登录网易云（设置 → 账号）');
-        return;
-      }
-      final String msg = await ref.read(playbackActionsProvider).playTrack(
-            Track(
-              title: title,
-              artist: artist,
-              uri: 'netease://song/$id',
-              source: TrackSource.stream,
-              sourceId: 'netease',
-              extras: <String, dynamic>{'coverUrl': coverUrl},
-            ),
-          );
-      if (!mounted) return;
-      if (msg.isNotEmpty) _toast(msg);
-      _pushNowPlaying(title: title, artist: artist, coverUrl: coverUrl);
+    final String msg = await VoiceHubPlay.playSong(
+      ref,
+      platform: platform,
+      musicId: id,
+      title: title,
+      artist: artist,
+      coverUrl: coverUrl.isEmpty ? null : coverUrl,
+    );
+    if (!mounted) return;
+    if (msg.isNotEmpty) {
+      _toast(msg);
       return;
     }
-    if (p.contains('bilibili') && id.isNotEmpty) {
-      if (!ref.read(bilibiliAuthProvider).isLoggedIn) {
-        _toast('播放 B站曲目需先登录哔哩哔哩（设置 → 账号）');
-        return;
-      }
-      final String bvid = id.split(':').first;
-      final String msg = await ref.read(playbackActionsProvider).playTrack(
-            Track(
-              title: title,
-              artist: artist,
-              uri: 'bilibili://video/$bvid',
-              source: TrackSource.stream,
-              sourceId: 'bilibili',
-              extras: <String, dynamic>{'bvid': bvid, 'coverUrl': coverUrl},
-            ),
-          );
-      if (!mounted) return;
-      if (msg.isNotEmpty) _toast(msg);
-      _pushNowPlaying(title: title, artist: artist, coverUrl: coverUrl);
-      return;
-    }
-    _toast('暂不支持该平台播放（${platform.isEmpty ? '未知' : platform}）');
+    _pushNowPlaying(title: title, artist: artist, coverUrl: coverUrl);
   }
 
-  /// 联动核心：把网页请求的点歌提交到 VoiceHub（需登录 cookie）。
+  /// 联动核心：把网页请求的点歌提交到 VoiceHub。
+  ///
+  /// `/api/open/songs/request` 用 API Key 归属的用户身份落库，**不需要 Cookie**，
+  /// 因此不再像旧版那样先卡登录态。
   Future<void> _submitByFields({
     required String platform,
     required String musicId,
@@ -392,19 +371,25 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     required String coverUrl,
   }) async {
     if (!mounted) return;
-    if (ref.read(voiceHubProvider).config.cookie.isEmpty) {
-      _toast('点歌需先在配置卡填入 VoiceHub 登录 cookie');
+    if (title.isEmpty || artist.isEmpty) {
+      _toast('缺少歌曲名或艺术家，无法投稿');
       return;
     }
-    final bool ok = await ref.read(voiceHubProvider.notifier).submitSong(
+    // B 站分 P：服务端会把 musicId 按 ':' 截断重建，cid/page 必须走独立字段。
+    final VoiceHubBilibiliId bili = VoiceHubBilibiliId.parse(musicId);
+    final int id = await ref.read(voiceHubProvider.notifier).submit(
           title: title,
           artist: artist,
-          coverUrl: coverUrl,
+          cover: coverUrl,
           musicPlatform: platform,
-          musicId: musicId,
+          musicId: bili.isEmpty ? musicId : bili.bvid,
+          bilibiliCid: bili.cid.isEmpty ? null : bili.cid,
+          bilibiliPage: bili.page.isEmpty ? null : bili.page,
         );
     if (!mounted) return;
-    _toast(ok ? '已提交点歌：$title' : '点歌失败：${ref.read(voiceHubProvider).error}');
+    _toast(id > 0
+        ? '已提交点歌：$title'
+        : '点歌失败：${ref.read(voiceHubProvider).error}');
   }
 
   /// App → 网页：回推当前播放状态（页面可选监听 `window.xingliState`）。
@@ -427,17 +412,23 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
 
   Future<void> _save() async {
     final String url = _urlCtrl.text.trim();
-    await ref.read(voiceHubProvider.notifier).configure(
-          VoiceHubConfig(
-            baseUrl: url,
-            apiKey: _keyCtrl.text.trim(),
-            cookie: _cookieCtrl.text,
-          ),
-        );
+    final VoiceHubConfig cfg = VoiceHubConfig(
+      baseUrl: url,
+      apiKey: _keyCtrl.text.trim(),
+      cookie: _cookieCtrl.text,
+    );
+    await ref.read(voiceHubProvider.notifier).configure(cfg);
     if (!mounted) return;
-    _toast(url.isEmpty ? '已清除 VoiceHub 配置' : '已保存并打开网页');
+    // 配置已落盘，这里只决定怎么说、以及要不要继续加载网页。
+    // 无效 cookie 不阻止保存（用户可能只想先存 baseUrl / apiKey），
+    // 但必须同时说清「已保存」和「缺 auth-token」，否则用户以为没存。
+    if (cfg.hasInvalidCookie) {
+      _toast('已保存；${cfg.loginPrompt}');
+    } else {
+      _toast(url.isEmpty ? '已清除 VoiceHub 配置' : '已保存并打开网页');
+    }
     if (url.isNotEmpty) {
-      // 保存后切到网页视图并加载新地址。
+      // 保存后切到网页视图并加载新地址（网页版不依赖 auth-token，照常加载）。
       setState(() {
         _showConfig = false;
         _webReady = false;

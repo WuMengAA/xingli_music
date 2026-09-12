@@ -405,12 +405,12 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
               padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
                 children: <Widget>[
-                  IconButton(
+                  XGlassIconButton(
                     icon: const Icon(Icons.arrow_back, color: ink),
-                    tooltip: inRoom ? '离开房间' : '返回',
                     onPressed: inRoom
                         ? () => _leaveRoom()
                         : () => Navigator.of(context).maybePop(),
+                    tooltip: inRoom ? '离开房间' : '返回',
                   ),
                   const SizedBox(width: AppSpace.sm),
                   Text(inRoom ? '联机房间' : '开放世界 · 联机',
@@ -559,33 +559,24 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         ? null
         : _saves.firstWhere((VoxelManualSaveMeta s) => s.id == _hostSaveId);
     return <Widget>[
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        decoration: BoxDecoration(
-          color: const Color(0x1AFFFFFF),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: sel?.id,
-            dropdownColor: const Color(0xFF16203A),
-            hint: Text('选择本地存档',
-                style: AppTextStyles.body.copyWith(color: Colors.white54)),
-            isExpanded: true,
-            items: _saves
-                .map((VoxelManualSaveMeta s) => DropdownMenuItem<String>(
-                      value: s.id,
-                      child: Text(
-                        s.lastSavedAt != null
-                            ? '${s.name}（${_fmt(s.lastSavedAt!)}）'
-                            : s.name,
-                        style: AppTextStyles.body.copyWith(color: Colors.white),
-                      ),
-                    ))
-                .toList(),
-            onChanged: (String? v) => setState(() => _hostSaveId = v),
-          ),
-        ),
+      XGlassDropdown<String>(
+        value: sel?.id,
+        tint: const Color(0x1AFFFFFF),
+        radius: AppRadius.md,
+        hint: Text('选择本地存档',
+            style: AppTextStyles.body.copyWith(color: Colors.white54)),
+        items: _saves
+            .map((VoxelManualSaveMeta s) => DropdownMenuItem<String>(
+                  value: s.id,
+                  child: Text(
+                    s.lastSavedAt != null
+                        ? '${s.name}（${_fmt(s.lastSavedAt!)}）'
+                        : s.name,
+                    style: AppTextStyles.body.copyWith(color: Colors.white),
+                  ),
+                ))
+            .toList(),
+        onChanged: (String? v) => setState(() => _hostSaveId = v),
       ),
       const SizedBox(height: AppSpace.sm),
     ];

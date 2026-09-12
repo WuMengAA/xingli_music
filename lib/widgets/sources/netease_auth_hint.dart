@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../sources/netease_login_sheet.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 网易云登录态失效引导（区别于纯网络错误）。
 ///
@@ -38,7 +39,7 @@ class NeteaseAuthExpiredHint extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
-            FilledButton.tonal(
+            XGlassButton(
               onPressed: () async {
                 await showNeteaseLoginSheet(context);
                 if (!context.mounted) return;

@@ -252,28 +252,27 @@ class _MediaCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-              IconButton(
-                tooltip: '上一首',
+              XGlassIconButton(
                 icon: Icon(Icons.skip_previous_rounded,
                     color: context.appColors.iconPrimary),
                 onPressed: () => runPlaybackAction(
                     context, () => actions.next(direction: -1)),
+                tooltip: '上一首',
               ),
-              IconButton(
-                tooltip: isPlaying ? '暂停' : '播放',
-                iconSize: 36,
-                icon: Icon(
+              XGlassIconButton(
+                icon: IconTheme.merge(data: IconThemeData(size: 36), child: Icon(
                   isPlaying ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
                   color: context.appColors.accent,
-                ),
+                )),
                 onPressed: () => runPlaybackAction(context, actions.toggle),
+                tooltip: isPlaying ? '暂停' : '播放',
               ),
-              IconButton(
-                tooltip: '下一首',
+              XGlassIconButton(
                 icon: Icon(Icons.skip_next_rounded,
                     color: context.appColors.iconPrimary),
                 onPressed: () =>
                     runPlaybackAction(context, () => actions.next()),
+                tooltip: '下一首',
               ),
             ],
           ),

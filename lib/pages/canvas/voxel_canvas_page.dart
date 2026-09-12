@@ -264,24 +264,24 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
               ),
               const SizedBox(width: AppSpace.xs),
               // 场景分享 / 导入（Phase 2：让 Phase 1 的产出可留存、可交换）。
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.download_rounded, size: 18),
-                tooltip: '导入场景',
-                visualDensity: VisualDensity.compact,
                 onPressed: _importScene,
+                tooltip: '导入场景',
+                size: 40,
               ),
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.share_rounded, size: 18),
-                tooltip: '分享场景',
-                visualDensity: VisualDensity.compact,
                 onPressed: () => unawaited(_shareScene(active)),
+                tooltip: '分享场景',
+                size: 40,
               ),
               // 可视化可调参数（Phase 2：viz 编辑态持久化）。
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.tune_rounded, size: 18),
-                tooltip: '可视化设置',
-                visualDensity: VisualDensity.compact,
                 onPressed: _openVizSettings,
+                tooltip: '可视化设置',
+                size: 40,
               ),
             ],
           ),
@@ -386,26 +386,38 @@ class _VoxelCanvasPageState extends ConsumerState<VoxelCanvasPage> {
               Row(
                 children: <Widget>[
                   Expanded(
-                    child: FilledButton.icon(
-                      onPressed:
-                          _previewing ? _stopPreview : _playScene,
-                      icon: Icon(
-                        _previewing
-                            ? Icons.stop_rounded
-                            : Icons.play_arrow_rounded,
-                        size: 18,
-                      ),
-                      label: Text(
-                        _previewing ? '停止音景' : '播放音景',
-                        style: AppTextStyles.button,
+                    child: XGlassButton(
+                      onPressed: _previewing ? _stopPreview : _playScene,
+                      fullWidth: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            _previewing
+                                ? Icons.stop_rounded
+                                : Icons.play_arrow_rounded,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _previewing ? '停止音景' : '播放音景',
+                            style: AppTextStyles.button,
+                          ),
+                        ],
                       ),
                     ),
                   ),
                   const SizedBox(width: AppSpace.sm),
-                  OutlinedButton.icon(
+                  XGlassButton(
                     onPressed: _openEditor,
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    label: const Text('编辑', style: AppTextStyles.button),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.edit_outlined, size: 18),
+                        SizedBox(width: 8),
+                        Text('编辑', style: AppTextStyles.button),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -675,16 +687,28 @@ class _EmptyScene extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpace.lg),
-          FilledButton.icon(
+          XGlassButton(
             onPressed: onCreate,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('创建音效场景'),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.add_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('创建音效场景'),
+              ],
+            ),
           ),
           const SizedBox(height: AppSpace.xs),
-          TextButton.icon(
+          XGlassButton(
             onPressed: onOpen3D,
-            icon: const Icon(Icons.view_in_ar_rounded, size: 18),
-            label: const Text('先去 3D 体素世界逛逛'),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.view_in_ar_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('先去 3D 体素世界逛逛'),
+              ],
+            ),
           ),
         ],
       ),

@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/audio/music_quality_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开音质选择弹层。
 Future<void> showMusicQualitySheet(BuildContext context) {
@@ -61,7 +62,7 @@ class _MusicQualitySheet extends ConsumerWidget {
                 Expanded(
                   child: Text('音质与清晰度', style: context.appText.subtitle),
                 ),
-                IconButton(
+                XGlassIconButton(
                   icon: Icon(
                     Icons.close_rounded,
                     size: AppSize.iconSm,

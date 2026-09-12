@@ -143,7 +143,7 @@ class _PhotoGalleryPageState extends State<PhotoGalleryPage> {
         elevation: 0,
         scrolledUnderElevation: 0,
         title: Text('照片 · 场景', style: context.appText.title),
-        leading: IconButton(
+        leading: XGlassIconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
@@ -244,12 +244,12 @@ class _PhotoTile extends StatelessWidget {
                       style: context.appText.caption,
                     ),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: const Icon(Icons.delete_outline, size: 16),
-                    visualDensity: VisualDensity.compact,
-                    color: context.appColors.iconInactive,
-                    tooltip: '删除',
                     onPressed: onDelete,
+                    tooltip: '删除',
+                    color: context.appColors.iconInactive,
+                    size: 40,
                   ),
                 ],
               ),
@@ -277,7 +277,7 @@ class PhotoScenePage extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text('进入场景', style: context.appText.title),
-        leading: IconButton(
+        leading: XGlassIconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),

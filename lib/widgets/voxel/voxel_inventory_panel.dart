@@ -560,9 +560,9 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       child: Row(
         children: <Widget>[
           // ⑦：退出按钮移到「背包 / 合成」标签左侧，避免与右侧操作冲突。
-          IconButton(
-            onPressed: widget.onClose,
+          XGlassIconButton(
             icon: const Icon(Icons.close_rounded, color: Color(0xFFEFF3FA)),
+            onPressed: widget.onClose,
             tooltip: '关闭',
           ),
           const SizedBox(width: 4),

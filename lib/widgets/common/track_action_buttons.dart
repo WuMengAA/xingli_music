@@ -35,22 +35,20 @@ class TrackActionButtons extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         // 投稿：向电台房点歌队列提交。
-        IconButton(
-          visualDensity: VisualDensity.compact,
+        XGlassIconButton(
           icon: Icon(Icons.campaign_outlined,
               size: 20, color: colors.textSecondary),
-          tooltip: '投稿到电台',
           onPressed: () => _submit(ref, context),
+          tooltip: '投稿到电台',
+          size: 40,
         ),
         // 收藏。
-        IconButton(
-          visualDensity: VisualDensity.compact,
+        XGlassIconButton(
           icon: Icon(
             isFav ? Icons.favorite : Icons.favorite_border,
             size: 20,
             color: isFav ? colors.accent : colors.textSecondary,
           ),
-          tooltip: isFav ? '取消收藏' : '收藏',
           onPressed: () async {
             final bool now =
                 await toggleFavoriteTrack(ref, track);
@@ -59,6 +57,8 @@ class TrackActionButtons extends ConsumerWidget {
                   title: '收藏');
             }
           },
+          tooltip: isFav ? '取消收藏' : '收藏',
+          size: 40,
         ),
       ],
     );

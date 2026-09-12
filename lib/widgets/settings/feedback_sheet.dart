@@ -173,7 +173,7 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
                   Expanded(
                     child: Text('反馈', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),

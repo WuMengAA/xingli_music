@@ -661,18 +661,29 @@ Widget buildBottomActions(
       spacing: 14,
       runSpacing: 4,
       children: <Widget>[
-        TextButton.icon(
+        XGlassButton(
           onPressed: () => unawaited(showAggregateSearchSheet(context)),
-          icon: Icon(Icons.search_rounded, size: 18, color: colors.accent),
-          label: Text('搜索', style: context.appText.caption),
-          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.search_rounded, size: 18, color: colors.accent),
+              const SizedBox(width: 8),
+              Text('搜索', style: context.appText.caption),
+            ],
+          ),
         ),
-        TextButton.icon(
+        XGlassButton(
           onPressed: () => unawaited(showMusicQualitySheet(context)),
-          icon:
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
               Icon(Icons.high_quality_rounded, size: 18, color: colors.accent),
-          label: Text('音质', style: context.appText.caption),
-          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              const SizedBox(width: 8),
+              Text('音质', style: context.appText.caption),
+            ],
+          ),
         ),
         // cl52-B：白噪音（音质右边）。
         _WhiteNoiseLabeledButton(active: whiteNoise, onTap: onToggleWhiteNoise),
@@ -777,7 +788,7 @@ Future<void> showEqualizerSheet(BuildContext context) {
                 Expanded(
                   child: Text('音效', style: context.appText.subtitle),
                 ),
-                IconButton(
+                XGlassIconButton(
                   icon: const Icon(Icons.close),
                   tooltip: '关闭',
                   onPressed: () => Navigator.of(sheetContext).pop(),
@@ -836,7 +847,7 @@ Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
                 Expanded(
                   child: Text('播放速度', style: context.appText.subtitle),
                 ),
-                IconButton(
+                XGlassIconButton(
                   icon: const Icon(Icons.close),
                   tooltip: '关闭',
                   onPressed: () => Navigator.of(sheetContext).pop(),
@@ -919,7 +930,7 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
                 Expanded(
                   child: Text('定时关闭', style: context.appText.subtitle),
                 ),
-                IconButton(
+                XGlassIconButton(
                   icon: const Icon(Icons.close),
                   tooltip: '关闭',
                   onPressed: () => Navigator.of(sheetContext).pop(),
@@ -940,11 +951,17 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
                     style: context.appText.body,
                   ),
                   const SizedBox(height: AppSpace.sm),
-                  FilledButton.icon(
+                  XGlassButton(
                     onPressed: () =>
                         r.read(sleepTimerProvider.notifier).cancel(),
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('取消定时'),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.cancel_outlined),
+                        SizedBox(width: 8),
+                        Text('取消定时'),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: AppSpace.md),
                 ],

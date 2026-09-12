@@ -10,7 +10,7 @@ import 'core/theme/light_tokens.dart';
 import 'models/scene.dart';
 import 'models/track.dart';
 import 'pages/explore/explore_page.dart';
-import 'pages/explore/experiments/voicehub_page.dart';
+import 'pages/social/voicehub_hub_page.dart';
 import 'pages/oobe/oobe_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/library/library_page.dart';
@@ -102,7 +102,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     LibraryPage(), //    1 · 曲库
     WorldPage(), //      2 · 世界（星璃世界入口）
     ExplorePage(), //    3 · 探索
-    VoiceHubPage(), //   4 · 校园电台（VoiceHub 点歌，内嵌一级入口）
+    VoiceHubHubPage(), // 4 · 校园电台（VoiceHub 原生页；完整网页版由页内入口进入）
     SettingsPage(), //   5 · 设置
   ];
 

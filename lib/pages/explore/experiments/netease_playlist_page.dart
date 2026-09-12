@@ -9,6 +9,7 @@ import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 import '../../../widgets/sources/netease_login_sheet.dart';
 import '../../../widgets/sources/netease_track_list_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 网易云 · 我的歌单（用户歌单列表 → 歌单内曲目）。
 ///
@@ -31,7 +32,7 @@ class NeteasePlaylistPage extends ConsumerWidget {
           title: '网易云歌单',
           actions: <Widget>[
             if (loggedIn)
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.refresh_rounded),
                 onPressed: () => ref.invalidate(neteasePlaylistsProvider),
                 tooltip: '刷新',
@@ -191,7 +192,7 @@ class _LoginHint extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
-            FilledButton.tonal(
+            XGlassButton(
               onPressed: () async {
                 await showNeteaseLoginSheet(context);
                 if (!context.mounted) return;

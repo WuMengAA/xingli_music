@@ -34,10 +34,17 @@ class CustomSceneListPage extends ConsumerWidget {
           title: '自定义场景',
           onBack: () => Navigator.of(context).pop(),
           actions: <Widget>[
-            TextButton.icon(
+            XGlassButton(
               onPressed: () => _createScene(context, ref),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('新建'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(Icons.add, size: 18),
+                  SizedBox(width: 8),
+                  Text('新建'),
+                ],
+              ),
             ),
           ],
           body: ListView(
@@ -141,7 +148,7 @@ class _SceneTile extends ConsumerWidget {
                   .save(scene.copyWith(visible: v));
             },
           ),
-          IconButton(
+          XGlassIconButton(
             icon: Icon(Icons.edit_outlined,
                 size: 18, color: context.appColors.textTertiary),
             onPressed: () => Navigator.of(context).push(
@@ -151,14 +158,14 @@ class _SceneTile extends ConsumerWidget {
             ),
           ),
           // P1-M5-6：导出场景包（复用 scene_packer / scene_api）
-          IconButton(
+          XGlassIconButton(
             icon: Icon(Icons.ios_share_rounded,
                 size: 18, color: context.appColors.textTertiary),
-            tooltip: '导出场景包',
             onPressed: () => _exportPack(context, scene),
+            tooltip: '导出场景包',
           ),
           if (scene.isCustom)
-            IconButton(
+            XGlassIconButton(
               icon: Icon(Icons.delete_outline,
                   size: 18, color: context.appColors.danger),
               onPressed: () async {

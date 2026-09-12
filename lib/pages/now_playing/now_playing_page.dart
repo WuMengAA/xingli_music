@@ -21,6 +21,7 @@ import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
 import '../../widgets/playback/unified_player.dart';
 import '../../widgets/visualizer/spectrum_bars.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 整页正在播放（#552：从零重建）。
 ///
@@ -60,21 +61,21 @@ class NowPlayingPage extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        leading: IconButton(
+        leading: XGlassIconButton(
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          tooltip: '收起',
           onPressed: () => Navigator.of(context).maybePop(),
+          tooltip: '收起',
         ),
         title: Text(Terms.playing, style: context.appText.title),
         actions: <Widget>[
-          IconButton(
+          XGlassIconButton(
             icon: const Icon(Icons.search_rounded),
-            tooltip: '聚合搜索',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const AggregateSearchPage(),
               ),
             ),
+            tooltip: '聚合搜索',
           ),
         ],
       ),

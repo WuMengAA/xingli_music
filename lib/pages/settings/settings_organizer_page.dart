@@ -47,15 +47,15 @@ class SettingsOrganizerPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('设置整理器'),
         actions: <Widget>[
-          IconButton(
-            tooltip: '导出资产 JSON（粘贴到 assets/settings_layout.json）',
+          XGlassIconButton(
             icon: const Icon(Icons.ios_share_rounded),
             onPressed: () => _export(context, ref, layout),
+            tooltip: '导出资产 JSON（粘贴到 assets/settings_layout.json）',
           ),
-          IconButton(
-            tooltip: '新建合集',
+          XGlassIconButton(
             icon: const Icon(Icons.create_new_folder_outlined),
             onPressed: () => _addCollection(context, ref, layout),
+            tooltip: '新建合集',
           ),
         ],
       ),
@@ -262,20 +262,20 @@ class _CollectionCard extends ConsumerWidget {
                   child: Text(collection.name,
                       style: Theme.of(context).textTheme.titleSmall),
                 ),
-                IconButton(
-                  tooltip: '重命名合集',
+                XGlassIconButton(
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   onPressed: () => _renameCollection(context, ref),
+                  tooltip: '重命名合集',
                 ),
-                IconButton(
-                  tooltip: '新建组',
+                XGlassIconButton(
                   icon: const Icon(Icons.add_rounded, size: 18),
                   onPressed: () => _addGroup(context, ref),
+                  tooltip: '新建组',
                 ),
-                IconButton(
-                  tooltip: '删除合集',
+                XGlassIconButton(
                   icon: const Icon(Icons.delete_outline_rounded, size: 18),
                   onPressed: () => _deleteCollection(context, ref),
+                  tooltip: '删除合集',
                 ),
               ],
             ),
@@ -517,31 +517,31 @@ class _GroupCard extends ConsumerWidget {
               children: <Widget>[
                 Icon(Icons.drag_indicator, size: 14, color: Theme.of(context).colorScheme.outline),
                 // 组内排序（合集内上移/下移）。
-                IconButton(
-                  tooltip: '组上移',
+                XGlassIconButton(
                   icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
-                  visualDensity: VisualDensity.compact,
                   onPressed: () => _moveGroup(ref, -1),
+                  tooltip: '组上移',
+                  size: 40,
                 ),
-                IconButton(
-                  tooltip: '组下移',
+                XGlassIconButton(
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                  visualDensity: VisualDensity.compact,
                   onPressed: () => _moveGroup(ref, 1),
+                  tooltip: '组下移',
+                  size: 40,
                 ),
                 Expanded(
                   child: Text(group.name,
                       style: Theme.of(context).textTheme.labelMedium),
                 ),
-                IconButton(
-                  tooltip: '重命名组',
+                XGlassIconButton(
                   icon: const Icon(Icons.edit_outlined, size: 16),
                   onPressed: () => _rename(context, ref),
+                  tooltip: '重命名组',
                 ),
-                IconButton(
-                  tooltip: '删除组',
+                XGlassIconButton(
                   icon: const Icon(Icons.close_rounded, size: 16),
                   onPressed: () => _delete(ref),
+                  tooltip: '删除组',
                 ),
               ],
             ),

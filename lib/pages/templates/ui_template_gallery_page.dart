@@ -18,6 +18,7 @@ import '../../core/ui_editor_model.dart';
 import '../../core/ui_templates.dart';
 import 'ui_editor_page.dart';
 import '../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 模板画廊页。
 class UiTemplateGalleryPage extends StatefulWidget {
@@ -50,12 +51,12 @@ class _UiTemplateGalleryPageState extends State<UiTemplateGalleryPage> {
         title: const Text('UI 模板库'),
         backgroundColor: context.appColors.bgSurface,
         actions: <Widget>[
-          IconButton(
-            tooltip: '打开 UI 编辑器（从空白起步）',
+          XGlassIconButton(
             icon: const Icon(Icons.edit_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const UiEditorPage()),
             ),
+            tooltip: '打开 UI 编辑器（从空白起步）',
           ),
         ],
       ),
@@ -265,8 +266,7 @@ class _TemplateDetailSheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: '复制节点 JSON',
+                XGlassIconButton(
                   icon: const Icon(Icons.copy_rounded),
                   onPressed: () {
                     final String json = UiNode.container(
@@ -280,6 +280,7 @@ class _TemplateDetailSheet extends StatelessWidget {
                     Navigator.of(context).pop();
                     appNotify(context, '已复制「${template.name}」节点 JSON');
                   },
+                  tooltip: '复制节点 JSON',
                 ),
               ],
             ),
@@ -302,13 +303,26 @@ class _TemplateDetailSheet extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpace.md),
             child: SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: context.appColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
+              child: XGlassButton(
+                tint: context.appColors.accent,
+                fullWidth: true,
+                radius: 22,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(
+                      Icons.edit_rounded,
+                      size: 18,
+                      color: context.appColors.onAccent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '以「${'模板'}」起步，进入编辑器',
+                      style: TextStyle(color: context.appColors.onAccent),
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.edit_rounded, size: 18),
-                label: const Text('以「${'模板'}」起步，进入编辑器'),
                 onPressed: () {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(

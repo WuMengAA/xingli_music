@@ -5,6 +5,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/theme/theme_skins.dart';
 import '../../providers/theme/theme_providers.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 全局主题切换按钮（右上角）
@@ -38,14 +39,14 @@ class ThemeSwitchButton extends ConsumerWidget {
     // 表达当前主题状态，无背景卡片 / 边框 / 圆角。弹出面板逻辑不变。
     return Padding(
       padding: const EdgeInsets.only(left: AppSpace.xs),
-      child: IconButton(
-        tooltip: '主题',
-        onPressed: () => _showThemeSheet(context),
+      child: XGlassIconButton(
         icon: Icon(
           _iconFor(mode),
           size: AppSize.iconSm,
           color: context.appColors.iconPrimary,
         ),
+        onPressed: () => _showThemeSheet(context),
+        tooltip: '主题',
       ),
     );
   }

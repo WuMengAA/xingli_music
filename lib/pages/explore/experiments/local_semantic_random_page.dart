@@ -14,6 +14,7 @@ import '../../../providers/settings/oobe_choice_providers.dart';
 import '../../../services/content/local_semantic_random.dart';
 import '../../../widgets/common/info_row.dart';
 import '../../../widgets/common/page_scaffold.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 import '../../../widgets/common/state_chip.dart';
 import '../../../widgets/common/state_views.dart';
 import '../../../widgets/notification/app_notify.dart';
@@ -62,10 +63,20 @@ class _LocalSemanticRandomPageState
                       style: context.appText.bodyMuted,
                     ),
                     const Spacer(),
-                    TextButton.icon(
+                    XGlassButton(
                       onPressed: _reshuffle,
-                      icon: const Icon(Icons.shuffle_rounded, size: 18),
-                      label: const Text('换一批'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.shuffle_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('换一批'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -98,7 +109,7 @@ class _LocalSemanticRandomPageState
                               Text('共 ${ranked.length} 首',
                                   style: context.appText.bodyMuted),
                               const Spacer(),
-                              TextButton.icon(
+                              XGlassButton(
                                 onPressed: () async {
                                   final String msg = await ref
                                       .read(playbackActionsProvider)
@@ -107,8 +118,18 @@ class _LocalSemanticRandomPageState
                                     appNotify(context, msg);
                                   }
                                 },
-                                icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                                label: const Text('播放全部'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: <Widget>[
+                                    Icon(Icons.play_arrow_rounded, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('播放全部'),
+                                  ],
+                                ),
                               ),
                             ],
                           ),

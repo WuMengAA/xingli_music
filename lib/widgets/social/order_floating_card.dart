@@ -5,6 +5,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
 import '../../services/audio/audio_service.dart';
+import '../../widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 点歌悬浮窗（R32 · 需求 ④：点歌可在底部音乐媒体栏中以悬浮窗形式显示）
@@ -197,13 +198,13 @@ class _OrderCard extends StatelessWidget {
                   child: Text('+${pendingCount - 1}',
                       style: TextStyle(color: c.accent, fontSize: 11)),
                 ),
-              IconButton(
+              XGlassIconButton(
                 onPressed: onDismiss,
                 icon: const Icon(Icons.expand_more, size: 18),
                 color: c.textTertiary,
-                padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints(minWidth: 24, minHeight: 24),
+                // 原 IconButton 显式约束 24dp（折叠角标行内紧凑件），保持尺寸不变。
+                size: 24,
+                radius: 8,
               ),
             ],
           ),
@@ -250,22 +251,29 @@ class _OrderCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
-                OutlinedButton.icon(
+                XGlassButton(
                   onPressed: onReject,
-                  icon: const Icon(Icons.close, size: 16),
-                  label: const Text('拒绝'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: c.danger,
-                    visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(Icons.close, size: 16, color: c.danger),
+                      const SizedBox(width: 8),
+                      Text('拒绝', style: TextStyle(color: c.danger)),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
+                XGlassButton(
                   onPressed: onApprove,
-                  icon: const Icon(Icons.check, size: 16),
-                  label: const Text('通过'),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const <Widget>[
+                      Icon(Icons.check, size: 16),
+                      SizedBox(width: 8),
+                      Text('通过'),
+                    ],
                   ),
                 ),
               ],
@@ -275,12 +283,16 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton.icon(
+              child: XGlassButton(
                 onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow, size: 16),
-                label: const Text('推入播放'),
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const <Widget>[
+                    Icon(Icons.play_arrow, size: 16),
+                    SizedBox(width: 8),
+                    Text('推入播放'),
+                  ],
                 ),
               ),
             ),

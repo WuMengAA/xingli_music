@@ -8,6 +8,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
 import 'companion_bubble.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 浮层几何常量（同文件内多个私有 Widget 共享）。
 ///
@@ -297,10 +298,10 @@ class _CardHeader extends StatelessWidget {
               ),
             ),
           ),
-          IconButton(
-            onPressed: onClose,
+          XGlassIconButton(
             icon: Icon(Icons.close_rounded,
                 size: AppSize.iconSm, color: context.appColors.textTertiary),
+            onPressed: onClose,
           ),
         ],
       ),

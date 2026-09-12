@@ -140,7 +140,7 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                   Expanded(
                     child: Text('大模型设置', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),
@@ -180,7 +180,7 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                 decoration: _dec(
                   keySet ? 'API Key（已设置，留空不变）' : 'API Key',
                   'sk-...',
-                  suffixIcon: IconButton(
+                  suffixIcon: XGlassIconButton(
                     icon: Icon(
                       _obscureKey
                           ? Icons.visibility_off_outlined

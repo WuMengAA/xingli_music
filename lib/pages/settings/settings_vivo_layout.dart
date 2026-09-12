@@ -177,14 +177,14 @@ class _SettingsSearchBar extends StatelessWidget {
           prefixIcon: Icon(Icons.search_rounded, color: c.textSecondary),
           suffixIcon: controller.text.isEmpty
               ? null
-              : IconButton(
-                  icon: Icon(Icons.close_rounded, color: c.textSecondary),
-                  tooltip: '清除',
-                  onPressed: () {
+              : XGlassIconButton(
+                icon: Icon(Icons.close_rounded, color: c.textSecondary),
+                onPressed: () {
                     controller.clear();
                     onChanged('');
                   },
-                ),
+                tooltip: '清除',
+              ),
           border: InputBorder.none,
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(vertical: 12),

@@ -7,6 +7,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// AI 陪伴 · 文字气泡组件（Phase 1 形态 A）
@@ -246,13 +247,13 @@ class _InputBarState extends ConsumerState<_InputBar> {
             ),
           ),
           const SizedBox(width: AppSpace.sm),
-          IconButton(
-            onPressed: _send,
+          XGlassIconButton(
             icon: Icon(
               Icons.send_rounded,
               color: context.appColors.accent,
               size: AppSize.icon,
             ),
+            onPressed: _send,
           ),
         ],
       ),

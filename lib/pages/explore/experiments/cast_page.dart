@@ -183,8 +183,7 @@ class _AddressRow extends StatelessWidget {
           child: SelectableText(text,
               style: TextStyle(fontSize: 14, color: c.accent)),
         ),
-        IconButton(
-          visualDensity: VisualDensity.compact,
+        XGlassIconButton(
           icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: text));
@@ -198,6 +197,7 @@ class _AddressRow extends StatelessWidget {
               );
             }
           },
+          size: 40,
         ),
       ],
     );
@@ -285,8 +285,7 @@ class _UrlRow extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
+          XGlassIconButton(
             icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: url));
@@ -300,6 +299,7 @@ class _UrlRow extends StatelessWidget {
                 );
               }
             },
+            size: 40,
           ),
         ],
       ),

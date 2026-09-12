@@ -62,23 +62,23 @@ class StationRoomPage extends ConsumerWidget {
           elevation: 0,
           actions: <Widget>[
             if (mode.acceptOrder)
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.playlist_add_check),
-                tooltip: '点歌队列',
                 onPressed: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (_) => const OrderQueuePage(),
                   ),
                 ),
+                tooltip: '点歌队列',
               ),
-            IconButton(
+            XGlassIconButton(
               icon: const Icon(Icons.logout),
-              tooltip: '离开',
               onPressed: () async {
                 await ref.read(netSessionProvider.notifier).leave();
                 if (!context.mounted) return;
                 Navigator.of(context).pop();
               },
+              tooltip: '离开',
             ),
           ],
         ),
@@ -194,12 +194,19 @@ class StationRoomPage extends ConsumerWidget {
                 ),
               ),
             ),
-            FilledButton.icon(
+            XGlassButton(
               onPressed: s.roomCode == null
                   ? null
                   : () => _copyRoomCode(context, s.roomCode!),
-              icon: const Icon(Icons.copy, size: 18),
-              label: const Text('复制'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  Icon(Icons.copy, size: 18),
+                  SizedBox(width: 8),
+                  Text('复制'),
+                ],
+              ),
             ),
           ],
         ),
@@ -402,17 +409,19 @@ class StationRoomPage extends ConsumerWidget {
                       _buildSourceChip(now, c),
                     if (s.role == NetRole.host) ...<Widget>[
                       const Spacer(),
-                      FilledButton.icon(
+                      XGlassButton(
                         onPressed: () => _djSelfPick(context, ref),
-                        icon: const Icon(Icons.tune, size: 14),
-                        label: const Text('DJ 自选'),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(0, 26),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          textStyle: const TextStyle(fontSize: 11),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const <Widget>[
+                            Icon(Icons.tune, size: 14),
+                            SizedBox(width: 8),
+                            Text('DJ 自选', style: TextStyle(fontSize: 11)),
+                          ],
                         ),
                       ),
                     ],

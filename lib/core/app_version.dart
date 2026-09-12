@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 11;
+  static const int day = 12;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -481,7 +481,17 @@ abstract final class AppVersion {
   ///   后台不再持续重绘，降低 CPU/GPU 负载与内存抖动）；
   /// ④持续动画门控（now_playing / oobe / station_room 的 repeat 移出 build、由 isPlaying
   ///   驱动，避免无变化时每帧重建）；⑤模糊层 RepaintBoundary 隔离 + aurora 渐变缓存。
-  static const int buildCount = 6;
+  /// cl01（09.12 跨天重算）：全界面玻璃化收官 + VoiceHub 原生内嵌。
+  /// ①基准件补齐 XGlassIconButton（保 48dp 触控、无背景模糊）/ XGlassDropdown，
+  ///   全库裸 Material 图标按钮与下拉框清零（碰撞屏 crash_screen 永久豁免）；
+  /// ②VoiceHub 由 WebView 壳改原生内嵌：排期 / 点歌榜 / 我的投稿三 Tab，
+  ///   端点契约按后端 TS 源码逐条校正（信封取 data.data.songs、cover 字段名、
+  ///   排期两层结构、投票须登录会话）；
+  /// ③登录判定收紧为只认 auth-token；401 按 open（API Key 无效）与私有
+  ///   （会话失效）两类分别提示，避免误导；
+  /// ④提交链路修正：B 站分 P 走独立 bilibiliCid/bilibiliPage、collaborators
+  ///   改数值用户 id、去掉服务端白名单不接收的 durationSeconds。
+  static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -546,6 +556,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.12',
+    cl: 'alpha_cl01',
+    title: '全界面玻璃化收官 + VoiceHub 原生内嵌',
+    details: <String>[
+      '补齐玻璃基准件 XGlassIconButton / XGlassDropdown，全库裸 Material 图标按钮与下拉框清零（崩溃兜底屏豁免）',
+      'VoiceHub 从 WebView 壳改为原生内嵌：排期 / 点歌榜 / 我的投稿三栏，数据层端点契约按后端源码逐条校正',
+      '登录判定收紧为只认 auth-token；401 区分「API Key 无效」与「会话失效」两类提示，不再误导',
+      '投稿链路修正：B 站分 P 走独立字段、协作者改数值用户 ID、不再下发服务端不接收的时长字段',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.11',
     cl: 'alpha_cl06',

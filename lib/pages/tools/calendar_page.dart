@@ -57,15 +57,15 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       appBar: AppBar(
         title: const Text('星璃日历'),
         actions: <Widget>[
-          IconButton(
-            tooltip: '今天',
+          XGlassIconButton(
             icon: const Icon(Icons.today),
             onPressed: _goToday,
+            tooltip: '今天',
           ),
-          IconButton(
-            tooltip: '下个月',
+          XGlassIconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _shift(1),
+            tooltip: '下个月',
           ),
         ],
       ),
@@ -92,11 +92,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           Text('${anchor.yearName}年 ${anchor.zodiac}年',
               style: c.textSecondary.style(fontSize: 12)),
           const Spacer(),
-          IconButton(
+          XGlassIconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () => _shift(-1),
           ),
-          IconButton(
+          XGlassIconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _shift(1),
           ),
@@ -259,12 +259,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                             c.textPrimary.style(fontSize: 16, w700: true),
                       ),
                       const Spacer(),
-                      IconButton(
-                        tooltip: '添加事件',
+                      XGlassIconButton(
                         icon: const Icon(Icons.add),
                         onPressed: () => _addEvent(c, day).then((_) {
                           if (mounted) refresh();
                         }),
+                        tooltip: '添加事件',
                       ),
                     ],
                   ),
@@ -304,8 +304,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                 : Text(e.note,
                                     style: c.textSecondary
                                         .style(fontSize: 12)),
-                            trailing: IconButton(
-                              tooltip: '删除',
+                            trailing: XGlassIconButton(
                               icon: const Icon(Icons.delete_outline,
                                   size: 18),
                               onPressed: () async {
@@ -314,6 +313,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                                     .remove(e.id);
                                 if (mounted) refresh();
                               },
+                              tooltip: '删除',
                             ),
                           );
                         },

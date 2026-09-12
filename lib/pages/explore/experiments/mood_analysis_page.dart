@@ -10,6 +10,7 @@ import '../../../providers/session/session_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
 import '../../../widgets/notification/app_notify.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 实验 E · 心情分析（v2 M2 · P0-M2-3）。
 ///
@@ -65,10 +66,16 @@ class _MoodAnalysisPageState extends ConsumerState<MoodAnalysisPage> {
               const SizedBox(height: AppSpace.md),
               for (int i = 0; i < _questions.length; i++) _questionBlock(i),
               const SizedBox(height: AppSpace.lg),
-              FilledButton.icon(
+              XGlassButton(
                 onPressed: _analyzeAndSwitch,
-                icon: const Icon(Icons.auto_awesome_rounded),
-                label: const Text('分析并匹配场景'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.auto_awesome_rounded),
+                    SizedBox(width: 8),
+                    Text('分析并匹配场景'),
+                  ],
+                ),
               ),
             ],
           ),

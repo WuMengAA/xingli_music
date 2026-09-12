@@ -241,40 +241,39 @@ class _UiEditorPageState extends State<UiEditorPage> {
             ],
           ),
           // ── cl45：编辑器工具（撤销/重做/复制/粘贴/多选/删除）──
-          IconButton(
-            tooltip: '撤销 (Ctrl+Z)',
+          XGlassIconButton(
             icon: const Icon(Icons.undo_rounded),
             onPressed: _history.isEmpty ? null : _undo,
+            tooltip: '撤销 (Ctrl+Z)',
           ),
-          IconButton(
-            tooltip: '重做 (Ctrl+Y)',
+          XGlassIconButton(
             icon: const Icon(Icons.redo_rounded),
             onPressed: _future.isEmpty ? null : _redo,
+            tooltip: '重做 (Ctrl+Y)',
           ),
-          IconButton(
-            tooltip: '复制选中 (Ctrl+C)',
+          XGlassIconButton(
             icon: const Icon(Icons.content_copy_rounded),
             onPressed: _selectedIds.isEmpty ? null : _copySelected,
+            tooltip: '复制选中 (Ctrl+C)',
           ),
-          IconButton(
-            tooltip: '粘贴 (Ctrl+V)',
+          XGlassIconButton(
             icon: const Icon(Icons.content_paste_rounded),
             onPressed: _clipboard.isEmpty ? null : _paste,
+            tooltip: '粘贴 (Ctrl+V)',
           ),
-          IconButton(
-            tooltip: '多选模式（开时点击切换选中集）',
+          XGlassIconButton(
             icon: Icon(
               _multiSelect ? Icons.select_all_rounded : Icons.select_all_outlined,
             ),
             onPressed: () => setState(() => _multiSelect = !_multiSelect),
+            tooltip: '多选模式（开时点击切换选中集）',
           ),
-          IconButton(
-            tooltip: '删除选中 (Delete)',
+          XGlassIconButton(
             icon: const Icon(Icons.delete_outline_rounded),
             onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+            tooltip: '删除选中 (Delete)',
           ),
-          IconButton(
-            tooltip: '纠错 ${_showIssues ? '开' : '关'}（${_issues.length} 项）',
+          XGlassIconButton(
             icon: Badge(
               isLabelVisible: _showIssues && _issues.isNotEmpty,
               label: Text('${_issues.length}'),
@@ -284,14 +283,15 @@ class _UiEditorPageState extends State<UiEditorPage> {
               _showIssues = !_showIssues;
               if (_showIssues) _recomputeIssues();
             }),
+            tooltip: '纠错 ${_showIssues ? '开' : '关'}（${_issues.length} 项）',
           ),
-          IconButton(
-            tooltip: '导出节点 JSON',
+          XGlassIconButton(
             icon: const Icon(Icons.copy_all_rounded),
             onPressed: () {
               Clipboard.setData(ClipboardData(text: _root.toJsonString()));
               appNotify(context, '已复制节点树 JSON 到剪贴板');
             },
+            tooltip: '导出节点 JSON',
           ),
         ],
       ),
@@ -812,10 +812,10 @@ class _UiEditorPageState extends State<UiEditorPage> {
                 _moveBtn(Icons.vertical_align_top_rounded, '移到最前', () => _moveSibling(n.id, -999)),
                 _moveBtn(Icons.vertical_align_bottom_rounded, '移到最后', () => _moveSibling(n.id, 999)),
               ],
-              IconButton(
-                tooltip: '删除节点',
+              XGlassIconButton(
                 icon: const Icon(Icons.delete_outline_rounded, size: 18),
                 onPressed: () => _deleteSelected(),
+                tooltip: '删除节点',
               ),
             ],
           ),
@@ -981,9 +981,8 @@ class _UiEditorPageState extends State<UiEditorPage> {
           ],
           if (n.type == UiNodeType.container) ...<Widget>[
             _label(context, '布局'),
-            DropdownButton<UiLayout>(
+            XGlassDropdown<UiLayout>(
               value: n.layout,
-              isExpanded: true,
               items: UiLayout.values
                   .map((UiLayout l) => DropdownMenuItem<UiLayout>(value: l, child: Text(l.name)))
                   .toList(),
@@ -1030,15 +1029,14 @@ class _UiEditorPageState extends State<UiEditorPage> {
                   child: _colorField(context, n.gradientEnd,
                       (String? v) => _updateSelected(n.clone()..gradientEnd = v)),
                 ),
-                IconButton(
-                  tooltip: '清除渐变（改纯色）',
+                XGlassIconButton(
                   icon: const Icon(Icons.cleaning_services_outlined, size: 18),
                   onPressed: () => _updateSelected(n.clone()
                     ..gradientStart = null
                     ..gradientEnd = null),
+                  tooltip: '清除渐变（改纯色）',
                 ),
-                IconButton(
-                  tooltip: '一键套用内置渐变',
+                XGlassIconButton(
                   icon: const Icon(Icons.gradient_rounded, size: 18),
                   onPressed: () {
                     final String a = n.gradientStart ?? n.color ?? '#2E2E4A';
@@ -1047,13 +1045,13 @@ class _UiEditorPageState extends State<UiEditorPage> {
                       ..gradientStart = a
                       ..gradientEnd = b);
                   },
+                  tooltip: '一键套用内置渐变',
                 ),
               ],
             ),
             _label(context, '方向'),
-            DropdownButton<String>(
+            XGlassDropdown<String>(
               value: n.gradientDirection,
-              isExpanded: true,
               items: const <DropdownMenuItem<String>>[
                 DropdownMenuItem<String>(value: 'down', child: Text('↓ 向下')),
                 DropdownMenuItem<String>(value: 'up', child: Text('↑ 向上')),
@@ -1079,9 +1077,8 @@ class _UiEditorPageState extends State<UiEditorPage> {
           const Divider(height: 14),
           // ── cl45：预览动画 + 可点击反馈 ──
           _label(context, '预览动画'),
-          DropdownButton<String>(
+          XGlassDropdown<String>(
             value: n.anim,
-            isExpanded: true,
             items: const <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(value: 'none', child: Text('无')),
               DropdownMenuItem<String>(value: 'fade', child: Text('淡入')),
@@ -1116,10 +1113,10 @@ class _UiEditorPageState extends State<UiEditorPage> {
 
   Widget _moveBtn(IconData icon, String tip, VoidCallback onTap) => Tooltip(
         message: tip,
-        child: IconButton(
+        child: XGlassIconButton(
           icon: Icon(icon, size: 16),
           onPressed: onTap,
-          visualDensity: VisualDensity.compact,
+          size: 40,
         ),
       );
 

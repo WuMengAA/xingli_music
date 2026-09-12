@@ -9,6 +9,13 @@ import '../../widgets/settings/log_upload_sheet.dart';
 ///
 ///  deliberately 不依赖任何 Theme / 自定义 extension（避免崩溃发生在主题构建
 /// 时引发递归），全部用硬编码颜色，保证自身永不二次抛错。
+///
+///  ⚠️ 玻璃化豁免（2026-09-12 定）：本页**刻意不使用** XGlassButton 等
+///  glass_controls 基准件，也不要"顺手"替换下面的 FilledButton /
+///  OutlinedButton。原因：XGlassButton.build 首行即 `Theme.of(context)`
+///  取明暗色，而本页作为 ErrorWidget.builder 的最后兜底，必须能在主题 /
+///  MediaQuery 自身崩溃时仍然渲染；一旦依赖 Theme，崩溃屏会二次抛错并
+///  彻底失去兜底能力。稳定性优先于视觉统一，此处保持硬编码颜色 + 原生按钮。
 class CrashScreen extends StatelessWidget {
   const CrashScreen({
     super.key,

@@ -290,10 +290,17 @@ class _BlockPanelState extends ConsumerState<_BlockPanel> {
               Text('音效块', style: AppTextStyles.subtitle),
               const Spacer(),
               // 自定义音效入口。
-              TextButton.icon(
+              XGlassButton(
                 onPressed: _addCustom,
-                icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('自定义'),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.add_rounded, size: 16),
+                    SizedBox(width: 8),
+                    Text('自定义'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -466,10 +473,16 @@ class _Toolbar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpace.sm),
-              FilledButton.icon(
+              XGlassButton(
                 onPressed: onSave,
-                icon: const Icon(Icons.save_rounded, size: 18),
-                label: const Text('保存'),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.save_rounded, size: 18),
+                    SizedBox(width: 8),
+                    Text('保存'),
+                  ],
+                ),
               ),
             ],
           ),

@@ -118,7 +118,7 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
           title: widget.title,
           actions: <Widget>[
             if (loggedIn && _loaded.isNotEmpty)
-              IconButton(
+              XGlassIconButton(
                 icon: const Icon(Icons.refresh_rounded),
                 onPressed: _resetAndRefresh,
                 tooltip: '刷新',

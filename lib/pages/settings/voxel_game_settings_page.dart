@@ -15,6 +15,7 @@ import '../../core/settings_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 游戏设置独立页（「包厢」）。
 class VoxelGameSettingsPage extends ConsumerWidget {
@@ -41,7 +42,7 @@ class VoxelGameSettingsPage extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
+        leading: XGlassIconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).maybePop(),
         ),

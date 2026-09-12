@@ -98,10 +98,10 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
                       style: context.appText.subtitle,
                     ),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: '关闭',
                     onPressed: () => Navigator.of(context).pop(),
+                    tooltip: '关闭',
                   ),
                 ],
               ),
@@ -472,10 +472,10 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                   Expanded(
                     child: Text('版本更新', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: const Icon(Icons.close),
-                    tooltip: '关闭',
                     onPressed: () => Navigator.of(context).pop(),
+                    tooltip: '关闭',
                   ),
                 ],
               ),

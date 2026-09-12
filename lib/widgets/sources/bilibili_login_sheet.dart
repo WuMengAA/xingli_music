@@ -159,7 +159,7 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
                   Expanded(
                     child: Text('哔哩哔哩视频源', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),
@@ -256,16 +256,23 @@ class _WebLoginPanel extends StatelessWidget {
           style: context.appText.artist,
         ),
         const SizedBox(height: AppSpace.md),
-        FilledButton.icon(
+        XGlassButton(
           onPressed: busy ? null : onLogin,
-          icon: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.language_rounded, size: 18),
-          label: Text(busy ? '处理中…' : '打开 B站登录页'),
+          fullWidth: true,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.language_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text(busy ? '处理中…' : '打开 B站登录页'),
+            ],
+          ),
         ),
         if (status.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpace.sm),
@@ -377,10 +384,17 @@ class _LoggedInPanel extends StatelessWidget {
             style: context.appText.body,
           ),
         ),
-        TextButton.icon(
+        XGlassButton(
           onPressed: onLogout,
-          icon: const Icon(Icons.logout_rounded, size: 16),
-          label: const Text('登出'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.logout_rounded, size: 16),
+              SizedBox(width: 8),
+              Text('登出'),
+            ],
+          ),
         ),
       ],
     );

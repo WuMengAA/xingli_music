@@ -96,10 +96,10 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
       appBar: AppBar(
         title: Text(base.isCustom ? '编辑自定义场景' : '自定义场景'),
         actions: [
-          IconButton(
-            tooltip: '保存',
+          XGlassIconButton(
             icon: const Icon(Icons.check),
             onPressed: _save,
+            tooltip: '保存',
           ),
         ],
       ),
@@ -264,9 +264,8 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
             const Text('粒子风格'),
             const SizedBox(width: 12),
             Expanded(
-              child: DropdownButton<String>(
+              child: XGlassDropdown<String>(
                 value: _particleMotion,
-                isExpanded: true,
                 items: _motions
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
                     .toList(),
@@ -288,8 +287,9 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
           children: [
             const Text('专属音源'),
             const SizedBox(width: 12),
-            DropdownButton<String?>(
+            XGlassDropdown<String?>(
               value: _musicSourceId,
+              isExpanded: false,
               hint: const Text('无（使用全局曲库）'),
               items: [
                 const DropdownMenuItem<String?>(value: null, child: Text('无（全局曲库）')),

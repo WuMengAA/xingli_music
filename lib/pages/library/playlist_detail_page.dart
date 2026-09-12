@@ -121,10 +121,10 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                 ),
             ],
           ),
-          IconButton(
-            tooltip: '添加歌曲',
+          XGlassIconButton(
             icon: const Icon(Icons.add_rounded),
             onPressed: () => _addTracks(context),
+            tooltip: '添加歌曲',
           ),
         ],
       ),
@@ -167,19 +167,18 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (_sortMode == PlaylistSortMode.manual) ...<Widget>[
-                      IconButton(
+                      XGlassIconButton(
                         icon: const Icon(Icons.keyboard_arrow_up_rounded,
                             size: 18),
                         onPressed: () => _move(list, i, -1),
                       ),
-                      IconButton(
+                      XGlassIconButton(
                         icon: const Icon(Icons.keyboard_arrow_down_rounded,
                             size: 18),
                         onPressed: () => _move(list, i, 1),
                       ),
                     ],
-                    IconButton(
-                      tooltip: '移除',
+                    XGlassIconButton(
                       icon: const Icon(Icons.remove_circle_outline_rounded,
                           size: 18),
                       onPressed: () async {
@@ -190,6 +189,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                             playlistTracksProvider(widget.playlistId));
                         ref.invalidate(playlistsProvider);
                       },
+                      tooltip: '移除',
                     ),
                   ],
                 ),

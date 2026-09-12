@@ -34,6 +34,16 @@ Color _hairline(BuildContext context) {
   return Colors.white.withValues(alpha: dark ? 0.22 : 0.5);
 }
 
+/// 下拉弹出面板底色：浮层之上，通透优先但**不牺牲可读性**——
+/// 原生 [DropdownButton] 的菜单无法插入 BackdropFilter，故用高不透明度
+/// 底色 + 圆角模拟玻璃面板，选中项高亮由 DropdownButton 自身保证。
+Color _menuFill(BuildContext context) {
+  final bool dark = Theme.of(context).brightness == Brightness.dark;
+  return dark
+      ? const Color(0xFF1B1D22).withValues(alpha: 0.94)
+      : Colors.white.withValues(alpha: 0.96);
+}
+
 /// 玻璃按钮（替代 FilledButton / TextButton / ElevatedButton / OutlinedButton）。
 class XGlassButton extends StatelessWidget {
   final Widget child;
@@ -83,6 +93,74 @@ class XGlassButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// 玻璃图标按钮（替代 IconButton）。
+///
+/// 语义与 IconButton 对齐：**默认 48dp 触控区**（无障碍底线，不缩），
+/// 保留 [tooltip] 与 Ink 点击响应（不用 GestureDetector 退化）。
+/// 与 [XGlassButton] 同理**不做背景模糊**——按钮级 BackdropFilter 是
+/// saveLayer，调用点上百处时代价极高；透明填充 + 细描边足够表达玻璃感。
+///
+/// [selected] 为 true 时填充加强（用于「当前视图 / 已启用」等选中态）。
+class XGlassIconButton extends StatelessWidget {
+  final Widget icon;
+  final VoidCallback? onPressed;
+  final String? tooltip;
+  final bool selected;
+  final double? size;
+  final double? radius;
+  final Color? tint;
+  final Color? color;
+
+  const XGlassIconButton({
+    super.key,
+    required this.icon,
+    this.onPressed,
+    this.tooltip,
+    this.selected = false,
+    this.size,
+    this.radius,
+    this.tint,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double s = size ?? 48;
+    final double r = radius ?? 14;
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color fill = tint ??
+        (selected
+            ? Colors.white.withValues(alpha: dark ? 0.34 : 0.82)
+            : _surfaceFill(context, null));
+    final Color line = _hairline(context);
+    final Widget inner = Container(
+      width: s,
+      height: s,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(color: line, width: 1),
+      ),
+      child: Center(
+        child: color == null
+            ? icon
+            : IconTheme.merge(data: IconThemeData(color: color), child: icon),
+      ),
+    );
+    Widget btn = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(r),
+        splashFactory: NoSplash.splashFactory,
+        child: inner,
+      ),
+    );
+    if (tooltip != null) btn = Tooltip(message: tooltip!, child: btn);
+    return SizedBox(width: s, height: s, child: btn);
   }
 }
 
@@ -196,6 +274,68 @@ class XGlassCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(r),
           splashFactory: NoSplash.splashFactory,
           child: box,
+        ),
+      ),
+    );
+  }
+}
+
+/// 玻璃下拉框（替代 DropdownButton）。
+///
+/// 输入态：半透明填充 + 1px 细描边 + 圆角，去掉原生下划线，保留下拉箭头。
+/// 弹出面板：圆角 + 高不透明玻璃底（数量少、可读优先），选中项高亮交给
+/// 原生 DropdownButton。参数与原生对齐，调用点可直接换名替换。
+class XGlassDropdown<T> extends StatelessWidget {
+  final T? value;
+  final List<DropdownMenuItem<T>>? items;
+  final ValueChanged<T?>? onChanged;
+  final Widget? hint;
+  final Widget? disabledHint;
+  final bool isExpanded;
+  final double? radius;
+  final Color? tint;
+  final EdgeInsetsGeometry? padding;
+  final double iconSize;
+
+  const XGlassDropdown({
+    super.key,
+    this.value,
+    required this.items,
+    this.onChanged,
+    this.hint,
+    this.disabledHint,
+    this.isExpanded = true,
+    this.radius,
+    this.tint,
+    this.padding,
+    this.iconSize = 24,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final double r = radius ?? 12;
+    final Color fill = _surfaceFill(context, tint);
+    final Color line = _hairline(context);
+    return Container(
+      padding:
+          padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(r),
+        border: Border.all(color: line, width: 1),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          items: items,
+          onChanged: onChanged,
+          hint: hint,
+          disabledHint: disabledHint,
+          isExpanded: isExpanded,
+          iconSize: iconSize,
+          borderRadius: BorderRadius.circular(r),
+          dropdownColor: _menuFill(context),
+          style: Theme.of(context).textTheme.bodyMedium,
         ),
       ),
     );

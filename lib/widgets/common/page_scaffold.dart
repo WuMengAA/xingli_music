@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../theme/theme_switch_button.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 统一页面模板（v2 M1 · P0-M1-1）
 ///
@@ -61,14 +62,14 @@ class PageScaffold extends StatelessWidget {
         if (back != null)
           Padding(
             padding: const EdgeInsets.only(right: AppSpace.xs),
-            child: IconButton(
-              visualDensity: VisualDensity.compact,
+            child: XGlassIconButton(
               icon: Icon(
                 Icons.chevron_left,
                 size: AppSize.iconSm,
                 color: context.appColors.textSecondary,
               ),
               onPressed: back,
+              size: 40,
             ),
           ),
         Expanded(

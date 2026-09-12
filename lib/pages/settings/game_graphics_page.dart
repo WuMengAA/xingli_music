@@ -395,11 +395,11 @@ class _Stepper extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(child: Text(label, style: context.appText.body)),
-            IconButton(
+            XGlassIconButton(
               icon: const Icon(Icons.remove_circle_outline, size: 18),
-              visualDensity: VisualDensity.compact,
-              color: context.appColors.iconInactive,
               onPressed: value > min ? () => onChanged(value - 1) : null,
+              color: context.appColors.iconInactive,
+              size: 40,
             ),
             SizedBox(
               width: 28,
@@ -410,11 +410,11 @@ class _Stepper extends StatelessWidget {
                     .copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-            IconButton(
+            XGlassIconButton(
               icon: const Icon(Icons.add_circle_outline, size: 18),
-              visualDensity: VisualDensity.compact,
-              color: context.appColors.iconInactive,
               onPressed: value < max ? () => onChanged(value + 1) : null,
+              color: context.appColors.iconInactive,
+              size: 40,
             ),
           ],
         ),

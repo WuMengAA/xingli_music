@@ -391,16 +391,22 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           _buildPasswordField(c),
           const SizedBox(height: 16),
         ],
-        FilledButton.icon(
+        XGlassButton(
           onPressed: _busy ? null : _create,
-          icon: const Icon(Icons.radio),
-          label: _busy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('创建电台房'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(Icons.radio),
+              const SizedBox(width: 8),
+              _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('创建电台房'),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
         Text(
@@ -495,12 +501,12 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
                 borderSide: BorderSide.none,
               ),
               suffixIcon: !_customRoom
-                  ? IconButton(
-                      icon: const Icon(Icons.refresh),
-                      tooltip: '换一个',
-                      onPressed: () =>
+                  ? XGlassIconButton(
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () =>
                           setState(() => _randomRoomCode = _randomRoom()),
-                    )
+                    tooltip: '换一个',
+                  )
                   : null,
             ),
             style: TextStyle(color: c.textPrimary, letterSpacing: 2),
@@ -580,16 +586,22 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           style: TextStyle(color: c.textPrimary),
         ),
         const SizedBox(height: 16),
-        FilledButton.icon(
+        XGlassButton(
           onPressed: _busy ? null : () => _joinByCode(),
-          icon: const Icon(Icons.login),
-          label: _busy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('加入电台房'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Icon(Icons.login),
+              const SizedBox(width: 8),
+              _busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('加入电台房'),
+            ],
+          ),
         ),
       ];
 
@@ -607,15 +619,15 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
             Text('公开房间（${rooms.length}）',
                 style: TextStyle(color: c.textSecondary, fontSize: 13)),
             const Spacer(),
-            IconButton(
+            XGlassIconButton(
               icon: const Icon(Icons.sort, size: 18),
-              tooltip: '按人数${_roomsDesc ? '升序' : '降序'}',
               onPressed: () => setState(() => _roomsDesc = !_roomsDesc),
+              tooltip: '按人数${_roomsDesc ? '升序' : '降序'}',
             ),
-            IconButton(
+            XGlassIconButton(
               icon: const Icon(Icons.refresh, size: 18),
-              tooltip: '刷新',
               onPressed: _refreshPublicRooms,
+              tooltip: '刷新',
             ),
           ],
         ),

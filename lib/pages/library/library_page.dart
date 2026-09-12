@@ -397,20 +397,40 @@ class _PlaylistsTab extends ConsumerWidget {
                         style: context.appText.title,
                       ),
                     ),
-                    TextButton.icon(
+                    XGlassButton(
                       onPressed: () => _createPlaylist(ref, context),
-                      icon: const Icon(Icons.add_rounded, size: 18),
-                      label: Text(Terms.createPlaylist),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(Icons.add_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Text(Terms.createPlaylist),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    TextButton.icon(
+                    XGlassButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => const M3uTransferPage(),
                         ),
                       ),
-                      icon: const Icon(Icons.playlist_add_rounded, size: 18),
-                      label: const Text('导入 M3U8'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(Icons.playlist_add_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('导入 M3U8'),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -830,13 +850,17 @@ class _AggregateSearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
+    return XGlassButton(
       onPressed: () => showAggregateSearchSheet(context),
-      icon: const Icon(Icons.travel_explore_rounded, size: 16),
-      label: Text(Terms.aggregateSearch),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 32),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      radius: 16,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.travel_explore_rounded, size: 16),
+          const SizedBox(width: 8),
+          Text(Terms.aggregateSearch),
+        ],
       ),
     );
   }
@@ -1228,8 +1252,7 @@ class _SortButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final LibrarySortBy sort = ref.watch(librarySortProvider);
-    return IconButton(
-      tooltip: '排序',
+    return XGlassIconButton(
       icon: Icon(
         Icons.sort_rounded,
         size: AppSize.iconSm,
@@ -1238,6 +1261,7 @@ class _SortButton extends ConsumerWidget {
             : context.appColors.accent,
       ),
       onPressed: () => _showSortSheet(context, ref),
+      tooltip: '排序',
     );
   }
 }

@@ -720,21 +720,42 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         actions: <Widget>[
           Tooltip(
             message: '快照正在运行的世界（不切换，需手动「进入」读取）',
-            child: TextButton.icon(
+            child: XGlassButton(
               onPressed: _backupCurrent,
-              icon: const Icon(Icons.backup_outlined, size: 18),
-              label: const Text('备份当前世界'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  Icon(Icons.backup_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('备份当前世界'),
+                ],
+              ),
             ),
           ),
-          TextButton.icon(
+          XGlassButton(
             onPressed: _newBlankWorld,
-            icon: const Icon(Icons.add_box_outlined, size: 18),
-            label: const Text('新建空白世界'),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const <Widget>[
+                Icon(Icons.add_box_outlined, size: 18),
+                SizedBox(width: 8),
+                Text('新建空白世界'),
+              ],
+            ),
           ),
-          TextButton.icon(
+          XGlassButton(
             onPressed: _import,
-            icon: const Icon(Icons.file_upload_outlined, size: 18),
-            label: const Text('导入'),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const <Widget>[
+                Icon(Icons.file_upload_outlined, size: 18),
+                SizedBox(width: 8),
+                Text('导入'),
+              ],
+            ),
           ),
         ],
       ),
@@ -783,10 +804,16 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpace.md),
-                          FilledButton.icon(
+                          XGlassButton(
                             onPressed: _refresh,
-                            icon: const Icon(Icons.refresh, size: 18),
-                            label: const Text('重试'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const <Widget>[
+                                Icon(Icons.refresh, size: 18),
+                                SizedBox(width: 8),
+                                Text('重试'),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -934,10 +961,17 @@ class _SaveCard extends StatelessWidget {
                 ],
               ),
             ),
-            FilledButton.icon(
+            XGlassButton(
               onPressed: onEnter,
-              icon: const Icon(Icons.play_arrow, size: 18),
-              label: const Text('进入'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  Icon(Icons.play_arrow, size: 18),
+                  SizedBox(width: 8),
+                  Text('进入'),
+                ],
+              ),
             ),
           ],
         ),

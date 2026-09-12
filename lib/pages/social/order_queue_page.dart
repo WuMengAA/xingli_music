@@ -387,10 +387,17 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
             ),
             Text('匿名点歌', style: TextStyle(color: c.textSecondary)),
             const Spacer(),
-            FilledButton.icon(
+            XGlassButton(
               onPressed: _picked == null ? null : _submit,
-              icon: const Icon(Icons.send),
-              label: const Text('提交'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  Icon(Icons.send, size: 16),
+                  SizedBox(width: 8),
+                  Text('提交'),
+                ],
+              ),
             ),
           ],
         ),
@@ -466,17 +473,30 @@ class _OrderTile extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: <Widget>[
-              OutlinedButton.icon(
+              XGlassButton(
                 onPressed: onReject,
-                icon: const Icon(Icons.close, size: 16),
-                label: const Text('拒绝'),
-                style: OutlinedButton.styleFrom(foregroundColor: c.danger),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.close, size: 16, color: c.danger),
+                    const SizedBox(width: 8),
+                    Text('拒绝', style: TextStyle(color: c.danger)),
+                  ],
+                ),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
+              XGlassButton(
                 onPressed: onApprove,
-                icon: const Icon(Icons.check, size: 16),
-                label: const Text('通过'),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const <Widget>[
+                    Icon(Icons.check, size: 16),
+                    SizedBox(width: 8),
+                    Text('通过'),
+                  ],
+                ),
               ),
             ],
           ),
@@ -485,10 +505,17 @@ class _OrderTile extends StatelessWidget {
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
-            child: FilledButton.icon(
+            child: XGlassButton(
               onPressed: onPlay,
-              icon: const Icon(Icons.play_arrow, size: 16),
-              label: const Text('推入播放'),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const <Widget>[
+                  Icon(Icons.play_arrow, size: 16),
+                  SizedBox(width: 8),
+                  Text('推入播放'),
+                ],
+              ),
             ),
           ),
         ],

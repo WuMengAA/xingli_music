@@ -99,7 +99,7 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         backgroundColor: context.appColors.bgPage,
         foregroundColor: context.appColors.textPrimary,
         elevation: 0,
-        leading: IconButton(
+        leading: XGlassIconButton(
           icon: Icon(Icons.arrow_back, color: context.appColors.textSecondary),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -183,10 +183,16 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 const SizedBox(height: AppSpace.md),
                 // 系统文件管理器选取目录（桌面 Windows 原生对话框 /
                 // Android SAF DocumentsUI；选完回填输入框）
-                OutlinedButton.icon(
+                XGlassButton(
                   onPressed: () => _pickDir(sheetContext),
-                  icon: const Icon(Icons.folder_open_rounded, size: 18),
-                  label: Text('浏览…', style: context.appText.button),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.folder_open_rounded, size: 18),
+                      const SizedBox(width: 8),
+                      Text('浏览…', style: context.appText.button),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpace.md),
                 XGlassButton(
@@ -515,10 +521,17 @@ class _GroupCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpace.sm),
               Expanded(child: Text(title, style: context.appText.subtitle)),
-              TextButton.icon(
+              XGlassButton(
                 onPressed: onAdd,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(addLabel),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(Icons.add, size: 18),
+                    const SizedBox(width: 8),
+                    Text(addLabel),
+                  ],
+                ),
               ),
             ],
           ),
@@ -607,7 +620,7 @@ class _EntryTile extends StatelessWidget {
               ],
               const Spacer(),
               if (onEdit != null)
-                IconButton(
+                XGlassIconButton(
                   icon: Icon(
                     Icons.edit_outlined,
                     size: 18,
@@ -616,16 +629,16 @@ class _EntryTile extends StatelessWidget {
                   onPressed: onEdit,
                 ),
               if (onTest != null)
-                IconButton(
+                XGlassIconButton(
                   icon: Icon(
                     Icons.network_check_rounded,
                     size: 18,
                     color: context.appColors.textTertiary,
                   ),
-                  tooltip: Terms.testConnection,
                   onPressed: onTest,
+                  tooltip: Terms.testConnection,
                 ),
-              IconButton(
+              XGlassIconButton(
                 icon: Icon(
                   Icons.delete_outline,
                   size: 18,

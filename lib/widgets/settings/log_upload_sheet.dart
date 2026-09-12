@@ -144,7 +144,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                   Expanded(
                     child: Text('日志上报', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),

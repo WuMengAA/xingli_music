@@ -296,14 +296,14 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
             size: AppSize.iconSm, color: context.appColors.iconInactive),
         suffixIcon: _keyword.isEmpty
             ? null
-            : IconButton(
-                icon: Icon(Icons.close_rounded,
+            : XGlassIconButton(
+              icon: Icon(Icons.close_rounded,
                     size: AppSize.iconSm, color: context.appColors.iconInactive),
-                onPressed: () {
+              onPressed: () {
                   _queryCtrl.clear();
                   _submit('');
                 },
-              ),
+            ),
         filled: true,
         fillColor: context.appColors.bgCard,
         border: OutlineInputBorder(
@@ -502,7 +502,7 @@ class _HintPanel extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...<Widget>[
               const SizedBox(height: AppSpace.md),
-              FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+              XGlassButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ],
         ),

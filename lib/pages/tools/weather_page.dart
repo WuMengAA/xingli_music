@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/weather_provider.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 天气页。
 class WeatherPage extends ConsumerStatefulWidget {
@@ -51,16 +52,16 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
       appBar: AppBar(
         title: const Text('星璃天气'),
         actions: <Widget>[
-          IconButton(
-            tooltip: '刷新',
+          XGlassIconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () =>
                 ref.read(weatherProvider.notifier).refresh(),
+            tooltip: '刷新',
           ),
-          IconButton(
-            tooltip: '城市管理',
+          XGlassIconButton(
             icon: const Icon(Icons.location_city),
             onPressed: () => _showCitySheet(c),
+            tooltip: '城市管理',
           ),
         ],
       ),
@@ -282,15 +283,19 @@ class _WeatherPageState extends ConsumerState<WeatherPage> {
                 ),
                 const SizedBox(height: 10),
                 // 自动定位（IP 定位，无权限弹窗）。
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.tonalIcon(
-                    onPressed: doLocate,
-                    icon: const Icon(Icons.my_location, size: 16),
-                    label: Text(
-                      _locating ? '定位中…' : '自动定位当前城市',
-                      style: const TextStyle(fontSize: 13),
-                    ),
+                XGlassButton(
+                  onPressed: doLocate,
+                  fullWidth: true,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.my_location, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        _locating ? '定位中…' : '自动定位当前城市',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 10),

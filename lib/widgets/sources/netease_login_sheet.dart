@@ -163,7 +163,7 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                   Expanded(
                     child: Text('网易云音乐', style: context.appText.subtitle),
                   ),
-                  IconButton(
+                  XGlassIconButton(
                     icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),
@@ -269,10 +269,17 @@ class _LoggedInPanel extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: AppSpace.md),
-        OutlinedButton.icon(
+        XGlassButton(
           onPressed: onLogout,
-          icon: const Icon(Icons.logout_rounded, size: 18),
-          label: const Text('退出登录'),
+          fullWidth: true,
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(Icons.logout_rounded, size: 18),
+              SizedBox(width: 8),
+              Text('退出登录'),
+            ],
+          ),
         ),
       ],
     );
@@ -302,16 +309,23 @@ class _WebLoginPanel extends StatelessWidget {
           style: context.appText.artist,
         ),
         const SizedBox(height: AppSpace.md),
-        FilledButton.icon(
+        XGlassButton(
           onPressed: busy ? null : onLogin,
-          icon: busy
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.language_rounded, size: 18),
-          label: Text(busy ? '处理中…' : '打开网易云登录页'),
+          fullWidth: true,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.language_rounded, size: 18),
+              const SizedBox(width: 8),
+              Text(busy ? '处理中…' : '打开网易云登录页'),
+            ],
+          ),
         ),
         if (status.isNotEmpty) ...<Widget>[
           const SizedBox(height: AppSpace.sm),

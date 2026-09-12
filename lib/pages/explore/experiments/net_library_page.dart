@@ -64,12 +64,20 @@ class NetLibraryPage extends ConsumerWidget {
                 const SizedBox(height: AppSpace.sm),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: FilledButton.icon(
+                  child: XGlassButton(
                     onPressed: () => _editDialog(context, ref, null),
-                    style: FilledButton.styleFrom(
-                        backgroundColor: c.accent, foregroundColor: c.onAccent),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('添加服务器'),
+                    tint: c.accent,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(Icons.add_rounded, size: 18, color: c.onAccent),
+                        const SizedBox(width: 8),
+                        Text(
+                          '添加服务器',
+                          style: TextStyle(color: c.onAccent),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -214,10 +222,10 @@ class _ConfigTile extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              XGlassIconButton(
                 icon: Icon(Icons.edit_outlined, size: 18, color: c.iconInactive),
                 onPressed: onEdit,
+                size: 40,
               ),
               Icon(Icons.chevron_right_rounded, color: c.iconInactive),
             ],

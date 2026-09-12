@@ -9,6 +9,7 @@ import '../../../providers/audio/audio_providers.dart';
 import '../../../services/musicbrainz/scraper.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
+import '../../../widgets/design/glass_controls.dart';
 import '../../../widgets/notification/app_notify.dart';
 
 /// 刮削器（T12）：MusicBrainz 官方录音元数据查询。
@@ -142,25 +143,41 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
                 const SizedBox(height: AppSpace.sm),
                 Row(
                   children: <Widget>[
-                    OutlinedButton.icon(
+                    XGlassButton(
                       onPressed: _fillFromCurrent,
-                      icon: const Icon(Icons.music_note_rounded, size: 16),
-                      label: const Text('从当前曲目填充'),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const <Widget>[
+                          Icon(Icons.music_note_rounded, size: 16),
+                          SizedBox(width: 8),
+                          Text('从当前曲目填充'),
+                        ],
+                      ),
                     ),
                     const Spacer(),
-                    FilledButton.icon(
+                    XGlassButton(
                       onPressed: _loading ? null : _search,
-                      style: FilledButton.styleFrom(
-                          backgroundColor: c.accent,
-                          foregroundColor: c.onAccent),
-                      icon: _loading
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.search_rounded, size: 18),
-                      label: const Text('查询'),
+                      tint: c.accent,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _loading
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(Icons.search_rounded,
+                                  size: 18, color: c.onAccent),
+                          const SizedBox(width: 8),
+                          Text('查询', style: TextStyle(color: c.onAccent)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -258,11 +275,11 @@ class _HitCard extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: '复制元数据',
+            XGlassIconButton(
               icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
               onPressed: onCopy,
+              tooltip: '复制元数据',
+              size: 40,
             ),
           ],
         ),

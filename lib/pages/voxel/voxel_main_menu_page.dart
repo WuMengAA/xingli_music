@@ -20,6 +20,7 @@ import '../../core/theme/light_tokens.dart';
 import '../../pages/settings/voxel_game_settings_page.dart';
 import '../../pages/settings/voxel_save_manager_page.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
+import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 星璃世界游戏主菜单页。
 class VoxelMainMenuPage extends ConsumerWidget {
@@ -54,10 +55,10 @@ class VoxelMainMenuPage extends ConsumerWidget {
             Positioned(
               top: AppSpace.md,
               left: AppSpace.md,
-              child: IconButton(
+              child: XGlassIconButton(
                 icon: const Icon(Icons.arrow_back, color: ink),
-                tooltip: '返回',
                 onPressed: () => Navigator.of(context).maybePop(),
+                tooltip: '返回',
               ),
             ),
             // 中央菜单卡。

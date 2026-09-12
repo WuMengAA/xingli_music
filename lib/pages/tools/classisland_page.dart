@@ -85,11 +85,11 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
       appBar: AppBar(
         title: const Text('ClassIsland 联动'),
         actions: <Widget>[
-          IconButton(
-            tooltip: '同步',
+          XGlassIconButton(
             icon: const Icon(Icons.sync),
             onPressed: () =>
                 ref.read(classislandProvider.notifier).sync(),
+            tooltip: '同步',
           ),
         ],
       ),
@@ -352,10 +352,16 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
             ),
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
+          XGlassButton(
             onPressed: _saveConfig,
-            icon: const Icon(Icons.cloud_sync_outlined, size: 16),
-            label: const Text('保存并同步'),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.cloud_sync_outlined, size: 16),
+                SizedBox(width: 8),
+                Text('保存并同步'),
+              ],
+            ),
           ),
         ],
       ),

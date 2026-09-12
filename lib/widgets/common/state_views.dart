@@ -89,10 +89,16 @@ class ErrorView extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpace.lg),
-          FilledButton.icon(
+          XGlassButton(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('重试'),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.refresh_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('重试'),
+              ],
+            ),
           ),
         ],
       ),

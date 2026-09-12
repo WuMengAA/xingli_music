@@ -246,7 +246,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_savingProfile)
               const Center(child: CircularProgressIndicator())
             else
-              FilledButton.tonal(
+              XGlassButton(
                 onPressed: _saveProfile,
                 child: const Text('保存资料'),
               ),
@@ -279,7 +279,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_changingPwd)
               const Center(child: CircularProgressIndicator())
             else
-              FilledButton.tonal(
+              XGlassButton(
                 onPressed: _changePassword,
                 child: const Text('修改密码'),
               ),
@@ -290,10 +290,16 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              FilledButton.tonalIcon(
+              XGlassButton(
                 onPressed: _syncToCloud,
-                icon: const Icon(Icons.cloud_upload_outlined),
-                label: const Text('同步收藏到云端'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const <Widget>[
+                    Icon(Icons.cloud_upload_outlined),
+                    SizedBox(width: 8),
+                    Text('同步收藏到云端'),
+                  ],
+                ),
               ),
               if (_syncMsg != null)
                 Padding(
