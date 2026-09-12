@@ -14,7 +14,7 @@ TOK = re.search(r'WuMengAA:([^@]+)@', line).group(1)
 API = "https://api.github.com/repos/WuMengAA/xingli_music"
 UP  = "https://uploads.github.com/repos/WuMengAA/xingli_music"
 TAG = "cl78"
-RELEASE_DIR = r"D:/Stellara/Music/xingli_music/release"
+RELEASE_DIR = r"D:/Stelarith/Stelarith-Music/xingli_music/release"
 # cl78 本地验证构建（非陈旧的 app-release.apk / cl77）
 SRC_APK = os.path.join(RELEASE_DIR, "星璃音乐_0.26.08.16_alpha_cl78.apk")
 APK_SHA = "3a5763b4ed2bcf8d787a8c72f624243e4f6709879f9a5945b7dfac2c23239b42"

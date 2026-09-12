@@ -11,7 +11,7 @@ UP  = "https://uploads.github.com/repos/WuMengAA/xingli_music"
 
 HEAD_SHA = "4f51d797755fcbc660a7e2b2575236f8126024a5"
 TAG = "cl77"
-RELEASE_DIR = r"D:/Stellara/Music/xingli_music/release"
+RELEASE_DIR = r"D:/Stelarith/Stelarith-Music/xingli_music/release"
 APK_SHA = "2e5043cf5bcd98d6c2b645e22489fade7d06146cb7d84cf7235ce2bdfe00f413"
 
 def req(method, url, data=None, headers=None, ctype=None, timeout=600):

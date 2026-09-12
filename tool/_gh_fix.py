@@ -18,7 +18,7 @@ def req(method, url, data=None, headers=None, ctype=None):
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode()[:400]
 
-RELEASE_DIR = r"D:/Stellara/Music/xingli_music/release"
+RELEASE_DIR = r"D:/Stelarith/Stelarith-Music/xingli_music/release"
 H6 = "星璃音乐_0.26.8.15_alpha_cl76_hotfix6.apk"
 H6_SHA = "f18034fb4d43eb5679e5095d666266136075e32c6205d99ddd7feab37c261e27"
 
