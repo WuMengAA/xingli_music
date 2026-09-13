@@ -26,6 +26,7 @@ class NeteaseTrackListPage extends ConsumerStatefulWidget {
     required this.title,
     required this.firstProvider,
     this.infinite = false,
+    this.loadMore,
     this.showReason = false,
     this.emptyTitle = '暂无可推荐曲目',
     this.emptyMessage = '稍后回来，网易云会为你更新',
@@ -42,6 +43,12 @@ class NeteaseTrackListPage extends ConsumerStatefulWidget {
   /// 是否无限流（漫游 = true；滚动到底自动追加）。
   final bool infinite;
 
+  /// 自定义「加载下一批」回调（收到上一批累计条数作为 offset）。
+  ///
+  /// 为空时沿用 [NeteaseSource.roam]（私人漫游无限流）；非空时用于歌单等
+  /// 有明确分页语义的来源（配合 [infinite] 打开触底加载）。
+  final Future<List<Track>> Function(int offset)? loadMore;
+
   /// 是否展示推荐理由行（每日推荐 = true）。
   final bool showReason;
 
@@ -57,19 +64,46 @@ class NeteaseTrackListPage extends ConsumerStatefulWidget {
 
 class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
   final List<Track> _loaded = <Track>[];
+  final Set<String> _seenUris = <String>{};
   bool _loadingMore = false;
   bool _failed = false;
+  bool _hasMore = true;
+  int _nextOffset = 0;
+
+  /// 把一批曲目按 [Track.uri] 去重后追加到 [_loaded]。
+  ///
+  /// 返回本批**实际新增**的条数（可能为 0，表示已到底 / 全是重复）。
+  int _appendDeduped(List<Track> batch) {
+    final int before = _loaded.length;
+    for (final Track t in batch) {
+      if (_seenUris.add(t.uri)) _loaded.add(t);
+    }
+    return _loaded.length - before;
+  }
 
   Future<void> _loadMore() async {
-    if (_loadingMore || !widget.infinite) return;
+    if (_loadingMore || !_hasMore) return;
+    if (!widget.infinite && widget.loadMore == null) return;
     setState(() {
       _loadingMore = true;
       _failed = false;
     });
     try {
-      final NeteaseSource src = ref.read(neteaseSourceProvider);
-      final List<Track> batch = await src.roam();
-      if (mounted) setState(() => _loaded.addAll(batch));
+      final Future<List<Track>> Function(int)? loader = widget.loadMore;
+      final List<Track> batch;
+      if (loader != null) {
+        batch = await loader(_nextOffset);
+      } else {
+        final NeteaseSource src = ref.read(neteaseSourceProvider);
+        batch = await src.roam();
+      }
+      if (!mounted) return;
+      setState(() {
+        // offset 用**原始**批次长度推进（即便有重复行也保持与服务端一致）。
+        _nextOffset += batch.length;
+        // 去重后新增 0 条 → 认定已到底，避免反复请求同一 offset 死循环。
+        if (_appendDeduped(batch) == 0) _hasMore = false;
+      });
     } catch (e) {
       if (mounted) setState(() => _failed = true);
     } finally {
@@ -80,8 +114,11 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
   void _resetAndRefresh() {
     setState(() {
       _loaded.clear();
+      _seenUris.clear();
       _loadingMore = false;
       _failed = false;
+      _hasMore = true;
+      _nextOffset = 0;
     });
     ref.invalidate(widget.firstProvider);
   }
@@ -102,12 +139,19 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
       next.whenData((List<Track> list) {
         if (!mounted) return;
         if (_loaded.isEmpty) {
-          setState(() => _loaded.addAll(list));
+          setState(() {
+            _seenUris.clear();
+            _appendDeduped(list);
+            // 首批条数即下一页的起跑 offset（否则首次触底会重取首批 → 全是重复）。
+            _nextOffset = list.length;
+          });
         } else if (!_firstBatchEquals(_loaded, list)) {
           setState(() {
-            _loaded
-              ..clear()
-              ..addAll(list);
+            _loaded.clear();
+            _seenUris.clear();
+            _appendDeduped(list);
+            _nextOffset = list.length;
+            _hasMore = true;
           });
         }
       });
@@ -140,7 +184,7 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                         message: widget.emptyMessage,
                       );
                     }
-                    if (!widget.infinite) {
+                    if (!widget.infinite && widget.loadMore == null) {
                       return ListView.separated(
                         padding: EdgeInsets.zero,
                         itemCount: _loaded.length,
@@ -185,6 +229,18 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                     ),
+                                  ),
+                                ),
+                              );
+                            }
+                            if (!_hasMore) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: Text(
+                                    '已经到底了',
+                                    style: context.appText.caption,
                                   ),
                                 ),
                               );
