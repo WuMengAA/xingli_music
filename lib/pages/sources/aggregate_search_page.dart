@@ -196,6 +196,7 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   /// 否则会无限触发。offset/page 用**原始返回条数**推进。
   Future<void> _loadMore({required bool netease}) async {
     if (_keyword.isEmpty) return;
+    final String kwAtStart = _keyword;
     if (netease) {
       if (!ref.read(neteaseAuthProvider).isLoggedIn ||
           !_capOn('netease.search')) {
@@ -228,6 +229,10 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
                 page: _biPage,
               );
       if (!mounted) return;
+      // ⚠️ 竞态守卫：await 期间用户可能又搜了别的词（_submit 会换 _keyword 并
+      // 清空追加批次）。若关键词已变，这批结果属于旧词，直接丢弃，避免把旧词
+      // 的曲目追加进新词列表。
+      if (kwAtStart != _keyword) return;
       final List<Track> existing = netease
           ? <Track>[
               ...?ref.read(neteaseSearchProvider(_keyword)).valueOrNull,
