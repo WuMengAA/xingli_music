@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 12;
+  static const int day = 13;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -491,6 +491,18 @@ abstract final class AppVersion {
   ///   （会话失效）两类分别提示，避免误导；
   /// ④提交链路修正：B 站分 P 走独立 bilibiliCid/bilibiliPage、collaborators
   ///   改数值用户 id、去掉服务端白名单不接收的 durationSeconds。
+  /// cl01（09.13 跨天重算）：全 App 回归原生 Material 3 + 播放续播修复 + 实验毕业机制。
+  /// ①观感回退：全库 XGlass* 控件（按钮 / 图标按钮 / 开关 / 滑杆 / 卡片 / 下拉，
+  ///   约 360 调用点、97 文件）统一换回 Material 3 原生控件，浮层与面板去模糊改
+  ///   surfaceContainer*；仅保留场景沉浸背景、崩溃兜底屏与控件定义文件本身；
+  /// ②播放修复：歌单 / 专辑点歌改走 PlaybackActions 并显式传入播放队列——
+  ///   此前直连 playMusic 未建队列，播完即回退整库、不能接着往下播；
+  /// ③实验毕业机制：实验一旦具备真实链路即转为正式功能，不再长期停留在实验阶段——
+  ///   音效均衡器（10 段真 EQ，Android 真滤波 / Windows mpv DSP）、刮削器
+  ///   （MusicBrainz）、网络音乐库（WebDAV）、AI 陪伴 / 智能推荐 / 心情分析
+  ///   （接入真大模型，未配置走本地兜底）共 9 项进入探索页「功能」区常驻入口，
+  ///   不再受实验同意门拦截；均衡器同时进播放器页；未就绪的留在「测试通道」
+  ///   （仅 Alpha 渠道可见，如传感器调试）。
   static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
