@@ -171,13 +171,14 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             builder: () => const NeteasePlaylistPage(),
           ),
           // 毕业（有条件）：离线无 LLM 时曾只有固定回复；现接真大模型
-          // （设置→大模型配置 baseUrl/key/model），未配置则本地兜底。
+          // （设置→大模型配置 baseUrl/key/model），未配置则本地兜底——真实链路已通，
+          // 按「毕业原则」转正式功能（出圈到探索页「功能」区，不再被实验同意门拦截）。
           ExperimentItem(
             id: 'companion',
             name: 'AI 陪伴',
             description: 'AI 音乐伙伴 · 需在设置配置大模型（未配置走本地兜底）',
             icon: Icons.auto_awesome_rounded,
-            status: ExperimentStatus.experimenting,
+            status: ExperimentStatus.stable,
             builder: () => const CompanionPage(),
           ),
           ExperimentItem(
@@ -185,7 +186,7 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             name: '智能推荐',
             description: '大模型按口味推荐 · 需在设置配置大模型（未配置走本地兜底）',
             icon: Icons.recommend_rounded,
-            status: ExperimentStatus.experimenting,
+            status: ExperimentStatus.stable,
             builder: () => const RecommendPage(),
           ),
           ExperimentItem(
@@ -193,7 +194,7 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             name: '心情分析',
             description: '按心情选曲 · 需在设置配置大模型（未配置走本地兜底）',
             icon: Icons.mood_rounded,
-            status: ExperimentStatus.experimenting,
+            status: ExperimentStatus.stable,
             builder: () => const MoodAnalysisPage(),
           ),
           // ── 测试通道（仅 Alpha 可见，正式渠道隐藏）──────────
