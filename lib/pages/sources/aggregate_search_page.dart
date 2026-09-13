@@ -28,6 +28,10 @@ import '../../widgets/sources/netease_login_sheet.dart';
 import '../../widgets/sources/bilibili_login_sheet.dart';
 import '../../widgets/notification/app_notify.dart';
 
+/// 首批页大小（与各源 provider 内默认值一致）：网易云 30 / B站 20。
+const int kNeteaseSearchPageSize = 30;
+const int kBilibiliSearchPageSize = 20;
+
 /// 媒体源筛选。
 enum _SrcFilter {
   all('全部'),
@@ -83,6 +87,21 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   StreamSubscription<String>? _playErrorSub;
   bool _disclaimerShown = false;
 
+  // ── 分页状态（按源；本地源是内存过滤，无需分页）─────────────────────
+  /// 触底追加批次（首批由 provider 提供，这里只缓存追加出来的结果）。
+  final List<Track> _neMore = <Track>[];
+  final List<Track> _biMore = <Track>[];
+
+  /// 下一次请求的位置：网易云用 offset（0 起），B站用 page（1 起）。
+  int _neOffset = kNeteaseSearchPageSize;
+  int _biPage = 2;
+  bool _neHasMore = true;
+  bool _biHasMore = true;
+  bool _neLoading = false;
+  bool _biLoading = false;
+  bool _neFailed = false;
+  bool _biFailed = false;
+
   @override
   void initState() {
     super.initState();
@@ -104,12 +123,156 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     appNotify(context, message);
   }
 
+  /// 重置全部分页状态（换词 / 下拉刷新时调用）。
+  void _resetPaging() {
+    _neMore.clear();
+    _biMore.clear();
+    _neOffset = kNeteaseSearchPageSize;
+    _biPage = 2;
+    _neHasMore = true;
+    _biHasMore = true;
+    _neLoading = false;
+    _biLoading = false;
+    _neFailed = false;
+    _biFailed = false;
+  }
+
   void _submit(String raw) {
     final String kw = raw.trim();
     if (kw.isNotEmpty) {
       ref.read(searchHistoryProvider.notifier).add(kw);
     }
-    setState(() => _keyword = kw);
+    // 同词重搜时 provider 命中缓存不会重发 → 用户会感觉「按了搜索没反应」。
+    // 显式失效，强制重取首批（换词时也顺带清掉旧词的缓存）。
+    ref.invalidate(neteaseSearchProvider(kw));
+    ref.invalidate(bilibiliSearchProvider(kw));
+    setState(() {
+      _keyword = kw;
+      _resetPaging();
+    });
+  }
+
+  /// 下拉刷新：清空分页状态并强制重取两个在线源的首批。
+  Future<void> _refresh() async {
+    if (_keyword.isEmpty) return;
+    setState(_resetPaging);
+    ref.invalidate(neteaseSearchProvider(_keyword));
+    ref.invalidate(bilibiliSearchProvider(_keyword));
+    try {
+      await Future.wait<void>(<Future<void>>[
+        ref.read(neteaseSearchProvider(_keyword).future).then<void>((_) {}),
+        ref.read(bilibiliSearchProvider(_keyword).future).then<void>((_) {}),
+      ]);
+    } catch (_) {
+      // 失败态由各源 provider 的 error 分支在界面上呈现。
+    }
+  }
+
+  /// `_filterAllows` 的只读变体：分页回调不在 build 期，不能 watch。
+  bool _capOn(String id) {
+    if (ref.read(capabilitySelectionProvider).contains(id)) return false;
+    for (final Capability c in ref.read(capabilitiesProvider)) {
+      if (c.id == id) return c.enabled && !c.isPlanned;
+    }
+    return true;
+  }
+
+  Future<void> _loadMoreNetease() => _loadMore(netease: true);
+
+  Future<void> _loadMoreBilibili() => _loadMore(netease: false);
+
+  /// 聚合视图：两个源各自往后取一批（已取尽的会在 [_loadMore] 里自行短路）。
+  Future<void> _loadMoreAll() async {
+    await Future.wait<void>(<Future<void>>[
+      _loadMore(netease: true),
+      _loadMore(netease: false),
+    ]);
+  }
+
+  /// 触底加载更多。网易云按 offset 翻页，B站按 page 翻页。
+  ///
+  /// 追加前按 `uri` 与已有结果统一去重；若本批去重后一条没新增，说明该源已
+  /// 取尽（offset/page 越界时接口返回空或重复），置 `hasMore = false` 兜底，
+  /// 否则会无限触发。offset/page 用**原始返回条数**推进。
+  Future<void> _loadMore({required bool netease}) async {
+    if (_keyword.isEmpty) return;
+    if (netease) {
+      if (!ref.read(neteaseAuthProvider).isLoggedIn ||
+          !_capOn('netease.search')) {
+        return;
+      }
+      if (_neLoading || !_neHasMore) return;
+    } else {
+      if (!_capOn('bilibili.search')) return;
+      if (_biLoading || !_biHasMore) return;
+    }
+    setState(() {
+      if (netease) {
+        _neLoading = true;
+        _neFailed = false;
+      } else {
+        _biLoading = true;
+        _biFailed = false;
+      }
+    });
+    try {
+      final List<Track> raw = netease
+          ? await ref.read(neteaseSourceProvider).search(
+                _keyword,
+                limit: kNeteaseSearchPageSize,
+                offset: _neOffset,
+              )
+          : await ref.read(bilibiliSourceProvider).search(
+                _keyword,
+                limit: kBilibiliSearchPageSize,
+                page: _biPage,
+              );
+      if (!mounted) return;
+      final List<Track> existing = netease
+          ? <Track>[
+              ...?ref.read(neteaseSearchProvider(_keyword)).valueOrNull,
+              ..._neMore,
+            ]
+          : <Track>[
+              ...?ref.read(bilibiliSearchProvider(_keyword)).valueOrNull,
+              ..._biMore,
+            ];
+      final Set<String> seen = <String>{for (final Track t in existing) t.uri};
+      final List<Track> added = <Track>[
+        for (final Track t in raw)
+          if (seen.add(t.uri)) t,
+      ];
+      setState(() {
+        if (netease) {
+          _neMore.addAll(added);
+          _neOffset += raw.length;
+          if (added.isEmpty) _neHasMore = false;
+        } else {
+          _biMore.addAll(added);
+          _biPage += 1;
+          if (added.isEmpty) _biHasMore = false;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        if (netease) {
+          _neFailed = true;
+        } else {
+          _biFailed = true;
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (netease) {
+            _neLoading = false;
+          } else {
+            _biLoading = false;
+          }
+        });
+      }
+    }
   }
 
   /// 登录前免责声明（仅首次弹一次）。
@@ -398,16 +561,28 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       neteaseSearchProvider(_keyword),
     );
     return result.when(
-      data: (List<Track> tracks) => tracks.isEmpty
-          ? const _HintPanel(
-              icon: Icons.music_off_rounded,
-              message: '网易云没有找到相关歌曲',
-            )
-          : _TrackList(
-              tracks: tracks,
-              onTap: (t) => _play(t, tracks),
-              sourceTag: '网易云 · 音乐源',
-            ),
+      data: (List<Track> tracks) {
+        // 首批 + 触底追加批次（按 uri 去重）。
+        final List<Track> all = _mergeUnique(tracks, _neMore);
+        if (all.isEmpty) {
+          return const _HintPanel(
+            icon: Icons.music_off_rounded,
+            message: '网易云没有找到相关歌曲',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: _TrackList(
+            tracks: all,
+            onTap: (Track t) => _play(t, all),
+            sourceTag: '网易云 · 音乐源',
+            onLoadMore: _loadMoreNetease,
+            isLoadingMore: _neLoading,
+            hasMore: _neHasMore,
+            loadFailed: _neFailed,
+          ),
+        );
+      },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final bool authFail = neteaseIsAuthFailure(e);
@@ -430,16 +605,27 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       bilibiliSearchProvider(_keyword),
     );
     return result.when(
-      data: (List<Track> tracks) => tracks.isEmpty
-          ? const _HintPanel(
-              icon: Icons.music_off_rounded,
-              message: 'B站没有找到相关视频',
-            )
-          : _TrackList(
-              tracks: tracks,
-              onTap: (t) => _play(t, tracks),
-              sourceTag: 'B站 · 视频源',
-            ),
+      data: (List<Track> tracks) {
+        final List<Track> all = _mergeUnique(tracks, _biMore);
+        if (all.isEmpty) {
+          return const _HintPanel(
+            icon: Icons.music_off_rounded,
+            message: 'B站没有找到相关视频',
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: _TrackList(
+            tracks: all,
+            onTap: (Track t) => _play(t, all),
+            sourceTag: 'B站 · 视频源',
+            onLoadMore: _loadMoreBilibili,
+            isLoadingMore: _biLoading,
+            hasMore: _biHasMore,
+            loadFailed: _biFailed,
+          ),
+        );
+      },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final String msg = bilibiliErrorText(e);
@@ -473,50 +659,58 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
             )
             .toList() ??
         const <Track>[];
-    // 远程源并行搜索（网易云需登录；被关掉的源跳过）。
-    final Future<List<Track>> neF = ne && neOn
-        ? ref
-              .watch(neteaseSearchProvider(_keyword).future)
-              .catchError((_) => const <Track>[])
-        : Future.value(const <Track>[]);
-    final Future<List<Track>> biF = biOn
-        ? ref
-              .watch(bilibiliSearchProvider(_keyword).future)
-              .catchError((_) => const <Track>[])
-        : Future.value(const <Track>[]);
-
-    return FutureBuilder<List<List<Track>>>(
-      future: Future.wait(<Future<List<Track>>>[neF, biF]),
-      builder: (BuildContext context, AsyncSnapshot<List<List<Track>>> snap) {
-        final List<Track> neHits = snap.data != null && snap.data!.isNotEmpty
-            ? snap.data![0]
-            : const <Track>[];
-        final List<Track> biHits = snap.data != null && snap.data!.length > 1
-            ? snap.data![1]
-            : const <Track>[];
-        final List<Track> all = <Track>[
-          if (localOn) ...localHits,
-          ...neHits,
-          ...biHits,
-        ];
-        if (all.isEmpty) {
-          return const _HintPanel(
-            icon: Icons.search_off_rounded,
-            message: '没有匹配的结果',
-          );
-        }
-        return _TrackList(
-          tracks: all,
-          onTap: (t) => _play(t, all),
-          // 行内按 sourceId 打「源 · 类型」徽标：网易云=音乐源，B站=视频源。
-          tagOf: (Track t) => switch (t.sourceId) {
-            'netease' => '网易云 · 音乐源',
-            'bilibili' => 'B站 · 视频源',
-            'local' => '本地 · 音乐源',
-            _ => null,
-          },
-        );
-      },
+    // 远程源结果（网易云需登录；被关掉的源不请求）。
+    // 直接用 AsyncValue 而非 FutureBuilder：触底追加会频繁 setState，
+    // FutureBuilder 每次重建都会重新订阅、出现「整列表闪没」的一帧。
+    final bool neActive = ne && neOn;
+    final AsyncValue<List<Track>> neAsync = neActive
+        ? ref.watch(neteaseSearchProvider(_keyword))
+        : const AsyncValue<List<Track>>.data(<Track>[]);
+    final AsyncValue<List<Track>> biAsync = biOn
+        ? ref.watch(bilibiliSearchProvider(_keyword))
+        : const AsyncValue<List<Track>>.data(<Track>[]);
+    final List<Track> neHits = neAsync.valueOrNull ?? const <Track>[];
+    final List<Track> biHits = biAsync.valueOrNull ?? const <Track>[];
+    // 本地命中固定在前面；触底追加批次接在各自源之后；整体按 uri 去重。
+    final List<Track> all = _mergeUnique(
+      <Track>[
+        if (localOn) ...localHits,
+        if (neActive) ...neHits,
+        if (biOn) ...biHits,
+      ],
+      <Track>[
+        if (neActive) ..._neMore,
+        if (biOn) ..._biMore,
+      ],
+    );
+    if (all.isEmpty) {
+      final bool loading = (neActive && neAsync.isLoading) ||
+          (biOn && biAsync.isLoading);
+      if (loading) return const Center(child: CircularProgressIndicator());
+      return const _HintPanel(
+        icon: Icons.search_off_rounded,
+        message: '没有匹配的结果',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: _TrackList(
+        tracks: all,
+        onTap: (Track t) => _play(t, all),
+        // 行内按 sourceId 打「源 · 类型」徽标：网易云=音乐源，B站=视频源。
+        tagOf: (Track t) => switch (t.sourceId) {
+          'netease' => '网易云 · 音乐源',
+          'bilibili' => 'B站 · 视频源',
+          'local' => '本地 · 音乐源',
+          _ => null,
+        },
+        onLoadMore: (neActive || biOn) ? _loadMoreAll : null,
+        isLoadingMore: _neLoading || _biLoading,
+        // 只统计当前真正参与聚合的源，避免「单源取尽 + 另一源被关掉」
+        // 时尾部永远停在「加载中/空占位」而非「没有更多了」。
+        hasMore: (neActive && _neHasMore) || (biOn && _biHasMore),
+        loadFailed: _neFailed || _biFailed,
+      ),
     );
   }
 }
@@ -561,13 +755,27 @@ class _HintPanel extends StatelessWidget {
   }
 }
 
-/// 结果列表（带源徽标）。
+/// 合并两组曲目并按 `uri` 去重（保留先出现的顺序）。
+List<Track> _mergeUnique(List<Track> base, Iterable<Track> extra) {
+  final Set<String> seen = <String>{for (final Track t in base) t.uri};
+  final List<Track> out = <Track>[...base];
+  for (final Track t in extra) {
+    if (seen.add(t.uri)) out.add(t);
+  }
+  return out;
+}
+
+/// 结果列表（带源徽标，可选触底加载更多）。
 class _TrackList extends StatelessWidget {
   const _TrackList({
     required this.tracks,
     required this.onTap,
     this.sourceTag,
     this.tagOf,
+    this.onLoadMore,
+    this.isLoadingMore = false,
+    this.hasMore = true,
+    this.loadFailed = false,
   });
 
   final List<Track> tracks;
@@ -579,18 +787,81 @@ class _TrackList extends StatelessWidget {
   /// 按曲目给标签（聚合列表用）。
   final String? Function(Track)? tagOf;
 
+  /// 触底加载更多；为 null 时不启用分页（尾部不加多余 item）。
+  final Future<void> Function()? onLoadMore;
+  final bool isLoadingMore;
+
+  /// 是否还有下一页；false 时尾部提示「没有更多了」。
+  final bool hasMore;
+
+  /// 上一次加载更多失败（尾部换成重试按钮）。
+  final bool loadFailed;
+
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    final bool paging = onLoadMore != null;
+    final Widget list = ListView.separated(
       padding: EdgeInsets.zero,
-      itemCount: tracks.length,
+      // 内容不足一屏时也要能下拉（否则 RefreshIndicator 无法触发）。
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: tracks.length + (paging ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: AppSpace.xs),
       itemBuilder: (BuildContext _, int i) {
+        if (paging && i == tracks.length) return _buildFooter(context);
         final Track t = tracks[i];
         final String? tag = tagOf != null ? tagOf!(t) : sourceTag;
         return _TrackTile(track: t, tag: tag, onTap: () => onTap(t));
       },
     );
+    if (!paging) return list;
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification n) {
+        if (hasMore &&
+            !isLoadingMore &&
+            n is ScrollUpdateNotification &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - 240) {
+          onLoadMore!.call();
+        }
+        return false;
+      },
+      child: list,
+    );
+  }
+
+  /// 尾部三态：加载中 / 加载失败可重试 / 没有更多了。
+  Widget _buildFooter(BuildContext context) {
+    if (loadFailed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Center(
+          child: FilledButton(
+            onPressed: () => onLoadMore?.call(),
+            child: const Text('加载失败，点击重试'),
+          ),
+        ),
+      );
+    }
+    if (isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 14),
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (!hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: Text('没有更多了', style: context.appText.artist),
+        ),
+      );
+    }
+    return const SizedBox(height: 12);
   }
 }
 

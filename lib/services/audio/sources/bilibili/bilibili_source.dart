@@ -55,9 +55,11 @@ class BilibiliSource implements MusicSource {
   Future<List<Track>> getTracks() async => const <Track>[];
 
   /// 搜索候选视频。返回 Track 的 uri 是占位符，播放前必须过 [resolveStreamUrl]。
-  Future<List<Track>> search(String keyword, {int limit = 20}) async {
+  ///
+  /// [page] 透传给 B站搜索接口（1 起）；缺省为第一页，既有调用点不受影响。
+  Future<List<Track>> search(String keyword, {int limit = 20, int page = 1}) async {
     final List<BiliVideoLite> vids =
-        await api.searchVideos(keyword, pageSize: limit);
+        await api.searchVideos(keyword, page: page, pageSize: limit);
     return vids.map(toTrack).toList(growable: false);
   }
 
