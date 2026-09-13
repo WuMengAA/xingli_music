@@ -18,7 +18,6 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../providers/radio/dj_audio_source_provider.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class TrackPicker extends ConsumerStatefulWidget {
   /// [initialSource]：打开时默认选中的音源（电台页 DJ 自选传入 DJ 偏好；
@@ -73,7 +72,7 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
                     setState(() => _online = s.first),
               ),
               const Spacer(),
-              XGlassButton(
+              FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('取消'),
               ),
@@ -112,13 +111,16 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
         final List<Track> filtered = k.isEmpty
             ? tracks
             : tracks
-                .where((Track t) =>
-                    (t.title.toLowerCase().contains(k)) ||
-                    (t.artist.toLowerCase().contains(k)))
-                .toList();
+                  .where(
+                    (Track t) =>
+                        (t.title.toLowerCase().contains(k)) ||
+                        (t.artist.toLowerCase().contains(k)),
+                  )
+                  .toList();
         if (filtered.isEmpty) {
           return Center(
-              child: Text('无匹配', style: TextStyle(color: c.textSecondary)));
+            child: Text('无匹配', style: TextStyle(color: c.textSecondary)),
+          );
         }
         return ListView.builder(
           itemCount: filtered.length,
@@ -126,8 +128,10 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
             final Track t = filtered[i];
             return ListTile(
               title: Text(t.title, style: TextStyle(color: c.textPrimary)),
-              subtitle: Text(t.artist,
-                  style: TextStyle(color: c.textSecondary, fontSize: 12)),
+              subtitle: Text(
+                t.artist,
+                style: TextStyle(color: c.textSecondary, fontSize: 12),
+              ),
               onTap: () => Navigator.of(context).pop(t),
             );
           },
@@ -135,7 +139,8 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, _) => Center(
-          child: Text('读取曲库失败', style: TextStyle(color: c.danger))),
+        child: Text('读取曲库失败', style: TextStyle(color: c.danger)),
+      ),
     );
   }
 
@@ -143,15 +148,18 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
     final String kw = _q.text.trim();
     if (kw.isEmpty) {
       return Center(
-          child: Text('输入关键词搜索在线曲库',
-              style: TextStyle(color: c.textSecondary)));
+        child: Text('输入关键词搜索在线曲库', style: TextStyle(color: c.textSecondary)),
+      );
     }
     final bool ne = ref.watch(neteaseAuthProvider).isLoggedIn;
     final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
     if (!ne && !bi) {
       return Center(
-          child: Text('点歌需先登录网易云 / 哔哩哔哩',
-              style: TextStyle(color: c.textSecondary)));
+        child: Text(
+          '点歌需先登录网易云 / 哔哩哔哩',
+          style: TextStyle(color: c.textSecondary),
+        ),
+      );
     }
     final AsyncValue<List<Track>> neRes = ne
         ? ref.watch(neteaseSearchProvider(kw))
@@ -167,7 +175,8 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
         return const Center(child: CircularProgressIndicator());
       }
       return Center(
-          child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)));
+        child: Text('在线无匹配', style: TextStyle(color: c.textSecondary)),
+      );
     }
     final List<Track> all = <Track>[...neHits, ...biHits];
     final String? pref = _preferPlatform;
@@ -180,8 +189,11 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
         return const Center(child: CircularProgressIndicator());
       }
       return Center(
-          child: Text('${pref == 'netease' ? '网易云' : 'B站'} 无匹配',
-              style: TextStyle(color: c.textSecondary)));
+        child: Text(
+          '${pref == 'netease' ? '网易云' : 'B站'} 无匹配',
+          style: TextStyle(color: c.textSecondary),
+        ),
+      );
     }
     return ListView.builder(
       itemCount: shown.length,
@@ -190,12 +202,14 @@ class _TrackPickerState extends ConsumerState<TrackPicker> {
         final String src = t.sourceId == 'netease'
             ? '网易云'
             : t.sourceId == 'bilibili'
-                ? 'B站'
-                : '本地';
+            ? 'B站'
+            : '本地';
         return ListTile(
           title: Text(t.title, style: TextStyle(color: c.textPrimary)),
-          subtitle: Text('$src · ${t.artist}',
-              style: TextStyle(color: c.textSecondary, fontSize: 12)),
+          subtitle: Text(
+            '$src · ${t.artist}',
+            style: TextStyle(color: c.textSecondary, fontSize: 12),
+          ),
           onTap: () => Navigator.of(context).pop(t),
         );
       },

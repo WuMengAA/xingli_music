@@ -14,7 +14,6 @@ import '../../providers/content/content_providers.dart';
 import '../../providers/settings/log_upload_providers.dart';
 import '../../services/log_discovery.dart';
 import '../../services/remote_log_uploader.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开日志上报设置弹层。
 Future<void> showLogUploadSheet(BuildContext context) {
@@ -45,8 +44,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
   @override
   void initState() {
     super.initState();
-    _urlCtrl =
-        TextEditingController(text: ref.read(logUploadEndpointProvider));
+    _urlCtrl = TextEditingController(text: ref.read(logUploadEndpointProvider));
   }
 
   @override
@@ -61,7 +59,9 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
     final String? url = await discoverLogServer();
     if (!mounted) return;
     if (url == null) {
-      setState(() => _status = '未找到日志服务器：请确认电脑已启动服务端、手机与电脑同一 Wi-Fi、且防火墙放行 UDP 8766');
+      setState(
+        () => _status = '未找到日志服务器：请确认电脑已启动服务端、手机与电脑同一 Wi-Fi、且防火墙放行 UDP 8766',
+      );
       return;
     }
     _urlCtrl.text = url;
@@ -77,13 +77,16 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
       return;
     }
     setState(() => _status = '测试中…');
-    final RemoteLogUploader probe =
-        RemoteLogUploader(endpoint: url, enabled: true);
+    final RemoteLogUploader probe = RemoteLogUploader(
+      endpoint: url,
+      enabled: true,
+    );
     final DateTime now = DateTime.now();
     String two(int v) => v.toString().padLeft(2, '0');
     probe.push(
       RemoteLogEntry(
-        ts: '${now.year}-${two(now.month)}-${two(now.day)} '
+        ts:
+            '${now.year}-${two(now.month)}-${two(now.day)} '
             '${two(now.hour)}:${two(now.minute)}:${two(now.second)}',
         level: 'INFO',
         tag: 'log-upload',
@@ -93,8 +96,9 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
     final int n = await probe.flush();
     probe.dispose();
     if (!mounted) return;
-    setState(() =>
-        _status = n > 0 ? '连接成功：已上报 $n 条测试日志' : '连接失败：请检查地址 / 网络 / 服务端');
+    setState(
+      () => _status = n > 0 ? '连接成功：已上报 $n 条测试日志' : '连接失败：请检查地址 / 网络 / 服务端',
+    );
   }
 
   /// 立即上报当前缓冲。
@@ -123,14 +127,16 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
     final String endpoint = ref.watch(logUploadEndpointProvider);
 
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.lg),
+            AppSpace.lg,
+            AppSpace.md,
+            AppSpace.lg,
+            AppSpace.lg,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,17 +144,22 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
               // 标题行
               Row(
                 children: <Widget>[
-                  Icon(Icons.cloud_upload_outlined,
-                      size: AppSize.icon, color: context.appColors.accent),
+                  Icon(
+                    Icons.cloud_upload_outlined,
+                    size: AppSize.icon,
+                    color: context.appColors.accent,
+                  ),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text('日志上报', style: context.appText.subtitle),
                   ),
-                  XGlassIconButton(
-                    icon: Icon(Icons.close_rounded,
-                        size: AppSize.iconSm,
-                        color: context.appColors.iconInactive),
+                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: AppSize.iconSm,
+                      color: context.appColors.iconInactive,
+                    ),
                   ),
                 ],
               ),
@@ -159,52 +170,57 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                 style: context.appText.artist,
               ),
               const SizedBox(height: AppSpace.md),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('启用上报', style: context.appText.body),
-                          Text('仅启用时才会发送日志',
-                              style: context.appText.artist),
-                        ],
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text('启用上报', style: context.appText.body),
+                            Text('仅启用时才会发送日志', style: context.appText.artist),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: enabled,
-                      onChanged: (bool v) {
-                        ref.read(logUploadEnabledProvider.notifier).state = v;
-                      },
-                    ),
-                  ],
+                      Switch(
+                        value: enabled,
+                        onChanged: (bool v) {
+                          ref.read(logUploadEnabledProvider.notifier).state = v;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('详细日志（DEBUG）', style: context.appText.body),
-                          Text(
-                            '记录状态机/播放器/音量等细粒度日志，便于定位问题',
-                            style: context.appText.artist,
-                          ),
-                        ],
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text('详细日志（DEBUG）', style: context.appText.body),
+                            Text(
+                              '记录状态机/播放器/音量等细粒度日志，便于定位问题',
+                              style: context.appText.artist,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: ref.watch(logDebugEnabledProvider),
-                      onChanged: (bool v) {
-                        ref.read(logDebugEnabledProvider.notifier).state = v;
-                      },
-                    ),
-                  ],
+                      Switch(
+                        value: ref.watch(logDebugEnabledProvider),
+                        onChanged: (bool v) {
+                          ref.read(logDebugEnabledProvider.notifier).state = v;
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpace.sm),
@@ -216,7 +232,8 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                   labelText: '服务器地址',
                   hintText: 'http://logs.example.com',
                   hintStyle: context.appText.artist,
-                  helperText: '不带 /api/logs 后缀',                  helperStyle: context.appText.caption,
+                  helperText: '不带 /api/logs 后缀',
+                  helperStyle: context.appText.caption,
                   filled: true,
                   fillColor: context.appColors.bgCard,
                   border: OutlineInputBorder(
@@ -237,7 +254,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                 spacing: AppSpace.sm,
                 runSpacing: AppSpace.xs,
                 children: <Widget>[
-                  XGlassButton(
+                  FilledButton(
                     onPressed: _useOfficialRelay,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -248,7 +265,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                       ],
                     ),
                   ),
-                  XGlassButton(
+                  FilledButton(
                     onPressed: _discover,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -259,7 +276,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                       ],
                     ),
                   ),
-                  XGlassButton(
+                  FilledButton(
                     onPressed: _test,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -270,7 +287,7 @@ class _LogUploadSheetState extends ConsumerState<_LogUploadSheet> {
                       ],
                     ),
                   ),
-                  XGlassButton(
+                  FilledButton(
                     onPressed: _flushNow,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

@@ -7,7 +7,6 @@ import '../../providers/scene/scene_providers.dart';
 import '../../scenes/scene_api.dart';
 import '../../widgets/app_icon.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 场景自定义编辑页：名称 / 图标 / 风格 / 内容 / 背景 / 粒子 / 音频 / 音景
 class SceneEditorPage extends ConsumerStatefulWidget {
@@ -96,7 +95,7 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
       appBar: AppBar(
         title: Text(base.isCustom ? '编辑自定义场景' : '自定义场景'),
         actions: [
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.check),
             onPressed: _save,
             tooltip: '保存',
@@ -126,9 +125,11 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
           _audioEditor(theme),
 
           const SizedBox(height: 32),
-          XGlassButton(
+          ElevatedButton(
             onPressed: _save,
-            padding: const EdgeInsets.symmetric(vertical: 14),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
             child: const Text('保存自定义'),
           ),
         ],
@@ -201,17 +202,10 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
   Widget _bgEditor(ThemeData theme) {
     return Column(
       children: [
-        XGlassCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(child: const Text('自定义背景渐变色')),
-              XGlassToggle(
-                value: _useCustomBg,
-                onChanged: (bool v) => setState(() => _useCustomBg = v),
-              ),
-            ],
-          ),
+        SwitchListTile(
+          title: const Text('自定义背景渐变色'),
+          value: _useCustomBg,
+          onChanged: (bool v) => setState(() => _useCustomBg = v),
         ),
         if (_useCustomBg) ...[
           Row(
@@ -241,17 +235,10 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
   Widget _particleEditor(ThemeData theme) {
     return Column(
       children: [
-        XGlassCard(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Expanded(child: const Text('自定义粒子颜色')),
-              XGlassToggle(
-                value: _useCustomParticle,
-                onChanged: (bool v) => setState(() => _useCustomParticle = v),
-              ),
-            ],
-          ),
+        SwitchListTile(
+          title: const Text('自定义粒子颜色'),
+          value: _useCustomParticle,
+          onChanged: (bool v) => setState(() => _useCustomParticle = v),
         ),
         if (_useCustomParticle)
           Align(
@@ -264,7 +251,7 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
             const Text('粒子风格'),
             const SizedBox(width: 12),
             Expanded(
-              child: XGlassDropdown<String>(
+              child: DropdownButton<String>(
                 value: _particleMotion,
                 items: _motions
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
@@ -287,7 +274,7 @@ class _SceneEditorPageState extends ConsumerState<SceneEditorPage> {
           children: [
             const Text('专属音源'),
             const SizedBox(width: 12),
-            XGlassDropdown<String?>(
+            DropdownButton<String?>(
               value: _musicSourceId,
               isExpanded: false,
               hint: const Text('无（使用全局曲库）'),
@@ -426,7 +413,7 @@ class _SimpleColorPickerState extends State<_SimpleColorPicker> {
         }).toList(),
       ),
       actions: [
-        XGlassButton(
+        TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('取消'),
         ),

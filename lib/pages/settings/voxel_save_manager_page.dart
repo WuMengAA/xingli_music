@@ -18,14 +18,12 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../widgets/voxel/voxel_save.dart';
-import '../../widgets/liquid_glass.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show VoxelWorld3DPage;
 import '../../widgets/notification/app_notify.dart';
 import '../../widgets/common/app_confirm_dialog.dart';
 import '../../widgets/common/reminder_banner.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 世界存档管理器页。
 class VoxelSaveManagerPage extends StatefulWidget {
@@ -111,11 +109,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          XGlassButton(
+          OutlinedButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          OutlinedButton(
             onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
             child: const Text('确定'),
           ),
@@ -182,71 +180,86 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                 ),
               ),
               const SizedBox(height: AppSpace.xs),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[
-                          Text('允许作弊'),
-                          Text('关闭时固定创造模式；开启后可切换生存/创造'),
-                        ],
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const <Widget>[
+                            Text('允许作弊'),
+                            Text('关闭时固定创造模式；开启后可切换生存/创造'),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: cheats,
-                      onChanged: (bool v) => set(() => cheats = v),
-                    ),
-                  ],
+                      Switch(
+                        value: cheats,
+                        onChanged: (bool v) => set(() => cheats = v),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[
-                          Text('生成结构'),
-                          Text('沙漠沙堡等确定性结构'),
-                        ],
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const <Widget>[
+                            Text('生成结构'),
+                            Text('沙漠沙堡等确定性结构'),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: structures,
-                      onChanged: (bool v) => set(() => structures = v),
-                    ),
-                  ],
+                      Switch(
+                        value: structures,
+                        onChanged: (bool v) => set(() => structures = v),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const <Widget>[Text('浮空岛'), Text('悬空草顶石核团块')],
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const <Widget>[
+                            Text('浮空岛'),
+                            Text('悬空草顶石核团块'),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: floating,
-                      onChanged: (bool v) => set(() => floating = v),
-                    ),
-                  ],
+                      Switch(
+                        value: floating,
+                        onChanged: (bool v) => set(() => floating = v),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
           actions: <Widget>[
-            XGlassButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(dctx).pop(),
               child: const Text('取消'),
             ),
-            XGlassButton(
+            OutlinedButton(
               onPressed: () => Navigator.of(dctx).pop((
                 n.text.trim(),
                 int.tryParse(s.text.trim()) ?? Random().nextInt(1 << 30),
@@ -720,9 +733,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
         actions: <Widget>[
           Tooltip(
             message: '快照正在运行的世界（不切换，需手动「进入」读取）',
-            child: XGlassButton(
+            child: OutlinedButton(
               onPressed: _backupCurrent,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const <Widget>[
@@ -733,9 +748,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
               ),
             ),
           ),
-          XGlassButton(
+          OutlinedButton(
             onPressed: _newBlankWorld,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const <Widget>[
@@ -745,9 +762,11 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
               ],
             ),
           ),
-          XGlassButton(
+          OutlinedButton(
             onPressed: _import,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: const <Widget>[
@@ -804,7 +823,7 @@ class _VoxelSaveManagerPageState extends State<VoxelSaveManagerPage> {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpace.md),
-                          XGlassButton(
+                          OutlinedButton(
                             onPressed: _refresh,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -961,9 +980,11 @@ class _SaveCard extends StatelessWidget {
                 ],
               ),
             ),
-            XGlassButton(
+            OutlinedButton(
               onPressed: onEnter,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const <Widget>[
@@ -1016,8 +1037,7 @@ class _SaveCard extends StatelessWidget {
         ],
       ],
     );
-    // iOS 26 Liquid Glass：存档卡片包毛玻璃面板（forceGlass 绕过极简模式，
-    // 仅本界面启用，与 Dock/控制栏一致作为玻璃焦点层）。
+    // 存档卡片容器：由 LiquidGlass 毛玻璃面板改为原生 M3 Card（去模糊）。
     final Widget inner = bg != null
         ? Stack(
             children: <Widget>[
@@ -1037,14 +1057,17 @@ class _SaveCard extends StatelessWidget {
             ],
           )
         : content;
-    return LiquidGlass(
-      forceGlass: true,
-      style: GlassStyle.frosted,
-      radius: AppRadius.lg,
-      tint: context.appColors.glassTint,
-      borderColor: context.appColors.glassBorder,
-      padding: const EdgeInsets.all(AppSpace.md),
-      child: inner,
+    return Card(
+      margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpace.md),
+        child: inner,
+      ),
     );
   }
 }
@@ -1148,10 +1171,10 @@ class _BackupTile extends StatelessWidget {
           Expanded(
             child: Text(fmt(backup.createdAt), style: context.appText.body),
           ),
-          XGlassButton(onPressed: onEnter, child: const Text('进入')),
-          XGlassButton(onPressed: onRollback, child: const Text('回滚')),
-          XGlassButton(onPressed: onExport, child: const Text('导出')),
-          XGlassButton(
+          OutlinedButton(onPressed: onEnter, child: const Text('进入')),
+          OutlinedButton(onPressed: onRollback, child: const Text('回滚')),
+          OutlinedButton(onPressed: onExport, child: const Text('导出')),
+          OutlinedButton(
             onPressed: onDelete,
             child: const Text('删除', style: TextStyle(color: Colors.red)),
           ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/app_version.dart' show UpdateChannel;
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/experiment.dart';
@@ -74,18 +75,10 @@ class ExplorePage extends ConsumerWidget {
     // 每日推荐 / 漫游 / 电台房 已移入下方「实验室」网格，不再在此单列。
     // 歌单 / 场景类卡片跳到对应 Tab，复用既有页面，不伪造数据。
 
-    // M2（方向二 · Bug B 修复）：未同意时整页渲染 ConsentGate，而非把它
-    // 嵌进下方长页的 SingleChildScrollView 内层。
-    // 原实现造成「双重滚动」——Gate 自身也有 SingleChildScrollView，被包进
-    // 长页滚动容器后，"同意并进入"按钮被挤出首屏（y≈1151，测试 tap 命中失败）。
-    // 整页渲染让 Gate 直接拿到 PageScaffold 提供的有界高度，自身正常滚动。
-    if (!consent.agreed) {
-      return PageScaffold(
-        title: Terms.tabExplore,
-        body: const ConsentGate(),
-      );
-    }
-
+    // B 版改造（2026-09-13）：探索页不再整页被同意门拦截。
+    // 已毕业（stable）功能在「功能」区常驻可见；仅「实验室」区（experimenting）
+    // 需先同意条款——未同意时由 [_ExperimentSection] 渲染内联入口，
+    // 点开推入独立路由展示条款，避免「双重滚动」老问题。
     return PageScaffold(
       title: Terms.tabExplore,
       body: SingleChildScrollView(
@@ -502,12 +495,12 @@ class _RemoteNoticeBar extends ConsumerWidget {
   }
 }
 
-/// 功能区：聚合搜索 / 网易云推荐 / 星璃世界 / 电台（345×56，圆角 16）。
+/// 功能区：聚合搜索 / 网易云推荐 / 星璃世界 / 电台 + 已毕业功能（数据驱动）。
 ///
-/// 收敛为核心 4 个高频入口；每日推荐 / 漫游 / 电台房 已下沉到下方「实验室」
-/// 网格（数据驱动 `experimentsProvider`），避免功能区分裂在两个区块造成重复。
-/// cl17：智能推荐、AI 陪伴 已下线（离线无 LLM 只有固定回复），不再设为入口。
-class _FunctionSection extends StatelessWidget {
+/// 核心 4 个高频入口固定；其后追加 [experimentsProvider] 中 `status == stable`
+/// 的项——**已毕业功能作为正式入口常驻此处**，不受实验同意门约束（B 版，2026-09-13）。
+/// cl17：智能推荐、AI 陪伴 曾下线；现接真大模型后以 `experimenting` 回到「实验室」。
+class _FunctionSection extends ConsumerWidget {
   const _FunctionSection({
     required this.onAggregate,
     required this.onNeteaseRecommend,
@@ -521,8 +514,15 @@ class _FunctionSection extends StatelessWidget {
   final VoidCallback onStation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppThemeColors c = context.appColors;
+    // 已毕业（stable）且当前渠道可见的功能：作为正式入口常驻「功能」区。
+    final UpdateChannel channel = ref.watch(currentChannelProvider);
+    final List<ExperimentItem> graduated = ref
+        .watch(experimentsProvider)
+        .where((ExperimentItem e) =>
+            e.status == ExperimentStatus.stable && e.visibleOn(channel))
+        .toList();
     return Column(
       children: <Widget>[
         _FuncRow(
@@ -552,6 +552,17 @@ class _FunctionSection extends StatelessWidget {
           onTap: onStation,
           trailing: Icon(Icons.radio_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),
+        for (final ExperimentItem e in graduated) ...<Widget>[
+          const SizedBox(height: AppSpace.sm),
+          _FuncRow(
+            title: e.name,
+            subtitle: e.description,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => e.builder()),
+            ),
+            trailing: Icon(e.icon, size: AppSize.iconSm, color: c.iconInactive),
+          ),
+        ],
       ],
     );
   }
@@ -611,26 +622,94 @@ class _FuncRow extends StatelessWidget {
   }
 }
 
-/// 实验区（数据驱动 `experimentsProvider`，按同意状态 + 能力开关逐项过滤）。
+/// 实验室「未同意」时的内联入口：一行卡片，点开推入独立路由展示条款。
 ///
-/// 未同意 → 全屏 [ConsentGate]；已同意 → 165×110 卡片网格（双列）。
+/// 用独立路由而非把 [ConsentGate] 内联进长页滚动容器——后者会造成
+/// 「双重滚动」，把"同意并进入"按钮挤出首屏（历史 bug）。
+class _LabConsentPrompt extends StatelessWidget {
+  const _LabConsentPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.bgSurface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: c.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Scaffold(
+                backgroundColor: context.appColors.bgPage,
+                body: SafeArea(
+                  child: PageScaffold(
+                    title: '探索实验室',
+                    actions: <Widget>[
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('返回'),
+                      ),
+                    ],
+                    body: const ConsentGate(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(
+                left: 20, right: 16, top: 12, bottom: 12),
+            child: Row(
+              children: <Widget>[
+                Icon(Icons.science_rounded, size: AppSize.iconSm, color: c.accent),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('实验室 · 进入需先同意实验条款',
+                      style: context.appText.body),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    size: AppSize.iconSm, color: c.iconInactive),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 实验室（数据驱动 `experimentsProvider`，只承载「实验中」项）。
+///
+/// 已毕业（stable）项已上移到「功能」区常驻；此处仅 `experimenting`。
+/// 未同意 → 内联入口（推独立路由展示 [ConsentGate]）；
+/// 已同意 → 165×110 卡片网格（双列）。
 class _ExperimentSection extends ConsumerWidget {
   const _ExperimentSection({required this.consent});
   final ExperimentConsent consent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (!consent.agreed) {
+      return const _LabConsentPrompt();
+    }
     final List<ExperimentItem> experiments = ref.watch(experimentsProvider);
+    // 测试通道门控：按当前运行渠道过滤，仅挂 Alpha 的实验在正式渠道隐藏。
+    final UpdateChannel channel = ref.watch(currentChannelProvider);
     final List<ExperimentItem> visible = experiments
         .where((ExperimentItem e) =>
-            consent.isEnabled(e) && _capabilityAllows(ref, e.id))
+            e.status == ExperimentStatus.experimenting &&
+            consent.isEnabled(e) &&
+            _capabilityAllows(ref, e.id) &&
+            e.visibleOn(channel))
         .toList();
 
-    if (!consent.agreed) {
-      return const ConsentGate();
-    }
     if (visible.isEmpty) {
-      return Text('所有实验均已停用。', style: context.appText.bodyMuted);
+      return Text('实验室暂无可用项目。', style: context.appText.bodyMuted);
     }
 
     return GridView.count(

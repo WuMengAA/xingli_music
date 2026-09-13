@@ -8,7 +8,6 @@ import '../../core/theme/light_tokens.dart';
 import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
 import 'companion_bubble.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 浮层几何常量（同文件内多个私有 Widget 共享）。
 ///
@@ -66,7 +65,8 @@ class _CompanionGlobalFabState extends ConsumerState<CompanionGlobalFab> {
   @override
   Widget build(BuildContext context) {
     final CompanionSession session = ref.watch(companionStateProvider);
-    final bool showDot = !_expanded &&
+    final bool showDot =
+        !_expanded &&
         session.messages.isNotEmpty &&
         session.messages.last.role == CompanionRole.companion &&
         session.messages.last.proactive;
@@ -75,9 +75,7 @@ class _CompanionGlobalFabState extends ConsumerState<CompanionGlobalFab> {
     // 只把手与展开卡片可交互，避免铺满全屏的容器吞掉下层页面点击。
     return Stack(
       children: <Widget>[
-        const Positioned.fill(
-          child: IgnorePointer(child: SizedBox.expand()),
-        ),
+        const Positioned.fill(child: IgnorePointer(child: SizedBox.expand())),
         if (_expanded)
           Positioned(
             right: AppSpace.sm,
@@ -115,8 +113,9 @@ class _Handle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg =
-        expanded ? context.appColors.bgSurfaceSunken : context.appColors.accent;
+    final Color bg = expanded
+        ? context.appColors.bgSurfaceSunken
+        : context.appColors.accent;
     return Semantics(
       button: true,
       label: expanded ? '收起 AI 陪伴' : '打开 AI 陪伴',
@@ -146,11 +145,7 @@ class _Handle extends StatelessWidget {
                       ? context.appColors.textSecondary
                       : context.appColors.onAccent,
                 ),
-                if (showDot)
-                  const Positioned(
-                    top: 8,
-                    child: _RedDot(),
-                  ),
+                if (showDot) const Positioned(top: 8, child: _RedDot()),
               ],
             ),
           ),
@@ -165,13 +160,13 @@ class _RedDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 7,
-        height: 7,
-        decoration: const BoxDecoration(
-          color: Color(0xFFE5484D),
-          shape: BoxShape.circle,
-        ),
-      );
+    width: 7,
+    height: 7,
+    decoration: const BoxDecoration(
+      color: Color(0xFFE5484D),
+      shape: BoxShape.circle,
+    ),
+  );
 }
 
 class _ExpandedCard extends ConsumerWidget {
@@ -231,8 +226,12 @@ class _QuickChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(AppSpace.sm, AppSpace.xs, AppSpace.sm,
-          AppSpace.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.sm,
+        AppSpace.xs,
+        AppSpace.sm,
+        AppSpace.sm,
+      ),
       decoration: BoxDecoration(
         color: context.appColors.bgSurfaceSunken,
         border: Border(top: BorderSide(color: context.appColors.border)),
@@ -246,7 +245,10 @@ class _QuickChips extends StatelessWidget {
               onTap: () => onTap(cmd),
               borderRadius: BorderRadius.circular(AppRadius.sm),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: context.appColors.accent.withValues(alpha: 0.16),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -280,14 +282,15 @@ class _CardHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpace.sm),
       decoration: BoxDecoration(
         color: context.appColors.bgSurfaceSunken,
-        border: Border(
-          bottom: BorderSide(color: context.appColors.border),
-        ),
+        border: Border(bottom: BorderSide(color: context.appColors.border)),
       ),
       child: Row(
         children: <Widget>[
-          Icon(Icons.person_outline_rounded,
-              size: AppSize.iconSm, color: context.appColors.textSecondary),
+          Icon(
+            Icons.person_outline_rounded,
+            size: AppSize.iconSm,
+            color: context.appColors.textSecondary,
+          ),
           const SizedBox(width: AppSpace.sm),
           Expanded(
             child: Text(
@@ -298,14 +301,16 @@ class _CardHeader extends StatelessWidget {
               ),
             ),
           ),
-          XGlassIconButton(
-            icon: Icon(Icons.close_rounded,
-                size: AppSize.iconSm, color: context.appColors.textTertiary),
+          IconButton(
             onPressed: onClose,
+            icon: Icon(
+              Icons.close_rounded,
+              size: AppSize.iconSm,
+              color: context.appColors.textTertiary,
+            ),
           ),
         ],
       ),
     );
   }
 }
-

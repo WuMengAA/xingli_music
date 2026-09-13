@@ -18,7 +18,6 @@ import '../../providers/radio/radio_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/audio_service.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 点歌队列页。
 class OrderQueuePage extends ConsumerStatefulWidget {
@@ -380,16 +379,11 @@ class _OrderQueuePageState extends ConsumerState<OrderQueuePage> {
         const SizedBox(height: 8),
         Row(
           children: <Widget>[
-            XGlassToggle(
-              value: _anon,
-              onChanged: (v) => setState(() => _anon = v),
-              accentColor: c.accent,
-            ),
+            Switch(value: _anon, onChanged: (v) => setState(() => _anon = v)),
             Text('匿名点歌', style: TextStyle(color: c.textSecondary)),
             const Spacer(),
-            XGlassButton(
+            FilledButton(
               onPressed: _picked == null ? null : _submit,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const <Widget>[
@@ -473,9 +467,8 @@ class _OrderTile extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: <Widget>[
-              XGlassButton(
+              FilledButton(
                 onPressed: onReject,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
@@ -486,9 +479,8 @@ class _OrderTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              XGlassButton(
+              FilledButton(
                 onPressed: onApprove,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const <Widget>[
@@ -505,9 +497,8 @@ class _OrderTile extends StatelessWidget {
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerRight,
-            child: XGlassButton(
+            child: FilledButton(
               onPressed: onPlay,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const <Widget>[
@@ -600,7 +591,7 @@ class _TrackPickerState extends ConsumerState<_TrackPicker> {
                     setState(() => _online = s.first),
               ),
               const Spacer(),
-              XGlassButton(
+              FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
                 child: const Text('取消'),
               ),

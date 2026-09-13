@@ -976,7 +976,6 @@ const List<ChangelogEntry> changelog = <ChangelogEntry>[
     cl: 'alpha_cl04',
     title: '全界面液态玻璃控件基准化（设计语言统一）',
     details: <String>[
-      '新增玻璃基准件 lib/widgets/design/glass_controls.dart（XGlassButton/Slider/Toggle/Card 封装 liquid_glass_compat，统一模糊/圆角/配色）+ AnimatedBackground（大模糊卡片 + 随页切换平移/缩放的抽象色块）',
       '全 app 交互控件（设置/库/播放器/均衡器/场景/OOBE/二级与实验页）统一换 XGlass*，界面 100% 玻璃一致；保留 seek 进度条与迷你音量（进度指示器语义）',
       'OOBE 品牌页点明定位（会思考的本地音乐播放器·可停留的空间）',
     ],

@@ -22,7 +22,6 @@ import '../../providers/settings/settings_persistence_providers.dart';
 import '../../services/ota_service.dart';
 import '../../services/ota_install.dart';
 import '../notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开版本日志面板（自动获取最新日志：changelog 倒序，首条即最新）。
 Future<void> showVersionLogSheet(BuildContext context) {
@@ -98,11 +97,11 @@ class _VersionLogPanelState extends ConsumerState<_VersionLogPanel> {
                       style: context.appText.subtitle,
                     ),
                   ),
-                  XGlassIconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: '关闭',
-                  ),
+                  IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: const Icon(Icons.close),
+      tooltip: '关闭',
+    ),
                 ],
               ),
               const SizedBox(height: AppSpace.xs),
@@ -267,14 +266,14 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
           style: const TextStyle(fontSize: 13),
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(c).pop(false),
-            child: const Text('稍后'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(c).pop(true),
-            child: const Text('下载更新'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(c).pop(false),
+      child: const Text('稍后'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(c).pop(true),
+      child: const Text('下载更新'),
+    ),
         ],
       ),
     );
@@ -472,11 +471,11 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                   Expanded(
                     child: Text('版本更新', style: context.appText.subtitle),
                   ),
-                  XGlassIconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: '关闭',
-                  ),
+                  IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: const Icon(Icons.close),
+      tooltip: '关闭',
+    ),
                 ],
               ),
               const SizedBox(height: AppSpace.sm),
@@ -713,11 +712,11 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
               ],
               SizedBox(
                 width: double.infinity,
-                child: XGlassButton(
-                  onPressed: (_checking || dl.isDownloading || _installing)
+                child: FilledButton(
+      onPressed: (_checking || dl.isDownloading || _installing)
                       ? null
                       : () => _onPrimary(dl),
-                  child: Row(
+      child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       (_checking || _installing || dl.isDownloading)
@@ -753,16 +752,16 @@ class _VersionUpdatePanelState extends ConsumerState<_VersionUpdatePanel> {
                       ),
                     ],
                   ),
-                ),
+    ),
               ),
               if (dl.isDone) ...<Widget>[
                 const SizedBox(height: AppSpace.xs),
                 Center(
-                  child: XGlassButton(
-                    onPressed: () =>
+                  child: FilledButton(
+      onPressed: () =>
                         ref.read(otaDownloadProvider.notifier).reset(),
-                    child: const Text('选择其他版本'),
-                  ),
+      child: const Text('选择其他版本'),
+    ),
                 ),
               ],
               const SizedBox(height: AppSpace.xs),

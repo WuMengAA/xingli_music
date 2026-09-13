@@ -8,7 +8,6 @@ import '../../../providers/explore/sensor_providers.dart';
 import '../../../providers/scene/scene_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_chip.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 实验 F · 传感器（v2 M2 · P0-M2-3，Q5 已裁决：仅光线 + 加速度）。
 ///
@@ -73,7 +72,7 @@ class SensorPage extends ConsumerWidget {
                 title: '摇一摇切场景',
                 value: shakeEnabled ? '已开启' : '已关闭',
                 subtitle: '摇动手机切换到下一场景',
-                trailing: XGlassToggle(
+                trailing: Switch(
                   value: shakeEnabled,
                   onChanged: (bool v) {
                     ref.read(shakeSceneEnabledProvider.notifier).state = v;

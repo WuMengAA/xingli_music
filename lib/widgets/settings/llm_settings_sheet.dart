@@ -12,7 +12,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/llm_providers.dart';
 import '../../services/llm/llm_client.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开大模型设置弹层。
 Future<void> showLlmSettingsSheet(BuildContext context) {
@@ -140,12 +139,12 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                   Expanded(
                     child: Text('大模型设置', style: context.appText.subtitle),
                   ),
-                  XGlassIconButton(
-                    icon: Icon(Icons.close_rounded,
+                  IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: Icon(Icons.close_rounded,
                         size: AppSize.iconSm,
                         color: context.appColors.iconInactive),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
+    ),
                 ],
               ),
               const SizedBox(height: AppSpace.sm),
@@ -180,26 +179,26 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                 decoration: _dec(
                   keySet ? 'API Key（已设置，留空不变）' : 'API Key',
                   'sk-...',
-                  suffixIcon: XGlassIconButton(
-                    icon: Icon(
+                  suffixIcon: IconButton(
+      onPressed: () =>
+                        setState(() => _obscureKey = !_obscureKey),
+      icon: Icon(
                       _obscureKey
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
                       size: AppSize.iconSm,
                       color: context.appColors.iconInactive,
                     ),
-                    onPressed: () =>
-                        setState(() => _obscureKey = !_obscureKey),
-                  ),
+    ),
                 ),
               ),
               const SizedBox(height: AppSpace.md),
               Wrap(
                 spacing: AppSpace.sm,
                 children: <Widget>[
-                  XGlassButton(
-                    onPressed: _save,
-                    child: Row(
+                  FilledButton(
+      onPressed: _save,
+      child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const <Widget>[
                         Icon(Icons.save_outlined, size: 18),
@@ -207,10 +206,10 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                         Text('保存'),
                       ],
                     ),
-                  ),
-                  XGlassButton(
-                    onPressed: _test,
-                    child: Row(
+    ),
+                  FilledButton(
+      onPressed: _test,
+      child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: const <Widget>[
                         Icon(Icons.wifi_tethering_rounded, size: 18),
@@ -218,11 +217,11 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                         Text('测试连接'),
                       ],
                     ),
-                  ),
+    ),
                   if (keySet)
-                    XGlassButton(
-                      onPressed: _clearKey,
-                      child: Row(
+                    FilledButton(
+      onPressed: _clearKey,
+      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const <Widget>[
                           Icon(Icons.delete_outline, size: 18),
@@ -230,7 +229,7 @@ class _LlmSettingsSheetState extends ConsumerState<_LlmSettingsSheet> {
                           Text('清除 Key'),
                         ],
                       ),
-                    ),
+    ),
                 ],
               ),
               if (_status.isNotEmpty) ...<Widget>[

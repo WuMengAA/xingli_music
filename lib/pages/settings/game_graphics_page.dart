@@ -20,7 +20,6 @@ import '../../providers/voxel/graphics_quality_provider.dart'
 import '../../providers/voxel/cloud_view_distance_provider.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart' show GraphicsQuality;
 import '../../widgets/voxel/voxel_renderer.dart' show LodQuality;
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 游戏画面 · 专属设置页（从主页设置「游戏」段进入）。
 class GameGraphicsPage extends ConsumerWidget {
@@ -177,7 +176,7 @@ class GameGraphicsPage extends ConsumerWidget {
                         style: context.appText.body,
                       ),
                     ),
-                    XGlassToggle(
+                    Switch(
                       value: lodFrustumCull,
                       onChanged: (bool v) =>
                           ref.read(lodFrustumCullProvider.notifier).state = v,
@@ -200,7 +199,7 @@ class GameGraphicsPage extends ConsumerWidget {
                     style: context.appText.body,
                   ),
                 ),
-                XGlassToggle(
+                Switch(
                   value: ref.watch(outlineEnabledProvider),
                   onChanged: (bool v) => ref
                       .read(outlineEnabledProvider.notifier)
@@ -227,7 +226,7 @@ class GameGraphicsPage extends ConsumerWidget {
                 children: <Widget>[
                   Text('渲染精度', style: context.appText.body),
                   const SizedBox(height: 6),
-                  XGlassSlider(
+                  Slider(
                     value: ref.watch(renderPrecisionScaleProvider),
                     min: 0.25,
                     max: 2.0,
@@ -395,11 +394,10 @@ class _Stepper extends StatelessWidget {
         Row(
           children: <Widget>[
             Expanded(child: Text(label, style: context.appText.body)),
-            XGlassIconButton(
+            IconButton(
               icon: const Icon(Icons.remove_circle_outline, size: 18),
-              onPressed: value > min ? () => onChanged(value - 1) : null,
               color: context.appColors.iconInactive,
-              size: 40,
+              onPressed: value > min ? () => onChanged(value - 1) : null,
             ),
             SizedBox(
               width: 28,
@@ -410,11 +408,10 @@ class _Stepper extends StatelessWidget {
                     .copyWith(fontWeight: FontWeight.w600),
               ),
             ),
-            XGlassIconButton(
+            IconButton(
               icon: const Icon(Icons.add_circle_outline, size: 18),
-              onPressed: value < max ? () => onChanged(value + 1) : null,
               color: context.appColors.iconInactive,
-              size: 40,
+              onPressed: value < max ? () => onChanged(value + 1) : null,
             ),
           ],
         ),
@@ -446,7 +443,7 @@ class _ToggleRow extends StatelessWidget {
         Expanded(
           child: Text(title, style: context.appText.body),
         ),
-        XGlassToggle(value: value, onChanged: onChanged),
+        Switch(value: value, onChanged: onChanged),
       ],
     );
   }

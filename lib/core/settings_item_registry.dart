@@ -69,7 +69,6 @@ import 'theme/app_theme_colors.dart';
 import 'theme/light_tokens.dart';
 import 'theme/theme_skins.dart';
 import '../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 单项渲染函数。
 typedef SettingItemBuilder =
@@ -213,14 +212,14 @@ Future<void> _editContentBase(BuildContext context, WidgetRef ref) async {
         ),
       ),
       actions: <Widget>[
-        XGlassButton(
-          onPressed: () => Navigator.of(dlg).pop(),
-          child: const Text('取消'),
-        ),
-        XGlassButton(
-          onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
-          child: const Text('保存'),
-        ),
+        FilledButton(
+      onPressed: () => Navigator.of(dlg).pop(),
+      child: const Text('取消'),
+    ),
+        FilledButton(
+      onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
+      child: const Text('保存'),
+    ),
       ],
     ),
   );
@@ -253,14 +252,14 @@ Future<void> _editNowPlayingToken(BuildContext context, WidgetRef ref) async {
         ),
       ),
       actions: <Widget>[
-        XGlassButton(
-          onPressed: () => Navigator.of(dlg).pop(),
-          child: const Text('取消'),
-        ),
-        XGlassButton(
-          onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
-          child: const Text('保存'),
-        ),
+        FilledButton(
+      onPressed: () => Navigator.of(dlg).pop(),
+      child: const Text('取消'),
+    ),
+        FilledButton(
+      onPressed: () => Navigator.of(dlg).pop(c.text.trim()),
+      child: const Text('保存'),
+    ),
       ],
     ),
   );
@@ -303,7 +302,10 @@ Widget _worldGenSlider(
     children: <Widget>[
       SizedBox(width: 84, child: Text(label, style: context.appText.bodyMuted)),
       Expanded(
-        child: XGlassSlider(value: value.clamp(0.0, 1.0), onChanged: onChanged),
+        child: Slider(
+      value: value.clamp(0.0, 1.0),
+      onChanged: onChanged,
+    ),
       ),
       SizedBox(
         width: 44,
@@ -325,8 +327,8 @@ Widget _toggle(
   required bool value,
   required ValueChanged<bool> onChanged,
 }) {
-  return XGlassCard(
-    child: Row(
+  return Card(
+          child: Padding(padding: const EdgeInsets.all(16), child: Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         Expanded(
@@ -339,10 +341,13 @@ Widget _toggle(
             ],
           ),
         ),
-        XGlassToggle(value: value, onChanged: onChanged),
-      ],
+        Switch(
+      value: value,
+      onChanged: onChanged,
     ),
-  );
+      ],
+    )),
+        );
 }
 
 /// 声音分类音量滑杆（R26skel-b5）。
@@ -364,12 +369,12 @@ class _VolSlider extends StatelessWidget {
         Expanded(flex: 3, child: Text(label, style: context.appText.caption)),
         Expanded(
           flex: 2,
-          child: XGlassSlider(
-            value: value.clamp(0.0, 1.0),
-            min: 0,
-            max: 1,
-            onChanged: onChanged,
-          ),
+          child: Slider(
+      value: value.clamp(0.0, 1.0),
+      onChanged: onChanged,
+      min: 0,
+      max: 1,
+    ),
         ),
         SizedBox(
           width: 34,
@@ -418,13 +423,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
               ),
             ],
           ),
-          XGlassSlider(
-            value: ref.watch(masterVolumeProvider),
-            onChanged: (double v) {
+          Slider(
+      value: ref.watch(masterVolumeProvider),
+      onChanged: (double v) {
               ref.read(masterVolumeProvider.notifier).state = v;
               ref.read(audioServiceProvider).setMasterVolume(v);
             },
-          ),
+    ),
         ],
       ),
     ),
@@ -574,11 +579,11 @@ kSettingItemRegistry = <String, SettingItemDef>{
           if (loggedIn) ...<Widget>[
             const SizedBox(height: 4),
             // 自动匹配：按当前曲目名 + 时长找 B站视频并播放（默认静音）。
-            XGlassButton(
-              onPressed: busy
+            FilledButton(
+      onPressed: busy
                   ? null
                   : () => _autoPlayBilibiliForCurrent(context, ref),
-              child: Row(
+      child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   const Icon(Icons.auto_awesome_rounded, size: 16),
@@ -586,7 +591,7 @@ kSettingItemRegistry = <String, SettingItemDef>{
                   const Text('自动匹配当前曲目并播放（默认静音）'),
                 ],
               ),
-            ),
+    ),
           ],
         ],
       );
@@ -797,12 +802,12 @@ kSettingItemRegistry = <String, SettingItemDef>{
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 6),
-        XGlassSlider(
-          value: ref.watch(uiScaleProvider),
-          min: kUiScaleMin,
-          max: kUiScaleMax,
-          onChanged: (double v) => ref.read(uiScaleProvider.notifier).state = v,
-        ),
+        Slider(
+      value: ref.watch(uiScaleProvider),
+      onChanged: (double v) => ref.read(uiScaleProvider.notifier).state = v,
+      min: kUiScaleMin,
+      max: kUiScaleMax,
+    ),
       ],
     ),
   ),
@@ -817,13 +822,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 6),
-        XGlassSlider(
-          value: ref.watch(hudScaleProvider),
-          min: kHudScaleMin,
-          max: kHudScaleMax,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(hudScaleProvider),
+      onChanged: (double v) =>
               ref.read(hudScaleProvider.notifier).state = v,
-        ),
+      min: kHudScaleMin,
+      max: kHudScaleMax,
+    ),
       ],
     ),
   ),
@@ -961,13 +966,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
           Row(
             children: <Widget>[
               Expanded(
-                child: XGlassSlider(
-                  value: ref.watch(sceneCardOpacityProvider),
-                  min: 0.1,
-                  max: 1.0,
-                  onChanged: (double v) =>
+                child: Slider(
+      value: ref.watch(sceneCardOpacityProvider),
+      onChanged: (double v) =>
                       ref.read(sceneCardOpacityProvider.notifier).set(v),
-                ),
+      min: 0.1,
+      max: 1.0,
+    ),
               ),
               SizedBox(
                 width: 44,
@@ -1310,13 +1315,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
         ),
         const SizedBox(height: 6),
         // cl76_hotfix2：视距全局上限 4 区块（远景由 LOD 延伸，LOD 上限 64）。
-        XGlassSlider(
-          value: ref.watch(viewDistanceChunksProvider).toDouble(),
-          min: 2,
-          max: 4,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(viewDistanceChunksProvider).toDouble(),
+      onChanged: (double v) =>
               ref.read(viewDistanceChunksProvider.notifier).state = v.round(),
-        ),
+      min: 2,
+      max: 4,
+    ),
       ],
     ),
   ),
@@ -1331,16 +1336,16 @@ kSettingItemRegistry = <String, SettingItemDef>{
         ),
         // R26fix：min=0/max=8 兼容旧持久化值（旧 slider 0-6，新推荐 2/3/4）；
         // 推荐值用 chips 一行提示，避免启动时 value=6 越界崩溃。
-        XGlassSlider(
-          value: ref.watch(lodStartChunksProvider).toDouble().clamp(0, 8),
-          min: 0,
-          max: 8,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(lodStartChunksProvider).toDouble().clamp(0, 8),
+      onChanged: (double v) =>
               ref.read(lodStartChunksProvider.notifier).state = v.round().clamp(
                 0,
                 8,
               ),
-        ),
+      min: 0,
+      max: 8,
+    ),
       ],
     ),
   ),
@@ -1350,13 +1355,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text('LOD 步长（兼容）', style: Theme.of(context).textTheme.bodyMedium),
-        XGlassSlider(
-          value: ref.watch(lodStepChunksProvider).toDouble(),
-          min: 1,
-          max: 4,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(lodStepChunksProvider).toDouble(),
+      onChanged: (double v) =>
               ref.read(lodStepChunksProvider.notifier).state = v.round(),
-        ),
+      min: 1,
+      max: 4,
+    ),
       ],
     ),
   ),
@@ -1416,13 +1421,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
           'LOD 最远距离 · 当前 ${ref.watch(lodMaxChunksProvider)} 区块（可超视距）',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        XGlassSlider(
-          value: ref.watch(lodMaxChunksProvider).toDouble(),
-          min: 2,
-          max: 64,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(lodMaxChunksProvider).toDouble(),
+      onChanged: (double v) =>
               ref.read(lodMaxChunksProvider.notifier).state = v.round(),
-        ),
+      min: 2,
+      max: 64,
+    ),
       ],
     ),
   ),
@@ -1436,13 +1441,13 @@ kSettingItemRegistry = <String, SettingItemDef>{
           '（同比例降分辨率，尺寸不变）',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
-        XGlassSlider(
-          value: ref.watch(renderPrecisionScaleProvider),
-          min: 0.25,
-          max: 2.0,
-          onChanged: (double v) =>
+        Slider(
+      value: ref.watch(renderPrecisionScaleProvider),
+      onChanged: (double v) =>
               ref.read(renderPrecisionScaleProvider.notifier).state = v,
-        ),
+      min: 0.25,
+      max: 2.0,
+    ),
       ],
     ),
   ),
@@ -1642,8 +1647,8 @@ kSettingItemRegistry = <String, SettingItemDef>{
       return Column(
         children: <Widget>[
           for (final ExperimentItem item in items)
-            XGlassCard(
-              child: Row(
+            Card(
+          child: Padding(padding: const EdgeInsets.all(16), child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Expanded(
@@ -1661,9 +1666,9 @@ kSettingItemRegistry = <String, SettingItemDef>{
                       ],
                     ),
                   ),
-                  XGlassToggle(
-                    value: consent.isEnabled(item),
-                    onChanged: (bool v) async {
+                  Switch(
+      value: consent.isEnabled(item),
+      onChanged: (bool v) async {
                       // 开启前若尚未同意实验条款，先弹「实验同意门」并等待其接受。
                       if (v && !consent.agreed) {
                         final ExperimentConsentResult? r =
@@ -1675,10 +1680,10 @@ kSettingItemRegistry = <String, SettingItemDef>{
                           .read(experimentConsentProvider.notifier)
                           .setEnabled(item.id, v);
                     },
-                  ),
+    ),
                 ],
-              ),
-            ),
+              )),
+        ),
         ],
       );
     },
@@ -1757,12 +1762,12 @@ kSettingItemRegistry = <String, SettingItemDef>{
           lenient ? '宽松 · 接受自签名（局域网自托管）' : '严格 · 校验证书链（推荐）',
           style: Theme.of(context).textTheme.bodySmall,
         ),
-        trailing: XGlassToggle(
-          value: lenient,
-          onChanged: (bool v) => ref
+        trailing: Switch(
+      value: lenient,
+      onChanged: (bool v) => ref
               .read(certPolicyProvider.notifier)
               .set(v ? CertPolicy.lenient : CertPolicy.strict),
-        ),
+    ),
       );
     },
   ),

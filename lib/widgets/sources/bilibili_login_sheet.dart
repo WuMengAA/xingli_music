@@ -20,7 +20,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../services/audio/sources/bilibili/bilibili_webview_login.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开 B站登录弹层；返回 `true` 表示登录成功。
 Future<bool?> showBilibiliLoginSheet(BuildContext context) {
@@ -42,7 +41,8 @@ class _BilibiliLoginSheet extends ConsumerStatefulWidget {
   const _BilibiliLoginSheet();
 
   @override
-  ConsumerState<_BilibiliLoginSheet> createState() => _BilibiliLoginSheetState();
+  ConsumerState<_BilibiliLoginSheet> createState() =>
+      _BilibiliLoginSheetState();
 }
 
 class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
@@ -68,10 +68,12 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
       try {
         // dart:io 直接调系统浏览器（零依赖，绕开 url_launcher 的
         // androidx.browser 对 AGP ≥8.9 的要求）。
-        await Process.start(
-          'cmd.exe',
-          <String>['/c', 'start', '', 'https://passport.bilibili.com/login'],
-        );
+        await Process.start('cmd.exe', <String>[
+          '/c',
+          'start',
+          '',
+          'https://passport.bilibili.com/login',
+        ]);
         ok = true;
       } catch (_) {
         ok = false;
@@ -80,8 +82,8 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
       setState(() {
         _status = ok
             ? '已在浏览器打开 B站登录页。登录完成后：浏览器按 F12 →'
-                '「网络」→ 点任意 bilibili.com 请求 → 复制请求头的 Cookie'
-                ' 整段值（含 SESSDATA）→ 切到「粘贴 Cookie」粘贴即可。'
+                  '「网络」→ 点任意 bilibili.com 请求 → 复制请求头的 Cookie'
+                  ' 整段值（含 SESSDATA）→ 切到「粘贴 Cookie」粘贴即可。'
             : '无法打开浏览器，请改用「粘贴 Cookie」方式。';
       });
       return;
@@ -97,8 +99,9 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
       setState(() => _status = '未获取到登录状态（已取消或未完成登录）');
       return;
     }
-    final bool ok =
-        await ref.read(bilibiliAuthProvider.notifier).loginWithCookie(cookie);
+    final bool ok = await ref
+        .read(bilibiliAuthProvider.notifier)
+        .loginWithCookie(cookie);
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop(true);
@@ -123,8 +126,9 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
       setState(() => _status = '请填写 SESSDATA（必填），或整段粘贴 Cookie');
       return;
     }
-    final bool ok =
-        await ref.read(bilibiliAuthProvider.notifier).loginWithCookie(raw);
+    final bool ok = await ref
+        .read(bilibiliAuthProvider.notifier)
+        .loginWithCookie(raw);
     if (ok && mounted) {
       Navigator.of(context).pop(true);
     } else if (mounted) {
@@ -146,24 +150,33 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.lg),
+            AppSpace.lg,
+            AppSpace.md,
+            AppSpace.lg,
+            AppSpace.lg,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(Icons.video_library_outlined,
-                      size: AppSize.icon, color: context.appColors.accent),
+                  Icon(
+                    Icons.video_library_outlined,
+                    size: AppSize.icon,
+                    color: context.appColors.accent,
+                  ),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text('哔哩哔哩视频源', style: context.appText.subtitle),
                   ),
-                  XGlassIconButton(
-                    icon: Icon(Icons.close_rounded,
-                        size: AppSize.iconSm,
-                        color: context.appColors.iconInactive),
+                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: AppSize.iconSm,
+                      color: context.appColors.iconInactive,
+                    ),
                   ),
                 ],
               ),
@@ -209,8 +222,9 @@ class _BilibiliLoginSheetState extends ConsumerState<_BilibiliLoginSheet> {
                   const SizedBox(height: AppSpace.sm),
                   Text(
                     auth.error!,
-                    style: context.appText.artist
-                        .copyWith(color: context.appColors.danger),
+                    style: context.appText.artist.copyWith(
+                      color: context.appColors.danger,
+                    ),
                   ),
                 ],
                 if (_status.isNotEmpty) ...<Widget>[
@@ -256,22 +270,24 @@ class _WebLoginPanel extends StatelessWidget {
           style: context.appText.artist,
         ),
         const SizedBox(height: AppSpace.md),
-        XGlassButton(
-          onPressed: busy ? null : onLogin,
-          fullWidth: true,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.language_rounded, size: 18),
-              const SizedBox(width: 8),
-              Text(busy ? '处理中…' : '打开 B站登录页'),
-            ],
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: busy ? null : onLogin,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.language_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(busy ? '处理中…' : '打开 B站登录页'),
+              ],
+            ),
           ),
         ),
         if (status.isNotEmpty) ...<Widget>[
@@ -350,7 +366,7 @@ class _CookiePanel extends StatelessWidget {
           style: context.appText.caption,
         ),
         const SizedBox(height: AppSpace.md),
-        XGlassButton(
+        FilledButton(
           onPressed: busy ? null : onLogin,
           child: busy
               ? const SizedBox(
@@ -375,8 +391,11 @@ class _LoggedInPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: <Widget>[
-        Icon(Icons.check_circle_rounded,
-            size: AppSize.iconSm, color: context.appColors.accent),
+        Icon(
+          Icons.check_circle_rounded,
+          size: AppSize.iconSm,
+          color: context.appColors.accent,
+        ),
         const SizedBox(width: AppSpace.sm),
         Expanded(
           child: Text(
@@ -384,9 +403,8 @@ class _LoggedInPanel extends StatelessWidget {
             style: context.appText.body,
           ),
         ),
-        XGlassButton(
+        FilledButton(
           onPressed: onLogout,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[

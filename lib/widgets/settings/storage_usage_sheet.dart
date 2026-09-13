@@ -9,7 +9,6 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../services/storage_usage_service.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开存储占用底部面板。
 Future<void> showStorageUsageSheet(BuildContext context) {
@@ -47,10 +46,10 @@ class _StorageUsagePanel extends StatelessWidget {
                 Expanded(
                   child: Text('存储占用', style: context.appText.subtitle),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.close),
+                IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   tooltip: '关闭',
+                  icon: const Icon(Icons.close),
                 ),
               ],
             ),

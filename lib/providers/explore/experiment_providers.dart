@@ -4,16 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/app_version.dart' show UpdateChannel;
 import '../../models/experiment.dart';
 import '../../pages/explore/experiments/cast_page.dart';
+import '../../pages/explore/experiments/companion_page.dart';
 import '../../pages/explore/experiments/cue_sheet_page.dart';
+import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/explore/experiments/local_semantic_random_page.dart';
+import '../../pages/explore/experiments/mood_analysis_page.dart';
 import '../../pages/explore/experiments/net_library_page.dart';
 import '../../pages/explore/experiments/netease_playlist_page.dart';
 import '../../pages/explore/experiments/netease_recommend_page.dart';
+import '../../pages/explore/experiments/recommend_page.dart';
 import '../../pages/explore/experiments/scraper_page.dart';
+import '../../pages/explore/experiments/sensor_page.dart';
 import '../../providers/color_memory/color_memory_providers.dart';
 import '../../services/log_service.dart';
+import '../settings/settings_persistence_providers.dart';
 
 /// 实验同意状态（持久化 key：`experiment_consent_v1`）。
 final StateNotifierProvider<ExperimentConsentNotifier, ExperimentConsent>
@@ -70,23 +77,30 @@ class ExperimentConsentNotifier extends StateNotifier<ExperimentConsent> {
   }
 }
 
-/// 实验清单（数据驱动配置表，P0-M2-2）· **T 系列质量排序**。
+/// 当前运行渠道（持久化于 SettingsRepository，切换后重启生效）。
 ///
-/// 排序原则（cl17 · 2026-08-31）：
+/// 实验「测试通道」门控依据：正式渠道（Beta）只显示已毕业（全渠道）实验，
+/// 尝鲜渠道（Alpha）额外显示仅挂测试通道的实验。
+final Provider<UpdateChannel> currentChannelProvider =
+    Provider<UpdateChannel>(
+  (Ref ref) => ref.watch(settingsRepositoryProvider).updateChannel,
+);
+
+/// 实验清单（数据驱动配置表）。
 ///
-/// 1. **稳定且真实可用**的实验优先（`stable` 在前，`experimenting` 在后）；
-/// 2. 同类实验按「数据源可靠性」排：网易云官方 > 本地真实计算 > 第三方远端；
-/// 3. 无真实效果的**劣质内容已下线**（见下方「已下线清单」），不再进网格——
-///    用户反馈：智能推荐/心情分析/AI 陪伴在离线无 LLM 下只有固定回复，
-///    音效均衡器无真实滤镜合成，传感器应归开发者调试工具而非功能。
+/// 排序原则：
+/// 1. **已毕业 · 真实可用**（`stable`）在前——全渠道可见；
+/// 2. `experimenting` 在后——真实链路已通但需外部配置/登录；
+/// 3. **测试通道**（`visibleChannels: {alpha}`）——仅 Alpha 可见，正式渠道隐藏。
 ///
-/// 页面实现文件保留在 `lib/pages/explore/experiments/`（含 `EqualizerPage`
-/// 仍由设置项注册表引用），便于后续修好效果后重新接入，不必重写。
+/// 「毕业」原则（2026-09-13 定）：实验一旦具备**真实链路**就毕业为正式功能，
+/// 不再长期停留在实验阶段；未就绪的留在测试通道（Alpha）继续养。
+/// 页面实现文件保留在 `lib/pages/explore/experiments/`，毕业只需改此处配置。
 ///
 /// 不硬编码在 UI；新增实验只需在此追加。
 final Provider<List<ExperimentItem>> experimentsProvider =
     Provider<List<ExperimentItem>>((Ref ref) => <ExperimentItem>[
-          // ── 稳定 · 本地真实可用 ──────────────────────────────
+          // ── 已毕业 · 真实可用（全渠道可见）──────────────────
           ExperimentItem(
             id: 'local_random',
             name: '语义随机',
@@ -111,11 +125,39 @@ final Provider<List<ExperimentItem>> experimentsProvider =
             status: ExperimentStatus.stable,
             builder: () => const CueSheetPage(),
           ),
-          // ── 实验中 · 官方源 / 远端工具 ───────────────────────
+          // 毕业（本次）：真 EQ 链路早已就绪（Android AndroidEqualizer 真滤波 /
+          // Windows mpv af=equalizer 真 DSP / 其余模拟层），此前被误下线。
+          ExperimentItem(
+            id: 'equalizer',
+            name: '音效均衡器',
+            description: '10 段真 EQ · Android 真滤波 / Windows mpv DSP · 10 组预设',
+            icon: Icons.graphic_eq_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const EqualizerPage(),
+          ),
+          // 毕业（本次）：MusicBrainz 真实元数据 / 封面查询链路已通。
+          ExperimentItem(
+            id: 'scraper',
+            name: '刮削器',
+            description: 'MusicBrainz 元数据查询 · 补全错名文件与封面',
+            icon: Icons.manage_search_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const ScraperPage(),
+          ),
+          // 毕业（本次）：真实 WebDAV 远程曲库（浏览 + 在线播放）。
+          ExperimentItem(
+            id: 'net_library',
+            name: '网络音乐库',
+            description: 'WebDAV 曲库 · 远程目录浏览在线播放',
+            icon: Icons.cloud_rounded,
+            status: ExperimentStatus.stable,
+            builder: () => const NetLibraryPage(),
+          ),
+          // ── 实验中 · 官方源 / 需外部配置（全渠道可见）────────
           ExperimentItem(
             id: 'netease_recommend',
             name: '网易云推荐',
-            description: '每日精选 · 官方源无限漫游',
+            description: '每日精选 · 官方源无限漫游（需登录网易云）',
             icon: Icons.explore_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const NeteaseRecommendPage(),
@@ -123,42 +165,46 @@ final Provider<List<ExperimentItem>> experimentsProvider =
           ExperimentItem(
             id: 'netease_playlist',
             name: '网易云歌单',
-            description: '我的歌单 · 收藏曲目',
+            description: '我的歌单 · 收藏曲目（需登录网易云）',
             icon: Icons.queue_music_rounded,
             status: ExperimentStatus.experimenting,
             builder: () => const NeteasePlaylistPage(),
           ),
+          // 毕业（有条件）：离线无 LLM 时曾只有固定回复；现接真大模型
+          // （设置→大模型配置 baseUrl/key/model），未配置则本地兜底。
           ExperimentItem(
-            id: 'net_library',
-            name: '网络音乐库',
-            description: 'WebDAV 曲库 · 远程目录浏览在线播放',
-            icon: Icons.cloud_rounded,
+            id: 'companion',
+            name: 'AI 陪伴',
+            description: 'AI 音乐伙伴 · 需在设置配置大模型（未配置走本地兜底）',
+            icon: Icons.auto_awesome_rounded,
             status: ExperimentStatus.experimenting,
-            builder: () => const NetLibraryPage(),
+            builder: () => const CompanionPage(),
           ),
           ExperimentItem(
-            id: 'scraper',
-            name: '刮削器',
-            description: 'MusicBrainz 元数据查询 · 补全错名文件',
-            icon: Icons.manage_search_rounded,
+            id: 'recommend',
+            name: '智能推荐',
+            description: '大模型按口味推荐 · 需在设置配置大模型（未配置走本地兜底）',
+            icon: Icons.recommend_rounded,
             status: ExperimentStatus.experimenting,
-            builder: () => const ScraperPage(),
+            builder: () => const RecommendPage(),
           ),
-          // ── 已下线清单（cl17，页面文件保留，不再进实验网格）────
-          // recommend「智能推荐」：离线无 LLM 只有固定回复，等于垃圾功能 → 下线。
-          // mood「心情分析」：问卷结果映射为固定曲目集合，非「分析」初心 → 下线。
-          // equalizer「音效均衡器」：无真实滤镜合成链路，滑杆无实际效果 →
-          //   从实验区下线（设置「音频」入口仍保留，等待真实 EQ 实现后回归）。
-          // sensor「传感器」：属开发者调试/测试工具，不作为面向用户的功能 → 下线。
-          // companion「AI 陪伴」：离线模板回复，体验最差 → 下线。
-          // station_lobby 已从实验区移除，转正为导航/主导航入口（见 app_shell）。
-          // 示例：已下线（P0-M2-4 置灰禁入）
-          // ExperimentItem(
-          //   id: 'old_x',
-          //   name: '旧实验',
-          //   description: '已下线的示例',
-          //   icon: Icons.block,
-          //   status: ExperimentStatus.retired,
-          //   builder: () => const SizedBox.shrink(),
-          // ),
+          ExperimentItem(
+            id: 'mood',
+            name: '心情分析',
+            description: '按心情选曲 · 需在设置配置大模型（未配置走本地兜底）',
+            icon: Icons.mood_rounded,
+            status: ExperimentStatus.experimenting,
+            builder: () => const MoodAnalysisPage(),
+          ),
+          // ── 测试通道（仅 Alpha 可见，正式渠道隐藏）──────────
+          // 传感器属开发者调试工具，非面向用户功能：留在 Alpha 测试通道。
+          ExperimentItem(
+            id: 'sensor',
+            name: '传感器',
+            description: '设备传感器调试 · 仅测试通道（Alpha）可见',
+            icon: Icons.sensors_rounded,
+            status: ExperimentStatus.experimenting,
+            visibleChannels: const <UpdateChannel>{UpdateChannel.alpha},
+            builder: () => const SensorPage(),
+          ),
         ]);

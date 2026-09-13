@@ -18,7 +18,6 @@ import '../../core/ui_editor_model.dart';
 import '../../core/ui_templates.dart';
 import 'ui_editor_page.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 模板画廊页。
 class UiTemplateGalleryPage extends StatefulWidget {
@@ -51,7 +50,7 @@ class _UiTemplateGalleryPageState extends State<UiTemplateGalleryPage> {
         title: const Text('UI 模板库'),
         backgroundColor: context.appColors.bgSurface,
         actions: <Widget>[
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.edit_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const UiEditorPage()),
@@ -266,9 +265,8 @@ class _TemplateDetailSheet extends StatelessWidget {
                     ],
                   ),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.copy_rounded),
-                  onPressed: () {
+                IconButton(
+      onPressed: () {
                     final String json = UiNode.container(
                       'root',
                       template.name,
@@ -280,8 +278,9 @@ class _TemplateDetailSheet extends StatelessWidget {
                     Navigator.of(context).pop();
                     appNotify(context, '已复制「${template.name}」节点 JSON');
                   },
-                  tooltip: '复制节点 JSON',
-                ),
+      icon: const Icon(Icons.copy_rounded),
+      tooltip: '复制节点 JSON',
+    ),
               ],
             ),
           ),
@@ -303,12 +302,16 @@ class _TemplateDetailSheet extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpace.md),
             child: SizedBox(
               width: double.infinity,
-              child: XGlassButton(
-                tint: context.appColors.accent,
-                fullWidth: true,
-                radius: 22,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
-                child: Row(
+              child: SizedBox(width: double.infinity, child: FilledButton(
+      onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UiEditorPage(initialTemplate: template),
+                    ),
+                  );
+                },
+      child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     Icon(
@@ -323,15 +326,7 @@ class _TemplateDetailSheet extends StatelessWidget {
                     ),
                   ],
                 ),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => UiEditorPage(initialTemplate: template),
-                    ),
-                  );
-                },
-              ),
+    )),
             ),
           ),
         ],

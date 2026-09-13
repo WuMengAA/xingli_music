@@ -14,7 +14,6 @@ import 'package:path/path.dart' as p;
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
-import '../../widgets/design/glass_controls.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/track.dart';
 import '../../models/track_stats.dart';
@@ -166,7 +165,7 @@ class _M3uTransferPageState extends ConsumerState<M3uTransferPage> {
             '导入',
             '选择 .m3u / .m3u8 文件，解析出曲目后可立即播放或存入歌单。',
             <Widget>[
-              XGlassButton(
+              FilledButton(
                 onPressed: _loading ? null : _pickImport,
                 child: _loading ? const Text('解析中…') : const Text('选择 M3U8 文件'),
               ),
@@ -179,10 +178,10 @@ class _M3uTransferPageState extends ConsumerState<M3uTransferPage> {
                 Text('共 ${entries.length} 首',
                     style: TextStyle(fontSize: 12, color: c.textTertiary)),
                 const SizedBox(height: 8),
-                XGlassButton(
+                FilledButton(
                     onPressed: _busy ? null : _playNow, child: const Text('立即播放')),
                 const SizedBox(height: 8),
-                XGlassButton(
+                FilledButton(
                     onPressed: _busy ? null : _saveToPlaylist,
                     child: const Text('存入歌单')),
                 const SizedBox(height: 8),
@@ -196,7 +195,7 @@ class _M3uTransferPageState extends ConsumerState<M3uTransferPage> {
             '导出',
             '把当前播放列表（播放队列或当前曲目）导出为 .m3u8 文件。',
             <Widget>[
-              XGlassButton(
+              FilledButton(
                   onPressed: _busy ? null : _exportQueue,
                   child: const Text('导出当前播放列表')),
             ],

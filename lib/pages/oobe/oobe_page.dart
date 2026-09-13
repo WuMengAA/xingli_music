@@ -30,8 +30,6 @@ import '../../services/ota_service.dart';
 import '../../services/open_url.dart';
 import '../../services/permission_service.dart';
 import '../../widgets/design/animated_background.dart';
-import '../../widgets/design/glass_controls.dart';
-import '../../widgets/liquid_glass.dart';
 
 /// 产品定位（一句话，用户可一眼读懂这是什么）。
 const String _kPositioning = '会思考的本地音乐播放器 · 一个可以停留的空间';
@@ -208,7 +206,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                   child: Row(
                     children: <Widget>[
                       if (page > 0)
-                        XGlassButton(
+                        TextButton(
                           onPressed: () => _ctrl.previousPage(
                             duration: const Duration(milliseconds: 320),
                             curve: Curves.easeOutCubic,
@@ -222,7 +220,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                         const Spacer(),
                       const Spacer(),
                       if (isLast) ...<Widget>[
-                        XGlassButton(
+                        OutlinedButton(
                           onPressed: _grantAndNext,
                           child: const Text(
                             '授权并导入',
@@ -234,16 +232,10 @@ class _OobePageState extends ConsumerState<OobePage> {
                         ),
                         const SizedBox(width: 8),
                       ],
-                      XGlassButton(
+                      FilledButton.icon(
                         onPressed: isLast ? _finish : _next,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            const Icon(Icons.arrow_forward_rounded, size: 18),
-                            const SizedBox(width: 8),
-                            Text(isLast ? '进入星璃' : '开始体验'),
-                          ],
-                        ),
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                        label: Text(isLast ? '进入星璃' : '开始体验'),
                       ),
                     ],
                   ),
@@ -297,11 +289,17 @@ class _OobePageState extends ConsumerState<OobePage> {
       Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          LiquidGlass(
-            radius: 24,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
-            child: Column(
-              children: <Widget>[
+          Card(
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            color: Theme.of(context).colorScheme.surfaceContainerHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
+              child: Column(
+                children: <Widget>[
                 // 仅当前（欢迎）页脉动；切到其它引导页即停 tick，避免 N 页同时空转。
                 TickerMode(enabled: _page == 0, child: _BrandGlyph(accent: accent)),
                 const SizedBox(height: 22),
@@ -330,6 +328,7 @@ class _OobePageState extends ConsumerState<OobePage> {
                   (p) => _pillarRow(accent, p.$1, p.$2, p.$3),
                 ),
               ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

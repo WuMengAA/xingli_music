@@ -21,7 +21,6 @@ import 'voxel_inventory.dart';
 import 'voxel_items.dart';
 import 'voxel_survival.dart';
 import 'voxel_world_types.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 创造模式一键铺满背包的方块清单（也用作方块选择器的顺序）。
 const List<Voxel> kCreativeBlocks = <Voxel>[
@@ -560,11 +559,11 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
       child: Row(
         children: <Widget>[
           // ⑦：退出按钮移到「背包 / 合成」标签左侧，避免与右侧操作冲突。
-          XGlassIconButton(
-            icon: const Icon(Icons.close_rounded, color: Color(0xFFEFF3FA)),
-            onPressed: widget.onClose,
-            tooltip: '关闭',
-          ),
+          IconButton(
+      onPressed: widget.onClose,
+      icon: const Icon(Icons.close_rounded, color: Color(0xFFEFF3FA)),
+      tooltip: '关闭',
+    ),
           const SizedBox(width: 4),
           _tab('背包', !_crafting, () => setState(() => _crafting = false)),
           const SizedBox(width: 8),
@@ -733,10 +732,10 @@ class _VoxelInventoryPanelState extends State<VoxelInventoryPanel> {
                 ],
               ),
             ),
-            XGlassButton(
-              onPressed: ok ? () => widget.onCraft(r) : null,
-              child: const Text('合成'),
-            ),
+            FilledButton(
+      onPressed: ok ? () => widget.onCraft(r) : null,
+      child: const Text('合成'),
+    ),
           ],
         ),
       ),

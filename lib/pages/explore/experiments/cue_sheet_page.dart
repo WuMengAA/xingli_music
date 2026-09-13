@@ -14,7 +14,6 @@ import '../../../services/cue/cue_parser.dart';
 import '../../../widgets/common/info_row.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 import '../../../widgets/notification/app_notify.dart';
 
 /// CUE 分轨（T12）：选择 .cue 整轨文件，解析出分轨列表并逐轨播放。
@@ -146,30 +145,20 @@ class _CueSheetPageState extends ConsumerState<CueSheetPage> {
                       TextStyle(fontSize: 13, color: c.textSecondary, height: 1.5),
                 ),
                 const SizedBox(height: AppSpace.sm),
-                XGlassButton(
+                FilledButton.icon(
                   onPressed: _loading ? null : _pick,
-                  tint: c.accent,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      _loading
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Icon(
-                              Icons.file_open_rounded,
-                              size: 18,
-                              color: c.onAccent,
-                            ),
-                      const SizedBox(width: 8),
-                      Text(
-                        sheet == null ? '选择 CUE 文件' : '重新选择',
-                        style: TextStyle(color: c.onAccent),
-                      ),
-                    ],
+                  style: FilledButton.styleFrom(
+                    backgroundColor: c.accent,
+                    foregroundColor: c.onAccent,
                   ),
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.file_open_rounded, size: 18),
+                  label: Text(sheet == null ? '选择 CUE 文件' : '重新选择'),
                 ),
               ],
             ),

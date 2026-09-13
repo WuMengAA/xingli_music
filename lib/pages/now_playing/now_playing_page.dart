@@ -16,12 +16,12 @@ import '../../models/track_stats.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/stats/track_stats_providers.dart';
+import '../../pages/explore/experiments/equalizer_page.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../widgets/common/track_cover.dart';
 import '../../widgets/lyrics/lyrics_view.dart';
 import '../../widgets/playback/unified_player.dart';
 import '../../widgets/visualizer/spectrum_bars.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 整页正在播放（#552：从零重建）。
 ///
@@ -61,14 +61,23 @@ class NowPlayingPage extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        leading: XGlassIconButton(
+        leading: IconButton(
           icon: const Icon(Icons.keyboard_arrow_down_rounded),
           onPressed: () => Navigator.of(context).maybePop(),
           tooltip: '收起',
         ),
         title: Text(Terms.playing, style: context.appText.title),
         actions: <Widget>[
-          XGlassIconButton(
+          // 均衡器一级入口（B 版毕业，2026-09-13）：真 EQ（Android 真滤波 /
+          // Windows mpv DSP），从实验区毕业到播放器页直达。
+          IconButton(
+            icon: const Icon(Icons.graphic_eq_rounded),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const EqualizerPage()),
+            ),
+            tooltip: '音效均衡器',
+          ),
+          IconButton(
             icon: const Icon(Icons.search_rounded),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(

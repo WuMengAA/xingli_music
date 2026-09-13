@@ -22,7 +22,6 @@ import '../../core/theme/light_tokens.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../services/audio/sources/netease/netease_api.dart';
 import '../../services/audio/sources/netease/netease_webview_login.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开网易云登录弹层；返回 `true` 表示登录成功。
 Future<bool?> showNeteaseLoginSheet(BuildContext context) {
@@ -72,10 +71,12 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
       try {
         // dart:io 直接调系统浏览器（零依赖，绕开 url_launcher 的
         // androidx.browser 对 AGP ≥8.9 的要求）。
-        await Process.start(
-          'cmd.exe',
-          <String>['/c', 'start', '', 'https://music.163.com/login'],
-        );
+        await Process.start('cmd.exe', <String>[
+          '/c',
+          'start',
+          '',
+          'https://music.163.com/login',
+        ]);
         ok = true;
       } catch (_) {
         ok = false;
@@ -84,8 +85,8 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
       setState(() {
         _status = ok
             ? '已在浏览器打开网易云登录页。登录完成后：浏览器按 F12 →'
-                '「网络」→ 点任意 music.163.com 请求 → 复制请求头的 Cookie'
-                ' 整段值 → 切到「粘贴 Cookie」粘贴即可。'
+                  '「网络」→ 点任意 music.163.com 请求 → 复制请求头的 Cookie'
+                  ' 整段值 → 切到「粘贴 Cookie」粘贴即可。'
             : '无法打开浏览器，请改用「粘贴 Cookie」方式。';
       });
       return;
@@ -101,8 +102,9 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
       setState(() => _status = '未获取到登录状态（已取消或未完成登录）');
       return;
     }
-    final bool ok =
-        await ref.read(neteaseAuthProvider.notifier).loginWithCookie(cookie);
+    final bool ok = await ref
+        .read(neteaseAuthProvider.notifier)
+        .loginWithCookie(cookie);
     if (!mounted) return;
     if (ok) {
       Navigator.of(context).pop(true);
@@ -120,14 +122,13 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
     }
     final String csrf = _csrfCtrl.text.trim();
     if (csrf.isNotEmpty) {
-      final String csrfPart = csrf.contains('=')
-          ? csrf
-          : '__csrf=$csrf';
+      final String csrfPart = csrf.contains('=') ? csrf : '__csrf=$csrf';
       raw = raw.isEmpty ? csrfPart : '$raw; $csrfPart';
     }
     if (raw.isEmpty) raw = _cookieCtrl.text.trim(); // 整段粘贴兼容
-    final bool ok =
-        await ref.read(neteaseAuthProvider.notifier).loginWithCookie(raw);
+    final bool ok = await ref
+        .read(neteaseAuthProvider.notifier)
+        .loginWithCookie(raw);
     if (ok && mounted) Navigator.of(context).pop(true);
   }
 
@@ -142,14 +143,16 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
 
     return Padding(
       // 键盘弹出时把内容顶上去，避免输入框被遮住。
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
-              AppSpace.lg, AppSpace.md, AppSpace.lg, AppSpace.lg),
+            AppSpace.lg,
+            AppSpace.md,
+            AppSpace.lg,
+            AppSpace.lg,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,17 +160,22 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
               // 标题行
               Row(
                 children: <Widget>[
-                  Icon(Icons.cloud_outlined,
-                      size: AppSize.icon, color: context.appColors.accent),
+                  Icon(
+                    Icons.cloud_outlined,
+                    size: AppSize.icon,
+                    color: context.appColors.accent,
+                  ),
                   const SizedBox(width: AppSpace.sm),
                   Expanded(
                     child: Text('网易云音乐', style: context.appText.subtitle),
                   ),
-                  XGlassIconButton(
-                    icon: Icon(Icons.close_rounded,
-                        size: AppSize.iconSm,
-                        color: context.appColors.iconInactive),
+                  IconButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: AppSize.iconSm,
+                      color: context.appColors.iconInactive,
+                    ),
                   ),
                 ],
               ),
@@ -189,7 +197,8 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                     ChoiceChip(
                       label: const Text('粘贴 Cookie'),
                       selected: _tab == _LoginTab.cookie,
-                      onSelected: (_) => setState(() => _tab = _LoginTab.cookie),
+                      onSelected: (_) =>
+                          setState(() => _tab = _LoginTab.cookie),
                       visualDensity: VisualDensity.compact,
                     ),
                   ],
@@ -214,8 +223,9 @@ class _NeteaseLoginSheetState extends ConsumerState<_NeteaseLoginSheet> {
                   const SizedBox(height: AppSpace.sm),
                   Text(
                     auth.error!,
-                    style: context.appText.artist
-                        .copyWith(color: context.appColors.danger),
+                    style: context.appText.artist.copyWith(
+                      color: context.appColors.danger,
+                    ),
                   ),
                 ],
                 const SizedBox(height: AppSpace.sm),
@@ -251,8 +261,11 @@ class _LoggedInPanel extends ConsumerWidget {
             CircleAvatar(
               radius: 18,
               backgroundColor: context.appColors.accentSoft,
-              child: Icon(Icons.person_rounded,
-                  size: 20, color: context.appColors.accent),
+              child: Icon(
+                Icons.person_rounded,
+                size: 20,
+                color: context.appColors.accent,
+              ),
             ),
             const SizedBox(width: AppSpace.md),
             Expanded(
@@ -261,24 +274,25 @@ class _LoggedInPanel extends ConsumerWidget {
                 children: <Widget>[
                   Text(nickname, style: context.appText.body),
                   const SizedBox(height: 2),
-                  Text('已登录 · 可搜索并在线播放',
-                      style: context.appText.artist),
+                  Text('已登录 · 可搜索并在线播放', style: context.appText.artist),
                 ],
               ),
             ),
           ],
         ),
         const SizedBox(height: AppSpace.md),
-        XGlassButton(
-          onPressed: onLogout,
-          fullWidth: true,
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(Icons.logout_rounded, size: 18),
-              SizedBox(width: 8),
-              Text('退出登录'),
-            ],
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: onLogout,
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.logout_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('退出登录'),
+              ],
+            ),
           ),
         ),
       ],
@@ -309,22 +323,24 @@ class _WebLoginPanel extends StatelessWidget {
           style: context.appText.artist,
         ),
         const SizedBox(height: AppSpace.md),
-        XGlassButton(
-          onPressed: busy ? null : onLogin,
-          fullWidth: true,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.language_rounded, size: 18),
-              const SizedBox(width: 8),
-              Text(busy ? '处理中…' : '打开网易云登录页'),
-            ],
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            onPressed: busy ? null : onLogin,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.language_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(busy ? '处理中…' : '打开网易云登录页'),
+              ],
+            ),
           ),
         ),
         if (status.isNotEmpty) ...<Widget>[
@@ -401,7 +417,7 @@ class _CookiePanel extends StatelessWidget {
           style: context.appText.caption,
         ),
         const SizedBox(height: AppSpace.md),
-        XGlassButton(
+        FilledButton(
           onPressed: busy ? null : onLogin,
           child: busy
               ? const SizedBox(

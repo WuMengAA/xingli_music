@@ -18,7 +18,6 @@ import '../../services/music_sources/radio_source.dart';
 import '../../services/music_sources/subsonic_source.dart';
 import '../../widgets/common/state_chip.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 音源管理页（v2 M4 · P0-M4-1 ~ P0-M4-3 瘦身重写）。
 ///
@@ -99,10 +98,10 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
         backgroundColor: context.appColors.bgPage,
         foregroundColor: context.appColors.textPrimary,
         elevation: 0,
-        leading: XGlassIconButton(
-          icon: Icon(Icons.arrow_back, color: context.appColors.textSecondary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: IconButton(
+      onPressed: () => Navigator.of(context).pop(),
+      icon: Icon(Icons.arrow_back, color: context.appColors.textSecondary),
+    ),
         title: Text(Terms.source, style: context.appText.title),
       ),
       body: ListView(
@@ -183,9 +182,9 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 const SizedBox(height: AppSpace.md),
                 // 系统文件管理器选取目录（桌面 Windows 原生对话框 /
                 // Android SAF DocumentsUI；选完回填输入框）
-                XGlassButton(
-                  onPressed: () => _pickDir(sheetContext),
-                  child: Row(
+                FilledButton(
+      onPressed: () => _pickDir(sheetContext),
+      child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
                       const Icon(Icons.folder_open_rounded, size: 18),
@@ -193,15 +192,15 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                       Text('浏览…', style: context.appText.button),
                     ],
                   ),
-                ),
+    ),
                 const SizedBox(height: AppSpace.md),
-                XGlassButton(
-                  onPressed: () {
+                FilledButton(
+      onPressed: () {
                     Navigator.of(sheetContext).pop();
                     _addDir();
                   },
-                  child: const Text(Terms.add),
-                ),
+      child: const Text(Terms.add),
+    ),
               ],
             ),
           ),
@@ -372,8 +371,8 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: XGlassButton(
-                        onPressed: () {
+                      child: FilledButton(
+      onPressed: () {
                           final ServerConfig cfg = _buildServerConfig(
                             editing: editing,
                             isRadio: isRadio,
@@ -385,13 +384,13 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                           );
                           _testServer(cfg);
                         },
-                        child: const Text(Terms.testConnection),
-                      ),
+      child: const Text(Terms.testConnection),
+    ),
                     ),
                     const SizedBox(width: AppSpace.sm),
                     Expanded(
-                      child: XGlassButton(
-                        onPressed: () async {
+                      child: FilledButton(
+      onPressed: () async {
                           if (nameCtrl.text.trim().isEmpty) return;
                           final ServerConfig cfg = _buildServerConfig(
                             editing: editing,
@@ -410,8 +409,8 @@ class _ServerSettingsPageState extends ConsumerState<ServerSettingsPage> {
                           }
                           _invalidateLibrary();
                         },
-                        child: Text(editing != null ? Terms.save : Terms.add),
-                      ),
+      child: Text(editing != null ? Terms.save : Terms.add),
+    ),
                     ),
                   ],
                 ),
@@ -521,10 +520,9 @@ class _GroupCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpace.sm),
               Expanded(child: Text(title, style: context.appText.subtitle)),
-              XGlassButton(
-                onPressed: onAdd,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Row(
+              FilledButton(
+      onPressed: onAdd,
+      child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     const Icon(Icons.add, size: 18),
@@ -532,7 +530,7 @@ class _GroupCard extends StatelessWidget {
                     Text(addLabel),
                   ],
                 ),
-              ),
+    ),
             ],
           ),
           const SizedBox(height: AppSpace.sm),
@@ -608,7 +606,10 @@ class _EntryTile extends StatelessWidget {
                   ],
                 ),
               ),
-              XGlassToggle(value: switchValue, onChanged: onSwitch),
+              Switch(
+      value: switchValue,
+      onChanged: onSwitch,
+    ),
             ],
           ),
           Row(
@@ -620,32 +621,32 @@ class _EntryTile extends StatelessWidget {
               ],
               const Spacer(),
               if (onEdit != null)
-                XGlassIconButton(
-                  icon: Icon(
+                IconButton(
+      onPressed: onEdit,
+      icon: Icon(
                     Icons.edit_outlined,
                     size: 18,
                     color: context.appColors.textTertiary,
                   ),
-                  onPressed: onEdit,
-                ),
+    ),
               if (onTest != null)
-                XGlassIconButton(
-                  icon: Icon(
+                IconButton(
+      onPressed: onTest,
+      icon: Icon(
                     Icons.network_check_rounded,
                     size: 18,
                     color: context.appColors.textTertiary,
                   ),
-                  onPressed: onTest,
-                  tooltip: Terms.testConnection,
-                ),
-              XGlassIconButton(
-                icon: Icon(
+      tooltip: Terms.testConnection,
+    ),
+              IconButton(
+      onPressed: onDelete,
+      icon: Icon(
                   Icons.delete_outline,
                   size: 18,
                   color: context.appColors.danger,
                 ),
-                onPressed: onDelete,
-              ),
+    ),
             ],
           ),
         ],

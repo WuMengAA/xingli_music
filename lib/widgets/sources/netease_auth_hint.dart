@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../sources/netease_login_sheet.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 网易云登录态失效引导（区别于纯网络错误）。
 ///
@@ -12,10 +11,7 @@ import 'package:xingli_music/widgets/design/glass_controls.dart';
 /// 让上层页面回到正常数据态或重新进入本引导。用于每日推荐 / 漫游等
 /// 强依赖登录的网易云页面。
 class NeteaseAuthExpiredHint extends ConsumerWidget {
-  const NeteaseAuthExpiredHint({
-    super.key,
-    required this.onRefreshed,
-  });
+  const NeteaseAuthExpiredHint({super.key, required this.onRefreshed});
 
   /// 用户点击重登并关闭 sheet 后触发（用于 invalidate 数据 provider）。
   final void Function(WidgetRef ref) onRefreshed;
@@ -39,7 +35,7 @@ class NeteaseAuthExpiredHint extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 18),
-            XGlassButton(
+            FilledButton(
               onPressed: () async {
                 await showNeteaseLoginSheet(context);
                 if (!context.mounted) return;

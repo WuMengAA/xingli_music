@@ -7,7 +7,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/companion_models.dart';
 import '../../providers/companion/companion_providers.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// AI 陪伴 · 文字气泡组件（Phase 1 形态 A）
@@ -66,8 +65,9 @@ class _Placeholder extends StatelessWidget {
           const SizedBox(height: AppSpace.lg),
           Text(
             CompanionPersona.placeholderTitle,
-            style: context.appText.subtitle
-                .copyWith(color: context.appColors.textPrimary),
+            style: context.appText.subtitle.copyWith(
+              color: context.appColors.textPrimary,
+            ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpace.sm),
@@ -172,8 +172,9 @@ class _Bubble extends StatelessWidget {
     );
 
     return Row(
-      mainAxisAlignment:
-          isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: isUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
       children: <Widget>[
         if (message.proactive && !isUser)
           Padding(
@@ -247,13 +248,13 @@ class _InputBarState extends ConsumerState<_InputBar> {
             ),
           ),
           const SizedBox(width: AppSpace.sm),
-          XGlassIconButton(
+          IconButton(
+            onPressed: _send,
             icon: Icon(
               Icons.send_rounded,
               color: context.appColors.accent,
               size: AppSize.icon,
             ),
-            onPressed: _send,
           ),
         ],
       ),

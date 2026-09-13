@@ -24,7 +24,6 @@ import 'theme/app_theme_colors.dart';
 import 'theme/design_tokens.dart';
 import 'theme/light_tokens.dart';
 import 'ui_editor_model.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 模板分类。
 enum UiTemplateCategory {
@@ -284,10 +283,10 @@ class UiToggleRow extends StatelessWidget {
               ],
             ),
           ),
-          XGlassToggle(
+          Switch(
             value: value,
             onChanged: onChanged,
-            accentColor: context.appColors.accent,
+            activeColor: context.appColors.accent,
           ),
         ],
       ),
@@ -321,10 +320,10 @@ class UiSliderRow extends StatelessWidget {
           ),
           SizedBox(
             width: 160,
-            child: XGlassSlider(
+            child: Slider(
               value: value.clamp(0.0, 1.0),
               onChanged: onChanged,
-              accentColor: context.appColors.accent,
+              activeColor: context.appColors.accent,
             ),
           ),
         ],
@@ -400,10 +399,10 @@ class UiFoldPanel extends StatelessWidget {
               const SizedBox(width: 6),
               Text(label, style: AppTextStyles.caption.copyWith(color: ink)),
               const Spacer(),
-              XGlassToggle(
+              Switch(
                 value: true,
                 onChanged: null,
-                accentColor: context.appColors.accent,
+                activeColor: context.appColors.accent,
               ),
             ],
           ),

@@ -6,7 +6,6 @@ import '../../core/settings_layout.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 计算每个设置 id 的「规范合集」：同名 id 只在它**首次出现**的合集里渲染，
 /// 其余合集里的重复入口在 [SettingsVivoLayout] 中隐藏（去重）。
@@ -177,7 +176,7 @@ class _SettingsSearchBar extends StatelessWidget {
           prefixIcon: Icon(Icons.search_rounded, color: c.textSecondary),
           suffixIcon: controller.text.isEmpty
               ? null
-              : XGlassIconButton(
+              :                 IconButton(
                 icon: Icon(Icons.close_rounded, color: c.textSecondary),
                 onPressed: () {
                     controller.clear();
@@ -285,7 +284,7 @@ class _SearchResultsView extends ConsumerWidget {
         ],
         const SizedBox(height: 4),
         Center(
-          child: XGlassButton(
+          child:           TextButton.icon(
             onPressed: () {
               if (currentId != null && currentId.isNotEmpty) {
                 ref.read(layoutSelectedCollectionProvider.notifier).state =
@@ -293,14 +292,8 @@ class _SearchResultsView extends ConsumerWidget {
               }
               onClear();
             },
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const <Widget>[
-                Icon(Icons.arrow_back_rounded, size: 16),
-                SizedBox(width: 8),
-                Text('返回设置'),
-              ],
-            ),
+            icon: const Icon(Icons.arrow_back_rounded, size: 16),
+            label: const Text('返回设置'),
           ),
         ),
       ],

@@ -14,7 +14,6 @@ import '../../providers/session/session_providers.dart';
 import '../../providers/settings/notification_providers.dart';
 import '../../widgets/common/playback_feedback.dart';
 import '../../widgets/common/track_cover.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 通知中心（v2 M6 · P0-M6-1 三区块合一）。
 ///
@@ -121,67 +120,79 @@ class _StatusCard extends ConsumerWidget {
       title: '运行状态',
       child: Column(
         children: <Widget>[
-          XGlassCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('后台播放', style: context.appText.body),
-                      Text('切到其它 App 时继续播放', style: context.appText.artist),
-                    ],
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('后台播放', style: context.appText.body),
+                        Text('切到其它 App 时继续播放', style: context.appText.artist),
+                      ],
+                    ),
                   ),
-                ),
-                XGlassToggle(
-                  value: background,
-                  onChanged: (bool v) =>
-                      ref.read(backgroundPlayProvider.notifier).state = v,
-                ),
-              ],
+                  Switch(
+                    value: background,
+                    onChanged: (bool v) =>
+                        ref.read(backgroundPlayProvider.notifier).state = v,
+                  ),
+                ],
+              ),
             ),
           ),
-          XGlassCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('锁屏控件', style: context.appText.body),
-                      Text('锁屏显示播放 / 暂停 / 切歌', style: context.appText.artist),
-                    ],
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('锁屏控件', style: context.appText.body),
+                        Text('锁屏显示播放 / 暂停 / 切歌', style: context.appText.artist),
+                      ],
+                    ),
                   ),
-                ),
-                XGlassToggle(
-                  value: lockScreen,
-                  onChanged: (bool v) =>
-                      ref.read(lockScreenProvider.notifier).state = v,
-                ),
-              ],
+                  Switch(
+                    value: lockScreen,
+                    onChanged: (bool v) =>
+                        ref.read(lockScreenProvider.notifier).state = v,
+                  ),
+                ],
+              ),
             ),
           ),
-          XGlassCard(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text('通知栏', style: context.appText.body),
-                      Text('在通知栏常驻音乐卡片', style: context.appText.artist),
-                    ],
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text('通知栏', style: context.appText.body),
+                        Text('在通知栏常驻音乐卡片', style: context.appText.artist),
+                      ],
+                    ),
                   ),
-                ),
-                XGlassToggle(
-                  value: notificationBar,
-                  onChanged: (bool v) =>
-                      ref.read(notificationBarProvider.notifier).state = v,
-                ),
-              ],
+                  Switch(
+                    value: notificationBar,
+                    onChanged: (bool v) =>
+                        ref.read(notificationBarProvider.notifier).state = v,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -197,8 +208,7 @@ class _MediaCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final Track? track = ref.watch(nowPlayingProvider);
-    final bool isPlaying =
-        ref.watch(isPlayingProvider).valueOrNull ?? false;
+    final bool isPlaying = ref.watch(isPlayingProvider).valueOrNull ?? false;
     final Duration position =
         ref.watch(musicPositionProvider).valueOrNull ?? Duration.zero;
     final Duration? duration = ref.watch(musicDurationProvider).valueOrNull;
@@ -214,7 +224,11 @@ class _MediaCard extends ConsumerWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              TrackCover(track: track, size: AppSize.thumb, radius: AppRadius.sm),
+              TrackCover(
+                track: track,
+                size: AppSize.thumb,
+                radius: AppRadius.sm,
+              ),
               const SizedBox(width: AppSpace.md),
               Expanded(
                 child: Column(
@@ -252,26 +266,37 @@ class _MediaCard extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: <Widget>[
-              XGlassIconButton(
-                icon: Icon(Icons.skip_previous_rounded,
-                    color: context.appColors.iconPrimary),
+              IconButton(
                 onPressed: () => runPlaybackAction(
-                    context, () => actions.next(direction: -1)),
+                  context,
+                  () => actions.next(direction: -1),
+                ),
+                icon: Icon(
+                  Icons.skip_previous_rounded,
+                  color: context.appColors.iconPrimary,
+                ),
                 tooltip: '上一首',
               ),
-              XGlassIconButton(
-                icon: IconTheme.merge(data: IconThemeData(size: 36), child: Icon(
-                  isPlaying ? Icons.pause_circle_rounded : Icons.play_circle_rounded,
-                  color: context.appColors.accent,
-                )),
+              IconButton(
                 onPressed: () => runPlaybackAction(context, actions.toggle),
+                icon: IconTheme.merge(
+                  data: IconThemeData(size: 36),
+                  child: Icon(
+                    isPlaying
+                        ? Icons.pause_circle_rounded
+                        : Icons.play_circle_rounded,
+                    color: context.appColors.accent,
+                  ),
+                ),
                 tooltip: isPlaying ? '暂停' : '播放',
               ),
-              XGlassIconButton(
-                icon: Icon(Icons.skip_next_rounded,
-                    color: context.appColors.iconPrimary),
+              IconButton(
                 onPressed: () =>
                     runPlaybackAction(context, () => actions.next()),
+                icon: Icon(
+                  Icons.skip_next_rounded,
+                  color: context.appColors.iconPrimary,
+                ),
                 tooltip: '下一首',
               ),
             ],
@@ -330,7 +355,7 @@ class _SceneCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              XGlassToggle(
+              Switch(
                 value: !soundscapeMuted,
                 onChanged: (bool v) async {
                   await ref.read(audioServiceProvider).setSoundscapeMuted(!v);
@@ -371,8 +396,9 @@ class _EventLogCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final List<NotificationEvent> events =
-        ref.watch(recentNotificationsProvider);
+    final List<NotificationEvent> events = ref.watch(
+      recentNotificationsProvider,
+    );
 
     return _Card(
       title: '最近事件',
@@ -389,11 +415,12 @@ class _EventLogCard extends ConsumerWidget {
                         const SizedBox(width: AppSpace.sm),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: context.appColors.accentSoft,
-                            borderRadius: BorderRadius.circular(
-                                AppRadius.pill),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
                           ),
                           child: Text(
                             e.title,

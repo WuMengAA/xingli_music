@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/app_version.dart' show UpdateChannel;
+
 /// 实验项状态（v2 M2 · P0-M2-2 / P0-M2-4）。
 enum ExperimentStatus {
   /// 实验中：可进入，标注不稳定。
@@ -25,6 +27,10 @@ class ExperimentItem {
     required this.status,
     required this.builder,
     this.enabledByDefault = true,
+    this.visibleChannels = const <UpdateChannel>{
+      UpdateChannel.alpha,
+      UpdateChannel.beta,
+    },
   });
 
   /// 唯一 id（设置「逐项启停」与持久化 enabled 表的 key）。
@@ -47,6 +53,16 @@ class ExperimentItem {
 
   /// 实验页构造器（全屏路由进入）。
   final Widget Function() builder;
+
+  /// 可见渠道（「测试通道」门控）。
+  ///
+  /// 默认在全部渠道（Alpha + Beta）可见——即已「毕业」或本就面向全量的实验。
+  /// 只挂 `{UpdateChannel.alpha}` = 仅测试通道（Alpha）可见，正式渠道用户看不到，
+  /// 但开发者随时能在尝鲜渠道测（保留测试通道，不污染正式版）。
+  final Set<UpdateChannel> visibleChannels;
+
+  /// 该实验在当前渠道 [channel] 是否可见。
+  bool visibleOn(UpdateChannel channel) => visibleChannels.contains(channel);
 
   /// 状态 → 文案（与 [StateChip] 语义一致）。
   String get statusLabel => switch (status) {

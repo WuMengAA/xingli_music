@@ -20,7 +20,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/settings_layout_provider.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class SettingsOrganizerPage extends ConsumerWidget {
   const SettingsOrganizerPage({super.key});
@@ -47,16 +46,16 @@ class SettingsOrganizerPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('设置整理器'),
         actions: <Widget>[
-          XGlassIconButton(
-            icon: const Icon(Icons.ios_share_rounded),
-            onPressed: () => _export(context, ref, layout),
-            tooltip: '导出资产 JSON（粘贴到 assets/settings_layout.json）',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.create_new_folder_outlined),
-            onPressed: () => _addCollection(context, ref, layout),
-            tooltip: '新建合集',
-          ),
+          IconButton(
+      onPressed: () => _export(context, ref, layout),
+      icon: const Icon(Icons.ios_share_rounded),
+      tooltip: '导出资产 JSON（粘贴到 assets/settings_layout.json）',
+    ),
+          IconButton(
+      onPressed: () => _addCollection(context, ref, layout),
+      icon: const Icon(Icons.create_new_folder_outlined),
+      tooltip: '新建合集',
+    ),
         ],
       ),
       body: Row(
@@ -144,14 +143,14 @@ class SettingsOrganizerPage extends ConsumerWidget {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('创建'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('创建'),
+    ),
         ],
       ),
     );
@@ -262,21 +261,21 @@ class _CollectionCard extends ConsumerWidget {
                   child: Text(collection.name,
                       style: Theme.of(context).textTheme.titleSmall),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  onPressed: () => _renameCollection(context, ref),
-                  tooltip: '重命名合集',
-                ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  onPressed: () => _addGroup(context, ref),
-                  tooltip: '新建组',
-                ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                  onPressed: () => _deleteCollection(context, ref),
-                  tooltip: '删除合集',
-                ),
+                IconButton(
+      onPressed: () => _renameCollection(context, ref),
+      icon: const Icon(Icons.edit_outlined, size: 18),
+      tooltip: '重命名合集',
+    ),
+                IconButton(
+      onPressed: () => _addGroup(context, ref),
+      icon: const Icon(Icons.add_rounded, size: 18),
+      tooltip: '新建组',
+    ),
+                IconButton(
+      onPressed: () => _deleteCollection(context, ref),
+      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+      tooltip: '删除合集',
+    ),
               ],
             ),
             const SizedBox(height: 4),
@@ -343,14 +342,14 @@ class _CollectionCard extends ConsumerWidget {
         title: const Text('重命名合集'),
         content: TextField(controller: c, autofocus: true),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('确定'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('确定'),
+    ),
         ],
       ),
     );
@@ -400,14 +399,14 @@ class _CollectionCard extends ConsumerWidget {
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('创建'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('创建'),
+    ),
         ],
       ),
     );
@@ -517,32 +516,32 @@ class _GroupCard extends ConsumerWidget {
               children: <Widget>[
                 Icon(Icons.drag_indicator, size: 14, color: Theme.of(context).colorScheme.outline),
                 // 组内排序（合集内上移/下移）。
-                XGlassIconButton(
-                  icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
-                  onPressed: () => _moveGroup(ref, -1),
-                  tooltip: '组上移',
-                  size: 40,
-                ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-                  onPressed: () => _moveGroup(ref, 1),
-                  tooltip: '组下移',
-                  size: 40,
-                ),
+                IconButton(
+      onPressed: () => _moveGroup(ref, -1),
+      icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
+      tooltip: '组上移',
+      iconSize: 40,
+    ),
+                IconButton(
+      onPressed: () => _moveGroup(ref, 1),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+      tooltip: '组下移',
+      iconSize: 40,
+    ),
                 Expanded(
                   child: Text(group.name,
                       style: Theme.of(context).textTheme.labelMedium),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 16),
-                  onPressed: () => _rename(context, ref),
-                  tooltip: '重命名组',
-                ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.close_rounded, size: 16),
-                  onPressed: () => _delete(ref),
-                  tooltip: '删除组',
-                ),
+                IconButton(
+      onPressed: () => _rename(context, ref),
+      icon: const Icon(Icons.edit_outlined, size: 16),
+      tooltip: '重命名组',
+    ),
+                IconButton(
+      onPressed: () => _delete(ref),
+      icon: const Icon(Icons.close_rounded, size: 16),
+      tooltip: '删除组',
+    ),
               ],
             ),
             // 组内项：ReorderableListView（拖拽排序）+ 每项可拖出（长按拖走）。
@@ -600,14 +599,14 @@ class _GroupCard extends ConsumerWidget {
         title: const Text('重命名组'),
         content: TextField(controller: c, autofocus: true),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('确定'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('确定'),
+    ),
         ],
       ),
     );

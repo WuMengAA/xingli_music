@@ -29,7 +29,6 @@ import '../../widgets/liquid_glass.dart';
 import '../../widgets/social/track_picker.dart';
 import 'order_queue_page.dart';
 import 'station_lobby_page.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 电台房主页。
 class StationRoomPage extends ConsumerWidget {
@@ -62,7 +61,7 @@ class StationRoomPage extends ConsumerWidget {
           elevation: 0,
           actions: <Widget>[
             if (mode.acceptOrder)
-              XGlassIconButton(
+              IconButton(
                 icon: const Icon(Icons.playlist_add_check),
                 onPressed: () => Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
@@ -71,7 +70,7 @@ class StationRoomPage extends ConsumerWidget {
                 ),
                 tooltip: '点歌队列',
               ),
-            XGlassIconButton(
+            IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () async {
                 await ref.read(netSessionProvider.notifier).leave();
@@ -117,11 +116,11 @@ class StationRoomPage extends ConsumerWidget {
         title: const Text('复制房间号'),
         content: Text('将房间号 $roomCode 复制到剪贴板？'),
         actions: <Widget>[
-          XGlassButton(
+          TextButton(
             onPressed: () => Navigator.of(dc).pop(false),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dc).pop(true),
             child: const Text('复制'),
           ),
@@ -194,11 +193,16 @@ class StationRoomPage extends ConsumerWidget {
                 ),
               ),
             ),
-            XGlassButton(
+            FilledButton(
               onPressed: s.roomCode == null
                   ? null
                   : () => _copyRoomCode(context, s.roomCode!),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: const <Widget>[
@@ -409,11 +413,13 @@ class StationRoomPage extends ConsumerWidget {
                       _buildSourceChip(now, c),
                     if (s.role == NetRole.host) ...<Widget>[
                       const Spacer(),
-                      XGlassButton(
+                      FilledButton(
                         onPressed: () => _djSelfPick(context, ref),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -536,7 +542,7 @@ class StationRoomPage extends ConsumerWidget {
               ),
             ),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).push<void>(
               MaterialPageRoute<void>(builder: (_) => const _HistoryPage()),
             ),
@@ -673,7 +679,7 @@ class StationRoomPage extends ConsumerWidget {
               ),
               const Spacer(),
               if (pending.isNotEmpty || approved.isNotEmpty)
-                XGlassButton(
+                FilledButton(
                   onPressed: () => Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
                       builder: (_) => const OrderQueuePage(),

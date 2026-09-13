@@ -85,7 +85,6 @@ import '../../widgets/notification/app_notify.dart';
 import '../../providers/net/session_provider.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
 import 'voxel_net_broadcast.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 相机移动方向（D-pad / 键盘按住时累积）。
 enum _Nav { forward, back, left, right, up, down }
@@ -2911,14 +2910,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           ],
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('保存'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('保存'),
+    ),
         ],
       ),
     );
@@ -3729,15 +3728,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                     spacing: 8,
                     runSpacing: 8,
                     children: <Widget>[
-                      XGlassButton(
-                        onPressed: () async {
+                      FilledButton(
+      onPressed: () async {
                           Navigator.of(sheetContext).pop();
                           await _saveNow();
                           if (mounted) _snack('已手动存档（当前视角/位置已记录）');
                         },
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
+      child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const <Widget>[
                             Icon(Icons.save_alt_rounded, size: 18),
@@ -3745,15 +3742,13 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             Text('手动存档'),
                           ],
                         ),
-                      ),
-                      XGlassButton(
-                        onPressed: () {
+    ),
+                      FilledButton(
+      onPressed: () {
                           Navigator.of(sheetContext).pop();
                           _openRestorePicker();
                         },
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
+      child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const <Widget>[
                             Icon(Icons.restore_rounded, size: 18),
@@ -3761,12 +3756,10 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             Text('恢复备份'),
                           ],
                         ),
-                      ),
-                      XGlassButton(
-                        onPressed: () => _renameCurrentSave(sheetContext),
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: Row(
+    ),
+                      FilledButton(
+      onPressed: () => _renameCurrentSave(sheetContext),
+      child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: const <Widget>[
                             Icon(Icons.drive_file_rename_outline, size: 18),
@@ -3774,7 +3767,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             Text('重命名'),
                           ],
                         ),
-                      ),
+    ),
                     ],
                   ),
                 ],
@@ -3806,14 +3799,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           decoration: const InputDecoration(hintText: '存档名称'),
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(ctrl.text.trim()),
-            child: const Text('确定'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(ctrl.text.trim()),
+      child: const Text('确定'),
+    ),
         ],
       ),
     );
@@ -3889,14 +3882,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                   title: const Text('删除存档'),
                   content: Text('确定删除「${s.name}」及其全部备份？此操作不可恢复。'),
                   actions: <Widget>[
-                    XGlassButton(
-                      onPressed: () => Navigator.of(dctx).pop(false),
-                      child: const Text('取消'),
-                    ),
-                    XGlassButton(
-                      onPressed: () => Navigator.of(dctx).pop(true),
-                      child: const Text('删除'),
-                    ),
+                    FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(false),
+      child: const Text('取消'),
+    ),
+                    FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(true),
+      child: const Text('删除'),
+    ),
                   ],
                 ),
               );
@@ -3958,11 +3951,9 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                             ),
                           ),
                           const SizedBox(width: AppSpace.sm),
-                          XGlassButton(
-                            onPressed: newWorld,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
-                            child: Row(
+                          FilledButton(
+      onPressed: newWorld,
+      child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: const <Widget>[
                                 Icon(Icons.add, size: 18),
@@ -3970,19 +3961,18 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                                 Text('新建并进入'),
                               ],
                             ),
-                          ),
+    ),
                         ],
                       ),
                       const SizedBox(height: AppSpace.md),
                     ],
                     // ── 备份当前世界（独立动作，不与新建混为一谈）──
-                    XGlassButton(
-                      fullWidth: true,
-                      onPressed: () async {
+                    SizedBox(width: double.infinity, child: FilledButton(
+      onPressed: () async {
                         await _doBackupCurrent();
                         await refresh();
                       },
-                      child: Row(
+      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const <Widget>[
                           Icon(Icons.backup_outlined, size: 18),
@@ -3990,7 +3980,7 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                           Text('备份当前世界'),
                         ],
                       ),
-                    ),
+    )),
                     const SizedBox(height: AppSpace.md),
                     // ── 存档列表 ──
                     if (saves.isEmpty)
@@ -4019,11 +4009,11 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
                                   if (!inGame)
-                                    XGlassIconButton(
-                                      icon: const Icon(Icons.play_arrow),
-                                      onPressed: () => enter(s.id, s.name),
-                                      tooltip: '进入',
-                                    ),
+                                    IconButton(
+      onPressed: () => enter(s.id, s.name),
+      icon: const Icon(Icons.play_arrow),
+      tooltip: '进入',
+    ),
                                   PopupMenuButton<String>(
                                     onSelected: (String act) async {
                                       if (act == 'rename') {
@@ -4094,14 +4084,14 @@ class _VoxelWorldView3DState extends ConsumerState<VoxelWorldView3D>
           onSubmitted: (String v) => Navigator.of(dctx).pop(v.trim()),
         ),
         actions: <Widget>[
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(),
-            child: const Text('取消'),
-          ),
-          XGlassButton(
-            onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
-            child: const Text('确定'),
-          ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(),
+      child: const Text('取消'),
+    ),
+          FilledButton(
+      onPressed: () => Navigator.of(dctx).pop(c.text.trim()),
+      child: const Text('确定'),
+    ),
         ],
       ),
     );
@@ -6509,13 +6499,13 @@ class _FoldPanel extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Expanded(
-                child: XGlassSlider(
-                  value: hudScale,
-                  min: kHudScaleMin,
-                  max: kHudScaleMax,
-                  divisions: 6,
-                  onChanged: onHudScale,
-                ),
+                child: Slider(
+      value: hudScale,
+      onChanged: onHudScale,
+      min: kHudScaleMin,
+      max: kHudScaleMax,
+      divisions: 6,
+    ),
               ),
               Text(
                 '${(hudScale * 100).round()}%',
@@ -6605,13 +6595,12 @@ class _CameraPanel extends StatelessWidget {
           const SizedBox(width: 8),
           SizedBox(
             width: 110,
-            child: XGlassSlider(
-              value: fov.clamp(VoxelCamera.minFov, VoxelCamera.maxFov),
-              min: VoxelCamera.minFov,
-              max: VoxelCamera.maxFov,
-              accentColor: const Color(0xFFFFD54F),
-              onChanged: onFov,
-            ),
+            child: Slider(
+      value: fov.clamp(VoxelCamera.minFov, VoxelCamera.maxFov),
+      onChanged: onFov,
+      min: VoxelCamera.minFov,
+      max: VoxelCamera.maxFov,
+    ),
           ),
           Text(
             mode,

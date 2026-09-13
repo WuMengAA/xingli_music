@@ -10,7 +10,6 @@ import '../../scenes/scene_api.dart';
 import '../../widgets/common/page_scaffold.dart';
 import 'custom_scene_edit_page.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 自定义场景列表（v2 M5-2 · P0-M5-2）。
 ///
@@ -34,17 +33,10 @@ class CustomSceneListPage extends ConsumerWidget {
           title: '自定义场景',
           onBack: () => Navigator.of(context).pop(),
           actions: <Widget>[
-            XGlassButton(
+            TextButton.icon(
               onPressed: () => _createScene(context, ref),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Icon(Icons.add, size: 18),
-                  SizedBox(width: 8),
-                  Text('新建'),
-                ],
-              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('新建'),
             ),
           ],
           body: ListView(
@@ -140,7 +132,7 @@ class _SceneTile extends ConsumerWidget {
             ),
           ),
           // 显示开关（持久化 visible，P0-M5-3）
-          XGlassToggle(
+          Switch(
             value: scene.visible,
             onChanged: (bool v) async {
               await ref
@@ -148,7 +140,7 @@ class _SceneTile extends ConsumerWidget {
                   .save(scene.copyWith(visible: v));
             },
           ),
-          XGlassIconButton(
+          IconButton(
             icon: Icon(Icons.edit_outlined,
                 size: 18, color: context.appColors.textTertiary),
             onPressed: () => Navigator.of(context).push(
@@ -158,14 +150,14 @@ class _SceneTile extends ConsumerWidget {
             ),
           ),
           // P1-M5-6：导出场景包（复用 scene_packer / scene_api）
-          XGlassIconButton(
+          IconButton(
             icon: Icon(Icons.ios_share_rounded,
                 size: 18, color: context.appColors.textTertiary),
             onPressed: () => _exportPack(context, scene),
             tooltip: '导出场景包',
           ),
           if (scene.isCustom)
-            XGlassIconButton(
+            IconButton(
               icon: Icon(Icons.delete_outline,
                   size: 18, color: context.appColors.danger),
               onPressed: () async {

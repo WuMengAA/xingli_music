@@ -26,7 +26,7 @@ class EqualizerPage extends ConsumerWidget {
           actions: const <Widget>[
             Padding(
               padding: EdgeInsets.only(right: 4),
-              child: StateChip(tone: ChipTone.experimenting, label: '实验'),
+              child: StateChip(tone: ChipTone.stable, label: '稳定'),
             ),
           ],
           body: const EqualizerPanel(),

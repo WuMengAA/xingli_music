@@ -23,7 +23,6 @@ import '../../core/ui_editor_model.dart';
 import '../../core/ui_editor_rules.dart';
 import '../../core/ui_templates.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 编辑器页。
 class UiEditorPage extends StatefulWidget {
@@ -241,58 +240,58 @@ class _UiEditorPageState extends State<UiEditorPage> {
             ],
           ),
           // ── cl45：编辑器工具（撤销/重做/复制/粘贴/多选/删除）──
-          XGlassIconButton(
-            icon: const Icon(Icons.undo_rounded),
-            onPressed: _history.isEmpty ? null : _undo,
-            tooltip: '撤销 (Ctrl+Z)',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.redo_rounded),
-            onPressed: _future.isEmpty ? null : _redo,
-            tooltip: '重做 (Ctrl+Y)',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.content_copy_rounded),
-            onPressed: _selectedIds.isEmpty ? null : _copySelected,
-            tooltip: '复制选中 (Ctrl+C)',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.content_paste_rounded),
-            onPressed: _clipboard.isEmpty ? null : _paste,
-            tooltip: '粘贴 (Ctrl+V)',
-          ),
-          XGlassIconButton(
-            icon: Icon(
+          IconButton(
+      onPressed: _history.isEmpty ? null : _undo,
+      icon: const Icon(Icons.undo_rounded),
+      tooltip: '撤销 (Ctrl+Z)',
+    ),
+          IconButton(
+      onPressed: _future.isEmpty ? null : _redo,
+      icon: const Icon(Icons.redo_rounded),
+      tooltip: '重做 (Ctrl+Y)',
+    ),
+          IconButton(
+      onPressed: _selectedIds.isEmpty ? null : _copySelected,
+      icon: const Icon(Icons.content_copy_rounded),
+      tooltip: '复制选中 (Ctrl+C)',
+    ),
+          IconButton(
+      onPressed: _clipboard.isEmpty ? null : _paste,
+      icon: const Icon(Icons.content_paste_rounded),
+      tooltip: '粘贴 (Ctrl+V)',
+    ),
+          IconButton(
+      onPressed: () => setState(() => _multiSelect = !_multiSelect),
+      icon: Icon(
               _multiSelect ? Icons.select_all_rounded : Icons.select_all_outlined,
             ),
-            onPressed: () => setState(() => _multiSelect = !_multiSelect),
-            tooltip: '多选模式（开时点击切换选中集）',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
-            tooltip: '删除选中 (Delete)',
-          ),
-          XGlassIconButton(
-            icon: Badge(
+      tooltip: '多选模式（开时点击切换选中集）',
+    ),
+          IconButton(
+      onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+      icon: const Icon(Icons.delete_outline_rounded),
+      tooltip: '删除选中 (Delete)',
+    ),
+          IconButton(
+      onPressed: () => setState(() {
+              _showIssues = !_showIssues;
+              if (_showIssues) _recomputeIssues();
+            }),
+      icon: Badge(
               isLabelVisible: _showIssues && _issues.isNotEmpty,
               label: Text('${_issues.length}'),
               child: Icon(_showIssues ? Icons.rule_rounded : Icons.rule_folder_outlined),
             ),
-            onPressed: () => setState(() {
-              _showIssues = !_showIssues;
-              if (_showIssues) _recomputeIssues();
-            }),
-            tooltip: '纠错 ${_showIssues ? '开' : '关'}（${_issues.length} 项）',
-          ),
-          XGlassIconButton(
-            icon: const Icon(Icons.copy_all_rounded),
-            onPressed: () {
+      tooltip: '纠错 ${_showIssues ? '开' : '关'}（${_issues.length} 项）',
+    ),
+          IconButton(
+      onPressed: () {
               Clipboard.setData(ClipboardData(text: _root.toJsonString()));
               appNotify(context, '已复制节点树 JSON 到剪贴板');
             },
-            tooltip: '导出节点 JSON',
-          ),
+      icon: const Icon(Icons.copy_all_rounded),
+      tooltip: '导出节点 JSON',
+    ),
         ],
       ),
       body: Row(
@@ -715,10 +714,10 @@ class _UiEditorPageState extends State<UiEditorPage> {
                 ),
                 const Spacer(),
                 if (_issues.isNotEmpty)
-                  XGlassButton(
-                    onPressed: () => setState(() => _recomputeIssues()),
-                    child: const Text('重新检查'),
-                  ),
+                  FilledButton(
+      onPressed: () => setState(() => _recomputeIssues()),
+      child: const Text('重新检查'),
+    ),
               ],
             ),
           ),
@@ -812,31 +811,31 @@ class _UiEditorPageState extends State<UiEditorPage> {
                 _moveBtn(Icons.vertical_align_top_rounded, '移到最前', () => _moveSibling(n.id, -999)),
                 _moveBtn(Icons.vertical_align_bottom_rounded, '移到最后', () => _moveSibling(n.id, 999)),
               ],
-              XGlassIconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                onPressed: () => _deleteSelected(),
-                tooltip: '删除节点',
-              ),
+              IconButton(
+      onPressed: () => _deleteSelected(),
+      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+      tooltip: '删除节点',
+    ),
             ],
           ),
           // ── cl45：自由定位（root）+ 对齐/分布/吸附 ──
           if (n.id == 'root') ...<Widget>[
             _label(context, '自由定位（Stack 画布）'),
-            XGlassCard(
-              child: Row(
+            Card(
+          child: Padding(padding: const EdgeInsets.all(16), child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   Expanded(
                     child: Text('自由定位模式',
                         style: context.appText.body.copyWith(fontSize: 12)),
                   ),
-                  XGlassToggle(
-                    value: n.freePos,
-                    onChanged: (bool v) => _updateSelected(n.clone()..freePos = v),
-                  ),
+                  Switch(
+      value: n.freePos,
+      onChanged: (bool v) => _updateSelected(n.clone()..freePos = v),
+    ),
                 ],
-              ),
-            ),
+              )),
+        ),
             if (_selectedIds.length >= 2) ...<Widget>[
               _label(context, '对齐 / 分布（已选 ${_selectedIds.length} 个）'),
               Wrap(
@@ -961,55 +960,55 @@ class _UiEditorPageState extends State<UiEditorPage> {
           ],
           if (n.type == UiNodeType.text || n.type == UiNodeType.button) ...<Widget>[
             _label(context, '字号 ${n.fontSize.toStringAsFixed(0)}'),
-            XGlassSlider(
-              value: n.fontSize.clamp(8, 48),
-              min: 0,
-              max: 48,
-              onChanged: (double v) => _updateSelected(n.clone()..fontSize = v),
-            ),
+            Slider(
+      value: n.fontSize.clamp(8, 48),
+      onChanged: (double v) => _updateSelected(n.clone()..fontSize = v),
+      min: 0,
+      max: 48,
+    ),
           ],
           if (n.type == UiNodeType.icon) ...<Widget>[
             _label(context, '图标 codePoint（如 e145 / e8b8）'),
             _textField(context, n.icon ?? '', (String v) => _updateSelected(n.clone()..icon = v)),
             _label(context, '大小 ${n.iconSize.toStringAsFixed(0)}'),
-            XGlassSlider(
-              value: n.iconSize.clamp(10, 80),
-              min: 0,
-              max: 80,
-              onChanged: (double v) => _updateSelected(n.clone()..iconSize = v),
-            ),
+            Slider(
+      value: n.iconSize.clamp(10, 80),
+      onChanged: (double v) => _updateSelected(n.clone()..iconSize = v),
+      min: 0,
+      max: 80,
+    ),
           ],
           if (n.type == UiNodeType.container) ...<Widget>[
             _label(context, '布局'),
-            XGlassDropdown<UiLayout>(
-              value: n.layout,
-              items: UiLayout.values
+            DropdownButton<UiLayout>(
+      value: n.layout,
+      items: UiLayout.values
                   .map((UiLayout l) => DropdownMenuItem<UiLayout>(value: l, child: Text(l.name)))
                   .toList(),
-              onChanged: (UiLayout? v) => v == null ? null : _updateSelected(n.clone()..layout = v),
-            ),
+      onChanged: (UiLayout? v) => v == null ? null : _updateSelected(n.clone()..layout = v),
+    ),
             _label(context, '间距 gap ${n.gap.toStringAsFixed(0)}'),
-            XGlassSlider(
-              value: n.gap.clamp(0, 48),
-              min: 0,
-              max: 48,
-              onChanged: (double v) => _updateSelected(n.clone()..gap = v),
-            ),
+            Slider(
+      value: n.gap.clamp(0, 48),
+      onChanged: (double v) => _updateSelected(n.clone()..gap = v),
+      min: 0,
+      max: 48,
+    ),
             _label(context, '内边距 ${n.padding.toStringAsFixed(0)}'),
-            XGlassSlider(
-              value: n.padding.clamp(0, 48),
-              min: 0,
-              max: 48,
-              onChanged: (double v) => _updateSelected(n.clone()..padding = v),
-            ),
+            Slider(
+      value: n.padding.clamp(0, 48),
+      onChanged: (double v) => _updateSelected(n.clone()..padding = v),
+      min: 0,
+      max: 48,
+    ),
           ],
           _label(context, '圆角 ${n.cornerRadius.toStringAsFixed(0)}'),
-          XGlassSlider(
-            value: n.cornerRadius.clamp(0, 48),
-            min: 0,
-            max: 48,
-            onChanged: (double v) => _updateSelected(n.clone()..cornerRadius = v),
-          ),
+          Slider(
+      value: n.cornerRadius.clamp(0, 48),
+      onChanged: (double v) => _updateSelected(n.clone()..cornerRadius = v),
+      min: 0,
+      max: 48,
+    ),
           _label(context, '填充色'),
           _colorField(context, n.color, (String? v) => _updateSelected(n.clone()..color = v)),
           // ── 渐变（容器/按钮支持）──────────────────────
@@ -1029,40 +1028,40 @@ class _UiEditorPageState extends State<UiEditorPage> {
                   child: _colorField(context, n.gradientEnd,
                       (String? v) => _updateSelected(n.clone()..gradientEnd = v)),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.cleaning_services_outlined, size: 18),
-                  onPressed: () => _updateSelected(n.clone()
+                IconButton(
+      onPressed: () => _updateSelected(n.clone()
                     ..gradientStart = null
                     ..gradientEnd = null),
-                  tooltip: '清除渐变（改纯色）',
-                ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.gradient_rounded, size: 18),
-                  onPressed: () {
+      icon: const Icon(Icons.cleaning_services_outlined, size: 18),
+      tooltip: '清除渐变（改纯色）',
+    ),
+                IconButton(
+      onPressed: () {
                     final String a = n.gradientStart ?? n.color ?? '#2E2E4A';
                     final String b = n.gradientEnd ?? '#0B1220';
                     _updateSelected(n.clone()
                       ..gradientStart = a
                       ..gradientEnd = b);
                   },
-                  tooltip: '一键套用内置渐变',
-                ),
+      icon: const Icon(Icons.gradient_rounded, size: 18),
+      tooltip: '一键套用内置渐变',
+    ),
               ],
             ),
             _label(context, '方向'),
-            XGlassDropdown<String>(
-              value: n.gradientDirection,
-              items: const <DropdownMenuItem<String>>[
+            DropdownButton<String>(
+      value: n.gradientDirection,
+      items: const <DropdownMenuItem<String>>[
                 DropdownMenuItem<String>(value: 'down', child: Text('↓ 向下')),
                 DropdownMenuItem<String>(value: 'up', child: Text('↑ 向上')),
                 DropdownMenuItem<String>(value: 'left', child: Text('← 向左')),
                 DropdownMenuItem<String>(value: 'right', child: Text('→ 向右')),
                 DropdownMenuItem<String>(value: 'diagonal', child: Text('↘ 对角')),
               ],
-              onChanged: (String? v) => v == null
+      onChanged: (String? v) => v == null
                   ? null
                   : _updateSelected(n.clone()..gradientDirection = v),
-            ),
+    ),
           ],
           _label(context, '强调色（按钮底）'),
           _colorField(context, n.accentColor, (String? v) => _updateSelected(n.clone()..accentColor = v)),
@@ -1077,32 +1076,32 @@ class _UiEditorPageState extends State<UiEditorPage> {
           const Divider(height: 14),
           // ── cl45：预览动画 + 可点击反馈 ──
           _label(context, '预览动画'),
-          XGlassDropdown<String>(
-            value: n.anim,
-            items: const <DropdownMenuItem<String>>[
+          DropdownButton<String>(
+      value: n.anim,
+      items: const <DropdownMenuItem<String>>[
               DropdownMenuItem<String>(value: 'none', child: Text('无')),
               DropdownMenuItem<String>(value: 'fade', child: Text('淡入')),
               DropdownMenuItem<String>(value: 'scale', child: Text('缩放进入')),
             ],
-            onChanged: (String? v) => v == null
+      onChanged: (String? v) => v == null
                 ? null
                 : _updateSelected(n.clone()..anim = v),
-          ),
-          XGlassCard(
-            child: Row(
+    ),
+          Card(
+          child: Padding(padding: const EdgeInsets.all(16), child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
                 Expanded(
                   child: Text('可点击（预览反馈）',
                       style: context.appText.body.copyWith(fontSize: 12)),
                 ),
-                XGlassToggle(
-                  value: n.tappable,
-                  onChanged: (bool v) => _updateSelected(n.clone()..tappable = v),
-                ),
+                Switch(
+      value: n.tappable,
+      onChanged: (bool v) => _updateSelected(n.clone()..tappable = v),
+    ),
               ],
-            ),
-          ),
+            )),
+        ),
           const SizedBox(height: 8),
           Text('提示：改属性即时预览；开「纠错」检查对比度/溢出/间距/重叠。',
               style: context.appText.artist.copyWith(fontSize: 10)),
@@ -1113,11 +1112,10 @@ class _UiEditorPageState extends State<UiEditorPage> {
 
   Widget _moveBtn(IconData icon, String tip, VoidCallback onTap) => Tooltip(
         message: tip,
-        child: XGlassIconButton(
-          icon: Icon(icon, size: 16),
-          onPressed: onTap,
-          size: 40,
-        ),
+        child: IconButton(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+    ),
       );
 
   /// cl45：对齐/分布工具小按钮。

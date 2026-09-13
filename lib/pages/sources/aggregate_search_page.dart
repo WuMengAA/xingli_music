@@ -27,7 +27,6 @@ import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../../widgets/sources/bilibili_login_sheet.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 媒体源筛选。
 enum _SrcFilter {
@@ -46,11 +45,11 @@ enum _SrcFilter {
 /// 本地曲库对应 `local.library`（本地固有能力，enabled 恒为 true），
 /// 两个在线源对应各自的搜索能力。
 String? _capabilityOfFilter(_SrcFilter f) => switch (f) {
-      _SrcFilter.all => null,
-      _SrcFilter.local => 'local.library',
-      _SrcFilter.netease => 'netease.search',
-      _SrcFilter.bilibili => 'bilibili.search',
-    };
+  _SrcFilter.all => null,
+  _SrcFilter.local => 'local.library',
+  _SrcFilter.netease => 'netease.search',
+  _SrcFilter.bilibili => 'bilibili.search',
+};
 
 /// 该筛选器对应的能力是否可用（受设置页「内容来源」里开关的约束）。
 ///
@@ -87,8 +86,10 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   @override
   void initState() {
     super.initState();
-    _playErrorSub =
-        ref.read(audioServiceProvider).playErrorStream.listen(_onPlayError);
+    _playErrorSub = ref
+        .read(audioServiceProvider)
+        .playErrorStream
+        .listen(_onPlayError);
   }
 
   @override
@@ -124,11 +125,11 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           '登录即表示您已知悉并同意以上条款。',
         ),
         actions: <Widget>[
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(false),
             child: const Text('不同意'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(true),
             child: const Text('同意并继续'),
           ),
@@ -156,8 +157,9 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   /// 点播：把当前结果列表作为播放队列传入，使自动续播在搜索列表内循环
   /// （cl64-5：搜索列表作播放队列）。
   Future<void> _play(Track t, [List<Track>? queue]) async {
-    final String msg =
-        await ref.read(playbackActionsProvider).playTrack(t, queue: queue);
+    final String msg = await ref
+        .read(playbackActionsProvider)
+        .playTrack(t, queue: queue);
     if (msg.isNotEmpty && mounted) appNotify(context, msg);
   }
 
@@ -217,7 +219,8 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     final bool bi = ref.watch(bilibiliAuthProvider).isLoggedIn;
     final bool neOn = _filterAllows(ref, _SrcFilter.netease);
     final bool biOn = _filterAllows(ref, _SrcFilter.bilibili);
-    final bool need = (_filter == _SrcFilter.netease && neOn && !ne) ||
+    final bool need =
+        (_filter == _SrcFilter.netease && neOn && !ne) ||
         (_filter == _SrcFilter.bilibili && biOn && !bi) ||
         (_filter == _SrcFilter.all && ((neOn && !ne) || (biOn && !bi)));
     if (!need) return const SizedBox.shrink();
@@ -227,16 +230,22 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       children: <Widget>[
         if (neOn && !ne)
           ActionChip(
-            avatar: Icon(Icons.music_note_rounded,
-                size: 14, color: context.appColors.accent),
+            avatar: Icon(
+              Icons.music_note_rounded,
+              size: 14,
+              color: context.appColors.accent,
+            ),
             label: Text('登录网易云', style: context.appText.caption),
             visualDensity: VisualDensity.compact,
             onPressed: _openNeteaseLogin,
           ),
         if (biOn && !bi)
           ActionChip(
-            avatar: Icon(Icons.video_library_outlined,
-                size: 14, color: context.appColors.accent),
+            avatar: Icon(
+              Icons.video_library_outlined,
+              size: 14,
+              color: context.appColors.accent,
+            ),
             label: Text('登录哔哩哔哩', style: context.appText.caption),
             visualDensity: VisualDensity.compact,
             onPressed: _openBilibiliLogin,
@@ -255,10 +264,14 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
           children: <Widget>[
             Text('搜索历史', style: context.appText.artist),
             const Spacer(),
-            XGlassButton(
-              onPressed: () =>
-                  ref.read(searchHistoryProvider.notifier).clear(),
-              child: Text('清空', style: context.appText.artist.copyWith(color: context.appColors.iconInactive)),
+            FilledButton(
+              onPressed: () => ref.read(searchHistoryProvider.notifier).clear(),
+              child: Text(
+                '清空',
+                style: context.appText.artist.copyWith(
+                  color: context.appColors.iconInactive,
+                ),
+              ),
             ),
           ],
         ),
@@ -292,18 +305,24 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       decoration: InputDecoration(
         hintText: '搜索本地 / 网易云 / 哔哩哔哩（歌手 / 歌名）',
         hintStyle: context.appText.artist,
-        prefixIcon: Icon(Icons.search_rounded,
-            size: AppSize.iconSm, color: context.appColors.iconInactive),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          size: AppSize.iconSm,
+          color: context.appColors.iconInactive,
+        ),
         suffixIcon: _keyword.isEmpty
             ? null
-            : XGlassIconButton(
-              icon: Icon(Icons.close_rounded,
-                    size: AppSize.iconSm, color: context.appColors.iconInactive),
-              onPressed: () {
+            : IconButton(
+                onPressed: () {
                   _queryCtrl.clear();
                   _submit('');
                 },
-            ),
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: AppSize.iconSm,
+                  color: context.appColors.iconInactive,
+                ),
+              ),
         filled: true,
         fillColor: context.appColors.bgCard,
         border: OutlineInputBorder(
@@ -343,19 +362,25 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
       data: (List<Track> tracks) {
         final String kw = _keyword.toLowerCase();
         final List<Track> hits = tracks
-            .where((Track t) =>
-                t.title.toLowerCase().contains(kw) ||
-                t.artist.toLowerCase().contains(kw))
+            .where(
+              (Track t) =>
+                  t.title.toLowerCase().contains(kw) ||
+                  t.artist.toLowerCase().contains(kw),
+            )
             .toList();
         if (hits.isEmpty) {
           return const _HintPanel(
-              icon: Icons.music_off_rounded, message: '本地没有匹配的曲目');
+            icon: Icons.music_off_rounded,
+            message: '本地没有匹配的曲目',
+          );
         }
         return _TrackList(tracks: hits, onTap: (t) => _play(t, hits));
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) => const _HintPanel(
-          icon: Icons.error_outline_rounded, message: '本地曲库加载失败'),
+        icon: Icons.error_outline_rounded,
+        message: '本地曲库加载失败',
+      ),
     );
   }
 
@@ -369,13 +394,20 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         onAction: _openNeteaseLogin,
       );
     }
-    final AsyncValue<List<Track>> result =
-        ref.watch(neteaseSearchProvider(_keyword));
+    final AsyncValue<List<Track>> result = ref.watch(
+      neteaseSearchProvider(_keyword),
+    );
     return result.when(
       data: (List<Track> tracks) => tracks.isEmpty
           ? const _HintPanel(
-              icon: Icons.music_off_rounded, message: '网易云没有找到相关歌曲')
-          : _TrackList(tracks: tracks, onTap: (t) => _play(t, tracks), sourceTag: '网易云 · 音乐源'),
+              icon: Icons.music_off_rounded,
+              message: '网易云没有找到相关歌曲',
+            )
+          : _TrackList(
+              tracks: tracks,
+              onTap: (t) => _play(t, tracks),
+              sourceTag: '网易云 · 音乐源',
+            ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final bool authFail = neteaseIsAuthFailure(e);
@@ -394,13 +426,20 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
   Widget _buildBilibili() {
     // T7：B站搜索免登录。搜索接口本就公开（WBI 签名），未登录也能搜；
     // 登录只影响播放时的清晰度上限（未登录=标清，登录后=高清/超清）。
-    final AsyncValue<List<Track>> result =
-        ref.watch(bilibiliSearchProvider(_keyword));
+    final AsyncValue<List<Track>> result = ref.watch(
+      bilibiliSearchProvider(_keyword),
+    );
     return result.when(
       data: (List<Track> tracks) => tracks.isEmpty
           ? const _HintPanel(
-              icon: Icons.music_off_rounded, message: 'B站没有找到相关视频')
-          : _TrackList(tracks: tracks, onTap: (t) => _play(t, tracks), sourceTag: 'B站 · 视频源'),
+              icon: Icons.music_off_rounded,
+              message: 'B站没有找到相关视频',
+            )
+          : _TrackList(
+              tracks: tracks,
+              onTap: (t) => _play(t, tracks),
+              sourceTag: 'B站 · 视频源',
+            ),
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (Object e, StackTrace st) {
         final String msg = bilibiliErrorText(e);
@@ -425,27 +464,36 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
     final bool localOn = _filterAllows(ref, _SrcFilter.local);
     final AsyncValue<List<Track>> lib = ref.watch(musicLibraryProvider);
     final String kw = _keyword.toLowerCase();
-    final List<Track> localHits = lib.valueOrNull
-            ?.where((Track t) =>
-                t.title.toLowerCase().contains(kw) ||
-                t.artist.toLowerCase().contains(kw))
+    final List<Track> localHits =
+        lib.valueOrNull
+            ?.where(
+              (Track t) =>
+                  t.title.toLowerCase().contains(kw) ||
+                  t.artist.toLowerCase().contains(kw),
+            )
             .toList() ??
         const <Track>[];
     // 远程源并行搜索（网易云需登录；被关掉的源跳过）。
     final Future<List<Track>> neF = ne && neOn
-        ? ref.watch(neteaseSearchProvider(_keyword).future).catchError((_) => const <Track>[])
+        ? ref
+              .watch(neteaseSearchProvider(_keyword).future)
+              .catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
     final Future<List<Track>> biF = biOn
-        ? ref.watch(bilibiliSearchProvider(_keyword).future).catchError((_) => const <Track>[])
+        ? ref
+              .watch(bilibiliSearchProvider(_keyword).future)
+              .catchError((_) => const <Track>[])
         : Future.value(const <Track>[]);
 
     return FutureBuilder<List<List<Track>>>(
       future: Future.wait(<Future<List<Track>>>[neF, biF]),
       builder: (BuildContext context, AsyncSnapshot<List<List<Track>>> snap) {
-        final List<Track> neHits =
-            snap.data != null && snap.data!.isNotEmpty ? snap.data![0] : const <Track>[];
-        final List<Track> biHits =
-            snap.data != null && snap.data!.length > 1 ? snap.data![1] : const <Track>[];
+        final List<Track> neHits = snap.data != null && snap.data!.isNotEmpty
+            ? snap.data![0]
+            : const <Track>[];
+        final List<Track> biHits = snap.data != null && snap.data!.length > 1
+            ? snap.data![1]
+            : const <Track>[];
         final List<Track> all = <Track>[
           if (localOn) ...localHits,
           ...neHits,
@@ -453,7 +501,9 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         ];
         if (all.isEmpty) {
           return const _HintPanel(
-              icon: Icons.search_off_rounded, message: '没有匹配的结果');
+            icon: Icons.search_off_rounded,
+            message: '没有匹配的结果',
+          );
         }
         return _TrackList(
           tracks: all,
@@ -502,7 +552,7 @@ class _HintPanel extends StatelessWidget {
             ),
             if (actionLabel != null && onAction != null) ...<Widget>[
               const SizedBox(height: AppSpace.md),
-              XGlassButton(onPressed: onAction, child: Text(actionLabel!)),
+              FilledButton(onPressed: onAction, child: Text(actionLabel!)),
             ],
           ],
         ),
@@ -537,8 +587,7 @@ class _TrackList extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: AppSpace.xs),
       itemBuilder: (BuildContext _, int i) {
         final Track t = tracks[i];
-        final String? tag =
-            tagOf != null ? tagOf!(t) : sourceTag;
+        final String? tag = tagOf != null ? tagOf!(t) : sourceTag;
         return _TrackTile(track: t, tag: tag, onTap: () => onTap(t));
       },
     );
@@ -599,7 +648,9 @@ class _TrackTile extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             _fmt(track.duration!),
-                            style: context.appText.artist.copyWith(color: context.appColors.iconInactive),
+                            style: context.appText.artist.copyWith(
+                              color: context.appColors.iconInactive,
+                            ),
                           ),
                         ],
                       ],
@@ -611,13 +662,19 @@ class _TrackTile extends StatelessWidget {
                 const SizedBox(width: AppSpace.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: context.appColors.accentSoft,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Text(tag!,
-                      style: context.appText.artist.copyWith(color: context.appColors.accent)),
+                  child: Text(
+                    tag!,
+                    style: context.appText.artist.copyWith(
+                      color: context.appColors.accent,
+                    ),
+                  ),
                 ),
               ],
               // T7：B站结果行音质提示（未登录=标清 / 登录=高清）。
@@ -626,14 +683,18 @@ class _TrackTile extends StatelessWidget {
                 const SizedBox(width: AppSpace.xs),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: context.appColors.bgPlaceholder,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     track.extras!['qualityHint']! as String,
-                    style: context.appText.artist.copyWith(color: context.appColors.textSecondary),
+                    style: context.appText.artist.copyWith(
+                      color: context.appColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -641,8 +702,11 @@ class _TrackTile extends StatelessWidget {
               const SizedBox(width: AppSpace.xs),
               TrackActionButtons(track: track),
               const SizedBox(width: AppSpace.xs),
-              Icon(Icons.play_circle_outline_rounded,
-                  size: AppSize.icon, color: context.appColors.accent),
+              Icon(
+                Icons.play_circle_outline_rounded,
+                size: AppSize.icon,
+                color: context.appColors.accent,
+              ),
             ],
           ),
         ),
@@ -676,9 +740,9 @@ class _CoverBox extends StatelessWidget {
       cacheWidth: 256,
       fit: BoxFit.cover,
       errorBuilder: (_, __, ___) => const _CoverFallback(),
-      loadingBuilder: (BuildContext context, Widget child,
-              ImageChunkEvent? progress) =>
-          progress == null ? child : const _CoverFallback(),
+      loadingBuilder:
+          (BuildContext context, Widget child, ImageChunkEvent? progress) =>
+              progress == null ? child : const _CoverFallback(),
     );
   }
 }
@@ -690,8 +754,11 @@ class _CoverFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return ColoredBox(
       color: context.appColors.accentSoft,
-      child: Icon(Icons.music_note_rounded,
-          size: 20, color: context.appColors.accent),
+      child: Icon(
+        Icons.music_note_rounded,
+        size: 20,
+        color: context.appColors.accent,
+      ),
     );
   }
 }
@@ -721,8 +788,9 @@ class _AggregateSearchSheet extends StatelessWidget {
       height: h * 0.86,
       decoration: BoxDecoration(
         color: context.appColors.bgSurface,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(AppRadius.lg),
+        ),
       ),
       child: Column(
         children: <Widget>[

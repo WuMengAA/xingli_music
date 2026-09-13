@@ -22,7 +22,6 @@ import '../../providers/net/session_provider.dart';
 import '../../services/net/net_node.dart';
 import '../../pages/voxel/voxel_lobby_page.dart';
 import 'station_room_page.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 电台房形态（cl15：校园广播 100 人 / 一起听 2-10 人）。
 enum StationMode {
@@ -391,22 +390,16 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           _buildPasswordField(c),
           const SizedBox(height: 16),
         ],
-        XGlassButton(
+        FilledButton.icon(
           onPressed: _busy ? null : _create,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(Icons.radio),
-              const SizedBox(width: 8),
-              _busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('创建电台房'),
-            ],
-          ),
+          icon: const Icon(Icons.radio),
+          label: _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('创建电台房'),
         ),
         const SizedBox(height: 8),
         Text(
@@ -452,7 +445,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
                 Text('人数上限：$_listenCapacity 人',
                     style: TextStyle(color: c.textPrimary)),
                 Expanded(
-                  child: XGlassSlider(
+                  child: Slider(
                     value: _listenCapacity.toDouble(),
                     min: 2,
                     max: 10,
@@ -501,7 +494,7 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
                 borderSide: BorderSide.none,
               ),
               suffixIcon: !_customRoom
-                  ? XGlassIconButton(
+                  ?                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: () =>
                           setState(() => _randomRoomCode = _randomRoom()),
@@ -586,22 +579,16 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
           style: TextStyle(color: c.textPrimary),
         ),
         const SizedBox(height: 16),
-        XGlassButton(
+        FilledButton.icon(
           onPressed: _busy ? null : () => _joinByCode(),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(Icons.login),
-              const SizedBox(width: 8),
-              _busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('加入电台房'),
-            ],
-          ),
+          icon: const Icon(Icons.login),
+          label: _busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('加入电台房'),
         ),
       ];
 
@@ -619,12 +606,12 @@ class _StationLobbyPageState extends ConsumerState<StationLobbyPage> {
             Text('公开房间（${rooms.length}）',
                 style: TextStyle(color: c.textSecondary, fontSize: 13)),
             const Spacer(),
-            XGlassIconButton(
+            IconButton(
               icon: const Icon(Icons.sort, size: 18),
               onPressed: () => setState(() => _roomsDesc = !_roomsDesc),
               tooltip: '按人数${_roomsDesc ? '升序' : '降序'}',
             ),
-            XGlassIconButton(
+            IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               onPressed: _refreshPublicRooms,
               tooltip: '刷新',
@@ -753,7 +740,7 @@ class _PublicRoomTile extends StatelessWidget {
               ),
             ),
             if (room.members < room.capacity)
-              XGlassButton(onPressed: onJoin, child: const Text('加入'))
+              TextButton(onPressed: onJoin, child: const Text('加入'))
             else
               Text('已满',
                   style: TextStyle(color: c.textSecondary, fontSize: 12)),

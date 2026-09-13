@@ -18,7 +18,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/classisland_provider.dart';
 import '../../services/tools/control_server.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// ClassIsland 联动页。
 class ClassIslandPage extends ConsumerStatefulWidget {
@@ -85,7 +84,7 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
       appBar: AppBar(
         title: const Text('ClassIsland 联动'),
         actions: <Widget>[
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () =>
                 ref.read(classislandProvider.notifier).sync(),
@@ -175,7 +174,7 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
                     style: c.textSecondary.style(fontSize: 12),
                   ),
                 ),
-                XGlassButton(
+                TextButton(
                   onPressed: () => _setToken(svc),
                   child: Text(
                     svc.token.isEmpty ? '设置' : '修改',
@@ -206,11 +205,11 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
           ),
         ),
         actions: <Widget>[
-          XGlassButton(
+          TextButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(_tokenCtrl.text.trim()),
             child: const Text('保存'),
           ),
@@ -352,16 +351,10 @@ class _ClassIslandPageState extends ConsumerState<ClassIslandPage> {
             ),
           ),
           const SizedBox(height: 10),
-          XGlassButton(
+          FilledButton.icon(
             onPressed: _saveConfig,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.cloud_sync_outlined, size: 16),
-                SizedBox(width: 8),
-                Text('保存并同步'),
-              ],
-            ),
+            icon: const Icon(Icons.cloud_sync_outlined, size: 16),
+            label: const Text('保存并同步'),
           ),
         ],
       ),

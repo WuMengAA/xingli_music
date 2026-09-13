@@ -26,7 +26,6 @@ import '../../widgets/notification/app_notify.dart';
 import '../../widgets/shell/app_search_bar.dart';
 import 'playlist_detail_page.dart';
 import 'm3u_transfer_page.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 曲库四栏（cl15：歌曲 / 歌单 / 专辑 / 歌手）。
 ///
@@ -397,11 +396,13 @@ class _PlaylistsTab extends ConsumerWidget {
                         style: context.appText.title,
                       ),
                     ),
-                    XGlassButton(
+                    FilledButton(
                       onPressed: () => _createPlaylist(ref, context),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -413,15 +414,17 @@ class _PlaylistsTab extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    XGlassButton(
+                    FilledButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => const M3uTransferPage(),
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
@@ -467,11 +470,11 @@ class _PlaylistsTab extends ConsumerWidget {
           decoration: const InputDecoration(hintText: '歌单名称'),
         ),
         actions: <Widget>[
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(ctrl.text.trim()),
             child: const Text('创建'),
           ),
@@ -850,10 +853,8 @@ class _AggregateSearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return XGlassButton(
+    return FilledButton(
       onPressed: () => showAggregateSearchSheet(context),
-      radius: 16,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -1252,7 +1253,8 @@ class _SortButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final LibrarySortBy sort = ref.watch(librarySortProvider);
-    return XGlassIconButton(
+    return IconButton(
+      onPressed: () => _showSortSheet(context, ref),
       icon: Icon(
         Icons.sort_rounded,
         size: AppSize.iconSm,
@@ -1260,7 +1262,6 @@ class _SortButton extends ConsumerWidget {
             ? context.appColors.iconInactive
             : context.appColors.accent,
       ),
-      onPressed: () => _showSortSheet(context, ref),
       tooltip: '排序',
     );
   }

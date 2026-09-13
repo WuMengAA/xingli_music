@@ -12,7 +12,6 @@ import '../../widgets/common/state_chip.dart';
 import '../../widgets/voxel/voxel_canvas_controller.dart';
 import '../../widgets/voxel/voxel_canvas_view.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 2.5D 类我的世界音效编辑器（v2 M5-1 · P0-M5-1）。
 ///
@@ -223,11 +222,11 @@ class _BlockPanelState extends ConsumerState<_BlockPanel> {
           decoration: const InputDecoration(labelText: '名称'),
         ),
         actions: <Widget>[
-          XGlassButton(
+          TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
             child: const Text('添加'),
           ),
@@ -290,17 +289,13 @@ class _BlockPanelState extends ConsumerState<_BlockPanel> {
               Text('音效块', style: AppTextStyles.subtitle),
               const Spacer(),
               // 自定义音效入口。
-              XGlassButton(
+              TextButton.icon(
                 onPressed: _addCustom,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.add_rounded, size: 16),
-                    SizedBox(width: 8),
-                    Text('自定义'),
-                  ],
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('自定义'),
               ),
             ],
           ),
@@ -473,16 +468,10 @@ class _Toolbar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppSpace.sm),
-              XGlassButton(
+              FilledButton.icon(
                 onPressed: onSave,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    Icon(Icons.save_rounded, size: 18),
-                    SizedBox(width: 8),
-                    Text('保存'),
-                  ],
-                ),
+                icon: const Icon(Icons.save_rounded, size: 18),
+                label: const Text('保存'),
               ),
             ],
           ),

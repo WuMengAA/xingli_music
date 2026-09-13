@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../providers/tools/calendar_provider.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 日历页。
 class CalendarPage extends ConsumerStatefulWidget {
@@ -57,12 +56,12 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       appBar: AppBar(
         title: const Text('星璃日历'),
         actions: <Widget>[
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.today),
             onPressed: _goToday,
             tooltip: '今天',
           ),
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _shift(1),
             tooltip: '下个月',
@@ -81,22 +80,28 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 
   Widget _monthHeader(AppThemeColors c) {
     // 农历年（取该月 1 日的农历干支年）。
-    final LunarDate anchor = solarToLunar(DateTime(_shown.year, _shown.month, 1));
+    final LunarDate anchor = solarToLunar(
+      DateTime(_shown.year, _shown.month, 1),
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 8, 4),
       child: Row(
         children: <Widget>[
-          Text('${_shown.year} 年 ${_shown.month} 月',
-              style: c.textPrimary.style(fontSize: 18, w700: true)),
+          Text(
+            '${_shown.year} 年 ${_shown.month} 月',
+            style: c.textPrimary.style(fontSize: 18, w700: true),
+          ),
           const SizedBox(width: 8),
-          Text('${anchor.yearName}年 ${anchor.zodiac}年',
-              style: c.textSecondary.style(fontSize: 12)),
+          Text(
+            '${anchor.yearName}年 ${anchor.zodiac}年',
+            style: c.textSecondary.style(fontSize: 12),
+          ),
           const Spacer(),
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.chevron_left),
             onPressed: () => _shift(-1),
           ),
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: () => _shift(1),
           ),
@@ -112,8 +117,7 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
         for (final String w in week)
           Expanded(
             child: Center(
-              child: Text(w,
-                  style: c.textSecondary.style(fontSize: 12)),
+              child: Text(w, style: c.textSecondary.style(fontSize: 12)),
             ),
           ),
       ],
@@ -121,8 +125,11 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
   }
 
   Widget _grid(AppThemeColors c, DateTime today, List<CalendarEvent> events) {
-    final int firstWeekday =
-        DateTime(_shown.year, _shown.month, 1).weekday; // 1=周一
+    final int firstWeekday = DateTime(
+      _shown.year,
+      _shown.month,
+      1,
+    ).weekday; // 1=周一
     final int lead = firstWeekday - 1;
     final int daysInMonth = DateTime(_shown.year, _shown.month + 1, 0).day;
 
@@ -140,20 +147,28 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
     );
   }
 
-  Widget _dayCell(AppThemeColors c, DateTime today, List<CalendarEvent> events,
-      DateTime day) {
-    final bool isToday = day.year == today.year &&
+  Widget _dayCell(
+    AppThemeColors c,
+    DateTime today,
+    List<CalendarEvent> events,
+    DateTime day,
+  ) {
+    final bool isToday =
+        day.year == today.year &&
         day.month == today.month &&
         day.day == today.day;
     final String holiday = fixedHolidayOf(day);
     final LunarDate lunar = solarToLunar(day);
-    final String lunarLabel =
-        lunar.isFestival ? lunar.festivalName : lunar.dayName;
+    final String lunarLabel = lunar.isFestival
+        ? lunar.festivalName
+        : lunar.dayName;
     final int eventCount = events
-        .where((e) =>
-            e.date.year == day.year &&
-            e.date.month == day.month &&
-            e.date.day == day.day)
+        .where(
+          (e) =>
+              e.date.year == day.year &&
+              e.date.month == day.month &&
+              e.date.day == day.day,
+        )
         .length;
 
     return InkWell(
@@ -177,41 +192,50 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
               ),
             ),
             if (holiday.isNotEmpty)
-              Text(holiday,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isToday ? Colors.white70 : c.accent,
-                    fontSize: 8,
-                  ))
+              Text(
+                holiday,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isToday ? Colors.white70 : c.accent,
+                  fontSize: 8,
+                ),
+              )
             else if (lunar.isFestival)
-              Text(lunarLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isToday ? Colors.white70 : c.accent,
-                    fontSize: 8,
-                  ))
+              Text(
+                lunarLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isToday ? Colors.white70 : c.accent,
+                  fontSize: 8,
+                ),
+              )
             else if (eventCount > 0)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   Icon(Icons.circle, size: 5, color: c.accent),
                   const SizedBox(width: 2),
-                  Text('$eventCount',
-                      style: TextStyle(
-                          color: isToday ? Colors.white70 : c.textSecondary,
-                          fontSize: 8)),
+                  Text(
+                    '$eventCount',
+                    style: TextStyle(
+                      color: isToday ? Colors.white70 : c.textSecondary,
+                      fontSize: 8,
+                    ),
+                  ),
                 ],
               )
             else
-              Text(lunarLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isToday ? Colors.white70 : c.textTertiary,
-                    fontSize: 8,
-                  )),
+              Text(
+                lunarLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isToday ? Colors.white70 : c.textTertiary,
+                  fontSize: 8,
+                ),
+              ),
           ],
         ),
       ),
@@ -230,15 +254,16 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
       builder: (BuildContext sheetContext) {
         final String holiday = fixedHolidayOf(day);
         final LunarDate lunar = solarToLunar(day);
-        final List<CalendarEvent> dayEvents =
-            ref.read(calendarProvider.notifier).eventsOn(day);
+        final List<CalendarEvent> dayEvents = ref
+            .read(calendarProvider.notifier)
+            .eventsOn(day);
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheet) {
-            void refresh() =>
-                setSheet(() => dayEvents
-                  ..clear()
-                  ..addAll(
-                      ref.read(calendarProvider.notifier).eventsOn(day)));
+            void refresh() => setSheet(
+              () => dayEvents
+                ..clear()
+                ..addAll(ref.read(calendarProvider.notifier).eventsOn(day)),
+            );
             return Padding(
               padding: EdgeInsets.only(
                 left: 16,
@@ -255,11 +280,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                       Text(
                         '${day.month} 月 ${day.day} 日'
                         '${holiday.isNotEmpty ? ' · $holiday' : ''}',
-                        style:
-                            c.textPrimary.style(fontSize: 16, w700: true),
+                        style: c.textPrimary.style(fontSize: 16, w700: true),
                       ),
                       const Spacer(),
-                      XGlassIconButton(
+                      IconButton(
                         icon: const Icon(Icons.add),
                         onPressed: () => _addEvent(c, day).then((_) {
                           if (mounted) refresh();
@@ -283,8 +307,10 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       child: Center(
-                        child: Text('这一天没有事件',
-                            style: c.textTertiary.style(fontSize: 13)),
+                        child: Text(
+                          '这一天没有事件',
+                          style: c.textTertiary.style(fontSize: 13),
+                        ),
                       ),
                     )
                   else
@@ -296,17 +322,18 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
                           final CalendarEvent e = dayEvents[i];
                           return ListTile(
                             dense: true,
-                            title: Text(e.title,
-                                style:
-                                    c.textPrimary.style(fontSize: 14)),
+                            title: Text(
+                              e.title,
+                              style: c.textPrimary.style(fontSize: 14),
+                            ),
                             subtitle: e.note.isEmpty
                                 ? null
-                                : Text(e.note,
-                                    style: c.textSecondary
-                                        .style(fontSize: 12)),
-                            trailing: XGlassIconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  size: 18),
+                                : Text(
+                                    e.note,
+                                    style: c.textSecondary.style(fontSize: 12),
+                                  ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18),
                               onPressed: () async {
                                 await ref
                                     .read(calendarProvider.notifier)
@@ -352,16 +379,18 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
           ],
         ),
         actions: <Widget>[
-          XGlassButton(
+          FilledButton(
             onPressed: () => Navigator.of(dctx).pop(),
             child: const Text('取消'),
           ),
-          XGlassButton(
+          FilledButton(
             onPressed: () {
               Navigator.of(dctx).pop();
-              unawaited(ref
-                  .read(calendarProvider.notifier)
-                  .add(title: title.text, date: day, note: note.text));
+              unawaited(
+                ref
+                    .read(calendarProvider.notifier)
+                    .add(title: title.text, date: day, note: note.text),
+              );
             },
             child: const Text('添加'),
           ),
@@ -376,8 +405,8 @@ class _CalendarPageState extends ConsumerState<CalendarPage> {
 /// 颜色 → 文本样式便捷扩展（本文件内使用）。
 extension _ColorStyle on Color {
   TextStyle style({double fontSize = 14, bool w700 = false}) => TextStyle(
-        color: this,
-        fontSize: fontSize,
-        fontWeight: w700 ? FontWeight.w700 : null,
-      );
+    color: this,
+    fontSize: fontSize,
+    fontWeight: w700 ? FontWeight.w700 : null,
+  );
 }

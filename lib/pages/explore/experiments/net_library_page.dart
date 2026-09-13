@@ -13,7 +13,6 @@ import '../../../services/network/webdav_client.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
 import '../../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 文件大小人性化显示（B → MB/GB）。
 String _fmtBytes(int bytes) {
@@ -64,20 +63,14 @@ class NetLibraryPage extends ConsumerWidget {
                 const SizedBox(height: AppSpace.sm),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: XGlassButton(
+                  child: FilledButton.icon(
                     onPressed: () => _editDialog(context, ref, null),
-                    tint: c.accent,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Icon(Icons.add_rounded, size: 18, color: c.onAccent),
-                        const SizedBox(width: 8),
-                        Text(
-                          '添加服务器',
-                          style: TextStyle(color: c.onAccent),
-                        ),
-                      ],
+                    style: ButtonStyle(
+                      backgroundColor: WidgetStateProperty.all(c.accent),
+                      foregroundColor: WidgetStateProperty.all(c.onAccent),
                     ),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('添加服务器'),
                   ),
                 ),
               ],
@@ -142,10 +135,10 @@ class NetLibraryPage extends ConsumerWidget {
           ),
         ),
         actions: <Widget>[
-          XGlassButton(
+          TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
               child: const Text('取消')),
-          XGlassButton(
+          TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(isNew ? '添加' : '保存'),
           ),
@@ -222,10 +215,9 @@ class _ConfigTile extends StatelessWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              XGlassIconButton(
+              IconButton(
                 icon: Icon(Icons.edit_outlined, size: 18, color: c.iconInactive),
                 onPressed: onEdit,
-                size: 40,
               ),
               Icon(Icons.chevron_right_rounded, color: c.iconInactive),
             ],

@@ -8,11 +8,11 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../models/track.dart';
 import '../../models/track_stats.dart';
 import '../../providers/audio/audio_providers.dart';
+import '../../providers/audio/playback_notifier.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../services/stats/track_stats_db.dart';
 import '../../widgets/common/state_views.dart';
 import '../../widgets/notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 class PlaylistDetailPage extends ConsumerStatefulWidget {
   const PlaylistDetailPage({super.key, required this.playlistId});
@@ -56,6 +56,27 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
       if (trackKeyOf(t.title, t.artist, t.sourceId) == key) return t;
     }
     return null;
+  }
+
+  /// 把歌单（已排序的 PlaylistTrack 列表）解析为曲库 Track 队列。
+  ///
+  /// 用于点歌时建立「歌单作用域」播放队列：续播 / 上一首 / 自动加载都在本歌单内
+  /// 循环（修复「歌单不能接着播放」——之前直接 playMusic 导致队列为 null、续播
+  /// 回退整库或丢失当前曲）。仅保留曲库中能匹配到的曲目，保持歌单显示顺序。
+  Future<List<Track>> _resolvePlaylistQueue(
+      WidgetRef ref, List<PlaylistTrack> list) async {
+    final List<Track> lib =
+        await ref.read(effectiveMusicLibraryProvider.future);
+    final List<Track> out = <Track>[];
+    for (final PlaylistTrack p in list) {
+      final String key = trackKeyOf(p.title, p.artist, p.sourceId);
+      final Track? tr = lib
+          .where((Track t) =>
+              trackKeyOf(t.title, t.artist, t.sourceId) == key)
+          .firstOrNull;
+      if (tr != null) out.add(tr);
+    }
+    return out;
   }
 
   Future<void> _addTracks(BuildContext context) async {
@@ -121,7 +142,7 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                 ),
             ],
           ),
-          XGlassIconButton(
+          IconButton(
             icon: const Icon(Icons.add_rounded),
             onPressed: () => _addTracks(context),
             tooltip: '添加歌曲',
@@ -167,30 +188,30 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if (_sortMode == PlaylistSortMode.manual) ...<Widget>[
-                      XGlassIconButton(
+                      IconButton(
                         icon: const Icon(Icons.keyboard_arrow_up_rounded,
                             size: 18),
                         onPressed: () => _move(list, i, -1),
                       ),
-                      XGlassIconButton(
+                      IconButton(
                         icon: const Icon(Icons.keyboard_arrow_down_rounded,
                             size: 18),
                         onPressed: () => _move(list, i, 1),
                       ),
                     ],
-                    XGlassIconButton(
-                      icon: const Icon(Icons.remove_circle_outline_rounded,
-                          size: 18),
-                      onPressed: () async {
-                        await ref
-                            .read(trackStatsDbProvider)
-                            .removeFromPlaylist(widget.playlistId, t.trackKey);
-                        ref.invalidate(
-                            playlistTracksProvider(widget.playlistId));
-                        ref.invalidate(playlistsProvider);
-                      },
-                      tooltip: '移除',
-                    ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline_rounded,
+                            size: 18),
+                        onPressed: () async {
+                          await ref
+                              .read(trackStatsDbProvider)
+                              .removeFromPlaylist(widget.playlistId, t.trackKey);
+                          ref.invalidate(
+                              playlistTracksProvider(widget.playlistId));
+                          ref.invalidate(playlistsProvider);
+                        },
+                        tooltip: '移除',
+                      ),
                   ],
                 ),
                 onTap: () async {
@@ -201,7 +222,14 @@ class _PlaylistDetailPageState extends ConsumerState<PlaylistDetailPage> {
                     if (c.mounted) appNotify(c, '曲库中找不到该曲目');
                     return;
                   }
-                  await ref.read(audioServiceProvider).playMusic(tr);
+                  // 修复：建立歌单作用域队列，续播 / 上一首 / 自动加载都在本歌单内
+                  // 循环（之前直接 playMusic 让队列为 null，导致歌单不能接着播）。
+                  final List<Track> queue =
+                      await _resolvePlaylistQueue(ref, list);
+                  final String msg = await ref
+                      .read(playbackActionsProvider)
+                      .playTrack(tr, queue: queue);
+                  if (msg.isNotEmpty && c.mounted) appNotify(c, msg);
                 },
               );
             },
@@ -283,7 +311,7 @@ class _AddTracksDialogState extends State<_AddTracksDialog> {
                           ],
                         ),
                       ),
-                      XGlassToggle(
+                      Switch(
                         value: on,
                         onChanged: (bool nv) => setState(() {
                           if (nv) {
@@ -302,11 +330,11 @@ class _AddTracksDialogState extends State<_AddTracksDialog> {
         ),
       ),
       actions: <Widget>[
-        XGlassButton(
+        TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text('取消', style: context.appText.body),
         ),
-        XGlassButton(
+        TextButton(
           onPressed: _picked.isEmpty
               ? null
               : () {

@@ -5,7 +5,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/net/session_provider.dart';
 import '../../services/audio/audio_service.dart';
-import '../../widgets/design/glass_controls.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 点歌悬浮窗（R32 · 需求 ④：点歌可在底部音乐媒体栏中以悬浮窗形式显示）
@@ -42,8 +41,10 @@ class _OrderFloatingCardState extends ConsumerState<OrderFloatingCard> {
 
     // 新到 pending（DJ 视角）：自动展开。
     final bool hasPending = queue.any((it) => it.status == OrderStatus.pending);
-    final bool isNewPending = hasPending &&
-        (_last == null || !_last!.any((it) => it.status == OrderStatus.pending));
+    final bool isNewPending =
+        hasPending &&
+        (_last == null ||
+            !_last!.any((it) => it.status == OrderStatus.pending));
     if (isNewPending && !_expanded) {
       // 在帧后置位，避免 build 中改 state。
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,11 +55,16 @@ class _OrderFloatingCardState extends ConsumerState<OrderFloatingCard> {
 
     // 无任何可展示内容（DJ 无 pending/待播，听众无自己的点歌）→ 不占位。
     final bool show = isHost
-        ? queue.any((it) =>
-            it.status == OrderStatus.pending ||
-            it.status == OrderStatus.approved)
-        : queue.any((it) => it.status != OrderStatus.played &&
-            it.status != OrderStatus.rejected);
+        ? queue.any(
+            (it) =>
+                it.status == OrderStatus.pending ||
+                it.status == OrderStatus.approved,
+          )
+        : queue.any(
+            (it) =>
+                it.status != OrderStatus.played &&
+                it.status != OrderStatus.rejected,
+          );
     if (!show) return const SizedBox.shrink();
 
     // 未读 pending 数（角标）。
@@ -67,9 +73,8 @@ class _OrderFloatingCardState extends ConsumerState<OrderFloatingCard> {
         .length;
 
     // 高优先级内容：DJ 取第一条 pending（无则取 approved）。
-    final OrderItem focus = queue
-            .where((it) => it.status == OrderStatus.pending)
-            .firstOrNull ??
+    final OrderItem focus =
+        queue.where((it) => it.status == OrderStatus.pending).firstOrNull ??
         queue.where((it) => it.status == OrderStatus.approved).firstOrNull!;
 
     // 由外层（AppShell Stack）定位到底部媒体栏之上；本组件只渲染卡片内容。
@@ -77,40 +82,40 @@ class _OrderFloatingCardState extends ConsumerState<OrderFloatingCard> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 480),
         child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutCubic,
-            transitionBuilder: (Widget child, Animation<double> anim) =>
-                SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.4),
-                end: Offset.zero,
-              ).animate(anim),
-              child: FadeTransition(opacity: anim, child: child),
-            ),
-            child: _expanded
-                ? _OrderCard(
-                    key: ValueKey<String>(focus.id),
-                    item: focus,
-                    isHost: isHost,
-                    pendingCount: pendingCount,
-                    onDismiss: () => setState(() => _expanded = false),
-                    onApprove: () => ref
-                        .read(netSessionProvider.notifier)
-                        .decideOrder(focus.id, true),
-                    onReject: () => ref
-                        .read(netSessionProvider.notifier)
-                        .decideOrder(focus.id, false),
-                    onPlay: isHost && focus.status == OrderStatus.approved
-                        ? () => _playAsDj(focus)
-                        : null,
-                  )
-                : _OrderBadge(
-                    key: const ValueKey<String>('badge'),
-                    pendingCount: pendingCount,
-                    onTap: () => setState(() => _expanded = true),
-                  ),
-          ),
+          duration: const Duration(milliseconds: 260),
+          switchInCurve: Curves.easeOutCubic,
+          transitionBuilder: (Widget child, Animation<double> anim) =>
+              SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.4),
+                  end: Offset.zero,
+                ).animate(anim),
+                child: FadeTransition(opacity: anim, child: child),
+              ),
+          child: _expanded
+              ? _OrderCard(
+                  key: ValueKey<String>(focus.id),
+                  item: focus,
+                  isHost: isHost,
+                  pendingCount: pendingCount,
+                  onDismiss: () => setState(() => _expanded = false),
+                  onApprove: () => ref
+                      .read(netSessionProvider.notifier)
+                      .decideOrder(focus.id, true),
+                  onReject: () => ref
+                      .read(netSessionProvider.notifier)
+                      .decideOrder(focus.id, false),
+                  onPlay: isHost && focus.status == OrderStatus.approved
+                      ? () => _playAsDj(focus)
+                      : null,
+                )
+              : _OrderBadge(
+                  key: const ValueKey<String>('badge'),
+                  pendingCount: pendingCount,
+                  onTap: () => setState(() => _expanded = true),
+                ),
         ),
+      ),
     );
   }
 
@@ -170,16 +175,16 @@ class _OrderCard extends StatelessWidget {
           Row(
             children: <Widget>[
               Icon(
-                pending ? Icons.notifications_active_outlined : Icons.queue_music,
+                pending
+                    ? Icons.notifications_active_outlined
+                    : Icons.queue_music,
                 size: 18,
                 color: pending ? c.accent : c.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isHost
-                      ? (pending ? '新点歌请求' : '待播放点歌')
-                      : '我的点歌',
+                  isHost ? (pending ? '新点歌请求' : '待播放点歌') : '我的点歌',
                   style: TextStyle(
                     color: c.textSecondary,
                     fontSize: 12,
@@ -189,22 +194,23 @@ class _OrderCard extends StatelessWidget {
               ),
               if (pendingCount > 1)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: c.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('+${pendingCount - 1}',
-                      style: TextStyle(color: c.accent, fontSize: 11)),
+                  child: Text(
+                    '+${pendingCount - 1}',
+                    style: TextStyle(color: c.accent, fontSize: 11),
+                  ),
                 ),
-              XGlassIconButton(
+              IconButton(
                 onPressed: onDismiss,
                 icon: const Icon(Icons.expand_more, size: 18),
                 color: c.textTertiary,
-                // 原 IconButton 显式约束 24dp（折叠角标行内紧凑件），保持尺寸不变。
-                size: 24,
-                radius: 8,
               ),
             ],
           ),
@@ -251,9 +257,8 @@ class _OrderCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: <Widget>[
-                XGlassButton(
+                FilledButton(
                   onPressed: onReject,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
@@ -264,9 +269,8 @@ class _OrderCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                XGlassButton(
+                FilledButton(
                   onPressed: onApprove,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const <Widget>[
@@ -283,9 +287,8 @@ class _OrderCard extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: XGlassButton(
+              child: FilledButton(
                 onPressed: onPlay,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const <Widget>[

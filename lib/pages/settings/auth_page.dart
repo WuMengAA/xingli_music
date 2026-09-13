@@ -8,7 +8,6 @@ import '../../providers/security/cert_policy_provider.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../services/auth/auth_service.dart';
 import '../../services/security/http_client_factory.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 账号页（cl10：用户系统）。
 ///
@@ -246,10 +245,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_savingProfile)
               const Center(child: CircularProgressIndicator())
             else
-              XGlassButton(
-                onPressed: _saveProfile,
-                child: const Text('保存资料'),
-              ),
+              FilledButton(
+      onPressed: _saveProfile,
+      child: const Text('保存资料'),
+    ),
             const Divider(),
             // R32：修改密码。
             const Padding(
@@ -279,10 +278,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_changingPwd)
               const Center(child: CircularProgressIndicator())
             else
-              XGlassButton(
-                onPressed: _changePassword,
-                child: const Text('修改密码'),
-              ),
+              FilledButton(
+      onPressed: _changePassword,
+      child: const Text('修改密码'),
+    ),
             const Divider(),
             if (_syncing)
               const Padding(
@@ -290,9 +289,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else ...[
-              XGlassButton(
-                onPressed: _syncToCloud,
-                child: Row(
+              FilledButton(
+      onPressed: _syncToCloud,
+      child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const <Widget>[
                     Icon(Icons.cloud_upload_outlined),
@@ -300,7 +299,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                     Text('同步收藏到云端'),
                   ],
                 ),
-              ),
+    ),
               if (_syncMsg != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
@@ -309,10 +308,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                           fontSize: 12, color: theme.colorScheme.outline)),
                 ),
             ],
-            XGlassButton(
-              onPressed: () => ref.read(authProvider.notifier).logout(),
-              child: const Text('退出登录'),
-            ),
+            FilledButton(
+      onPressed: () => ref.read(authProvider.notifier).logout(),
+      child: const Text('退出登录'),
+    ),
           ] else ...<Widget>[
             TextField(
               controller: _u,
@@ -332,14 +331,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             if (_loading)
               const Center(child: CircularProgressIndicator())
             else ...<Widget>[
-              XGlassButton(
-                onPressed: () => _submit(false),
-                child: const Text('登录'),
-              ),
-              XGlassButton(
-                onPressed: () => _submit(true),
-                child: const Text('注册新账号'),
-              ),
+              FilledButton(
+      onPressed: () => _submit(false),
+      child: const Text('登录'),
+    ),
+              FilledButton(
+      onPressed: () => _submit(true),
+      child: const Text('注册新账号'),
+    ),
             ],
             const SizedBox(height: 12),
           ],

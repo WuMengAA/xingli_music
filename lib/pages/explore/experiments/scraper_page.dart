@@ -9,7 +9,6 @@ import '../../../providers/audio/audio_providers.dart';
 import '../../../services/musicbrainz/scraper.dart';
 import '../../../widgets/common/page_scaffold.dart';
 import '../../../widgets/common/state_views.dart';
-import '../../../widgets/design/glass_controls.dart';
 import '../../../widgets/notification/app_notify.dart';
 
 /// 刮削器（T12）：MusicBrainz 官方录音元数据查询。
@@ -119,18 +118,24 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('查询 MusicBrainz 官方曲库元数据',
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary)),
+                Text(
+                  '查询 MusicBrainz 官方曲库元数据',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
+                  ),
+                ),
                 const SizedBox(height: AppSpace.sm),
                 TextField(
                   controller: _title,
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _search(),
                   decoration: const InputDecoration(
-                      labelText: '歌曲标题', isDense: true, border: OutlineInputBorder()),
+                    labelText: '歌曲标题',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: AppSpace.xs),
                 TextField(
@@ -138,15 +143,22 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
                   textInputAction: TextInputAction.search,
                   onSubmitted: (_) => _search(),
                   decoration: const InputDecoration(
-                      labelText: '艺术家（可选）', isDense: true, border: OutlineInputBorder()),
+                    labelText: '艺术家（可选）',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
                 ),
                 const SizedBox(height: AppSpace.sm),
                 Row(
                   children: <Widget>[
-                    XGlassButton(
+                    FilledButton(
                       onPressed: _fillFromCurrent,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const <Widget>[
@@ -157,11 +169,14 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
                       ),
                     ),
                     const Spacer(),
-                    XGlassButton(
+                    FilledButton(
                       onPressed: _loading ? null : _search,
-                      tint: c.accent,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
@@ -169,11 +184,15 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
                               ? const SizedBox(
                                   width: 14,
                                   height: 14,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
-                              : Icon(Icons.search_rounded,
-                                  size: 18, color: c.onAccent),
+                              : Icon(
+                                  Icons.search_rounded,
+                                  size: 18,
+                                  color: c.onAccent,
+                                ),
                           const SizedBox(width: 8),
                           Text('查询', style: TextStyle(color: c.onAccent)),
                         ],
@@ -191,11 +210,7 @@ class _ScraperPageState extends ConsumerState<ScraperPage> {
             ),
           ),
           const SizedBox(height: AppSpace.sm),
-          if (_error != null)
-            ErrorView(
-              message: '$_error',
-              onRetry: _search,
-            ),
+          if (_error != null) ErrorView(message: '$_error', onRetry: _search),
           if (_loading) const LoadingView(),
           if (!_loading && !_searched)
             const Padding(
@@ -250,23 +265,29 @@ class _HitCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(hit.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary)),
-                  Text(hit.artist.isEmpty ? '未知艺术家' : hit.artist,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary)),
+                  Text(
+                    hit.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    hit.artist.isEmpty ? '未知艺术家' : hit.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.textSecondary),
+                  ),
                   if (hit.album != null)
-                    Text('专辑：${hit.album}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            TextStyle(fontSize: 12, color: c.textTertiary)),
+                    Text(
+                      '专辑：${hit.album}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    ),
                   if (hit.durationMs != null)
                     Text(
                       '时长：${_fmt(hit.durationMs!)}',
@@ -275,11 +296,11 @@ class _HitCard extends StatelessWidget {
                 ],
               ),
             ),
-            XGlassIconButton(
+            IconButton(
               icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
               onPressed: onCopy,
               tooltip: '复制元数据',
-              size: 40,
+              iconSize: 40,
             ),
           ],
         ),
@@ -315,8 +336,8 @@ class CoverImage extends StatelessWidget {
   }
 
   Widget _placeholder() => Container(
-        color: c.bgPlaceholder,
-        alignment: Alignment.center,
-        child: Icon(Icons.music_note_rounded, size: 22, color: c.iconInactive),
-      );
+    color: c.bgPlaceholder,
+    alignment: Alignment.center,
+    child: Icon(Icons.music_note_rounded, size: 22, color: c.iconInactive),
+  );
 }

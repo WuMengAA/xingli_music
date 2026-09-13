@@ -10,7 +10,6 @@ import '../common/page_scaffold.dart';
 import '../common/state_views.dart';
 import '../notification/app_notify.dart';
 import 'netease_auth_hint.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 网易云曲目列表页（共享薄壳）。
 ///
@@ -52,7 +51,8 @@ class NeteaseTrackListPage extends ConsumerStatefulWidget {
   final String? loginHintMessage;
 
   @override
-  ConsumerState<NeteaseTrackListPage> createState() => _NeteaseTrackListPageState();
+  ConsumerState<NeteaseTrackListPage> createState() =>
+      _NeteaseTrackListPageState();
 }
 
 class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
@@ -95,8 +95,10 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
     // 之后 provider 数据变化（重新登录 / 切换账号 / 服务端更新推荐流）时，
     // 若首屏批次与已加载内容不一致则整体替换，列表不再陈旧。
     // 用 ref.listen 在 build 阶段之外响应变化，避免「build 期间改状态」反模式。
-    ref.listen<AsyncValue<List<Track>>>(widget.firstProvider,
-        (_, AsyncValue<List<Track>> next) {
+    ref.listen<AsyncValue<List<Track>>>(widget.firstProvider, (
+      _,
+      AsyncValue<List<Track>> next,
+    ) {
       next.whenData((List<Track> list) {
         if (!mounted) return;
         if (_loaded.isEmpty) {
@@ -118,16 +120,17 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
           title: widget.title,
           actions: <Widget>[
             if (loggedIn && _loaded.isNotEmpty)
-              XGlassIconButton(
-                icon: const Icon(Icons.refresh_rounded),
+              IconButton(
                 onPressed: _resetAndRefresh,
+                icon: const Icon(Icons.refresh_rounded),
                 tooltip: '刷新',
               ),
           ],
           body: !loggedIn
               ? _LoginHint(
                   title: widget.loginHintTitle ?? '${widget.title}需要登录网易云',
-                  message: widget.loginHintMessage ?? '登录后即可查看 $widget.title 内容',
+                  message:
+                      widget.loginHintMessage ?? '登录后即可查看 $widget.title 内容',
                 )
               : first.when(
                   data: (_) {
@@ -167,7 +170,7 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                         itemBuilder: (BuildContext context, int i) {
                           if (i == _loaded.length) {
                             if (_failed) {
-                              return XGlassButton(
+                              return FilledButton(
                                 onPressed: _loadMore,
                                 child: const Text('加载失败，点击重试'),
                               );
@@ -180,7 +183,8 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                 ),
                               );
@@ -198,7 +202,9 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                   },
                   loading: () => const LoadingView(),
                   error: (Object e, StackTrace st) => neteaseIsAuthFailure(e)
-                      ? NeteaseAuthExpiredHint(onRefreshed: (_) => _resetAndRefresh())
+                      ? NeteaseAuthExpiredHint(
+                          onRefreshed: (_) => _resetAndRefresh(),
+                        )
                       : ErrorView(
                           message: neteaseErrorText(e),
                           onRetry: () => ref.invalidate(widget.firstProvider),
@@ -268,7 +274,11 @@ class _TrackTile extends StatelessWidget {
                     : null,
               ),
               child: track.coverUrl == null
-                  ? Icon(Icons.music_note_rounded, size: 22, color: c.iconInactive)
+                  ? Icon(
+                      Icons.music_note_rounded,
+                      size: 22,
+                      color: c.iconInactive,
+                    )
                   : null,
             ),
             const SizedBox(width: 12),
@@ -290,7 +300,9 @@ class _TrackTile extends StatelessWidget {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: c.accentSoft,
                             borderRadius: BorderRadius.circular(4),
@@ -314,7 +326,9 @@ class _TrackTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (showReason && reason != null && reason.isNotEmpty) ...<Widget>[
+                  if (showReason &&
+                      reason != null &&
+                      reason.isNotEmpty) ...<Widget>[
                     const SizedBox(height: 2),
                     Text(
                       reason,

@@ -19,7 +19,6 @@ import '../../providers/stats/track_stats_providers.dart';
 import '../../services/audio/audio_service.dart';
 import '../app_icon.dart';
 import '../common/playback_feedback.dart';
-import '../design/glass_controls.dart';
 import '../common/track_cover.dart';
 import '../liquid_glass.dart';
 import '../noise_texture.dart';
@@ -661,10 +660,9 @@ Widget buildBottomActions(
       spacing: 14,
       runSpacing: 4,
       children: <Widget>[
-        XGlassButton(
-          onPressed: () => unawaited(showAggregateSearchSheet(context)),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
+        FilledButton(
+      onPressed: () => unawaited(showAggregateSearchSheet(context)),
+      child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Icon(Icons.search_rounded, size: 18, color: colors.accent),
@@ -672,11 +670,10 @@ Widget buildBottomActions(
               Text('搜索', style: context.appText.caption),
             ],
           ),
-        ),
-        XGlassButton(
-          onPressed: () => unawaited(showMusicQualitySheet(context)),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
+    ),
+        FilledButton(
+      onPressed: () => unawaited(showMusicQualitySheet(context)),
+      child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
               Icon(Icons.high_quality_rounded, size: 18, color: colors.accent),
@@ -684,7 +681,7 @@ Widget buildBottomActions(
               Text('音质', style: context.appText.caption),
             ],
           ),
-        ),
+    ),
         // cl52-B：白噪音（音质右边）。
         _WhiteNoiseLabeledButton(active: whiteNoise, onTap: onToggleWhiteNoise),
         // cl52-B：视听（白噪音右边）。
@@ -788,11 +785,11 @@ Future<void> showEqualizerSheet(BuildContext context) {
                 Expanded(
                   child: Text('音效', style: context.appText.subtitle),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                ),
+                IconButton(
+      onPressed: () => Navigator.of(sheetContext).pop(),
+      icon: const Icon(Icons.close),
+      tooltip: '关闭',
+    ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
@@ -847,11 +844,11 @@ Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
                 Expanded(
                   child: Text('播放速度', style: context.appText.subtitle),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                ),
+                IconButton(
+      onPressed: () => Navigator.of(sheetContext).pop(),
+      icon: const Icon(Icons.close),
+      tooltip: '关闭',
+    ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
@@ -879,14 +876,14 @@ Future<void> showSpeedSheet(BuildContext context, WidgetRef ref) {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text('自定义：${_fmtSpeed(cur)}×', style: context.appText.caption),
-                  XGlassSlider(
-                    value: cur,
-                    min: 0.25,
-                    max: 4.0,
-                    divisions: 15,
-                    onChanged: (double v) =>
+                  Slider(
+      value: cur,
+      onChanged: (double v) =>
                         unawaited(r.read(playbackActionsProvider).setSpeed(v)),
-                  ),
+      min: 0.25,
+      max: 4.0,
+      divisions: 15,
+    ),
                 ],
               );
             }),
@@ -930,11 +927,11 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
                 Expanded(
                   child: Text('定时关闭', style: context.appText.subtitle),
                 ),
-                XGlassIconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: '关闭',
-                  onPressed: () => Navigator.of(sheetContext).pop(),
-                ),
+                IconButton(
+      onPressed: () => Navigator.of(sheetContext).pop(),
+      icon: const Icon(Icons.close),
+      tooltip: '关闭',
+    ),
               ],
             ),
             const SizedBox(height: AppSpace.sm),
@@ -951,10 +948,10 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
                     style: context.appText.body,
                   ),
                   const SizedBox(height: AppSpace.sm),
-                  XGlassButton(
-                    onPressed: () =>
+                  FilledButton(
+      onPressed: () =>
                         r.read(sleepTimerProvider.notifier).cancel(),
-                    child: const Row(
+      child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
                         Icon(Icons.cancel_outlined),
@@ -962,7 +959,7 @@ Future<void> showSleepTimerSheet(BuildContext context, WidgetRef ref) {
                         Text('取消定时'),
                       ],
                     ),
-                  ),
+    ),
                   const SizedBox(height: AppSpace.md),
                 ],
               );
@@ -1015,21 +1012,21 @@ class _SleepTimerCustomSliderState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text('自定义：$_minutes 分钟', style: context.appText.caption),
-        XGlassSlider(
-          value: _minutes.toDouble(),
-          min: 5,
-          max: 120,
-          divisions: 23,
-          onChanged: (double v) => setState(() => _minutes = v.round()),
-        ),
+        Slider(
+      value: _minutes.toDouble(),
+      onChanged: (double v) => setState(() => _minutes = v.round()),
+      min: 5,
+      max: 120,
+      divisions: 23,
+    ),
         Align(
           alignment: Alignment.centerRight,
-          child: XGlassButton(
-            onPressed: () => ref
+          child: FilledButton(
+      onPressed: () => ref
                 .read(sleepTimerProvider.notifier)
                 .start(Duration(minutes: _minutes)),
-            child: const Text('开始'),
-          ),
+      child: const Text('开始'),
+    ),
         ),
       ],
     );

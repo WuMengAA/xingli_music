@@ -14,7 +14,6 @@ import '../../core/theme/light_tokens.dart';
 import '../../providers/settings/log_upload_providers.dart';
 import '../../services/feedback_service.dart';
 import '../../services/log_service.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 打开用户反馈弹层。
 Future<void> showFeedbackSheet(BuildContext context) {
@@ -90,13 +89,15 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
     });
     final List<Map<String, String>>? logs = _attachLogs
         ? LogService.instance.recentIssues
-            .map((Map<String, String> e) => <String, String>{
+              .map(
+                (Map<String, String> e) => <String, String>{
                   'ts': '',
                   'level': e['level'] ?? '',
                   'tag': e['tag'] ?? '',
                   'msg': e['msg'] ?? '',
-                })
-            .toList()
+                },
+              )
+              .toList()
         : null;
     final FeedbackPayload payload = FeedbackPayload(
       type: _type,
@@ -120,38 +121,32 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
   }
 
   Widget _chip(String label, bool active, VoidCallback onTap) => InkWell(
-        onTap: onTap,
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    child: Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: active ? context.appColors.accent : context.appColors.bgCard,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpace.md,
-            vertical: AppSpace.xs,
-          ),
-          decoration: BoxDecoration(
-            color: active ? context.appColors.accent : context.appColors.bgCard,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(
-              color: active
-                  ? context.appColors.accent
-                  : context.appColors.border,
-            ),
-          ),
-          child: Text(
-            label,
-            style: (active ? context.appText.body : context.appText.artist)
-                .copyWith(
-              color: active ? context.appColors.onAccent : null,
-            ),
-          ),
+        border: Border.all(
+          color: active ? context.appColors.accent : context.appColors.border,
         ),
-      );
+      ),
+      child: Text(
+        label,
+        style: (active ? context.appText.body : context.appText.artist)
+            .copyWith(color: active ? context.appColors.onAccent : null),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.viewInsetsOf(context).bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -167,16 +162,19 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
             children: <Widget>[
               Row(
                 children: <Widget>[
-                  Icon(Icons.feedback_outlined,
-                      size: AppSize.icon, color: context.appColors.accent),
-                  const SizedBox(width: AppSpace.sm),
-                  Expanded(
-                    child: Text('反馈', style: context.appText.subtitle),
+                  Icon(
+                    Icons.feedback_outlined,
+                    size: AppSize.icon,
+                    color: context.appColors.accent,
                   ),
-                  XGlassIconButton(
-                    icon: Icon(Icons.close_rounded,
-                        size: AppSize.iconSm,
-                        color: context.appColors.iconInactive),
+                  const SizedBox(width: AppSpace.sm),
+                  Expanded(child: Text('反馈', style: context.appText.subtitle)),
+                  IconButton(
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: AppSize.iconSm,
+                      color: context.appColors.iconInactive,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -193,7 +191,8 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
                 spacing: AppSpace.sm,
                 runSpacing: AppSpace.xs,
                 children: <Widget>[
-                  for (final MapEntry<String, String> e in _kFeedbackTypes.entries)
+                  for (final MapEntry<String, String> e
+                      in _kFeedbackTypes.entries)
                     _chip(e.value, _type == e.key, () {
                       setState(() {
                         _type = e.key;
@@ -238,29 +237,34 @@ class _FeedbackSheetState extends ConsumerState<_FeedbackSheet> {
                 ),
               ),
               const SizedBox(height: AppSpace.sm),
-              XGlassCard(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: <Widget>[
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text('附带最近错误/告警日志', style: context.appText.body),
-                          Text('仅发送已脱敏的 ERROR/WARN 摘要，便于定位',
-                              style: context.appText.artist),
-                        ],
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: <Widget>[
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text('附带最近错误/告警日志', style: context.appText.body),
+                            Text(
+                              '仅发送已脱敏的 ERROR/WARN 摘要，便于定位',
+                              style: context.appText.artist,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    XGlassToggle(
-                      value: _attachLogs,
-                      onChanged: (bool v) => setState(() => _attachLogs = v),
-                    ),
-                  ],
+                      Switch(
+                        value: _attachLogs,
+                        onChanged: (bool v) => setState(() => _attachLogs = v),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: AppSpace.sm),
-              XGlassButton(
+              FilledButton(
                 onPressed: _submitting ? null : _submit,
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

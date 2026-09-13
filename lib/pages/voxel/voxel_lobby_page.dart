@@ -26,7 +26,6 @@ import '../../widgets/voxel/voxel_world.dart';
 import '../../widgets/voxel/voxel_world_view3d.dart';
 import '../../widgets/voxel/voxel_save.dart';
 import 'relay_input_validation.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 开放世界联机大厅。
 class VoxelLobbyPage extends ConsumerStatefulWidget {
@@ -327,11 +326,11 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                   child: Text('房间号：$code（已复制）',
                       style: AppTextStyles.body.copyWith(color: ink)),
                 ),
-                XGlassButton(
-                  onPressed: () =>
+                FilledButton(
+      onPressed: () =>
                       Clipboard.setData(ClipboardData(text: code)),
-                  child: const Text('复制'),
-                ),
+      child: const Text('复制'),
+    ),
               ],
             ),
           ),
@@ -357,17 +356,16 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         const SizedBox(height: AppSpace.md),
         SizedBox(
           height: 46,
-          child: XGlassButton(
-            onPressed: _enterWorld,
-            tint: accent,
-            child: Text('进入世界', style: TextStyle(color: ink)),
-          ),
+          child: FilledButton(
+      onPressed: _enterWorld,
+      child: Text('进入世界', style: TextStyle(color: ink)),
+    ),
         ),
         const SizedBox(height: AppSpace.sm),
-        XGlassButton(
-          onPressed: () => _leaveRoom(),
-          child: const Text('离开房间'),
-        ),
+        FilledButton(
+      onPressed: () => _leaveRoom(),
+      child: const Text('离开房间'),
+    ),
       ],
     );
   }
@@ -405,13 +403,13 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
               padding: const EdgeInsets.all(AppSpace.md),
               child: Row(
                 children: <Widget>[
-                  XGlassIconButton(
-                    icon: const Icon(Icons.arrow_back, color: ink),
-                    onPressed: inRoom
+                  IconButton(
+      onPressed: inRoom
                         ? () => _leaveRoom()
                         : () => Navigator.of(context).maybePop(),
-                    tooltip: inRoom ? '离开房间' : '返回',
-                  ),
+      icon: const Icon(Icons.arrow_back, color: ink),
+      tooltip: inRoom ? '离开房间' : '返回',
+    ),
                   const SizedBox(width: AppSpace.sm),
                   Text(inRoom ? '联机房间' : '开放世界 · 联机',
                       style: AppTextStyles.title.copyWith(color: ink)),
@@ -559,13 +557,9 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
         ? null
         : _saves.firstWhere((VoxelManualSaveMeta s) => s.id == _hostSaveId);
     return <Widget>[
-      XGlassDropdown<String>(
-        value: sel?.id,
-        tint: const Color(0x1AFFFFFF),
-        radius: AppRadius.md,
-        hint: Text('选择本地存档',
-            style: AppTextStyles.body.copyWith(color: Colors.white54)),
-        items: _saves
+      DropdownButton<String>(
+      value: sel?.id,
+      items: _saves
             .map((VoxelManualSaveMeta s) => DropdownMenuItem<String>(
                   value: s.id,
                   child: Text(
@@ -576,8 +570,10 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                   ),
                 ))
             .toList(),
-        onChanged: (String? v) => setState(() => _hostSaveId = v),
-      ),
+      onChanged: (String? v) => setState(() => _hostSaveId = v),
+      hint: Text('选择本地存档',
+            style: AppTextStyles.body.copyWith(color: Colors.white54)),
+    ),
       const SizedBox(height: AppSpace.sm),
     ];
   }
@@ -626,10 +622,10 @@ class _VoxelLobbyPageState extends ConsumerState<VoxelLobbyPage> {
                 child: Text('局域网房间',
                     style: AppTextStyles.body.copyWith(color: ink)),
               ),
-              XGlassButton(
-                onPressed: _scanning ? null : _scanLan,
-                child: Text(_scanning ? '扫描中…' : '扫描局域网'),
-              ),
+              FilledButton(
+      onPressed: _scanning ? null : _scanLan,
+      child: Text(_scanning ? '扫描中…' : '扫描局域网'),
+    ),
             ],
           ),
           if (_scanHosts.isNotEmpty)
@@ -763,7 +759,10 @@ class _SwitchRow extends StatelessWidget {
                     color: Colors.white70,
                   )),
             ),
-            XGlassToggle(value: value, onChanged: enabled ? onChanged : null),
+            Switch(
+      value: value,
+      onChanged: enabled ? onChanged : null,
+    ),
           ],
         ),
       );
@@ -788,11 +787,10 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         height: 46,
-        child: XGlassButton(
-          onPressed: busy ? null : onTap,
-          tint: accent,
-          child: Text(label, style: TextStyle(color: ink)),
-        ),
+        child: FilledButton(
+      onPressed: busy ? null : onTap,
+      child: Text(label, style: TextStyle(color: ink)),
+    ),
       );
 }
 

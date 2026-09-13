@@ -8,7 +8,6 @@ import '../../../models/track.dart';
 import '../../../providers/audio/audio_providers.dart';
 import '../../../providers/cast/cast_providers.dart';
 import '../../../widgets/common/page_scaffold.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 投屏（T11 最小版）：局域网 HTTP 流媒体服务。
 ///
@@ -83,9 +82,9 @@ class CastPage extends ConsumerWidget {
               ],
             ),
           ),
-          XGlassToggle(
+          Switch(
             value: state.running,
-            accentColor: c.accent,
+            activeColor: c.accent,
             onChanged: (_) => ref.read(castServerProvider.notifier).toggle(),
           ),
         ],
@@ -183,7 +182,7 @@ class _AddressRow extends StatelessWidget {
           child: SelectableText(text,
               style: TextStyle(fontSize: 14, color: c.accent)),
         ),
-        XGlassIconButton(
+        IconButton(
           icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: text));
@@ -197,7 +196,7 @@ class _AddressRow extends StatelessWidget {
               );
             }
           },
-          size: 40,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         ),
       ],
     );
@@ -285,7 +284,7 @@ class _UrlRow extends StatelessWidget {
               ],
             ),
           ),
-          XGlassIconButton(
+          IconButton(
             icon: Icon(Icons.copy_rounded, size: 18, color: c.iconInactive),
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: url));
@@ -299,7 +298,7 @@ class _UrlRow extends StatelessWidget {
                 );
               }
             },
-            size: 40,
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
         ],
       ),

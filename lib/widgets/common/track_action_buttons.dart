@@ -17,7 +17,6 @@ import '../../pages/social/station_lobby_page.dart';
 import '../../providers/net/session_provider.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../notification/app_notify.dart';
-import 'package:xingli_music/widgets/design/glass_controls.dart';
 
 /// 曲目「投稿 / 收藏」按钮组（紧凑图标按钮，放在结果行尾部）。
 class TrackActionButtons extends ConsumerWidget {
@@ -35,15 +34,15 @@ class TrackActionButtons extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         // 投稿：向电台房点歌队列提交。
-        XGlassIconButton(
+        IconButton(
           icon: Icon(Icons.campaign_outlined,
               size: 20, color: colors.textSecondary),
           onPressed: () => _submit(ref, context),
           tooltip: '投稿到电台',
-          size: 40,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         ),
         // 收藏。
-        XGlassIconButton(
+        IconButton(
           icon: Icon(
             isFav ? Icons.favorite : Icons.favorite_border,
             size: 20,
@@ -58,7 +57,7 @@ class TrackActionButtons extends ConsumerWidget {
             }
           },
           tooltip: isFav ? '取消收藏' : '收藏',
-          size: 40,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
         ),
       ],
     );
@@ -77,11 +76,11 @@ class TrackActionButtons extends ConsumerWidget {
           title: const Text('投稿点歌'),
           content: const Text('需要先进入电台房才能投稿点歌。\n要现在去电台大厅看看吗？'),
           actions: <Widget>[
-            XGlassButton(
+            TextButton(
               onPressed: () => Navigator.of(dctx).pop(),
               child: const Text('取消'),
             ),
-            XGlassButton(
+            FilledButton(
               onPressed: () {
                 Navigator.of(dctx).pop();
                 Navigator.of(context).push(
