@@ -67,7 +67,8 @@ class PageScaffold extends ConsumerWidget {
             child: IconButton(
               onPressed: back,
               iconSize: AppSize.iconSm,
-              constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+              // 44×44 为推荐最小触控热区（原 40 偏小，无障碍不达标）。
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               icon: Icon(
                 Icons.chevron_left,
                 size: AppSize.iconSm,

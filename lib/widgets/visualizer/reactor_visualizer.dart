@@ -38,12 +38,27 @@ class ReactorVisualizer extends ConsumerWidget {
           isComplex: true,
           willChange: true,
         ),
-        loading: () => const SizedBox.shrink(),
-        error: (_, __) => const SizedBox.shrink(),
+        // 加载中 / 出错时不再「凭空消失」（此前直接 SizedBox.shrink，与
+        // SpectrumBars 的静态占位不一致，主页开场会短暂空窗）：统一渲染
+        // 低而平的静态柱阵，保留反应堆存在感。
+        loading: () => CustomPaint(
+          painter: _ReactorPainter(_kIdleBands, c.accent, opacity * 0.55),
+          isComplex: true,
+        ),
+        error: (_, __) => CustomPaint(
+          painter: _ReactorPainter(_kIdleBands, c.accent, opacity * 0.55),
+          isComplex: true,
+        ),
       ),
     );
   }
 }
+
+/// 静默态（未播放 / 加载中 / 出错）的静态柱阵：低而平，保留「反应堆存在感」。
+const List<double> _kIdleBands = <double>[
+  0.14, 0.22, 0.18, 0.12, 0.16, 0.20, 0.13, 0.10,
+  0.10, 0.13, 0.20, 0.16, 0.12, 0.18, 0.22, 0.14,
+];
 
 /// 反应堆画笔：对称网格柱阵（从中心向两侧脉冲）+ 低频涟漪 + 高频流星。
 class _ReactorPainter extends CustomPainter {

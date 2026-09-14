@@ -182,32 +182,39 @@ class _DockTab extends StatelessWidget {
         ? accent
         : (dark ? Colors.white70 : Colors.black54);
     return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        splashFactory: NoSplash.splashFactory,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(
-                selected ? item.selectedIcon : item.icon,
-                color: fg,
-                size: 22,
-              ),
-              if (showLabel)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    item.label,
-                    style: TextStyle(color: fg, fontSize: 10),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+      // 无障碍：Dock 只有图标（紧凑密度下连文字标签也无），必须补语义标签，
+      // 否则读屏用户只听到「按钮」。selected 让读屏播报当前选中项。
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: item.label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashFactory: NoSplash.splashFactory,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Icon(
+                  selected ? item.selectedIcon : item.icon,
+                  color: fg,
+                  size: 22,
                 ),
-            ],
+                if (showLabel)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      item.label,
+                      style: TextStyle(color: fg, fontSize: 10),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
