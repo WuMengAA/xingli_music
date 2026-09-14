@@ -13,6 +13,7 @@ import '../../pages/now_playing/now_playing_page.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/cast/cast_providers.dart';
+import '../../providers/audio/playback_error_provider.dart';
 import '../../providers/audio/playback_notifier.dart';
 import '../../providers/audio/sleep_timer_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
@@ -426,6 +427,26 @@ Widget buildTransportRow(
     }
   }
 
+  /// 手动切歌：消费 [PlaybackActions.next] 的返回值。
+  ///
+  /// 成功（空串）= 清掉残留错误条；失败（非空）= 落到常驻错误条并保留
+  /// toast 通道（用户点按后立刻有反馈，同时页面上留得下重试入口）。
+  Future<void> onSkip(int direction) async {
+    final PlaybackErrorNotifier notifier =
+        ref.read(playbackErrorProvider.notifier);
+    final String msg = await ref
+        .read(playbackActionsProvider)
+        .next(direction: direction);
+    if (msg.isEmpty) {
+      notifier.clear();
+      return;
+    }
+    notifier.report(PlaybackError(message: msg, kind: PlaybackRetryKind.next));
+    if (context.mounted) {
+      showPlaybackToast(context, msg);
+    }
+  }
+
   return PlaybackTransportRow(
     spacing: fullscreen ? 12 : 6,
     children: <Widget>[
@@ -453,9 +474,7 @@ Widget buildTransportRow(
         svgName: AppIcons.previous,
         size: sideSize,
         tooltip: '上一首',
-        onTap: () => unawaited(
-          ref.read(playbackActionsProvider).next(direction: -1),
-        ),
+        onTap: () => unawaited(onSkip(-1)),
       ),
       if (buffering)
         Tooltip(
@@ -497,7 +516,7 @@ Widget buildTransportRow(
         svgName: AppIcons.next,
         size: sideSize,
         tooltip: '下一首',
-        onTap: () => unawaited(ref.read(playbackActionsProvider).next()),
+        onTap: () => unawaited(onSkip(1)),
       ),
       PlaybackIconButton(
         icon: _modeIcon(mode),

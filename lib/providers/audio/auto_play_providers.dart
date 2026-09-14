@@ -10,8 +10,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../models/track.dart';
 import '../../services/audio/audio_service.dart';
 import 'audio_providers.dart';
+import 'playback_error_provider.dart';
 import 'playback_notifier.dart';
 
 /// 自动播放：曲目播完后自动下一首（默认开）。
@@ -34,6 +36,8 @@ class AutoPlayTracker {
   AudioService? _audio;
   StreamSubscription<Duration?>? _posSub;
   StreamSubscription<Duration?>? _durSub;
+  /// 引擎错误流订阅（#playback-error）：汇入 [playbackErrorProvider]。
+  StreamSubscription<String>? _errSub;
 
   void start() {
     if (_started) return;
@@ -44,6 +48,17 @@ class AutoPlayTracker {
     audio.onCompleted = _onCompleted;
     _posSub = audio.positionStream.listen(_onPos);
     _durSub = audio.durationStream.listen((Duration? d) => _dur = d);
+    // #playback-error：引擎错误（中途断流 / 加载失败）汇入常驻错误位。
+    _errSub = audio.playErrorStream.listen((String msg) {
+      final Track? t = audio.currentTrack;
+      _ref.read(playbackErrorProvider.notifier).report(
+        PlaybackError(
+          message: msg,
+          kind: t == null ? PlaybackRetryKind.none : PlaybackRetryKind.playTrack,
+          track: t,
+        ),
+      );
+    });
   }
 
   /// 曲目自然播放完成 → 自动切下一首。
@@ -53,7 +68,13 @@ class AutoPlayTracker {
     if (_audio?.suppressAutoAdvance ?? false) return; // #486：睡眠「本曲结束」生效时不自动续播
     _transitioning = true;
     try {
-      await _ref.read(playbackActionsProvider).next();
+      // #playback-error：下一首加载失败不再静默丢弃返回值，转常驻错误位。
+      final String msg = await _ref.read(playbackActionsProvider).next();
+      if (msg.isNotEmpty) {
+        _ref.read(playbackErrorProvider.notifier).report(
+          PlaybackError(message: msg, kind: PlaybackRetryKind.next),
+        );
+      }
     } finally {
       _transitioning = false;
     }
@@ -71,7 +92,13 @@ class AutoPlayTracker {
     _transitioning = true;
     try {
       await _ref.read(audioServiceProvider).fadeOutMusic();
-      await _ref.read(playbackActionsProvider).next();
+      // #playback-error：同上，失败返回值汇入常驻错误位。
+      final String msg = await _ref.read(playbackActionsProvider).next();
+      if (msg.isNotEmpty) {
+        _ref.read(playbackErrorProvider.notifier).report(
+          PlaybackError(message: msg, kind: PlaybackRetryKind.next),
+        );
+      }
     } finally {
       _transitioning = false;
     }
@@ -80,6 +107,7 @@ class AutoPlayTracker {
   void dispose() {
     _posSub?.cancel();
     _durSub?.cancel();
+    _errSub?.cancel();
     _audio?.onCompleted = null;
     _audio = null;
   }

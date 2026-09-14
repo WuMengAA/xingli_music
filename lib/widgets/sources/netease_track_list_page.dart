@@ -177,102 +177,129 @@ class _NeteaseTrackListPageState extends ConsumerState<NeteaseTrackListPage> {
                       widget.loginHintMessage ?? '登录后即可查看 $widget.title 内容',
                 )
               : first.when(
-                  data: (_) {
-                    if (_loaded.isEmpty) {
-                      return EmptyView(
-                        title: widget.emptyTitle,
-                        message: widget.emptyMessage,
+                  skipLoadingOnRefresh: true,
+                  data: (_) => _buildTrackListBody(),
+                  loading: () => _loaded.isNotEmpty
+                      ? _buildTrackListBody()
+                      : const LoadingView(),
+                  error: (Object e, StackTrace st) {
+                    // 普通错误 + 已有缓存：保留列表 + 顶部错误条，不全屏替换
+                    // （登录失效属强信号，仍走整页登录引导，不清缓存也无需保留）。
+                    if (_loaded.isNotEmpty && !neteaseIsAuthFailure(e)) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          SourceErrorBar(
+                            sourceLabel: '网易云',
+                            message: neteaseErrorText(e),
+                            onRetry: () => ref.invalidate(widget.firstProvider),
+                          ),
+                          Expanded(child: _buildTrackListBody()),
+                        ],
                       );
                     }
-                    if (!widget.infinite && widget.loadMore == null) {
-                      return ListView.separated(
-                        padding: EdgeInsets.zero,
-                        itemCount: _loaded.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 2),
-                        itemBuilder: (BuildContext context, int i) =>
-                            _TrackTile(
-                              track: _loaded[i],
-                              showReason: widget.showReason,
-                              onTap: () => _playTrack(_loaded[i]),
-                            ),
-                      );
-                    }
-                    // 无限流：滚动到底自动加载更多（去掉手动按钮，操作更简）。
-                    return NotificationListener<ScrollNotification>(
-                      onNotification: (ScrollNotification n) {
-                        if (n is ScrollUpdateNotification &&
-                            n.metrics.pixels >=
-                                n.metrics.maxScrollExtent - 240) {
-                          _loadMore();
-                        }
-                        return false;
-                      },
-                      child: ListView.separated(
-                        padding: EdgeInsets.zero,
-                        itemCount: _loaded.length + 1,
-                        separatorBuilder: (_, __) => const SizedBox(height: 2),
-                        itemBuilder: (BuildContext context, int i) {
-                          if (i == _loaded.length) {
-                            if (_failed) {
-                              return FilledButton(
-                                onPressed: _loadMore,
-                                child: const Text('加载失败，点击重试'),
-                              );
-                            }
-                            if (_loadingMore) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 14),
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-                            if (!_hasMore) {
-                              return Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                child: Center(
-                                  child: Text(
-                                    '已经到底了',
-                                    style: context.appText.caption,
-                                  ),
-                                ),
-                              );
-                            }
-                            return const SizedBox(height: 28);
-                          }
-                          return _TrackTile(
-                            track: _loaded[i],
-                            showReason: widget.showReason,
-                            onTap: () => _playTrack(_loaded[i]),
+                    return neteaseIsAuthFailure(e)
+                        ? NeteaseAuthExpiredHint(
+                            onRefreshed: (_) => _resetAndRefresh(),
+                          )
+                        : ErrorView(
+                            message: neteaseErrorText(e),
+                            onRetry: () => ref.invalidate(widget.firstProvider),
                           );
-                        },
-                      ),
-                    );
                   },
-                  loading: () => const LoadingView(),
-                  error: (Object e, StackTrace st) => neteaseIsAuthFailure(e)
-                      ? NeteaseAuthExpiredHint(
-                          onRefreshed: (_) => _resetAndRefresh(),
-                        )
-                      : ErrorView(
-                          message: neteaseErrorText(e),
-                          onRetry: () => ref.invalidate(widget.firstProvider),
-                        ),
                 ),
         ),
       ),
     );
   }
 
+  /// 渲染曲目列表（含空态 / 无限流 / 触底加载三态）。
+  ///
+  /// `first.when` 的 data / loading（有缓存时）/ error（有缓存时）三分支共用，
+  /// 避免刷新期间卸载列表。列表内容始终来自 `_loaded`（首次批次由 `ref.listen`
+  /// 填充、触底追加由 `_loadMore` 累积），与搜索页「整列表作队列」同构。
+  Widget _buildTrackListBody() {
+    if (_loaded.isEmpty) {
+      return EmptyView(
+        title: widget.emptyTitle,
+        message: widget.emptyMessage,
+      );
+    }
+    if (!widget.infinite && widget.loadMore == null) {
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: _loaded.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 2),
+        itemBuilder: (BuildContext context, int i) => _TrackTile(
+          track: _loaded[i],
+          showReason: widget.showReason,
+          onTap: () => _playTrack(_loaded[i]),
+        ),
+      );
+    }
+    // 无限流：滚动到底自动加载更多（去掉手动按钮，操作更简）。
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification n) {
+        if (n is ScrollUpdateNotification &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - 240) {
+          _loadMore();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: _loaded.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 2),
+        itemBuilder: (BuildContext context, int i) {
+          if (i == _loaded.length) {
+            if (_failed) {
+              return FilledButton(
+                onPressed: _loadMore,
+                child: const Text('加载失败，点击重试'),
+              );
+            }
+            if (_loadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            if (!_hasMore) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    '已经到底了',
+                    style: context.appText.caption,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox(height: 28);
+          }
+          return _TrackTile(
+            track: _loaded[i],
+            showReason: widget.showReason,
+            onTap: () => _playTrack(_loaded[i]),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> _playTrack(Track t) async {
-    final String msg = await ref.read(playbackActionsProvider).playTrack(t);
+    // 缺陷3：把当前整个列表作为播放队列传入，使自动续播在列表内循环
+    // （与聚合搜索页 `_play(t, all)` 语义一致）。此前只传单曲，从歌单点第 5 首
+    // 播完即停。
+    final String msg = await ref
+        .read(playbackActionsProvider)
+        .playTrack(t, queue: _loaded);
     if (!mounted || msg.isEmpty) return;
     appNotify(context, msg);
   }

@@ -121,6 +121,8 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
                     },
                   ),
                 ),
+                // 播放失败时常驻的错误 + 重试提示（与正在播放页共用同一组件）。
+                const PlaybackErrorBanner(),
                 // 底部控制栏（复用 UnifiedPlayer 公开 builder）。
                 _HomeControlBar(
                   volOpen: _volOpen,

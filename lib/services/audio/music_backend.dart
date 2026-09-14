@@ -48,6 +48,13 @@ abstract class MusicBackend {
   /// 引擎状态流（处理状态 + 播放标志）。
   Stream<MusicEngineState> get stateStream;
 
+  /// 引擎错误流（播放中途断流 / 解码失败 / 加载失败等，转成可读中文）。
+  ///
+  /// 默认空流——后端若不产生错误（如无错误概念）则无需实现。
+  /// [AudioService] 在 [_bindBackend] 订阅此流，统一汇入 [AudioService.playErrorStream]，
+  /// 成为主播放器唯一引擎错误出口。
+  Stream<String> get errorStream => Stream<String>.empty();
+
   /// 播放位置流（进度；未知为 null，与 just_audio 语义一致）。
   Stream<Duration?> get positionStream;
 

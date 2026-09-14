@@ -172,6 +172,8 @@ class AudioService {
   StreamSubscription<MusicEngineState>? _stateSub;
   StreamSubscription<Duration?>? _positionSub;
   StreamSubscription<Duration?>? _durationSub;
+  /// 活跃后端错误流订阅（[_bindBackend] 切换，dispose 时取消）。
+  StreamSubscription<String>? _errSub;
 
   /// 绑定活跃后端的派生流（取消旧订阅、改挂新后端）。
   /// 构造函数与 [_switchBackend] 都会调用。
@@ -182,6 +184,8 @@ class AudioService {
     _positionSub = null;
     _durationSub?.cancel();
     _durationSub = null;
+    _errSub?.cancel();
+    _errSub = null;
 
     _activeBackend = backend;
     _stateSub = backend.stateStream.listen((MusicEngineState s) {
@@ -194,6 +198,11 @@ class AudioService {
         onCompleted?.call();
         _completedCtrl.add(null);
       }
+    });
+    // #playback-error：后端引擎错误（just_audio errorStream / media_kit
+    // p.stream.error）统一汇入 playErrorStream，成为主播放器唯一引擎错误出口。
+    _errSub = backend.errorStream.listen((String e) {
+      if (!_playErrorCtrl.isClosed) _playErrorCtrl.add(e);
     });
     _positionSub = backend.positionStream.listen(_positionCtrl.add);
     _durationSub = backend.durationStream.listen(_durationCtrl.add);
@@ -516,15 +525,16 @@ class AudioService {
     _switchBackend(target);
 
     try {
-      // R27：open 调用再套一层 _safe——安卓 just_audio / media_kit 在快速切歌时
-      // 偶发 PlatformException（音频焦点被拒 / 解码器未就绪），直接吞掉并视为
-      // 加载失败（_currentTrack 保持 null → playMusic 回落 idle），绝不向上抛闪退。
+      // R27：open 失败直接向上抛到下方 catch——catch 内 _currentTrack 保持
+      // null（playMusic 回落 idle），且不向上再抛，所以快速切歌的偶发
+      // PlatformException 不会闪退。此处**不**套 _safe：_safe 会吞掉异常、
+      // 让代码继续跑到 `_currentTrack = track`，导致「打开失败却假装成功」
+      // 的静默点（点播失败无提示）。让异常进 catch 才能触发 playErrorStream。
       if (resolvedUrl != null) {
         // 远程 CDN 带源请求头（网易云 UA/Referer），避免 403。
-        await _safe(() => _activeBackend.openUri(Uri.parse(resolvedUrl), headers: headers),
-            tag: 'openUri');
+        await _activeBackend.openUri(Uri.parse(resolvedUrl), headers: headers);
       } else if (track.isRemote) {
-        await _safe(() => _activeBackend.openUrl(track.uri), tag: 'openUrl');
+        await _activeBackend.openUrl(track.uri);
       } else if (_isLocalFilePath(track.uri)) {
         // 真实本地文件路径（含 file://）：剥离 scheme 后正常打开。
         final String path = track.uri.startsWith('file://')
@@ -536,10 +546,7 @@ class AudioService {
         final Duration? cueEnd = track.cueEndMs == null
             ? null
             : Duration(milliseconds: track.cueEndMs!);
-        await _safe(
-          () => _activeBackend.openPath(path, start: cueStart, end: cueEnd),
-          tag: 'openPath',
-        );
+        await _activeBackend.openPath(path, start: cueStart, end: cueEnd);
       } else {
         // 占位符（netease:///bili:// 等）解析失败却落到这里：绝不以文件路径
         // 打开非法 URI（原生层不可捕获崩溃）。判加载失败，回落 idle。
@@ -562,6 +569,11 @@ class AudioService {
           '加载失败: ${track.title} uri=${_redact(track.uri)} -> $e');
       // 加载失败（文件缺失/网络问题/格式不支持）
       _currentTrack = null;
+      // #playback-error：此前只 log + 回落 idle，主播放器完全无感；
+      // 现汇入 playErrorStream，让「点播失败」也能常驻展示可重试。
+      if (!_playErrorCtrl.isClosed) {
+        _playErrorCtrl.add('无法播放「${track.title}」，文件可能缺失或源已失效');
+      }
     }
   }
 
@@ -1042,6 +1054,7 @@ class AudioService {
     await _stateSub?.cancel();
     await _positionSub?.cancel();
     await _durationSub?.cancel();
+    await _errSub?.cancel();
     await _stateCtrl.close();
     await _playingCtrl.close();
     await _positionCtrl.close();

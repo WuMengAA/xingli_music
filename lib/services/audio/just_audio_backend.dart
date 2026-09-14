@@ -16,7 +16,9 @@ class JustAudioBackend implements MusicBackend {
 
   final AudioPlayer _player;
   StreamSubscription<PlayerState>? _psSub;
+  StreamSubscription<PlaybackEvent>? _errSub;
   StreamController<MusicEngineState>? _stateCtrl;
+  final StreamController<String> _errCtrl = StreamController<String>.broadcast();
 
   @override
   bool get playing => _player.playing;
@@ -41,7 +43,41 @@ class JustAudioBackend implements MusicBackend {
         playing: ps.playing,
       ));
     });
+    // 播放中途错误（解码失败 / 网络 403 / 断网）：just_audio 把错误作为
+    // **error 事件**投递到 [playbackEventStream]（见其内部
+    // `onError: _playbackEventSubject.addError`），[PlayerState] 里并没有
+    // error 字段。这里在同一个流上挂 onError，转成可读中文后汇入本后端的
+    // [errorStream]（AudioService 再转 playErrorStream）。
+    _errSub ??= _player.playbackEventStream.listen(
+      (PlaybackEvent _) {},
+      onError: (Object e, StackTrace _) {
+        final String msg =
+            e is PlayerException ? _describeError(e) : '播放中断：$e';
+        if (!_errCtrl.isClosed) _errCtrl.add(msg);
+      },
+    );
     return ctrl.stream;
+  }
+
+  @override
+  Stream<String> get errorStream => _errCtrl.stream;
+
+  /// 把 just_audio 的 [PlayerException] 转成用户可读中文（含 403 / 网络提示）。
+  static String _describeError(PlayerException e) {
+    final String m = (e.message ?? '').toLowerCase();
+    if (m.contains('403') || m.contains('401') || m.contains('forbidden')) {
+      return '播放地址被拒绝（403/401），请检查曲源登录或会员状态';
+    }
+    if (m.contains('timed out') ||
+        m.contains('timeout') ||
+        m.contains('network') ||
+        m.contains('socket')) {
+      return '播放中断：网络不通或连接超时，请检查网络后重试';
+    }
+    if (m.contains('unable to load') || m.contains('decode') || m.contains('source')) {
+      return '无法加载该曲目，源可能已失效或格式不支持';
+    }
+    return '播放出错：${e.message}';
   }
 
   @override
@@ -93,7 +129,9 @@ class JustAudioBackend implements MusicBackend {
   @override
   Future<void> dispose() async {
     await _psSub?.cancel();
+    await _errSub?.cancel();
     await _stateCtrl?.close();
     await _player.dispose();
+    if (!_errCtrl.isClosed) await _errCtrl.close();
   }
 }

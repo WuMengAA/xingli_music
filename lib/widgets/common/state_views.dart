@@ -105,6 +105,70 @@ class ErrorView extends StatelessWidget {
   }
 }
 
+/// 非全屏错误条：聚合 / 列表页「单源失败、其余正常」时在结果列表顶部展示
+/// 一条可重试的错误提示，不阻断其余内容渲染。配色沿用 [ErrorView]（systemRed）。
+///
+/// 与 [ErrorView] 的区别：条状、非全屏、可与结果列表共存（[ErrorView] 会整体
+/// 替换内容）。典型场景：聚合搜索「全部」筛选下网易云登录失效 / 403，B站结果
+/// 仍要展示，仅顶部冒一条错误条 + 重试。
+class SourceErrorBar extends StatelessWidget {
+  const SourceErrorBar({
+    super.key,
+    required this.sourceLabel,
+    required this.message,
+    required this.onRetry,
+    this.authFail = false,
+    this.onLogin,
+  });
+
+  /// 失败源的名字（如「网易云」「B站」「网易云歌单」）。
+  final String sourceLabel;
+
+  /// 用户可读的失败原因（已由调用方转成中文）。
+  final String message;
+
+  /// 重试回调（失效 provider 使其重取首批）。
+  final VoidCallback onRetry;
+
+  /// 是否为登录失效类错误：是则按钮文案换成「去登录」并回调 [onLogin]。
+  final bool authFail;
+
+  /// 登录失效时点的登录入口（[authFail] 为 true 时使用）。
+  final VoidCallback? onLogin;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpace.sm),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: c.dangerSoft,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: c.danger.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Icon(Icons.error_outline_rounded, size: 18, color: c.danger),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$sourceLabel 加载失败：$message',
+              style: context.appText.artist.copyWith(color: c.textPrimary),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: authFail ? onLogin : onRetry,
+            child: Text(authFail ? '去登录' : '重试'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 空态视图（含可选操作按钮）。
 class EmptyView extends StatelessWidget {
   const EmptyView({

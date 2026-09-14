@@ -55,6 +55,7 @@ class MediaKitBackend implements MusicBackend {
   StreamSubscription<Duration?>? _durationSub;
   StreamSubscription<PlayerLog>? _logSub;
   final StreamController<MusicEngineState>? _stateCtrl;
+  final StreamController<String> _errCtrl = StreamController<String>.broadcast();
   final StreamController<Duration?>? _positionCtrl;
   final StreamController<Duration?>? _durationCtrl;
 
@@ -150,6 +151,9 @@ class MediaKitBackend implements MusicBackend {
     // 暴露。此前错误只出现在 mpv info 日志里，UI 无感知；现统一记录。
     _errorSub = p.stream.error.listen((String msg) {
       LogService.instance.e('mpv', 'media_kit 播放错误: $msg');
+      // #playback-error：同时转发到 errorStream（AudioService 再汇入
+      // playErrorStream），让主播放器能常驻展示「错误 + 重试」。
+      if (!_errCtrl.isClosed) _errCtrl.add(msg);
     });
     // 初始快照
     emit();
@@ -177,6 +181,9 @@ class MediaKitBackend implements MusicBackend {
 
   @override
   Stream<Duration?> get durationStream => _durationCtrl!.stream;
+
+  @override
+  Stream<String> get errorStream => _errCtrl.stream;
 
   /// 销毁当前 Player（open 失败后调用：坏状态不再复用，下次 open 重建）。
   ///
@@ -344,6 +351,7 @@ class MediaKitBackend implements MusicBackend {
     await _stateCtrl?.close();
     await _positionCtrl?.close();
     await _durationCtrl?.close();
+    if (!_errCtrl.isClosed) await _errCtrl.close();
     final Player? p = _player;
     if (p != null) {
       try {

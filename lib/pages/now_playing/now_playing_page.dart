@@ -154,6 +154,8 @@ class _NowPlayingPageState extends ConsumerState<NowPlayingPage>
                         },
                       ),
                     ),
+                    // 播放失败时常驻的错误 + 重试提示（与主页播放卡共用同一组件）。
+                    const PlaybackErrorBanner(),
                     // 底部控制栏：复用 unified_player 的控件（在 ImmersiveSurface
                     // 内自动取深色面配色），整屏与卡/主页完全一致。
                     const _NpControlBar(),

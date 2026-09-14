@@ -47,7 +47,10 @@ class PlaybackActions {
       chosen = nextTrackInLibrary(
           library, null, ref.read(playModeProvider), 1);
     }
-    if (chosen == null) return '';
+    // #playback-error：此前 chosen==null 静默 return ''（单曲/列表末尾切歌
+    // 无反应）。现返回可读原因，由消费方（自动下一首 / 手动切歌）汇入常驻
+    // 错误位，用户能看到「没有下一首」并可重试。
+    if (chosen == null) return '已经是列表末尾，没有可播放的下一首';
     return _play(chosen);
   }
 

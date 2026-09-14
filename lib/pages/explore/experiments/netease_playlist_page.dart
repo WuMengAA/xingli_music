@@ -139,119 +139,140 @@ class _NeteasePlaylistPageState extends ConsumerState<NeteasePlaylistPage> {
                   },
                 )
               : playlists.when(
-                  loading: () => const LoadingView(),
-                  error: (Object e, StackTrace st) => ErrorView(
-                    message: neteaseErrorText(e),
-                    onRetry: () => ref.invalidate(neteasePlaylistsProvider),
-                  ),
-                  data: (List<NeteasePlaylist> list) {
-                    // provider 数据已就绪但 ref.listen 尚未填充时（例如页面复用时
-                    // 数据已缓存），直接用 provider 批次渲染，避免一帧空态闪烁。
-                    final List<NeteasePlaylist> view =
-                        _items.isNotEmpty ? _items : list;
-                    if (view.isEmpty) {
-                      return const EmptyView(
-                        title: '暂无歌单',
-                        message: '去网易云 App 收藏或创建歌单后再来',
+                  skipLoadingOnRefresh: true,
+                  loading: () => _items.isNotEmpty
+                      ? _buildPlaylistList()
+                      : const LoadingView(),
+                  error: (Object e, StackTrace st) {
+                    // 刷新 / 加载失败但已有缓存：保留列表 + 顶部错误条，不全屏替换。
+                    if (_items.isNotEmpty) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          SourceErrorBar(
+                            sourceLabel: '网易云歌单',
+                            message: neteaseErrorText(e),
+                            onRetry: () => ref.invalidate(neteasePlaylistsProvider),
+                          ),
+                          Expanded(child: _buildPlaylistList()),
+                        ],
                       );
                     }
-                    return RefreshIndicator(
-                      onRefresh: () async {
-                        _refresh();
-                        try {
-                          // 等首屏批次真正回来再收起下拉指示器。
-                          await ref.read(neteasePlaylistsProvider.future);
-                        } catch (_) {
-                          // 失败态由 provider 的 error 分支呈现。
-                        }
-                      },
-                      child: NotificationListener<ScrollNotification>(
-                        onNotification: (ScrollNotification n) {
-                          if (n is ScrollUpdateNotification &&
-                              n.metrics.pixels >=
-                                  n.metrics.maxScrollExtent - 240) {
-                            _loadMore();
-                          }
-                          return false;
-                        },
-                        child: ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          itemCount: view.length + 1,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: AppSpace.sm),
-                          itemBuilder: (BuildContext context, int i) {
-                            if (i == view.length) {
-                              if (_failed) {
-                                return Center(
-                                  child: FilledButton(
-                                    onPressed: _loadMore,
-                                    child: const Text('加载失败，点击重试'),
-                                  ),
-                                );
-                              }
-                              if (_loadingMore) {
-                                return const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 14),
-                                  child: Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-                              if (!_hasMore) {
-                                return Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  child: Center(
-                                    child: Text(
-                                      '已经到底了',
-                                      style: context.appText.caption,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return const SizedBox(height: 28);
-                            }
-                            final NeteasePlaylist p = view[i];
-                            return _PlaylistTile(
-                              playlist: p,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => NeteaseTrackListPage(
-                                    title: p.name,
-                                    firstProvider:
-                                        neteasePlaylistTracksProvider(p.id),
-                                    infinite: true,
-                                    loadMore: (int offset) => ref
-                                        .read(neteaseSourceProvider)
-                                        .playlistTracks(
-                                          p.id,
-                                          limit: 100,
-                                          offset: offset,
-                                        ),
-                                    emptyTitle: '歌单为空',
-                                    emptyMessage: '这个歌单还没有收录曲目',
-                                    loginHintTitle: '查看歌单需要登录网易云',
-                                    loginHintMessage: '登录后即可播放歌单内曲目',
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                    return ErrorView(
+                      message: neteaseErrorText(e),
+                      onRetry: () => ref.invalidate(neteasePlaylistsProvider),
                     );
                   },
+                  data: (_) => _buildPlaylistList(),
                 ),
         ),
       ),
     );
+  }
+
+  /// 渲染歌单列表（含空态 / 下拉刷新 / 触底加载三态）。
+  ///
+  /// `playlists.when` 的 loading / error（有缓存时）/ data 三分支共用本方法，
+  /// 避免刷新期间卸载列表。数据就绪但 `ref.listen` 尚未填充 `_items` 时
+  /// （如页面复用数据已缓存），直接用 provider 批次渲染，避免一帧空态闪烁。
+  /// `_items` 优先（缓存 / 追加批次）。
+  Widget _buildPlaylistList() {
+  final List<NeteasePlaylist> view = _items.isNotEmpty
+      ? _items
+      : (ref.watch(neteasePlaylistsProvider).valueOrNull ??
+          const <NeteasePlaylist>[]);
+  if (view.isEmpty) {
+    return const EmptyView(
+      title: '暂无歌单',
+      message: '去网易云 App 收藏或创建歌单后再来',
+    );
+  }
+  return RefreshIndicator(
+    onRefresh: () async {
+      _refresh();
+      try {
+        // 等首屏批次真正回来再收起下拉指示器。
+        await ref.read(neteasePlaylistsProvider.future);
+      } catch (_) {
+        // 失败态由 provider 的 error 分支呈现。
+      }
+    },
+    child: NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification n) {
+        if (n is ScrollUpdateNotification &&
+            n.metrics.pixels >= n.metrics.maxScrollExtent - 240) {
+          _loadMore();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        itemCount: view.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: AppSpace.sm),
+        itemBuilder: (BuildContext context, int i) {
+          if (i == view.length) {
+            if (_failed) {
+              return Center(
+                child: FilledButton(
+                  onPressed: _loadMore,
+                  child: const Text('加载失败，点击重试'),
+                ),
+              );
+            }
+            if (_loadingMore) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            if (!_hasMore) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    '已经到底了',
+                    style: context.appText.caption,
+                  ),
+                ),
+              );
+            }
+            return const SizedBox(height: 28);
+          }
+          final NeteasePlaylist p = view[i];
+          return _PlaylistTile(
+            playlist: p,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => NeteaseTrackListPage(
+                  title: p.name,
+                  firstProvider: neteasePlaylistTracksProvider(p.id),
+                  infinite: true,
+                  loadMore: (int offset) => ref
+                      .read(neteaseSourceProvider)
+                      .playlistTracks(
+                        p.id,
+                        limit: 100,
+                        offset: offset,
+                      ),
+                  emptyTitle: '歌单为空',
+                  emptyMessage: '这个歌单还没有收录曲目',
+                  loginHintTitle: '查看歌单需要登录网易云',
+                  loginHintMessage: '登录后即可播放歌单内曲目',
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
+  );
   }
 }
 

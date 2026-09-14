@@ -23,6 +23,7 @@ import '../../providers/search/search_history_provider.dart';
 import '../../providers/sources/netease_provider.dart';
 import '../../providers/sources/bilibili_provider.dart';
 import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/common/state_views.dart';
 import '../../widgets/common/track_action_buttons.dart';
 import '../../widgets/sources/netease_login_sheet.dart';
 import '../../widgets/sources/bilibili_login_sheet.dart';
@@ -688,34 +689,75 @@ class _AggregateSearchPageState extends ConsumerState<AggregateSearchPage> {
         if (biOn) ..._biMore,
       ],
     );
+
+    // 聚合视图下，处于激活状态的源首次批次失败：渲染非阻断错误条
+    // （其余源结果照常显示）。只有「激活源」才算该显示的失败——未登录 /
+    // 被关掉的源本就不发请求，不应冒出错误条。
+    final List<Widget> errorBars = <Widget>[];
+    if (neActive && neAsync.hasError) {
+      errorBars.add(
+        SourceErrorBar(
+          sourceLabel: '网易云',
+          message: neteaseErrorText(neAsync.error!),
+          authFail: neteaseIsAuthFailure(neAsync.error!),
+          onRetry: () => ref.invalidate(neteaseSearchProvider(_keyword)),
+          onLogin: _openNeteaseLogin,
+        ),
+      );
+    }
+    if (biOn && biAsync.hasError) {
+      errorBars.add(
+        SourceErrorBar(
+          sourceLabel: 'B站',
+          message: bilibiliErrorText(biAsync.error!),
+          onRetry: () => ref.invalidate(bilibiliSearchProvider(_keyword)),
+        ),
+      );
+    }
+
     if (all.isEmpty) {
       final bool loading = (neActive && neAsync.isLoading) ||
           (biOn && biAsync.isLoading);
       if (loading) return const Center(child: CircularProgressIndicator());
+      // 没有任何结果时，若激活源有失败则呈现错误条（含重试）；否则退回原提示。
+      if (errorBars.isNotEmpty) {
+        return ListView(
+          padding: const EdgeInsets.all(AppSpace.md),
+          children: errorBars,
+        );
+      }
       return const _HintPanel(
         icon: Icons.search_off_rounded,
         message: '没有匹配的结果',
       );
     }
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: _TrackList(
-        tracks: all,
-        onTap: (Track t) => _play(t, all),
-        // 行内按 sourceId 打「源 · 类型」徽标：网易云=音乐源，B站=视频源。
-        tagOf: (Track t) => switch (t.sourceId) {
-          'netease' => '网易云 · 音乐源',
-          'bilibili' => 'B站 · 视频源',
-          'local' => '本地 · 音乐源',
-          _ => null,
-        },
-        onLoadMore: (neActive || biOn) ? _loadMoreAll : null,
-        isLoadingMore: _neLoading || _biLoading,
-        // 只统计当前真正参与聚合的源，避免「单源取尽 + 另一源被关掉」
-        // 时尾部永远停在「加载中/空占位」而非「没有更多了」。
-        hasMore: (neActive && _neHasMore) || (biOn && _biHasMore),
-        loadFailed: _neFailed || _biFailed,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        ...errorBars,
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _refresh,
+            child: _TrackList(
+              tracks: all,
+              onTap: (Track t) => _play(t, all),
+              // 行内按 sourceId 打「源 · 类型」徽标：网易云=音乐源，B站=视频源。
+              tagOf: (Track t) => switch (t.sourceId) {
+                'netease' => '网易云 · 音乐源',
+                'bilibili' => 'B站 · 视频源',
+                'local' => '本地 · 音乐源',
+                _ => null,
+              },
+              onLoadMore: (neActive || biOn) ? _loadMoreAll : null,
+              isLoadingMore: _neLoading || _biLoading,
+              // 只统计当前真正参与聚合的源，避免「单源取尽 + 另一源被关掉」
+              // 时尾部永远停在「加载中/空占位」而非「没有更多了」。
+              hasMore: (neActive && _neHasMore) || (biOn && _biHasMore),
+              loadFailed: _neFailed || _biFailed,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

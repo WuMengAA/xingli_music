@@ -17,6 +17,7 @@
 /// 故 [ImmersiveBackground.videoThrough] 控制是否需要「模糊封面底衬」。
 library;
 
+import 'dart:async';
 import 'dart:io' show File;
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
@@ -28,6 +29,8 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../core/utils/palette_extractor.dart';
 import '../../models/track.dart';
+import '../../providers/audio/playback_error_provider.dart';
+import '../../providers/audio/playback_notifier.dart';
 import '../../widgets/common/track_cover.dart';
 
 /// 沉浸播放器前景文字投影：保证曲名/歌手/顶栏文字在任意视频画面或提色渐变
@@ -337,5 +340,90 @@ class ImmersiveTrackTitle extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// 播放失败 · 常驻错误条（#playback-error）。
+///
+/// 读取 [playbackErrorProvider]：非空时显示「⚠ + message + 重试 + 关闭」，
+/// 覆盖三种失败场景（点播失败 / 中途断流 / 自动下一首失败）。条状、**非全屏**，
+/// 放在底部控制栏上方，不遮挡播放控件。两页沉浸播放器（主页 / 整页正在播放）
+/// 复用同一个组件，所以只此一份实现。
+///
+/// 取色直接用 `context.appColors`：处于 [ImmersiveSurface] 深色面内，文字用浅色。
+class PlaybackErrorBanner extends ConsumerWidget {
+  const PlaybackErrorBanner({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final PlaybackError? err = ref.watch(playbackErrorProvider);
+    if (err == null) return const SizedBox.shrink();
+
+    final AppThemeColors c = context.appColors;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpace.lg,
+        0,
+        AppSpace.lg,
+        AppSpace.sm,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpace.md,
+        vertical: AppSpace.xs,
+      ),
+      decoration: BoxDecoration(
+        color: c.danger.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: c.danger.withValues(alpha: 0.55),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: <Widget>[
+          Icon(Icons.warning_amber_rounded, color: c.danger, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              err.message,
+              style: context.appText.body.copyWith(color: Colors.white),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              // 重试：先清除失败位，再按 kind 触发对应播放动作。
+              ref.read(playbackErrorProvider.notifier).clear();
+              _retry(ref, err);
+            },
+            child: Text('重试', style: TextStyle(color: c.accent)),
+          ),
+          TextButton(
+            onPressed: () => ref.read(playbackErrorProvider.notifier).clear(),
+            child: const Text('关闭', style: TextStyle(color: Colors.white70)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 按 [PlaybackError.kind] 分派重试动作。
+  void _retry(WidgetRef ref, PlaybackError err) {
+    final PlaybackActions actions = ref.read(playbackActionsProvider);
+    switch (err.kind) {
+      case PlaybackRetryKind.playTrack:
+        if (err.track != null) unawaited(actions.playTrack(err.track!));
+        break;
+      case PlaybackRetryKind.next:
+        unawaited(actions.next());
+        break;
+      case PlaybackRetryKind.toggle:
+        unawaited(actions.toggle());
+        break;
+      case PlaybackRetryKind.none:
+        break;
+    }
   }
 }
