@@ -63,9 +63,10 @@ class FadeForwardsPageTransitionsBuilder extends PageTransitionsBuilder {
 }
 
 
-/// 全局唯一浅色主题实例（一次性构建，不随任何 Provider 变化）。
+/// 默认浅色主题实例（品牌主色；供无皮肤覆盖的场景兜底）。
+/// 运行期请用 `buildLightTheme(skinPrimary)` 生成随皮肤变化的主题。
 /// cl07：视觉语言统一 Material（水波纹 / M3 密度与排版 / 卡片圆角 12）。
-final ThemeData kLightTheme = buildLightTheme();
+final ThemeData kLightTheme = buildLightTheme(AppColors.accent);
 
 /// 显式浅色 `ColorScheme`（P0-A2：禁止 `fromSeed`）。
 const ColorScheme kLightColorScheme = ColorScheme(
@@ -109,17 +110,36 @@ const ColorScheme kLightColorScheme = ColorScheme(
 ///
 /// 所有官方控件（`Card` / `IconButton` / `Slider` / `SnackBar` / `ListTile` …）
 /// 都从这里取色，避免业务代码散落 `Color(0x...)` 字面量（约定 C1）。
-ThemeData buildLightTheme() {
+ThemeData buildLightTheme(Color primary) {
   // cl07：视觉语言统一 Material——水波纹 / M3 密度 / 卡片圆角 12。
   const double cardRadius = 12;
+  // 皮肤主色：浅色主题下官方控件（按钮 / 开关 / 滑杆 / 进度 / 聚焦描边）
+  // 统一取皮肤主色，与 buildDarkTheme(primary) 对齐。此前这些槽位写死
+  // AppColors.accent，导致浅色模式换肤对 Material 控件「看不见效果」，
+  // 且明暗两种模式行为不对称。
+  final ColorScheme scheme = kLightColorScheme.copyWith(
+    primary: primary,
+    secondary: primary,
+    tertiary: primary,
+    primaryContainer: primary.withValues(alpha: 0.12),
+    onPrimaryContainer: primary,
+    secondaryContainer: primary.withValues(alpha: 0.12),
+    onSecondaryContainer: primary,
+    tertiaryContainer: primary.withValues(alpha: 0.12),
+    onTertiaryContainer: primary,
+    inversePrimary: primary.withValues(alpha: 0.35),
+  );
+  final Color accentSoft = primary.withValues(alpha: 0.12);
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
-    colorScheme: kLightColorScheme,
+    colorScheme: scheme,
     // cl53-F3：统一页面过渡动效（浅色主题）。
     pageTransitionsTheme: kAppPageTransitions,
-    // R16：全局语义色（浅色值）。
-    extensions: const <ThemeExtension<dynamic>>[AppThemeColors.light],
+    // R16：语义色扩展同步皮肤主色，`context.appColors.accent` 才会跟着变。
+    extensions: <ThemeExtension<dynamic>>[
+      AppThemeColors.light.withSkin(primary, Brightness.light),
+    ],
     scaffoldBackgroundColor: AppColors.bgPage,
     canvasColor: AppColors.bgPage,
     dividerColor: AppColors.divider,
@@ -204,26 +224,26 @@ ThemeData buildLightTheme() {
     ),
 
     // ── 输入框（搜索栏、设置表单）──────────────────────────
-    inputDecorationTheme: const InputDecorationTheme(
+    inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.bgInput,
       isDense: true,
       hintStyle: AppTextStyles.hint,
       labelStyle: AppTextStyles.bodyMuted,
-      contentPadding: EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
-      border: OutlineInputBorder(
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpace.md, vertical: 10),
+      border: const OutlineInputBorder(
         borderRadius: AppRadius.brPill,
         borderSide: BorderSide.none,
       ),
-      enabledBorder: OutlineInputBorder(
+      enabledBorder: const OutlineInputBorder(
         borderRadius: AppRadius.brPill,
         borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: AppRadius.brPill,
-        borderSide: BorderSide(color: AppColors.accent, width: 1.5),
+        borderSide: BorderSide(color: primary, width: 1.5),
       ),
-      errorBorder: OutlineInputBorder(
+      errorBorder: const OutlineInputBorder(
         borderRadius: AppRadius.brPill,
         borderSide: BorderSide(color: AppColors.danger),
       ),
@@ -232,7 +252,7 @@ ThemeData buildLightTheme() {
     // ── 按钮 ─────────────────────────────────────────────
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: AppColors.accent,
+        backgroundColor: primary,
         foregroundColor: AppColors.textOnAccent,
         disabledBackgroundColor: AppColors.bgPlaceholder,
         disabledForegroundColor: AppColors.textTertiary,
@@ -273,23 +293,23 @@ ThemeData buildLightTheme() {
       style: IconButton.styleFrom(
         foregroundColor: AppColors.iconPrimary,
         backgroundColor: Colors.transparent,
-        highlightColor: AppColors.accentSoft,
+        highlightColor: accentSoft,
         shape: const CircleBorder(),
       ),
     ),
 
     // ── 进度 / 滑块 ──────────────────────────────────────
-    progressIndicatorTheme: const ProgressIndicatorThemeData(
-      color: AppColors.accent,
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: primary,
       linearTrackColor: AppColors.bgPlaceholder,
       circularTrackColor: AppColors.bgPlaceholder,
     ),
-    sliderTheme: const SliderThemeData(
-      activeTrackColor: AppColors.accent,
+    sliderTheme: SliderThemeData(
+      activeTrackColor: primary,
       inactiveTrackColor: AppColors.bgPlaceholder,
-      thumbColor: AppColors.accent,
-      overlayColor: AppColors.accentSoft,
-      valueIndicatorColor: AppColors.accent,
+      thumbColor: primary,
+      overlayColor: accentSoft,
+      valueIndicatorColor: primary,
       trackHeight: 4,
     ),
 
@@ -302,7 +322,7 @@ ThemeData buildLightTheme() {
       }),
       trackColor: WidgetStateProperty.resolveWith<Color>((states) {
         return states.contains(WidgetState.selected)
-            ? AppColors.accent
+            ? primary
             : AppColors.bgPlaceholder;
       }),
       trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
@@ -310,7 +330,7 @@ ThemeData buildLightTheme() {
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith<Color>((states) {
         return states.contains(WidgetState.selected)
-            ? AppColors.accent
+            ? primary
             : Colors.transparent;
       }),
       checkColor: WidgetStateProperty.all(AppColors.onAccent),
@@ -320,25 +340,25 @@ ThemeData buildLightTheme() {
     radioTheme: RadioThemeData(
       fillColor: WidgetStateProperty.resolveWith<Color>((states) {
         return states.contains(WidgetState.selected)
-            ? AppColors.accent
+            ? primary
             : AppColors.iconInactive;
       }),
     ),
 
     // ── 反馈 ─────────────────────────────────────────────
-    snackBarTheme: const SnackBarThemeData(
+    snackBarTheme: SnackBarThemeData(
       backgroundColor: AppColors.textPrimary,
-      contentTextStyle: TextStyle(
+      contentTextStyle: const TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: AppColors.bgPage,
         height: 1.4,
       ),
-      actionTextColor: AppColors.accentSoft,
+      actionTextColor: accentSoft,
       behavior: SnackBarBehavior.floating,
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.brMd),
-      insetPadding: EdgeInsets.all(AppSpace.md),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brMd),
+      insetPadding: const EdgeInsets.all(AppSpace.md),
     ),
     tooltipTheme: const TooltipThemeData(
       decoration: BoxDecoration(
@@ -376,12 +396,12 @@ ThemeData buildLightTheme() {
     ),
 
     // ── 其它 ─────────────────────────────────────────────
-    chipTheme: const ChipThemeData(
+    chipTheme: ChipThemeData(
       backgroundColor: AppColors.bgSurface,
-      selectedColor: AppColors.accentSoft,
+      selectedColor: accentSoft,
       labelStyle: AppTextStyles.body,
-      side: BorderSide(color: AppColors.borderDefault),
-      shape: RoundedRectangleBorder(borderRadius: AppRadius.brPill),
+      side: const BorderSide(color: AppColors.borderDefault),
+      shape: const RoundedRectangleBorder(borderRadius: AppRadius.brPill),
     ),
     scrollbarTheme: ScrollbarThemeData(
       thumbColor: WidgetStateProperty.all(AppColors.bgPlaceholder),

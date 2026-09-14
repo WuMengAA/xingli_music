@@ -41,6 +41,12 @@ import '../../../widgets/visualizer/reactor_visualizer.dart';
 import '../../../widgets/card_stack.dart';
 import 'unified_player.dart';
 
+/// 沉浸播放器前景文字的投影：保证曲名/歌手/顶栏文字在任意视频画面或
+/// 提色渐变上都保持可读（浅色主题 + 明亮视频时尤其关键）。
+const List<Shadow> _kTextShadow = <Shadow>[
+  Shadow(color: Color(0x99000000), blurRadius: 12, offset: Offset(0, 1)),
+];
+
 /// 主页沉浸播放器（常驻 [IndexedStack] 第 0 页）。
 class HomeImmersivePlayer extends ConsumerStatefulWidget {
   const HomeImmersivePlayer({super.key});
@@ -289,14 +295,18 @@ class _PlayerDynamicBackgroundState extends ConsumerState<_PlayerDynamicBackgrou
         final Color col = accent ?? c.accent;
         // 半透明提色渐变：**让下层 B站视频背景 + 几何浮动透出**，封面以
         // 前景唱片形式展示（诉求②④⑤⑥ 和谐共存）。仅作氛围，不挡视频/几何。
+        //
+        // 基色固定为深色（不再用随主题的 c.bgPage）：浅色主题下若用近白基色，
+        // 会让下半区变白、白字曲名/歌手不可读，也使视频背景被冲淡。沉浸播放器
+        // 统一走「深色孤岛」，两种主题下都保白字可读 + 视频作为暗氛围透出。
         return DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: <Color>[
-                col.withValues(alpha: 0.30),
-                c.bgPage.withValues(alpha: 0.5),
+                col.withValues(alpha: 0.38),
+                const Color(0xFF0A0A12).withValues(alpha: 0.64),
               ],
               stops: const <double>[0, 0.7],
             ),
@@ -431,6 +441,7 @@ class _TrackTitle extends StatelessWidget {
             fontSize: 22,
             fontWeight: FontWeight.w700,
             color: Colors.white,
+            shadows: _kTextShadow,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -439,7 +450,10 @@ class _TrackTitle extends StatelessWidget {
         const SizedBox(height: AppSpace.xs),
         Text(
           track?.artist ?? '从曲库挑一首开始',
-          style: context.appText.body.copyWith(color: Colors.white70),
+          style: context.appText.body.copyWith(
+            color: Colors.white70,
+            shadows: _kTextShadow,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: align,
@@ -477,6 +491,7 @@ class _HomeTopBar extends StatelessWidget {
                   style: context.appText.caption.copyWith(
                     color: Colors.white70,
                     fontSize: 13,
+                    shadows: _kTextShadow,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -486,6 +501,7 @@ class _HomeTopBar extends StatelessWidget {
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
+                    shadows: _kTextShadow,
                   ),
                 ),
               ],
@@ -573,7 +589,10 @@ class _HomeControlBarState extends ConsumerState<_HomeControlBar> {
           buildTransportRow(
             context,
             ref,
-            fullscreen: false,
+            // 主页已是全屏沉浸形态：用 fullscreen:true 隐藏冗余的歌词钮
+            // （歌词本就内联常显），并把播放键/侧键放大到与全屏页一致的
+            // 40/28，消除「全屏界面用紧凑控件」的不一致。
+            fullscreen: true,
             volOpen: widget.volOpen,
             onToggleVol: widget.onToggleVol,
             lyricsOpen: false,

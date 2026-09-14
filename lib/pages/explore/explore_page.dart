@@ -21,6 +21,7 @@ import '../../services/content/content_service.dart';
 import '../../providers/shell/shell_providers.dart';
 import '../../providers/stats/track_stats_providers.dart';
 import '../../widgets/common/page_scaffold.dart';
+import '../../widgets/common/state_views.dart';
 import '../../widgets/common/aggregate_search_sheet.dart';
 import '../../core/terms/naming_dict.dart';
 import 'consent_gate.dart';
@@ -337,7 +338,11 @@ class _PlaylistRowSection extends ConsumerWidget {
           ),
         ),
       ),
-      error: (Object e, StackTrace st) => const SizedBox.shrink(),
+      // 加载失败时不再静默吞成空白：给出可见错误 + 重试（与其他页一致）。
+      error: (Object e, StackTrace st) => ErrorView(
+        message: Terms.loadFailed,
+        onRetry: () => ref.invalidate(playlistsProvider),
+      ),
       data: (List<Playlist> list) {
         if (list.isEmpty) {
           return Padding(

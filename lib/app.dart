@@ -11,7 +11,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 
 import 'app_shell.dart';
-import 'core/theme/app_theme_colors.dart';
 import 'core/theme/light_theme.dart';
 import 'core/theme/light_tokens.dart';
 import 'providers/settings/performance_providers.dart';
@@ -256,20 +255,11 @@ class _StelarithMusicAppState extends ConsumerState<StelarithMusicApp> {
         }
         return base;
       },
-      theme: kLightTheme.copyWith(
-        colorScheme: kLightColorScheme.copyWith(
-          primary: skinPrimary,
-          secondary: skinPrimary,
-          tertiary: skinPrimary,
-          primaryContainer: skinPrimary.withValues(alpha: 0.12),
-          onPrimaryContainer: skinPrimary,
-          inversePrimary: skinPrimary.withValues(alpha: 0.35),
-        ),
-        // R16：语义色扩展同步皮肤主色，`context.appColors.accent` 才会跟着变。
-        extensions: <ThemeExtension<dynamic>>[
-          AppThemeColors.light.withSkin(skinPrimary, Brightness.light),
-        ],
-      ),
+      // R16：浅色主题也随皮肤主色构建。buildLightTheme(primary) 内部会同步
+      // colorScheme 与语义色扩展，并把官方控件槽位（按钮/开关/滑杆/进度/
+      // 聚焦描边）的写死 accent 一并替换为皮肤色——此前只 copyWith 了
+      // colorScheme，控件仍取 AppColors.accent，导致浅色下换肤无效。
+      theme: buildLightTheme(skinPrimary),
       darkTheme: buildDarkTheme(skinPrimary),
       themeMode: themeMode,
       // cl07：主题/皮肤/明暗切换平滑过渡（不再硬跳）。
