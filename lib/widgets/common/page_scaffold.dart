@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
+import '../../providers/shell/shell_providers.dart';
 import '../theme/theme_switch_button.dart';
 
 /// 统一页面模板（v2 M1 · P0-M1-1）
@@ -14,7 +16,7 @@ import '../theme/theme_switch_button.dart';
 ///
 /// 5 个 Shell 页与全屏路由页（实验页 / 编辑器 / 通知中心子页）统一接入，
 /// 消灭各页自行拼标题 / 搜索 / 内容区的重复实现。
-class PageScaffold extends StatelessWidget {
+class PageScaffold extends ConsumerWidget {
   const PageScaffold({
     super.key,
     required this.title,
@@ -44,7 +46,7 @@ class PageScaffold extends StatelessWidget {
   final Widget body;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final double width = MediaQuery.sizeOf(context).width;
     final bool landscape =
         width >= AppSize.landscapeBreakpoint;
@@ -55,7 +57,8 @@ class PageScaffold extends StatelessWidget {
             ? () => Navigator.of(context).maybePop()
             : null);
 
-    final Widget header = Row(
+    final bool hideTop = ref.watch(topBarAutoHideProvider);
+    final Widget headerRaw = Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: <Widget>[
         if (back != null)
@@ -88,6 +91,16 @@ class PageScaffold extends StatelessWidget {
         // 切换主题模式 + 皮肤，即时全局生效并持久化。
         const ThemeSwitchButton(),
       ],
+    );
+    // 诉求⑧：滚动时顶栏淡出 + 折叠高度，把顶部空间让给内容；停滑 5 秒恢复。
+    final Widget header = AnimatedOpacity(
+      duration: const Duration(milliseconds: 220),
+      opacity: hideTop ? 0.0 : 1.0,
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 220),
+        alignment: Alignment.topCenter,
+        child: hideTop ? const SizedBox.shrink() : headerRaw,
+      ),
     );
 
     final Widget rightColumn = Column(

@@ -176,12 +176,18 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
   /// 计时器到点（停滑满 5 秒）恢复显示。把底部空间让给信息流。
   void _onUserScroll(WidgetRef ref) {
     if (ref.read(nowPlayingProvider) == null) return; // 无曲目不收起
+    // 诉求⑧：滚动时同时收起底部播放卡与顶栏，把上下空间都让给内容流。
     if (!ref.read(miniPlayerAutoHideProvider)) {
       ref.read(miniPlayerAutoHideProvider.notifier).state = true;
     }
+    if (!ref.read(topBarAutoHideProvider)) {
+      ref.read(topBarAutoHideProvider.notifier).state = true;
+    }
     _miniHideTimer?.cancel();
     _miniHideTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) ref.read(miniPlayerAutoHideProvider.notifier).state = false;
+      if (!mounted) return;
+      ref.read(miniPlayerAutoHideProvider.notifier).state = false;
+      ref.read(topBarAutoHideProvider.notifier).state = false;
     });
   }
 

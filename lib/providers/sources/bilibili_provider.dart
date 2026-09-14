@@ -256,7 +256,7 @@ String bilibiliErrorText(Object e) {
 final biliVisualEnabledProvider = StateProvider<bool>((Ref ref) => true);
 
 /// 视听结合：背景视频模糊（默认关）。
-final biliVisualBlurProvider = StateProvider<bool>((Ref ref) => false);
+final biliVisualBlurProvider = StateProvider<double>((Ref ref) => 0.0);
 
 /// 视听结合：视频跟随音乐进度同步（默认开）。
 final biliVisualSyncProvider = StateProvider<bool>((Ref ref) => true);

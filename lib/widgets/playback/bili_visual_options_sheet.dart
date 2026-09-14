@@ -1,7 +1,7 @@
-/// 视听结合 · 子选项弹层（cl48）
+/// 视听结合 · 子选项弹层（cl48 / 2026-09-14 模糊改为强度）
 ///
 /// 长按音乐卡上的「视听」按钮打开，调节背景视频的
-/// **模糊 / 进度同步 / 变速适配** 三个开关（默认：模糊关、同步开、变速关）。
+/// **模糊强度 / 进度同步 / 变速适配**（默认：模糊 0、同步开、变速关）。
 library;
 
 import 'package:flutter/material.dart';
@@ -29,7 +29,7 @@ class _BiliVisualOptionsContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool blur = ref.watch(biliVisualBlurProvider);
+    final double blur = ref.watch(biliVisualBlurProvider);
     final bool sync = ref.watch(biliVisualSyncProvider);
     final bool tempo = ref.watch(biliVisualTempoAdaptProvider);
     return SafeArea(
@@ -45,11 +45,12 @@ class _BiliVisualOptionsContent extends ConsumerWidget {
             ),
             child: Text('视频背景', style: context.appText.body),
           ),
-          _Row(
+          // 模糊强度（0 = 清晰；数值越大越柔）。
+          _SliderRow(
             '背景模糊',
-            '视频背景叠加少量模糊（默认关）',
+            '背景视频叠加模糊强度（0 = 不模糊）',
             blur,
-            (bool v) => ref.read(biliVisualBlurProvider.notifier).state = v,
+            (double v) => ref.read(biliVisualBlurProvider.notifier).state = v,
           ),
           _Row(
             '进度同步',
@@ -87,6 +88,49 @@ class _Row extends StatelessWidget {
       subtitle: Text(sub, style: context.appText.artist),
       value: value,
       onChanged: onChanged,
+    );
+  }
+}
+
+/// 模糊强度滑块行（0~30，分度 1）。
+class _SliderRow extends StatelessWidget {
+  const _SliderRow(this.title, this.sub, this.value, this.onChanged);
+
+  final String title;
+  final String sub;
+  final double value;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppThemeColors c = context.appColors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpace.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(title, style: context.appText.body),
+              ),
+              Text(
+                value.round().toString(),
+                style: context.appText.artist.copyWith(color: c.accent),
+              ),
+            ],
+          ),
+          Text(sub, style: context.appText.artist),
+          Slider(
+            value: value,
+            min: 0,
+            max: 30,
+            divisions: 30,
+            label: value.round().toString(),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
     );
   }
 }

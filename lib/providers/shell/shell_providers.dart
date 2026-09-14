@@ -94,3 +94,14 @@ void setShellPage(WidgetRef ref, int pageIndex) {
 /// （见 [_AppShellState] 的滚动计时器）。仅在「有曲目在播放」时生效。
 final StateProvider<bool> miniPlayerAutoHideProvider =
     StateProvider<bool>((Ref ref) => false);
+
+/// 顶栏（页面标题行 / 主页问候栏）滚动时自动收起（诉求⑧·滑动隐藏）。
+///
+/// - `true` = 收起（淡出 + 高度折叠），把顶部空间让给内容；
+/// - `false` = 正常显示。
+///
+/// 与 [miniPlayerAutoHideProvider] 同源触发：页面上下滑动时由 [AppShell]
+/// 的滚动监听一并置 `true`，停滑 5 秒后随播放卡一同复位 `false`。
+/// 仅在「有曲目在播放」时生效（无曲目本就不显示播放卡，顶栏也保持常显）。
+final StateProvider<bool> topBarAutoHideProvider =
+    StateProvider<bool>((Ref ref) => false);

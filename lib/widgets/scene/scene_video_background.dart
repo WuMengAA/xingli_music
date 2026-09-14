@@ -99,15 +99,15 @@ class _SceneVideoBackgroundState extends ConsumerState<SceneVideoBackground> {
     ref.listen<bool>(biliVisualEnabledProvider,
         (bool? _, bool __) => _sync());
 
-    final bool blur = ref.watch(biliVisualBlurProvider);
+    final double blur = ref.watch(biliVisualBlurProvider);
     if (!_videoReady || _failed) return widget.fallback;
     final VideoController? c = _controller;
     if (c == null) return widget.fallback;
     Widget video = Video(controller: c, fit: BoxFit.cover);
-    if (blur) {
-      // 少许模糊（默认关闭），让背景画面更柔和、不喧宾夺主。
+    if (blur > 0) {
+      // 模糊强度可调（0 = 不模糊；数值越大越柔，让背景画面不喧宾夺主）。
       video = ImageFiltered(
-        imageFilter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
         child: video,
       );
     }
