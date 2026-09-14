@@ -165,6 +165,10 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    // 生命周期监听与滚动收起计时器必须显式释放，否则 Shell 重建时会残留
+    // 观察者与悬挂计时器（app_shell 既有 warning 的根因）。
+    _lifecycle.dispose();
+    _miniHideTimer?.cancel();
     _tabAnim.dispose();
     super.dispose();
   }

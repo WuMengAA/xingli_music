@@ -9,6 +9,7 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
 import '../../models/track_stats.dart';
+import '../../pages/now_playing/now_playing_page.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/cast/cast_providers.dart';
@@ -102,10 +103,6 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
   bool _collapsed = false;
   bool _collapsedInit = false;
 
-  /// 全屏展开态：插入 Overlay 时置 true。
-  bool _fullscreen = false;
-  OverlayEntry? _overlayEntry;
-
   /// 翻转白噪音开关（#167）：按当前来源写入场景或全局。
   void _toggleWhiteNoise() {
     final bool on = !ref.read(effectiveWhiteNoiseProvider).on;
@@ -116,23 +113,20 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
     }
   }
 
-  void _enterFullscreen() {
-    if (_fullscreen) return;
-    final OverlayState overlay = Overlay.of(context);
-    _overlayEntry = OverlayEntry(
-      builder: (_) => _FullscreenPlaybackOverlay(
-        onClose: _exitFullscreen,
-        lyricsSlot: widget.lyricsSlot,
-      ),
-    );
-    overlay.insert(_overlayEntry!);
-    setState(() => _fullscreen = true);
-  }
-
-  void _exitFullscreen() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    if (mounted) setState(() => _fullscreen = false);
+  /// 全屏播放入口：统一推入整页 [NowPlayingPage]。
+  ///
+  /// 历史遗留：此处原本插入自绘的 `_FullscreenPlaybackOverlay`（纯主题底色 +
+  /// 方块封面 + 无反应堆），与「整页正在播放」「主页沉浸播放器」构成**三套皮**。
+  /// 两个构造点（音乐卡 [MusicCard] / 游戏内 HUD）都已改为传入
+  /// `onOpenNowPlaying` 直推 [NowPlayingPage]，该实现已成死代码，
+  /// 2026-09-14 随「播放器两页统一」一并删除（-450 行）。
+  ///
+  /// 注：这里对 `pages/now_playing` 的引用使本文件与 [NowPlayingPage] 互为
+  /// 循环 import——Dart 允许库级循环引用（仅类与 const，无初始化环），
+  /// 分析器零告警；整页需要复用本文件的 `buildTransportRow` 等公开 builder，
+  /// 该环不可避免。
+  void _openNowPlaying() {
+    Navigator.of(context).push(NowPlayingRoute(page: const NowPlayingPage()));
   }
 
   @override
@@ -190,13 +184,11 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
         // cl52-B：收藏/白噪音/视听已迁出 header（收藏→传输行循环右边；
         // 白噪音+视听→底部操作行音质右边）。header 只保留放大 + 折叠。
         PlaybackIconButton(
-          icon: _fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+          icon: Icons.fullscreen,
           size: 22,
-          active: _fullscreen,
-          tooltip: _fullscreen ? '退出全屏' : '全屏播放',
-          onTap: _fullscreen
-              ? _exitFullscreen
-              : (widget.onOpenNowPlaying ?? _enterFullscreen),
+          active: false,
+          tooltip: '全屏播放',
+          onTap: widget.onOpenNowPlaying ?? _openNowPlaying,
         ),
         PlaybackIconButton(
           icon: _collapsed
@@ -212,7 +204,7 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
     // R23j：点击信息区 = 打开全屏播放卡片（默认行为）。
     // 外部显式传入 onOpenNowPlaying 时仍走外部回调（兼容旧接入）。
     final Widget headerArea = InkWell(
-      onTap: widget.onOpenNowPlaying ?? _enterFullscreen,
+      onTap: widget.onOpenNowPlaying ?? _openNowPlaying,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: header,
     );
@@ -1279,295 +1271,6 @@ class PlaybackButtonFabric {
         onTap: onTap,
       );
 }
-
-// ════════════════════════════════════════════════════════════════════════
-// 全屏展开 Overlay（缩放 + 淡入动画）
-// ════════════════════════════════════════════════════════════════════════
-
-class _FullscreenPlaybackOverlay extends ConsumerStatefulWidget {
-  const _FullscreenPlaybackOverlay({required this.onClose, this.lyricsSlot});
-
-  final VoidCallback onClose;
-
-  /// 可选歌词区（见 [UnifiedPlayer.lyricsSlot]）。
-  final Widget? lyricsSlot;
-
-  @override
-  ConsumerState<_FullscreenPlaybackOverlay> createState() =>
-      _FullscreenPlaybackOverlayState();
-}
-
-class _FullscreenPlaybackOverlayState
-    extends ConsumerState<_FullscreenPlaybackOverlay> {
-  bool _visible = false;
-  bool _volOpen = false; // 全局液态玻璃卡片：默认展开的音量面板关闭
-
-  @override
-  void initState() {
-    super.initState();
-    // 挂载后下一帧触发进入动画（从 0.92 缩放 + 透明度 0 → 1）
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => setState(() => _visible = true),
-    );
-  }
-
-  void _requestClose() {
-    setState(() => _visible = false);
-    Future.delayed(const Duration(milliseconds: 280), widget.onClose);
-  }
-
-  /// 翻转白噪音开关（#167）：按当前来源写入场景或全局。
-  void _toggleWhiteNoise() {
-    final bool on = !ref.read(effectiveWhiteNoiseProvider).on;
-    if (ref.read(whiteNoiseFollowsSceneProvider)) {
-      unawaited(saveSceneWhiteNoise(ref, on: on));
-    } else {
-      ref.read(whiteNoiseEnabledProvider.notifier).state = on;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Size screen = MediaQuery.of(context).size;
-    final Track? now = ref.watch(nowPlayingProvider);
-    // #167：白噪音状态取「生效来源」（跟随场景 / 全局）
-    final bool whiteNoise = ref.watch(effectiveWhiteNoiseProvider).on;
-    return Material(
-      // R26r21：Overlay 条目无 Material 祖先 → 面板内 Slider/IconButton/InkWell
-      // 崩溃「No Material widget found」；透明包一层即可。
-      color: Colors.transparent,
-      child: Stack(
-        children: <Widget>[
-          // 全屏背景：纯主题表面（不显示外部极光/玻璃背景，用户反馈 cl05）。
-          AnimatedOpacity(
-            opacity: _visible ? 1 : 0,
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: context.appColors.bgPage,
-              ),
-            ),
-          ),
-          // 全屏播放器：整卡放大填满屏幕（缩放 + 淡入动画），内容垂直居中。
-          Center(
-            child: AnimatedScale(
-              scale: _visible ? 1.0 : 0.92,
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              child: AnimatedOpacity(
-                opacity: _visible ? 1 : 0,
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                child: SizedBox(
-                  width: screen.width,
-                  height: screen.height,
-                  child: SafeArea(
-                    child: OrientationBuilder(
-                      builder: (BuildContext ctx, Orientation orientation) {
-                        final bool landscape =
-                            orientation == Orientation.landscape;
-                        final Widget controls = SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
-                          child: _buildControls(now, whiteNoise,
-                              landscape: landscape),
-                        );
-                        final Widget lyrics =
-                            widget.lyricsSlot ?? const SizedBox.shrink();
-                        // 画布播放界面：横屏封面在左、歌词在右；竖屏封面在上、
-                        // 歌词在下。
-                        if (landscape) {
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              Expanded(
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                        maxWidth: 440),
-                                    child: controls,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                        maxWidth: 480),
-                                    child: lyrics,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-                        return SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              _buildControls(now, whiteNoise,
-                                  landscape: false),
-                              if (widget.lyricsSlot != null) ...<Widget>[
-                                const SizedBox(height: 16),
-                                lyrics,
-                              ],
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
-      ),
-    );
-  }
-
-  /// I：播放菜单内打开均衡器（复用 [showEqualizerSheet]，弹层展示）。
-  void _openEqualizer(BuildContext context) => showEqualizerSheet(context);
-
-  /// cl05：全屏播放器主体（封面/曲目/进度/控制/音量/白噪音；歌词由外层
-  /// 按横竖屏布局组合：横屏封面左歌词右、竖屏封面上下歌词）。
-  Widget _buildControls(
-    Track? now,
-    bool whiteNoise, {
-    required bool landscape,
-  }) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[        Row(
-          children: <Widget>[
-            TrackCover(track: now, size: landscape ? 140 : 200, radius: 20),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    now?.title ?? '星璃 · 无限音乐空间',
-                    style: context.appText.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    now?.artist ?? '从曲库挑一首开始',
-                    style: context.appText.artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            // I：均衡器（Windows mpv 滤镜真 DSP / Android 真 EQ / 其余模拟层）
-            PlaybackIconButton(
-              icon: Icons.equalizer_rounded,
-              size: AppSize.iconSm,
-              tooltip: '音效',
-              onTap: () => _openEqualizer(context),
-            ),
-            PlaybackIconButton(
-              icon: Icons.fullscreen_exit,
-              size: AppSize.iconSm,
-              tooltip: '退出全屏',
-              onTap: _requestClose,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        ProgressSlider(
-          onSeek: (double v) => unawaited(ref
-              .read(audioServiceProvider)
-              .seek(Duration(milliseconds: v.round()))),
-        ),
-        const SizedBox(height: 8),
-        buildTransportRow(
-          context,
-          ref,
-          fullscreen: true,
-          volOpen: _volOpen,
-          onToggleVol: () => setState(() => _volOpen = !_volOpen),
-          // 全屏态：歌词已在 Overlay 内展示，不重复放歌词钮。
-          lyricsOpen: false,
-          onToggleLyrics: () {},
-          isFav: now == null
-              ? false
-              : (ref.watch(isFavoriteProvider(
-                      trackKeyOf(now.title, now.artist, now.sourceId)))
-                  .value ??
-                  false),
-          onToggleFav: () {
-            if (now == null) return;
-            unawaited(toggleFavoriteTrack(ref, now));
-          },
-        ),
-        Consumer(builder: (BuildContext context, WidgetRef ref, _) => buildVolumePanel(ref, _volOpen)),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          // 透明 Material 兜底：InkWell 需 Material 祖先（Overlay/Hero 无则崩）。
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: _toggleWhiteNoise,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    PlaybackIconButton(
-                      icon: whiteNoise
-                          ? Icons.graphic_eq_rounded
-                          : Icons.graphic_eq_outlined,
-                      size: 22,
-                      tint: true,
-                      active: whiteNoise,
-                      tooltip: whiteNoise ? '关闭白噪音' : '开启白噪音',
-                      onTap: _toggleWhiteNoise,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('白噪音', style: context.appText.body),
-                    const SizedBox(width: 8),
-                    // #167：来源切换（跟随场景 / 全局播放）
-                    _WhiteNoiseSourceToggle(
-                      follows: ref.watch(whiteNoiseFollowsSceneProvider),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        // ⑨：搜索 + 音质也放进沉浸式卡片（与底部音乐卡片同源）；
-        // cl52-B：白噪音 + 视听 + 均衡器并入（音质右边），与紧凑卡片一致。
-        buildBottomActions(
-          context,
-          ref,
-          whiteNoise: whiteNoise,
-          onToggleWhiteNoise: _toggleWhiteNoise,
-        ),
-      ],
-    );
-  }
-}
-
-/// 紧凑可拖拽进度条（主题感知色）。
-///
-/// cl73（UI 流畅度优化）：改为自包含 ConsumerStatefulWidget——
-/// 内部 watch 播放进度/时长、持有拖动态（_seeking/_seekMs），拖动与
-/// 进度 tick 只重建自身，不再连累上层 1219 行播放器整树重建（此前
 /// 拖动每帧 setState 重建整树是卡顿主因）。视觉与交互行为完全不变。
 class ProgressSlider extends ConsumerStatefulWidget {
   const ProgressSlider({super.key, required this.onSeek});
