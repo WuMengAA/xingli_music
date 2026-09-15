@@ -26,15 +26,14 @@ import '../../../core/theme/app_theme_colors.dart';
 import '../../../core/theme/light_tokens.dart';
 import '../../../models/track.dart';
 import '../../../models/scene.dart';
-import '../../../models/track_stats.dart';
 import '../../../providers/audio/audio_providers.dart';
-import '../../../providers/stats/track_stats_providers.dart';
 import '../../../providers/scene/scene_providers.dart';
 import '../../../providers/session/session_providers.dart';
 import '../../../providers/shell/shell_providers.dart';
 import '../../../widgets/lyrics/lyrics_view.dart';
 import '../../../widgets/visualizer/spectrum_bars.dart';
 import '../../../widgets/visualizer/reactor_visualizer.dart';
+import '../../../widgets/visualizer/audio_bloom_flower.dart';
 import '../../../widgets/card_stack.dart';
 import 'immersive_player_visuals.dart';
 import 'unified_player.dart';
@@ -50,7 +49,6 @@ class HomeImmersivePlayer extends ConsumerStatefulWidget {
 
 class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
     with SingleTickerProviderStateMixin {
-  bool _volOpen = false;
   late final AnimationController _coverSpin = AnimationController(
     vsync: this,
     duration: const Duration(seconds: 24),
@@ -89,6 +87,8 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
           Positioned.fill(
             child: ImmersiveBackground(track: track, videoThrough: true),
           ),
+          // 花漾中心件：随音乐脉冲生长的音频反应花（主题中心装饰）。
+          const Positioned.fill(child: AudioBloomFlower()),
           // 音效反应堆：随音乐脉冲的网格柱阵 + 流星（主题⑦·唱片+反应堆）。
           const Positioned.fill(child: ReactorVisualizer(opacity: 0.4)),
           // 前景内容（安全区 + 布局）。
@@ -123,11 +123,6 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
                 ),
                 // 播放失败时常驻的错误 + 重试提示（与正在播放页共用同一组件）。
                 const PlaybackErrorBanner(),
-                // 底部控制栏（复用 UnifiedPlayer 公开 builder）。
-                _HomeControlBar(
-                  volOpen: _volOpen,
-                  onToggleVol: () => setState(() => _volOpen = !_volOpen),
-                ),
               ],
             ),
           ),
@@ -325,81 +320,3 @@ class _HomeTopBar extends StatelessWidget {
   }
 }
 
-/// 主页底部控制栏：复用 [UnifiedPlayer] 公开 builder，视觉与全屏页一致。
-class _HomeControlBar extends ConsumerStatefulWidget {
-  const _HomeControlBar({
-    required this.volOpen,
-    required this.onToggleVol,
-  });
-
-  final bool volOpen;
-  final VoidCallback onToggleVol;
-
-  @override
-  ConsumerState<_HomeControlBar> createState() => _HomeControlBarState();
-}
-
-class _HomeControlBarState extends ConsumerState<_HomeControlBar> {
-  @override
-  Widget build(BuildContext context) {
-    final WidgetRef ref = this.ref;
-    final bool whiteNoise = ref.watch(whiteNoiseEnabledProvider);
-    final Track? now = ref.watch(nowPlayingProvider);
-    final String favKey = now == null
-        ? ''
-        : trackKeyOf(now.title, now.artist, now.sourceId);
-    final bool isFav = favKey.isEmpty
-        ? false
-        : (ref.watch(isFavoriteProvider(favKey)).value ?? false);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpace.lg,
-        0,
-        AppSpace.lg,
-        AppSpace.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          buildVolumePanel(ref, widget.volOpen),
-          const SizedBox(height: AppSpace.xs),
-          ProgressSlider(
-            onSeek: (double v) => unawaited(
-              ref.read(audioServiceProvider).seek(
-                Duration(milliseconds: v.round()),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpace.sm),
-          buildTransportRow(
-            context,
-            ref,
-            // 主页已是全屏沉浸形态：用 fullscreen:true 隐藏冗余的歌词钮
-            // （歌词本就内联常显），并把播放键/侧键放大到与全屏页一致的
-            // 40/28，消除「全屏界面用紧凑控件」的不一致。
-            fullscreen: true,
-            volOpen: widget.volOpen,
-            onToggleVol: widget.onToggleVol,
-            lyricsOpen: false,
-            onToggleLyrics: () {},
-            isFav: isFav,
-            onToggleFav: () {
-              if (now == null) return;
-              unawaited(toggleFavoriteTrack(ref, now));
-            },
-          ),
-          const SizedBox(height: AppSpace.sm),
-          buildBottomActions(
-            context,
-            ref,
-            whiteNoise: whiteNoise,
-            onToggleWhiteNoise: () => ref
-                .read(whiteNoiseEnabledProvider.notifier)
-                .state = !whiteNoise,
-          ),
-        ],
-      ),
-    );
-  }
-}
