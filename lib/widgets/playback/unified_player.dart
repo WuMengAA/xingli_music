@@ -376,14 +376,14 @@ Widget _frostedPanel(
 /// 播放模式 → 图标（Material 图标，AppIcon 未覆盖）。
 IconData _modeIcon(PlayMode m) => switch (m) {
       PlayMode.order => Icons.trending_flat,
-      PlayMode.reverse => Icons.keyboard_backspace,
+      PlayMode.reverse => Icons.rotate_left,
       PlayMode.shuffle => Icons.shuffle,
       PlayMode.loop => Icons.repeat_one,
     };
 
 String _modeLabel(PlayMode m) => switch (m) {
       PlayMode.order => '顺序',
-      PlayMode.reverse => '倒叙',
+      PlayMode.reverse => '倒序',
       PlayMode.shuffle => '随机',
       PlayMode.loop => '单曲循环',
     };
