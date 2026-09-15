@@ -1786,7 +1786,7 @@ kSettingItemRegistry = <String, SettingItemDef>{
       );
     },
   ),
-  // VoiceHub 校园广播站点歌（底部「校园电台」Tab 同源入口；配置服务器 + API Key）。
+  // VoiceHub 校园广播站点歌（底部「广播站点歌」Tab 同源入口；配置服务器 + API Key）。
   'voiceHub': SettingItemDef(
     title: 'VoiceHub 点歌',
     builder: (context, ref) {

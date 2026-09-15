@@ -92,7 +92,7 @@ class _VoiceHubPageState extends ConsumerState<VoiceHubPage> {
     final VoiceHubState s = ref.watch(voiceHubProvider);
 
     return PageScaffold(
-      title: '校园电台',
+      title: '广播站点歌',
       actions: <Widget>[
         if (!_showConfig && s.config.enabled)
           IconButton(

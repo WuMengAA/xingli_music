@@ -308,8 +308,10 @@ abstract final class Terms {
   /// 一起听（联机 / 音乐社交）
   static const String listenTogether = '一起听';
 
-  /// 电台房（由一起听统一演进而来，见 PRD_电台核心）——正式功能入口。
-  static const String station = '电台';
+  /// 一起听房间（由一起听统一演进而来，见 PRD_电台核心）——正式功能入口。
+  /// 注意：与 Tab4 的 VoiceHub（广播站点歌）是两件不同的事，标签不可再叫
+  /// 「电台」，否则用户会把「校园广播站点歌」和「一起听房间」混为一谈。
+  static const String station = '一起听房间';
 
   /// 读取（存档读取按钮）
   static const String loadGame = '读取';

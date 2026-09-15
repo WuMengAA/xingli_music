@@ -102,7 +102,7 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     LibraryPage(), //    1 · 曲库
     WorldPage(), //      2 · 世界（星璃世界入口）
     ExplorePage(), //    3 · 探索
-    VoiceHubHubPage(), // 4 · 校园电台（VoiceHub 原生页；完整网页版由页内入口进入）
+    VoiceHubHubPage(), // 4 · 广播站点歌（VoiceHub 原生页；完整网页版由页内入口进入）
     SettingsPage(), //   5 · 设置
   ];
 

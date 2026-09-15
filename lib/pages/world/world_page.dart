@@ -148,11 +148,11 @@ class _WorldPageState extends ConsumerState<WorldPage> {
                 ),
               ),
               const SizedBox(height: AppSpace.md),
-              // 电台 → 电台房大厅（cl15：创建/加入，公开/私密+模式+房间号）。
+              // 一起听房间大厅（cl15：创建/加入，公开/私密+模式+房间号）。
               _EntryRow(
                 icon: Icons.radio_rounded,
-                label: '电台',
-                subtitle: '创建校园广播 / 一起听电台，或加入公开房间',
+                label: Terms.station,
+                subtitle: '创建或加入一起听房间，与好友共享音乐',
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const StationLobbyPage(),

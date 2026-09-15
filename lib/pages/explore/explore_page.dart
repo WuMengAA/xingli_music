@@ -553,7 +553,7 @@ class _FunctionSection extends ConsumerWidget {
         const SizedBox(height: AppSpace.sm),
         _FuncRow(
           title: Terms.station,
-          subtitle: '一起听 · 校园点歌 · 共享音乐',
+          subtitle: '一起听 · 共享音乐房间',
           onTap: onStation,
           trailing: Icon(Icons.radio_rounded, size: AppSize.iconSm, color: c.iconInactive),
         ),

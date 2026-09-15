@@ -1,5 +1,5 @@
 /// ════════════════════════════════════════════════════════════════════════
-/// VoiceHub 原生页（校园广播站点歌）· 底部「校园电台」Tab
+/// VoiceHub 原生页（校园广播站点歌）· 底部「广播站点歌」Tab
 ///
 /// 三个 Tab：排期 / 点歌榜 / 我的投稿。数据全部走 [voiceHubProvider] →
 /// [VoiceHubClient]，不再套 WebView。
@@ -65,7 +65,7 @@ class _VoiceHubHubPageState extends ConsumerState<VoiceHubHubPage> {
     final VoiceHubState s = ref.watch(voiceHubProvider);
 
     return PageScaffold(
-      title: '校园电台',
+      title: '广播站点歌',
       actions: <Widget>[
         IconButton(
           tooltip: '刷新',
