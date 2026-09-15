@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 13;
+  static const int day = 15;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
@@ -517,7 +517,14 @@ abstract final class AppVersion {
   ///   重搜强制重发（原先命中 provider 缓存不重发，看起来像「按了没反应」）；
   ///   追加前按 uri 统一去重，一批零新增即判定到底，并加关键词竞态守卫
   ///   （翻页途中换词时丢弃旧批次，避免串味）。
-  static const int buildCount = 2;
+  ///
+  /// cl01（09.15 跨天重算）：前端体验迭代收官 + 播放失败可见化。
+  /// ①播放失败可见化：三音频后端错误流统一汇入 errorStream，主页 / 整页正在播放共用
+  ///   PlaybackErrorBanner，聚合搜索 / 网易云歌单失败显示非阻断 SourceErrorBar；
+  /// ②播放模式「倒序」图标语义修正（退格键→回旋箭头 + 错别字「倒叙」→「倒序」）；
+  /// ③命名统一：消除「广播站点歌 / 一起听房间」同名两义；
+  /// ④删除两个零外部引用的孤儿设置页（死代码）。
+  static const int buildCount = 1;
 
   /// 版本代号（见上方演进表；当前阶段「星尘初聚」）。
   static const String codename = '星尘初聚';
@@ -582,6 +589,18 @@ class ChangelogEntry {
 
 /// 更新日志（倒序，最新在前）。
 const List<ChangelogEntry> changelog = <ChangelogEntry>[
+  ChangelogEntry(
+    version: '26.09.15',
+    cl: 'alpha_cl01',
+    title: '播放失败可见化 + 前端体验迭代收官',
+    details: <String>[
+      '播放失败可见化：三音频后端错误统一汇入错误流，主页与整页正在播放共用错误横幅，聚合搜索 / 网易云歌单失败显示非阻断错误条',
+      '播放模式「倒序」图标语义修正（退格键改为回旋箭头，错别字「倒叙」改为「倒序」）',
+      '命名统一：消除「广播站点歌 / 一起听房间」同名两义',
+      '删除两个零外部引用的孤儿设置页（死代码清理）',
+    ],
+  ),
+
   ChangelogEntry(
     version: '26.09.12',
     cl: 'alpha_cl01',
