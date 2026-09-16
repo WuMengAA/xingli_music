@@ -31,6 +31,7 @@ import '../../../providers/scene/scene_providers.dart';
 import '../../../providers/session/session_providers.dart';
 import '../../../providers/shell/shell_providers.dart';
 import '../../../providers/home/home_video_provider.dart';
+import '../../../providers/home/player_theme_provider.dart';
 import '../../../widgets/lyrics/lyrics_view.dart';
 import '../../../widgets/visualizer/spectrum_bars.dart';
 import '../../../widgets/visualizer/reactor_visualizer.dart';
@@ -39,6 +40,7 @@ import '../../../widgets/card_stack.dart';
 import 'immersive_player_visuals.dart';
 import 'unified_player.dart';
 import 'video_background.dart';
+import 'steam_wallpaper_background.dart';
 
 /// 主页沉浸播放器（常驻 [IndexedStack] 第 0 页）。
 class HomeImmersivePlayer extends ConsumerStatefulWidget {
@@ -71,6 +73,16 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
   @override
   Widget build(BuildContext context) {
     final Track? track = ref.watch(nowPlayingProvider);
+    // 当前播放器主题（默认 / 哔站视频 / 某个 Steam 壁纸）
+    final String theme = ref.watch(playerThemeProvider);
+    final List<ImportedWallpaper> walls = ref.watch(importedWallpapersProvider);
+    ImportedWallpaper? wp;
+    for (final ImportedWallpaper w in walls) {
+      if (w.id == theme) {
+        wp = w;
+        break;
+      }
+    }
     // 播放态切换时启停唱片旋转；暂停即平滑停转，省 CPU。
     ref.listen<AsyncValue<bool>>(isPlayingProvider, (_, AsyncValue<bool> next) {
       final bool playing = next.valueOrNull ?? false;
@@ -85,16 +97,23 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          // 最底层：哔站视频背景（静音 + 可调模糊），透过上层半透明动态背景透出。
-          const Positioned.fill(child: VideoBackground()),
-          // 动态背景（与整页正在播放共用 ImmersiveBackground；主页让下层视频透出）。
+          // 最底层（按主题）：哔站视频 / Steam 壁纸；默认主题无外部层，用渐变背景。
+          if (theme == 'video')
+            const Positioned.fill(child: VideoBackground()),
+          if (wp != null)
+            Positioned.fill(child: SteamWallpaperBackground(wallpaper: wp)),
+          // 动态背景：默认主题不透明渐变；视频/壁纸主题半透明让下层透出。
           Positioned.fill(
-            child: ImmersiveBackground(track: track, videoThrough: true),
+            child: ImmersiveBackground(
+              track: track,
+              videoThrough: theme != 'builtin',
+            ),
           ),
-          // 花漾中心件：随音乐脉冲生长的音频反应花（主题中心装饰）。
-          const Positioned.fill(child: AudioBloomFlower()),
-          // 音效反应堆：随音乐脉冲的网格柱阵 + 流星（主题⑦·唱片+反应堆）。
-          const Positioned.fill(child: ReactorVisualizer(opacity: 0.4)),
+          // 音频反应花 + 音效反应堆：仅在默认/视频主题叠加（壁纸主题本身即反应视觉）。
+          if (theme == 'builtin' || theme == 'video') ...<Widget>[
+            const Positioned.fill(child: AudioBloomFlower()),
+            const Positioned.fill(child: ReactorVisualizer(opacity: 0.4)),
+          ],
           // 前景内容（安全区 + 布局）。
           SafeArea(
             child: Column(
@@ -239,6 +258,67 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
                     },
                   ),
                 ),
+              ),
+              // 主题选择（默认 / 哔站视频 / 发现的 Steam 壁纸）
+              Consumer(
+                builder: (BuildContext ctx, WidgetRef sref, Widget? _) {
+                  final String cur = sref.watch(playerThemeProvider);
+                  final List<ImportedWallpaper> ws =
+                      sref.watch(importedWallpapersProvider);
+                  final List<Widget> chips = <Widget>[
+                    ChoiceChip(
+                      label: const Text('默认'),
+                      selected: cur == 'builtin',
+                      onSelected: (_) =>
+                          sref.read(playerThemeProvider.notifier).state =
+                              'builtin',
+                    ),
+                    ChoiceChip(
+                      label: const Text('哔站视频'),
+                      selected: cur == 'video',
+                      onSelected: (_) =>
+                          sref.read(playerThemeProvider.notifier).state =
+                              'video',
+                    ),
+                    for (final ImportedWallpaper w in ws)
+                      ChoiceChip(
+                        label: Tooltip(
+                          message: w.folderPath,
+                          child: Text(
+                            w.title,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        selected: cur == w.id,
+                        onSelected: (_) =>
+                            sref.read(playerThemeProvider.notifier).state =
+                                w.id,
+                      ),
+                  ];
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpace.md),
+                        child: Text('主题', style: ctx.appText.title),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.md,
+                          0,
+                          AppSpace.md,
+                          AppSpace.sm,
+                        ),
+                        child: Wrap(
+                          spacing: AppSpace.sm,
+                          runSpacing: AppSpace.sm,
+                          children: chips,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               // 视频背景控制（哔站视频作模糊背景）。
               Consumer(
