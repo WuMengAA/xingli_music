@@ -75,7 +75,7 @@ abstract final class AppVersion {
 
   /// 日期。
   /// R26r21：过 00:00 进下一天（按真实日期推进）；次日 cl 清零。
-  static const int day = 15;
+  static const int day = 16;
 
   /// 更新渠道（默认 beta 稳定版；运行时可在设置→更新渠道切换，持久化在
   /// SettingsRepository。版本号渠道段、OTA 渠道过滤均以此为准）。
