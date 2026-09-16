@@ -69,7 +69,9 @@ class _SteamWallpaperBackgroundState
 
   Future<void> _start() async {
     if (!widget.wallpaper.exists) return;
-    _server = LocalWallpaperServer(widget.wallpaper.folderPath);
+    _server = widget.wallpaper.bundled
+        ? LocalWallpaperServer.asset(widget.wallpaper.assetBase!)
+        : LocalWallpaperServer.folder(widget.wallpaper.folderPath!);
     await _server!.start();
     if (!mounted) {
       _server!.dispose();

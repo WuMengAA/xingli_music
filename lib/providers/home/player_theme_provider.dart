@@ -22,34 +22,54 @@ class ImportedWallpaper {
   const ImportedWallpaper({
     required this.id,
     required this.title,
-    required this.folderPath,
+    this.folderPath,
+    this.assetBase,
     this.previewPath,
   });
 
-  /// 创意工坊目录名（同时也是 workshopid）。
+  /// 创意工坊目录名（同时也是 workshopid）；打包壁纸用稳定的自定义 id。
   final String id;
 
   /// 壁纸标题（来自 project.json 的 `title`，中文如「音域回响」）。
   final String title;
 
-  /// 壁纸目录绝对路径（含 index.html）。
-  final String folderPath;
+  /// 壁纸目录绝对路径（含 index.html）。[bundled] 为 true 时为空。
+  final String? folderPath;
+
+  /// 打包资源前缀（[bundled] 为 true 时非空，例如
+  /// `assets/wallpapers/sonic_topography`）；运行时经 [LocalWallpaperServer]
+  /// 从 [rootBundle] 提供，无需落盘——这是手机端可用的来源。
+  final String? assetBase;
 
   /// 预览图路径（preview.gif / preview.jpg，可选）。
   final String? previewPath;
 
-  /// 目录是否仍存在（用户可能删了 Steam 工坊缓存）。
-  bool get exists => Directory(folderPath).existsSync();
+  /// 是否来自打包资源（而非本机 Steam 目录）。
+  bool get bundled => assetBase != null;
+
+  /// 目录是否仍存在（仅文件系统来源需要检查）。
+  bool get exists => bundled || Directory(folderPath!).existsSync();
 }
 
 /// 当前播放器主题 key。
 final StateProvider<String> playerThemeProvider =
     StateProvider<String>((Ref<String> ref) => 'builtin');
 
-/// 发现的 Steam 壁纸列表（扫描本机 Wallpaper Engine 创意工坊目录）。
+/// 随包内置的 Steam 壁纸（手机等无 Steam 路径的平台也能用）。
+/// 资源目录已声明在 pubspec 的 `flutter.assets` 下。
+const List<ImportedWallpaper> bundleWallpapers = <ImportedWallpaper>[
+  ImportedWallpaper(
+    id: 'sonic_topography',
+    title: '音域回响',
+    assetBase: 'assets/wallpapers/sonic_topography',
+    previewPath: 'assets/wallpapers/sonic_topography/preview.gif',
+  ),
+];
+
+/// 发现的 Steam 壁纸列表（打包内置 + 扫描本机 Steam 创意工坊目录）。
 final StateProvider<List<ImportedWallpaper>> importedWallpapersProvider =
     StateProvider<List<ImportedWallpaper>>(
-  (Ref<List<ImportedWallpaper>> ref) => discoverSteamWallpapers(),
+  (Ref<List<ImportedWallpaper>> ref) => allWallpapers(),
 );
 
 /// 扫描 Steam 创意工坊 `431960`（Wallpaper Engine）目录下所有 `web` 类型壁纸。
@@ -99,4 +119,21 @@ List<ImportedWallpaper> discoverSteamWallpapers() {
     }
   }
   return out;
+}
+
+/// 合并「打包内置」与「本机 Steam 目录发现」的壁纸，按标题去重
+/// （同款壁纸若本机也有，优先用本机路径版，信息更全）。
+List<ImportedWallpaper> allWallpapers() {
+  final List<ImportedWallpaper> discovered = discoverSteamWallpapers();
+  final Map<String, ImportedWallpaper> byTitle =
+      <String, ImportedWallpaper>{};
+  for (final ImportedWallpaper w in bundleWallpapers) {
+    byTitle[w.title.toLowerCase()] = w;
+  }
+  for (final ImportedWallpaper w in discovered) {
+    final String key = w.title.toLowerCase();
+    // 本机版优先（除非打包版还没被覆盖，其实二者都可；这里让本机版覆盖）
+    byTitle[key] = w;
+  }
+  return byTitle.values.toList();
 }

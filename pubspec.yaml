@@ -109,3 +109,6 @@ flutter:
     - assets/audio/
     # #169：玩家方块人皮肤（MC 2× 128×128 RGBA），烘焙进体素图集供实体面采样。
     - assets/player_skin.png
+    # 播放器主题：打包的 Steam 壁纸（Wallpaper Engine web 类型），含子目录全部文件。
+    # 手机端无 Steam 路径，靠此随包内置；运行时经 LocalWallpaperServer 以 http 提供。
+    - assets/wallpapers/
