@@ -6,7 +6,6 @@ import '../../providers/shell/shell_providers.dart';
 import '../lyrics/lyrics_view.dart';
 import '../../core/utils/app_motion.dart';
 import 'unified_player.dart';
-import '../../pages/now_playing/now_playing_page.dart';
 
 /// ════════════════════════════════════════════════════════════════════════
 /// 独立可复用的「音乐卡」UI（#419）
@@ -48,10 +47,10 @@ class MusicCard extends ConsumerWidget {
     // #549：默认点击信息区 → 打开整页播放器（[NowPlayingPage]），而非
     // [UnifiedPlayer] 的透明 Overlay。外部显式传入 onOpenNowPlaying 时仍
     // 走外部回调（兼容游戏内 HUD  & 等旧接入，保持零回归）。
-    final VoidCallback openNowPlaying = onOpenNowPlaying ??
-        () => Navigator.of(context).push(
-              NowPlayingRoute(page: const NowPlayingPage()),
-            );
+    // #549 更新：整页 [NowPlayingPage] 已彻底移除（封面/歌词融入主页沉浸播放器），
+    // 默认点击信息区不再跳转，置为无操作；外部显式传入 [onOpenNowPlaying] 时
+    // 仍走外部回调（兼容游戏内 HUD 等旧接入）。
+    final VoidCallback openNowPlaying = onOpenNowPlaying ?? () {};
     return ClipRect(
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 240),

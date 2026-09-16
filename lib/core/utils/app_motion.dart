@@ -22,59 +22,11 @@ class AppMotion {
   static const Curve reverseCurve = Curves.easeInExpo;
 }
 
-/// 播放栏 → 正在播放 的共享元素转场路由。
+/// 播放栏 ↔ 沉浸播放器 的共享 Hero tag 常量。
 ///
-/// 进入：页面自底部微微上展（slideUp）+ 轻微放大（scale 0.94→1.0）+ 淡入，
-/// 营造「背景微向上展开至全屏、模糊过渡进入」的观感；封面/文字的曲线位移
-/// 由 [Hero]（见 [UnifiedPlayer.heroTag] / [NowPlayingPage] 的 tag）负责。
-///
-/// 退出（pop）反向平滑动画；动画进行中再次触发会被新动画平滑接管
-/// （[PageRouteBuilder] 原生支持，故天然可打断）。
-class NowPlayingRoute extends PageRouteBuilder<Widget> {
-  NowPlayingRoute({required this.page})
-      : super(
-          opaque: true,
-          fullscreenDialog: false,
-          transitionDuration: AppMotion.pageEnter,
-          reverseTransitionDuration: AppMotion.pageExit,
-          pageBuilder: (
-            BuildContext context,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-          ) =>
-              page,
-          transitionsBuilder: (
-            BuildContext context,
-            Animation<double> animation,
-            Animation<double> secondaryAnimation,
-            Widget child,
-          ) {
-            final CurvedAnimation curved = CurvedAnimation(
-              parent: animation,
-              curve: AppMotion.pageCurve,
-            );
-            // cl06：整卡「四边扩散」放大（用户需求）——卡片四边按比例向外
-            // 扩到全屏（scale 0.8→1.0）+ 圆角从卡片圆角过渡到 0 + 页面自带
-            // 模糊背景随扩散渐显。去掉旧的「上展 + 微缩放」。
-            final double v = curved.value;
-            return ClipRRect(
-              borderRadius: BorderRadius.circular((1 - v) * 28),
-              child: Transform.scale(
-                scale: 0.8 + v * 0.2,
-                alignment: Alignment.center,
-                child: FadeTransition(opacity: curved, child: child),
-              ),
-            );
-          },
-        );
-
-  final Widget page;
-}
-
-/// 播放栏 ↔ 正在播放 的共享 Hero tag 常量。
-///
-/// 封面与标题各自独立 tag，避免 [Hero] 误配；见 [UnifiedPlayer] 与
-/// [NowPlayingPage] 的包裹点。
+/// 封面与标题各自独立 tag，避免 [Hero] 误配；见 [UnifiedPlayer] 与主页
+/// [HomeImmersivePlayer] 的包裹点。整页 [NowPlayingPage] 已于 2026-09-16
+/// 彻底移除，Hero 目标页不复存在——tag 仅作占位，点击信息区不再触发转场。
 class NpHeroTags {
   NpHeroTags._();
   static const String cover = 'npCover';

@@ -3,8 +3,8 @@
 /// ════════════════════════════════════════════════════════════════════════
 ///
 /// 取代原 [HomeSceneContent] 的「场景卡堆」为主页主体。用户需求：
-/// ① 取消独立「正在播放页」（整页 [NowPlayingPage] 入口保留给游戏内 HUD /
-///    扩展场景，主页直接承载播放器）；
+/// ① 整页「正在播放页」（[NowPlayingPage]）已于 2026-09-16 彻底移除；封面 +
+///    歌词已融入主页沉浸播放器，主页直接承载播放器（游戏内 HUD 亦不再跳转整页）；
 /// ② 封面 + 歌词移入主页 —— 做成 Apple Music / 网易云风格的沉浸播放器：
 ///    全屏封面动态背景 + 大唱片封面（播放旋转）+ 曲名/歌手 + 频谱 + 歌词
 ///    + 完整控制栏。
@@ -30,6 +30,7 @@ import '../../../providers/audio/audio_providers.dart';
 import '../../../providers/scene/scene_providers.dart';
 import '../../../providers/session/session_providers.dart';
 import '../../../providers/shell/shell_providers.dart';
+import '../../../providers/home/home_video_provider.dart';
 import '../../../widgets/lyrics/lyrics_view.dart';
 import '../../../widgets/visualizer/spectrum_bars.dart';
 import '../../../widgets/visualizer/reactor_visualizer.dart';
@@ -37,6 +38,7 @@ import '../../../widgets/visualizer/audio_bloom_flower.dart';
 import '../../../widgets/card_stack.dart';
 import 'immersive_player_visuals.dart';
 import 'unified_player.dart';
+import 'video_background.dart';
 
 /// 主页沉浸播放器（常驻 [IndexedStack] 第 0 页）。
 class HomeImmersivePlayer extends ConsumerStatefulWidget {
@@ -83,6 +85,8 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
       child: Stack(
         fit: StackFit.expand,
         children: <Widget>[
+          // 最底层：哔站视频背景（静音 + 可调模糊），透过上层半透明动态背景透出。
+          const Positioned.fill(child: VideoBackground()),
           // 动态背景（与整页正在播放共用 ImmersiveBackground；主页让下层视频透出）。
           Positioned.fill(
             child: ImmersiveBackground(track: track, videoThrough: true),
@@ -235,6 +239,64 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
                     },
                   ),
                 ),
+              ),
+              // 视频背景控制（哔站视频作模糊背景）。
+              Consumer(
+                builder: (BuildContext ctx, WidgetRef sref, Widget? _) {
+                  final bool videoOn = sref.watch(homeVideoEnabledProvider);
+                  final double blur = sref.watch(homeVideoBlurProvider);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        title: Text('视频背景', style: ctx.appText.title),
+                        subtitle: Text(
+                          '哔站视频作模糊背景（静音）',
+                          style: ctx.appText.caption,
+                        ),
+                        value: videoOn,
+                        onChanged: (bool v) =>
+                            sref.read(homeVideoEnabledProvider.notifier).state = v,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.md,
+                          0,
+                          AppSpace.md,
+                          AppSpace.sm,
+                        ),
+                        child: Row(
+                          children: <Widget>[
+                            const Icon(Icons.blur_on,
+                                size: 18, color: Colors.white70),
+                            const SizedBox(width: AppSpace.sm),
+                            Expanded(
+                              child: Slider(
+                                min: 0,
+                                max: 40,
+                                divisions: 40,
+                                value: blur,
+                                label: blur.toStringAsFixed(0),
+                                onChanged: (double v) => sref
+                                    .read(homeVideoBlurProvider.notifier)
+                                    .state = v,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 34,
+                              child: Text(
+                                blur.toStringAsFixed(0),
+                                style: ctx.appText.caption,
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

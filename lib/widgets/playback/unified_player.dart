@@ -9,7 +9,6 @@ import '../../core/theme/app_theme_colors.dart';
 import '../../core/theme/light_tokens.dart';
 import '../../models/track.dart';
 import '../../models/track_stats.dart';
-import '../../pages/now_playing/now_playing_page.dart';
 import '../../pages/sources/aggregate_search_page.dart';
 import '../../providers/audio/audio_providers.dart';
 import '../../providers/cast/cast_providers.dart';
@@ -114,21 +113,10 @@ class _UnifiedPlayerState extends ConsumerState<UnifiedPlayer> {
     }
   }
 
-  /// 全屏播放入口：统一推入整页 [NowPlayingPage]。
-  ///
-  /// 历史遗留：此处原本插入自绘的 `_FullscreenPlaybackOverlay`（纯主题底色 +
-  /// 方块封面 + 无反应堆），与「整页正在播放」「主页沉浸播放器」构成**三套皮**。
-  /// 两个构造点（音乐卡 [MusicCard] / 游戏内 HUD）都已改为传入
-  /// `onOpenNowPlaying` 直推 [NowPlayingPage]，该实现已成死代码，
-  /// 2026-09-14 随「播放器两页统一」一并删除（-450 行）。
-  ///
-  /// 注：这里对 `pages/now_playing` 的引用使本文件与 [NowPlayingPage] 互为
-  /// 循环 import——Dart 允许库级循环引用（仅类与 const，无初始化环），
-  /// 分析器零告警；整页需要复用本文件的 `buildTransportRow` 等公开 builder，
-  /// 该环不可避免。
-  void _openNowPlaying() {
-    Navigator.of(context).push(NowPlayingRoute(page: const NowPlayingPage()));
-  }
+  /// 全屏播放入口（历史：[NowPlayingPage] 整页播放器已于 2026-09-16 彻底移除，
+  /// 封面 + 歌词已融入主页 [HomeImmersivePlayer]）。整页入口已不存在，此回调
+  /// 置为无操作；保留 `onOpenNowPlaying` 透传位以兼容游戏内 HUD 等外部接入。
+  void _openNowPlaying() {}
 
   @override
   Widget build(BuildContext context) {
