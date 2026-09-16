@@ -16,8 +16,10 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -26,6 +28,22 @@ import '../../providers/audio/audio_providers.dart';
 import '../../providers/audio/visualizer_providers.dart';
 import '../../providers/home/player_theme_provider.dart';
 import '../../services/wallpaper/local_wallpaper_server.dart';
+
+/// 壁纸效果默认值（可被同目录的 `effects.json` 覆盖）。键名对应 Wallpaper
+/// Engine 的 `project.json` 属性；加载后经 `wallpaperPropertyListener
+/// .applyUserProperties` 注入。改效果 = 改这个 map 或编辑 effects.json。
+const Map<String, dynamic> _kDefaultWallpaperEffects = <String, dynamic>{
+  'audioIntensity': 1.2,
+  'theme': 'nocturnal',
+  'gridSize': 160,
+  'meteorEnabled': true,
+  'meteorSensitivity': 0.35,
+  'rippleEnabled': true,
+  'rippleSensitivity': 0.2,
+  'idleWaveEnabled': true,
+  'autoRotateEnabled': false,
+  'showPlayerController': false,
+};
 
 /// 主页最底层背景：Steam 壁纸（WebGL 音频反应），静音、不交互。
 class SteamWallpaperBackground extends ConsumerStatefulWidget {
@@ -93,6 +111,35 @@ class _SteamWallpaperBackgroundState
     c.evaluateJavascript(source: js).catchError((_) {});
   }
 
+  /// 加载效果配置：内置默认值，叠加同目录 `effects.json`（打包资源走
+  /// rootBundle，本机目录走文件）的覆盖；始终强制隐藏壁纸自带播放器面板。
+  Future<Map<String, dynamic>> _loadEffects() async {
+    final Map<String, dynamic> merged =
+        <String, dynamic>{..._kDefaultWallpaperEffects};
+    try {
+      String? raw;
+      if (widget.wallpaper.bundled) {
+        final ByteData data =
+            await rootBundle.load('${widget.wallpaper.assetBase}/effects.json');
+        raw = String.fromCharCodes(
+          data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+        );
+      } else {
+        final File f = File('${widget.wallpaper.folderPath}/effects.json');
+        if (f.existsSync()) raw = f.readAsStringSync();
+      }
+      if (raw != null && raw.trim().isNotEmpty) {
+        final Map<String, dynamic> override =
+            jsonDecode(raw) as Map<String, dynamic>;
+        merged.addAll(override);
+      }
+    } catch (_) {
+      // 配置缺失/损坏则用默认值，不影响壁纸加载
+    }
+    merged['showPlayerController'] = false;
+    return merged;
+  }
+
   /// 把当前曲目信息推给壁纸的 Media Integration（标题/歌手/播放态）。
   void _pushTrack(Track? t) {
     final InAppWebViewController? c = _ctrl;
@@ -151,12 +198,13 @@ class _SteamWallpaperBackgroundState
       onWebViewCreated: (InAppWebViewController c) => _ctrl = c,
       onLoadStop: (InAppWebViewController c, Uri? uri) async {
         _ctrl = c;
-        // 隐藏壁纸自带播放器浮动面板（App 自己有控制栏）
+        // 注入效果配置（effects.json 覆盖默认值，并强制隐藏壁纸自带播放器）
+        final Map<String, dynamic> effects = await _loadEffects();
         await c
             .evaluateJavascript(
               source: 'window.wallpaperPropertyListener && '
                   'window.wallpaperPropertyListener'
-                  '.applyUserProperties({showPlayerController:false})',
+                  '.applyUserProperties(${jsonEncode(effects)})',
             )
             .catchError((_) {});
         _pushTrack(ref.read(nowPlayingProvider));

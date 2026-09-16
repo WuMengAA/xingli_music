@@ -1,0 +1,12 @@
+{
+  "audioIntensity": 1.2,
+  "theme": "nocturnal",
+  "gridSize": 160,
+  "meteorEnabled": true,
+  "meteorSensitivity": 0.35,
+  "rippleEnabled": true,
+  "rippleSensitivity": 0.2,
+  "idleWaveEnabled": true,
+  "autoRotateEnabled": false,
+  "showPlayerController": false
+}
