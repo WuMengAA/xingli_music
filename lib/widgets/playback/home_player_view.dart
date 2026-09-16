@@ -101,7 +101,9 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
           if (theme == 'video')
             const Positioned.fill(child: VideoBackground()),
           if (wp != null)
-            Positioned.fill(child: SteamWallpaperBackground(wallpaper: wp)),
+            Positioned.fill(
+              child: SteamWallpaperBackground(key: ValueKey<String>(wp.id), wallpaper: wp),
+            ),
           // 动态背景：默认主题不透明渐变；视频/壁纸主题半透明让下层透出。
           Positioned.fill(
             child: ImmersiveBackground(
@@ -320,9 +322,156 @@ class _HomeImmersivePlayerState extends ConsumerState<HomeImmersivePlayer>
                   );
                 },
               ),
+              // 壁纸效果调节（仅当选中 Steam 壁纸主题时可用）
+              Consumer(
+                builder: (BuildContext ctx, WidgetRef sref, Widget? _) {
+                  final String cur = sref.watch(playerThemeProvider);
+                  final List<ImportedWallpaper> ws =
+                      sref.watch(importedWallpapersProvider);
+                  ImportedWallpaper? active;
+                  for (final ImportedWallpaper w in ws) {
+                    if (w.id == cur) {
+                      active = w;
+                      break;
+                    }
+                  }
+                  if (active == null) return const SizedBox.shrink();
+                  final Map<String, dynamic> fx =
+                      sref.watch(wallpaperEffectsProvider);
+                  void setFx(String k, dynamic v) => sref
+                      .read(wallpaperEffectsProvider.notifier)
+                      .state = <String, dynamic>{...fx, k: v};
+                  final double intensity =
+                      (fx['audioIntensity'] as double?) ?? 1.2;
+                  final int grid = (fx['gridSize'] as int?) ?? 160;
+                  final bool meteor = (fx['meteorEnabled'] as bool?) ?? true;
+                  final double meteorS =
+                      (fx['meteorSensitivity'] as double?) ?? 0.35;
+                  final bool ripple = (fx['rippleEnabled'] as bool?) ?? true;
+                  final double rippleS =
+                      (fx['rippleSensitivity'] as double?) ?? 0.2;
+                  final bool idle = (fx['idleWaveEnabled'] as bool?) ?? true;
+                  final bool rotate =
+                      (fx['autoRotateEnabled'] as bool?) ?? false;
+                  final String fxTheme = (fx['theme'] as String?) ?? 'nocturnal';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const Divider(height: 1),
+                      Padding(
+                        padding: const EdgeInsets.all(AppSpace.md),
+                        child: Text('效果', style: ctx.appText.title),
+                      ),
+                      _EffectSlider(
+                        label: '音频强度',
+                        value: intensity,
+                        min: 0.5,
+                        max: 2.0,
+                        divisions: 30,
+                        fmt: (double v) => v.toStringAsFixed(2),
+                        onChanged: (double v) => setFx('audioIntensity', v),
+                      ),
+                      _EffectSlider(
+                        label: '网格密度',
+                        value: grid.toDouble(),
+                        min: 40,
+                        max: 256,
+                        divisions: 216,
+                        fmt: (double v) => v.round().toString(),
+                        onChanged: (double v) => setFx('gridSize', v.round()),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.md,
+                          0,
+                          AppSpace.md,
+                          AppSpace.sm,
+                        ),
+                        child: Wrap(
+                          spacing: AppSpace.sm,
+                          children: <Widget>[
+                            ChoiceChip(
+                              label: const Text('夜行'),
+                              selected: fxTheme == 'nocturnal',
+                              onSelected: (_) => setFx('theme', 'nocturnal'),
+                            ),
+                            ChoiceChip(
+                              label: const Text('日间'),
+                              selected: fxTheme == 'day',
+                              onSelected: (_) => setFx('theme', 'day'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SwitchListTile(
+                        title: const Text('流星'),
+                        value: meteor,
+                        onChanged: (bool v) => setFx('meteorEnabled', v),
+                      ),
+                      if (meteor)
+                        _EffectSlider(
+                          label: '流星灵敏度',
+                          value: meteorS,
+                          min: 0,
+                          max: 1,
+                          divisions: 20,
+                          fmt: (double v) => v.toStringAsFixed(2),
+                          onChanged: (double v) =>
+                              setFx('meteorSensitivity', v),
+                        ),
+                      SwitchListTile(
+                        title: const Text('涟漪'),
+                        value: ripple,
+                        onChanged: (bool v) => setFx('rippleEnabled', v),
+                      ),
+                      if (ripple)
+                        _EffectSlider(
+                          label: '涟漪灵敏度',
+                          value: rippleS,
+                          min: 0,
+                          max: 1,
+                          divisions: 20,
+                          fmt: (double v) => v.toStringAsFixed(2),
+                          onChanged: (double v) =>
+                              setFx('rippleSensitivity', v),
+                        ),
+                      SwitchListTile(
+                        title: const Text('空闲波浪'),
+                        value: idle,
+                        onChanged: (bool v) => setFx('idleWaveEnabled', v),
+                      ),
+                      SwitchListTile(
+                        title: const Text('自动旋转'),
+                        value: rotate,
+                        onChanged: (bool v) => setFx('autoRotateEnabled', v),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpace.md,
+                          0,
+                          AppSpace.md,
+                          AppSpace.md,
+                        ),
+                        child: TextButton.icon(
+                          onPressed: () => sref
+                              .read(wallpaperEffectsProvider.notifier)
+                              .state = Map<String, dynamic>.from(
+                            kDefaultWallpaperEffects,
+                          ),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('重置为默认'),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
               // 视频背景控制（哔站视频作模糊背景）。
               Consumer(
                 builder: (BuildContext ctx, WidgetRef sref, Widget? _) {
+                  if (sref.watch(playerThemeProvider) != 'video') {
+                    return const SizedBox.shrink();
+                  }
                   final bool videoOn = sref.watch(homeVideoEnabledProvider);
                   final double blur = sref.watch(homeVideoBlurProvider);
                   return Column(
@@ -459,6 +608,65 @@ class _HomeTopBar extends StatelessWidget {
     if (h >= 14 && h < 18) return '下午好，听点什么？';
     if (h >= 18 && h < 23) return '晚上好，听点什么？';
     return '夜深了，听点什么？';
+  }
+}
+
+/// 壁纸「效果」滑杆（主页场景浮窗内，仅壁纸主题可见）。
+class _EffectSlider extends StatelessWidget {
+  const _EffectSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.divisions,
+    required this.fmt,
+    required this.onChanged,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final int divisions;
+  final String Function(double) fmt;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpace.md,
+        0,
+        AppSpace.md,
+        AppSpace.sm,
+      ),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 92,
+            child: Text(label, style: context.appText.caption),
+          ),
+          Expanded(
+            child: Slider(
+              min: min,
+              max: max,
+              divisions: divisions,
+              value: value,
+              label: fmt(value),
+              onChanged: onChanged,
+            ),
+          ),
+          SizedBox(
+            width: 40,
+            child: Text(
+              fmt(value),
+              style: context.appText.caption,
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -29,21 +29,8 @@ import '../../providers/audio/visualizer_providers.dart';
 import '../../providers/home/player_theme_provider.dart';
 import '../../services/wallpaper/local_wallpaper_server.dart';
 
-/// 壁纸效果默认值（可被同目录的 `effects.json` 覆盖）。键名对应 Wallpaper
-/// Engine 的 `project.json` 属性；加载后经 `wallpaperPropertyListener
-/// .applyUserProperties` 注入。改效果 = 改这个 map 或编辑 effects.json。
-const Map<String, dynamic> _kDefaultWallpaperEffects = <String, dynamic>{
-  'audioIntensity': 1.2,
-  'theme': 'nocturnal',
-  'gridSize': 160,
-  'meteorEnabled': true,
-  'meteorSensitivity': 0.35,
-  'rippleEnabled': true,
-  'rippleSensitivity': 0.2,
-  'idleWaveEnabled': true,
-  'autoRotateEnabled': false,
-  'showPlayerController': false,
-};
+/// 壁纸效果默认值来自 [kDefaultWallpaperEffects]（定义在 player_theme_provider，
+/// 与 App 内「效果」滑杆共享同一张表）。加载时用同目录 `effects.json` 覆盖。
 
 /// 主页最底层背景：Steam 壁纸（WebGL 音频反应），静音、不交互。
 class SteamWallpaperBackground extends ConsumerStatefulWidget {
@@ -82,6 +69,13 @@ class _SteamWallpaperBackgroundState
         if (mounted) _pushTrack(t);
       },
     );
+    // 壁纸「效果配置」实时表：滑杆改动即时注入，无需重载页面
+    ref.listen<Map<String, dynamic>>(
+      wallpaperEffectsProvider,
+      (_, Map<String, dynamic> next) {
+        if (mounted) _applyEffects(next);
+      },
+    );
     _start();
   }
 
@@ -115,7 +109,7 @@ class _SteamWallpaperBackgroundState
   /// rootBundle，本机目录走文件）的覆盖；始终强制隐藏壁纸自带播放器面板。
   Future<Map<String, dynamic>> _loadEffects() async {
     final Map<String, dynamic> merged =
-        <String, dynamic>{..._kDefaultWallpaperEffects};
+        <String, dynamic>{...kDefaultWallpaperEffects};
     try {
       String? raw;
       if (widget.wallpaper.bundled) {
@@ -151,6 +145,20 @@ class _SteamWallpaperBackgroundState
         "window.__mediaState.isPlaying=true,"
         "window.__notifyMediaChange && window.__notifyMediaChange())";
     c.evaluateJavascript(source: js).catchError((_) {});
+  }
+
+  /// 把效果配置实时注入壁纸（Wallpaper Engine `applyUserProperties`）。
+  /// 滑杆改动、主题切换加载完成时都会调用；页面无需重载。
+  Future<void> _applyEffects(Map<String, dynamic> effects) async {
+    final InAppWebViewController? c = _ctrl;
+    if (c == null) return;
+    await c
+        .evaluateJavascript(
+          source: 'window.wallpaperPropertyListener && '
+              'window.wallpaperPropertyListener'
+              '.applyUserProperties(${jsonEncode(effects)})',
+        )
+        .catchError((_) {});
   }
 
   /// 把 [src]（长度 m）线性上采样到长度 [n]（保留低重高衰的形态）。
@@ -198,15 +206,11 @@ class _SteamWallpaperBackgroundState
       onWebViewCreated: (InAppWebViewController c) => _ctrl = c,
       onLoadStop: (InAppWebViewController c, Uri? uri) async {
         _ctrl = c;
-        // 注入效果配置（effects.json 覆盖默认值，并强制隐藏壁纸自带播放器）
+        // 加载效果配置（effects.json 覆盖默认值，并强制隐藏壁纸自带播放器），
+        // 同步到全局效果表（让 App 内滑杆显示当前壁纸的真实初始值），再注入。
         final Map<String, dynamic> effects = await _loadEffects();
-        await c
-            .evaluateJavascript(
-              source: 'window.wallpaperPropertyListener && '
-                  'window.wallpaperPropertyListener'
-                  '.applyUserProperties(${jsonEncode(effects)})',
-            )
-            .catchError((_) {});
+        ref.read(wallpaperEffectsProvider.notifier).state = effects;
+        await _applyEffects(effects);
         _pushTrack(ref.read(nowPlayingProvider));
       },
     );

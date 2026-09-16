@@ -55,6 +55,32 @@ class ImportedWallpaper {
 final StateProvider<String> playerThemeProvider =
     StateProvider<String>((Ref<String> ref) => 'builtin');
 
+/// 壁纸效果默认值（可被同目录的 `effects.json` 覆盖）。键名对应 Wallpaper
+/// Engine 的 `project.json` 属性；加载后经 `wallpaperPropertyListener
+/// .applyUserProperties` 注入。App 内「效果」滑杆也读写这张表（与壁纸背景
+/// 共用，保证初始值一致）。
+const Map<String, dynamic> kDefaultWallpaperEffects = <String, dynamic>{
+  'audioIntensity': 1.2,
+  'theme': 'nocturnal',
+  'gridSize': 160,
+  'meteorEnabled': true,
+  'meteorSensitivity': 0.35,
+  'rippleEnabled': true,
+  'rippleSensitivity': 0.2,
+  'idleWaveEnabled': true,
+  'autoRotateEnabled': false,
+  'showPlayerController': false,
+};
+
+/// 当前壁纸主题的「效果配置」实时表。App 内「效果」滑杆读写它；壁纸加载时
+/// 会用 `effects.json`/默认值覆盖（同步滑杆初始值），之后滑杆改动即时经
+/// `applyUserProperties` 注入壁纸，无需重载页面。
+final StateProvider<Map<String, dynamic>> wallpaperEffectsProvider =
+    StateProvider<Map<String, dynamic>>(
+  (Ref<Map<String, dynamic>> ref) =>
+      Map<String, dynamic>.from(kDefaultWallpaperEffects),
+);
+
 /// 随包内置的 Steam 壁纸（手机等无 Steam 路径的平台也能用）。
 /// 资源目录已声明在 pubspec 的 `flutter.assets` 下。
 const List<ImportedWallpaper> bundleWallpapers = <ImportedWallpaper>[
